@@ -1,0 +1,9 @@
+This directory holds a couple of simple scripts to retrieve AWS data and store
+the files in the current directory.
+
+Boto3 expects you to have configured authentication either via the AWS_PROFILE
+environment variable or the AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY
+environment variables.
+
+Pulling the cost usage data requires you to have access to an AWS account with
+the Cost Usage Report configured.
