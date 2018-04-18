@@ -5,8 +5,7 @@ python:
 cache: pip
 
 install:
-    - pip install pipenv
-    - pipenv install -d --system
+    - pip install tox
 
 script:
-    - pipenv run pylint ./saltcellar
+    - tox
