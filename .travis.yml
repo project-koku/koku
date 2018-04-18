@@ -9,5 +9,4 @@ install:
     - pipenv install
 
 script:
-    - pipenv shell
-    - pylint ./saltcellar
+    - pipenv run pylint ./saltcellar
