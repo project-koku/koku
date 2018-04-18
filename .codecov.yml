@@ -6,12 +6,10 @@ codecov:
 coverage:
   precision: 1
   round: nearest
-  range: "80...100"
+  range: "90...100"
 
   status:
     project: yes
-      default:
-        target: 90
     patch: yes
     changes: no
 
