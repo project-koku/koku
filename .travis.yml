@@ -5,6 +5,7 @@ python:
 cache: pip
 
 install:
+    - pip install pipenv
     - pipenv install
 
 script:
