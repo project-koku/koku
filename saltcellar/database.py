@@ -1,8 +1,10 @@
+''' django database settings '''
 import os
 
 from django.conf import settings
 
 
+# pylint: disable=invalid-name
 engines = {
     'sqlite': 'django.db.backends.sqlite3',
     'postgresql': 'django.db.backends.postgresql_psycopg2',
@@ -11,6 +13,7 @@ engines = {
 
 
 def config():
+    ''' database config '''
     service_name = os.getenv('DATABASE_SERVICE_NAME', '').upper().replace('-', '_')
     if service_name:
         engine = engines.get(os.getenv('DATABASE_ENGINE'), engines['sqlite'])
