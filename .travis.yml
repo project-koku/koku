@@ -5,7 +5,8 @@ python:
 cache: pip
 
 install:
-    - pip install -r requirements.txt
+    - pip install pipenv
+    - pipenv install -d --system
 
 script:
-    - pylint ./saltcellar
+    - pipenv run pylint ./saltcellar
