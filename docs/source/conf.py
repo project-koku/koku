@@ -14,7 +14,14 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../saltcellar'))
+
+import django
+
+sys.path.insert(0, os.path.abspath('../..'))
+
+# Ensure django is set up
+os.environ['DJANGO_SETTINGS_MODULE'] = 'saltcellar.settings'
+django.setup()
 
 # -- Project information -----------------------------------------------------
 
