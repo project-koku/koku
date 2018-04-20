@@ -3,9 +3,6 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= saltcellar
 
-clean:
-	git clean -fdx -e .idea/ -e *env/
-
 help:
 	@echo "Please use \`make <target>' where <target> is one of:"
 	@echo "  clean                    to clean the project directory of any scratch files, bytecode, logs, etc."
@@ -20,6 +17,9 @@ help:
 	@echo "  unittest                 to run unittests"
 	@echo "  user                     to create a Django super user"
 
+clean:
+	git clean -fdx -e .idea/ -e *env/
+
 html:
 	@cd docs; $(MAKE) html
 
@@ -33,10 +33,10 @@ remove-db:
 
 run-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) manage.py migrate
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
 
 serve:
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) manage.py runserver
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver
 
 start-db:
 	docker-compose up -d db
@@ -45,9 +45,9 @@ stop-compose:
 	docker-compose down
 
 unittest:
-	$(PYTHON) manage.py test
+	$(PYTHON) $(PYDIR)/manage.py test
 
 user:
-	$(PYTHON) manage.py createsuperuser
+	$(PYTHON) $(PYDIR)/manage.py createsuperuser
 
 .PHONY: docs
