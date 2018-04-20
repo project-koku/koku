@@ -4,6 +4,11 @@ branch = True
 omit =
   .tox/*
   *virtualenv/*
+  *manage.py
+  *database.py
+  *settings.py
+  *urls.py
+  *wsgi.py
 
 [paths]
 source = saltcellar
