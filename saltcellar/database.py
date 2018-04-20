@@ -20,7 +20,7 @@ def config():
         engine = engines.get(env.get_value('DATABASE_ENGINE'), engines['sqlite'])
     else:
         engine = engines['sqlite']
-    name = env.get_value('DATABASE_NAME')
+    name = env.get_value('DATABASE_NAME', default=None)
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
     return {

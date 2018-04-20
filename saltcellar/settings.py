@@ -26,7 +26,7 @@ if READ_DOT_ENV_FILE:
     env_file = str(ROOT_DIR.path('.env'))
     print('Loading : {}'.format(env_file))
     env.read_env(env_file)
-print('The .env file has been loaded.')
+    print('The .env file has been loaded.')
 
 
 # Database
