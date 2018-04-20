@@ -1,4 +1,5 @@
-# SaltCellar
+Contributing to SaltCellar
+==========================
 
 Thank you for your interest in contributing to this project!
 
@@ -6,53 +7,54 @@ The following are a set of guidelines for contributing to SaltCellar. These are
 guidelines, not rules. Use your best judgement. Feel free to suggest changes to
 this document in a pull-request.
 
-This document uses [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt) keywords to
-indicate requirement levels.
+This document uses `RFC 2119 <https://www.ietf.org/rfc/rfc2119.txt/>`_ keywords to indicate requirement levels.
 
-## Reporting Bugs & Requesting Features
+Reporting Bugs & Requesting Features
+------------------------------------
 
 We use Github Issues to track bug reports and feature requests.
 
 When submitting a bug report, please be as detailed as possible. Include as
 much of these items as you have:
 
-1. steps to reproduce the bug
-1. error messages with stacktraces
-1. logs
-1. any relevant configuration settings
-1. environment details
+  #. steps to reproduce the bug
+  #. error messages with stacktraces
+  #. logs
+  #. any relevant configuration settings
+  #. environment details
 
 When submitting a feature request, please submit them in the form of a user
 story with acceptance criteria:
 
-```
-    As a [user],
-    I want [a thing],
-    So that [some goal].
+  As a [user],
+  I want [a thing],
+  So that [some goal].
 
-    When complete, I will be able to:
-    1. [do this]
-    2. [do that]
-    3. [do another]
-```
+  When complete, I will be able to:
 
-## Contributing Code (Pull Requests)
+  #. [do this]
+  #. [do that]
+  #. [do another]
+
+Contributing Code (Pull Requests)
+---------------------------------
 
 All code contributions MUST come in the form of a pull-request. Pull-requests
 will be reviewed for a variety of criteria. This section attempts to capture as
 much of that criteria as possible.
 
-###  Readability and Style considerations
+Readability and Style considerations
+------------------------------------
 
 In general, we believe that code is read just as much as it is executed. So,
 writing readable code is just as important as writing functional code.
 
-Pull-requests MUST follow Python style conventions (e.g. [PEP
-8](https://www.python.org/dev/peps/pep-0008/) and [PEP
-20](https://www.python.org/dev/peps/pep-0020/)) and
+Pull-requests MUST follow Python style conventions (e.g. `PEP
+8 <https://www.python.org/dev/peps/pep-0008 />`_ and `PEP
+20 <https://www.python.org/dev/peps/pep-0020 />`_ and
 conform to generally recognized best practices. Pull-requests MAY also choose
-to conform to additional style guidelines, e.g. [Google's Python Style
-Guide](https://google.github.io/styleguide/pyguide.html).
+to conform to additional style guidelines, e.g. `Google's Python Style
+Guide <https://google.github.io/styleguide/pyguide.html />`_.
 
 We do use automation whenever possible to ensure a basic level of
 acceptability. Pull-requests MUST pass a linter (pylint or flake8) without
@@ -68,7 +70,8 @@ that particular check was disabled and it MUST be scoped as narrowly as
 possible. i.e. Don't disable linting on an entire class or method
 when disabling the check for a single statement will do.
 
-###  Code testing considerations
+Code testing considerations
+---------------------------
 
 We believe that well-tested code is a critical component to every successful
 project. For this reason, all pull-requests MUST include unit test cases and

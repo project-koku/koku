@@ -10,6 +10,10 @@ Welcome to SaltCellar's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   README
+   CONTRIBUTING
+   modules
+
 Indices and tables
 ==================
 
