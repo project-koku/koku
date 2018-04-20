@@ -15,6 +15,8 @@ help:
 	@echo "  reinitdb                 to drop and recreate the database"
 	@echo "  run-migrations           to run migrations against database"
 	@echo "  serve                    to run the Django server locally"
+	@echo "  start-db                 to start the psql db in detached state"
+	@echo "  stop-compose             to stop all containers"
 	@echo "  unittest                 to run unittests"
 	@echo "  user                     to create a Django super user"
 
@@ -24,17 +26,23 @@ html:
 lint:
 	tox -eflake8
 
-reinitdb: remove-db run-migrations
+reinitdb: stop-compose remove-db start-db run-migrations
 
 remove-db:
-	rm -rf $(TOPDIR)/db.sqlite3
+	rm -rf $(TOPDIR)/pg_data
 
 run-migrations:
 	sleep 1
-	$(PYTHON) manage.py migrate
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) manage.py migrate
 
 serve:
-	$(PYTHON) manage.py runserver
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) manage.py runserver
+
+start-db:
+	docker-compose up -d db
+
+stop-compose:
+	docker-compose down
 
 unittest:
 	$(PYTHON) manage.py test

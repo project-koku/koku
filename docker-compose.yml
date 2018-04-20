@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  db:
+    image: centos/postgresql-96-centos7
+    environment:
+    - POSTGRESQL_DATABASE=postgres
+    - POSTGRESQL_USER=postgres
+    - POSTGRESQL_PASSWORD=postgres
+    - POSTGRESQL_ADMIN_PASSWORD=postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - ./pg_data:/var/lib/pgsql/data

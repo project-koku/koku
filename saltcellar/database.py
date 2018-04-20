@@ -3,6 +3,7 @@ import os
 
 from django.conf import settings
 
+from .settings import env
 
 # pylint: disable=invalid-name
 engines = {
@@ -14,19 +15,19 @@ engines = {
 
 def config():
     ''' database config '''
-    service_name = os.getenv('DATABASE_SERVICE_NAME', '').upper().replace('-', '_')
+    service_name = env.get_value('DATABASE_SERVICE_NAME', default='').upper().replace('-', '_')
     if service_name:
-        engine = engines.get(os.getenv('DATABASE_ENGINE'), engines['sqlite'])
+        engine = engines.get(env.get_value('DATABASE_ENGINE'), engines['sqlite'])
     else:
         engine = engines['sqlite']
-    name = os.getenv('DATABASE_NAME')
+    name = env.get_value('DATABASE_NAME', default=None)
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
     return {
         'ENGINE': engine,
         'NAME': name,
-        'USER': os.getenv('DATABASE_USER'),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD'),
-        'HOST': os.getenv('{}_SERVICE_HOST'.format(service_name)),
-        'PORT': os.getenv('{}_SERVICE_PORT'.format(service_name)),
+        'USER': env.get_value('DATABASE_USER'),
+        'PASSWORD': env.get_value('DATABASE_PASSWORD'),
+        'HOST': env.get_value('{}_SERVICE_HOST'.format(service_name)),
+        'PORT': env.get_value('{}_SERVICE_PORT'.format(service_name)),
     }
