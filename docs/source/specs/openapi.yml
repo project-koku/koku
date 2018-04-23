@@ -18,7 +18,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Status"
-        default:
+        '500':
           description: unexpected error
           content:
             application/json:
