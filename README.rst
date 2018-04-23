@@ -19,7 +19,8 @@ Getting Started
 This is a Python project developed using Python 3.6. Make sure you have at least this version installed.
 
 Development
-------------
+===========
+
 To get started developing against SaltCellar first clone a local copy of the git repository. ::
 
     git clone https://github.com/SaltCellar/SaltCellar
@@ -37,7 +38,7 @@ To activate the virtual environment run ::
     pipenv shell
 
 Configuration
-~~~~~~~~~~~~~
+-------------
 
 This project is developed using the Django web framework. Many configuration settings can be read in from a `.env` file. An example file `.env.example` is provided in the repository. To use the defaults simply ::
 
@@ -47,7 +48,7 @@ This project is developed using the Django web framework. Many configuration set
 Modify as you see fit.
 
 Database
-~~~~~~~~
+--------
 
 PostgreSQL is used as the database backend for SaltCellar. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
 
@@ -66,14 +67,14 @@ Assuming the default .env file values are used, to access the database directly 
 
 
 Server
-~~~~~~
+------
 
 To run a local dev Django server you can use ::
 
     make serve
 
 Testing and Linting
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 SaltCellar uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environement run ::
 
