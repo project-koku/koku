@@ -28,8 +28,8 @@ def config():
     return {
         'ENGINE': engine,
         'NAME': name,
-        'USER': ENVIRONMENT.get_value('DATABASE_USER'),
-        'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD'),
+        'USER': ENVIRONMENT.get_value('DATABASE_USER', default=None),
+        'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD', default=None),
         'HOST': ENVIRONMENT.get_value('{}_SERVICE_HOST'.format(service_name)),
         'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name)),
     }
