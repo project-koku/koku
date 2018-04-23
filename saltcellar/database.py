@@ -1,9 +1,9 @@
-''' django database settings '''
+"""Django database settings."""
 import os
 
 from django.conf import settings
 
-from .settings import env
+from .env import ENVIRONMENT
 
 # pylint: disable=invalid-name
 engines = {
@@ -14,20 +14,22 @@ engines = {
 
 
 def config():
-    ''' database config '''
-    service_name = env.get_value('DATABASE_SERVICE_NAME', default='').upper().replace('-', '_')
+    """Database config."""
+    service_name = ENVIRONMENT.get_value('DATABASE_SERVICE_NAME',
+                                         default='').upper().replace('-', '_')
     if service_name:
-        engine = engines.get(env.get_value('DATABASE_ENGINE'), engines['sqlite'])
+        engine = engines.get(ENVIRONMENT.get_value('DATABASE_ENGINE'),
+                             engines['sqlite'])
     else:
         engine = engines['sqlite']
-    name = env.get_value('DATABASE_NAME', default=None)
+    name = ENVIRONMENT.get_value('DATABASE_NAME', default=None)
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
     return {
         'ENGINE': engine,
         'NAME': name,
-        'USER': env.get_value('DATABASE_USER'),
-        'PASSWORD': env.get_value('DATABASE_PASSWORD'),
-        'HOST': env.get_value('{}_SERVICE_HOST'.format(service_name)),
-        'PORT': env.get_value('{}_SERVICE_PORT'.format(service_name)),
+        'USER': ENVIRONMENT.get_value('DATABASE_USER'),
+        'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD'),
+        'HOST': ENVIRONMENT.get_value('{}_SERVICE_HOST'.format(service_name)),
+        'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name)),
     }

@@ -24,7 +24,7 @@ html:
 	@cd docs; $(MAKE) html
 
 lint:
-	tox -eflake8
+	tox -elint
 
 reinitdb: stop-compose remove-db start-db run-migrations
 
