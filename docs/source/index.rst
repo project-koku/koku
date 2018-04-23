@@ -12,6 +12,7 @@ Welcome to SaltCellar's documentation!
 
    README
    CONTRIBUTING
+   api
    modules
 
 Indices and tables

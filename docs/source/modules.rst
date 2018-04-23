@@ -1,5 +1,5 @@
-saltcellar module index
-=======================
+SaltCellar Modules
+==================
 
 .. toctree::
    :maxdepth: 4
