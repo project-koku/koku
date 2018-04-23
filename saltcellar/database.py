@@ -30,6 +30,8 @@ def config():
         'NAME': name,
         'USER': ENVIRONMENT.get_value('DATABASE_USER', default=None),
         'PASSWORD': ENVIRONMENT.get_value('DATABASE_PASSWORD', default=None),
-        'HOST': ENVIRONMENT.get_value('{}_SERVICE_HOST'.format(service_name)),
-        'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name)),
+        'HOST': ENVIRONMENT.get_value('{}_SERVICE_HOST'.format(service_name),
+                                      default=None),
+        'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name),
+                                      default=None),
     }
