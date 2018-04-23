@@ -3,6 +3,17 @@ PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= saltcellar
 
+OC_SOURCE	= registry.access.redhat.com/openshift3/ose
+OC_VERSION	= v3.7
+OC_DATA_DIR	= ${HOME}/.oc/openshift.local.data
+
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+	PREFIX	=
+else
+	PREFIX	= sudo
+endif
+
 help:
 	@echo "Please use \`make <target>' where <target> is one of:"
 	@echo "  clean                    to clean the project directory of any scratch files, bytecode, logs, etc."
@@ -45,9 +56,23 @@ stop-compose:
 	docker-compose down
 
 unittest:
-	$(PYTHON) $(PYDIR)/manage.py test
+	$(PYTHON) $(PYDIR)/manage.py test $(PYDIR)
 
 user:
 	$(PYTHON) $(PYDIR)/manage.py createsuperuser
+
+oc-up:
+	oc cluster up \
+		--image=$(OC_SOURCE) \
+		--version=$(OC_VERSION) \
+		--host-data-dir=$(OC_DATA_DIR) \
+		--use-existing-config=true
+	./init-app.sh
+
+oc-down:
+	oc cluster down
+
+oc-clean: oc-down
+	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
 .PHONY: docs
