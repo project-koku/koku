@@ -1,0 +1,84 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: SaltCellar
+  license:
+    name: AGPL-3.0
+paths:
+  /api/v1/status/:
+    get:
+      summary: Obtain server status
+      operationId: getStatus
+      tags:
+        - Status
+      responses:
+        '200':
+          description: An object describing the server status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Status:
+      required:
+        - api_version
+        - name
+      properties:
+        api_version:
+          type: integer
+          format: int64
+          example: 1
+        build:
+          type: string
+          example: "178d2ea"
+        server_address:
+          type: string
+          example: "127.0.0.1:8000"
+        platform:
+          type: object
+          example: {
+            "system": "Darwin",
+            "node": "node-1.example.com",
+            "release": "17.5.0",
+            "version": "Darwin Kernel Version 17.5.0",
+            "machine": "x86_64",
+            "processor": "i386"
+            }
+        python:
+          type: string
+          example: "3.6.1"
+        modules:
+          type: object
+          example: {
+            "coverage": "4.5.1",
+            "coverage.version": "4.5.1",
+            "coverage.xmlreport": "4.5.1",
+            "cryptography": "2.0.3",
+            "ctypes": "1.1.0",
+            "ctypes.macholib": "1.0",
+            "decimal": "1.70",
+            "django": "1.11.5",
+            "django.utils.six": "1.10.0",
+            "django_filters": "1.0.4",
+            "http.server": "0.6",
+          }
+        server_id:
+          type: string
+          example: "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
