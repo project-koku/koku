@@ -42,7 +42,7 @@ Configuration
 
 This project is developed using the Django web framework. Many configuration settings can be read in from a `.env` file. An example file `.env.example` is provided in the repository. To use the defaults simply ::
 
-    mv .env.example .env
+    cp .env.example .env
 
 
 Modify as you see fit.
@@ -65,6 +65,9 @@ Assuming the default .env file values are used, to access the database directly 
 
     psql saltcellar -U saltcellar -h localhost -p 15432
 
+There is a known limitation with docker-compose and Linux environments with SELinux enabled. If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
+
+    make run-migrations
 
 Server
 ------
@@ -99,6 +102,7 @@ Please refer to contributing.rst_.
 
 
 .. _readthedocs: http://saltcellar.readthedocs.io/en/latest/
+.. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
 .. _contributing.rst: https://github.com/SaltCellar/SaltCellar/blob/master/CONTRIBUTING.rst
 
 .. |license| image:: https://img.shields.io/github/license/SaltCellar/SaltCellar.svg
