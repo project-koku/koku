@@ -1,5 +1,5 @@
-boto3==1.7.5
-botocore==1.10.5
+boto3==1.7.6
+botocore==1.10.6
 django-environ==0.4.4
 django==2.0.4
 djangorestframework==3.8.2
@@ -7,7 +7,7 @@ docutils==0.14
 gunicorn==19.7.1
 jmespath==0.9.3
 psycopg2==2.7.4
-python-dateutil==2.6.1
+python-dateutil==2.7.2
 pytz==2018.4
 s3transfer==0.1.13
 six==1.11.0
