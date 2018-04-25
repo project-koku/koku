@@ -1,0 +1,4 @@
+ENABLE_PIPENV=true
+APP_MODULE=saltcellar
+APP_CONFIG=saltcellar/gunicorn.py
+APP_HOME="${APP_ROOT}/src/saltcellar"
