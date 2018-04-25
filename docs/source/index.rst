@@ -14,6 +14,7 @@ Welcome to SaltCellar's documentation!
    CONTRIBUTING
    api
    modules
+   openshift
 
 Indices and tables
 ==================
