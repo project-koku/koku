@@ -36,6 +36,5 @@ from django.urls import path
 # pylint: disable=invalid-name
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^api/v1/', include('api.urls')),
     url(r'^api-auth/', include('rest_framework.urls'))
 ]

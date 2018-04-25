@@ -13,4 +13,4 @@ fi
 
 # TODO: add intelligence or user-prompt for git tag or somesuch
 oc new-app --file=openshift/saltcellar-template.yaml \
-           --code=https://github.com/SaltCellar/SaltCellar.git#36-status-endpoint
+           --code=https://github.com/SaltCellar/SaltCellar.git

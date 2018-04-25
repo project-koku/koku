@@ -27,6 +27,9 @@ help:
 	@echo "  stop-compose             to stop all containers"
 	@echo "  unittest                 to run unittests"
 	@echo "  user                     to create a Django super user"
+	@echo "  oc-up                    run app in openshift cluster"
+	@echo "  oc-down                  stop app & openshift cluster"
+	@echo "  oc-clean                 stop openshift cluster & remove local config data"
 
 clean:
 	git clean -fdx -e .idea/ -e *env/
