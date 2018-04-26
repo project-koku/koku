@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """
-WSGI config for saltcellar project.
+WSGI config for koku project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -27,7 +27,7 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "saltcellar.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 # pylint: disable=invalid-name
 application = get_wsgi_application()

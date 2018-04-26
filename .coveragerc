@@ -11,7 +11,7 @@ omit =
   *wsgi.py
 
 [paths]
-source = saltcellar
+source = koku
 
 [report]
 # Regexes for lines to exclude from consideration

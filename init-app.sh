@@ -12,5 +12,5 @@ if [ $OUT != 1 ]; then
 fi
 
 # TODO: add intelligence or user-prompt for git tag or somesuch
-oc new-app --file=openshift/saltcellar-template.yaml \
-           --code=https://github.com/SaltCellar/SaltCellar.git
+oc new-app --file=openshift/koku-template.yaml \
+           --code=https://github.com/project-koku/koku.git

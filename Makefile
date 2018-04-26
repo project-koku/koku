@@ -1,7 +1,7 @@
 PYTHON	= $(shell which python)
 
 TOPDIR  = $(shell pwd)
-PYDIR	= saltcellar
+PYDIR	= koku
 
 OC_SOURCE	= registry.access.redhat.com/openshift3/ose
 OC_VERSION	= v3.7

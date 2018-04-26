@@ -1,5 +1,5 @@
 ===========
-SaltCellar
+Koku
 ===========
 
 |license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
@@ -8,7 +8,7 @@ SaltCellar
 About
 ~~~~~
 
-SaltCellar's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
 Full documentation is available through readthedocs_.
 
@@ -21,9 +21,9 @@ This is a Python project developed using Python 3.6. Make sure you have at least
 Development
 ===========
 
-To get started developing against SaltCellar first clone a local copy of the git repository. ::
+To get started developing against Koku first clone a local copy of the git repository. ::
 
-    git clone https://github.com/SaltCellar/SaltCellar
+    git clone https://github.com/project-koku/koku
 
 Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
@@ -50,7 +50,7 @@ Modify as you see fit.
 Database
 --------
 
-PostgreSQL is used as the database backend for SaltCellar. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
+PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
 
     # This will launch a Postgres container
     make start-db
@@ -63,7 +63,7 @@ PostgreSQL is used as the database backend for SaltCellar. A docker-compose file
 
 Assuming the default .env file values are used, to access the database directly using psql run ::
 
-    psql saltcellar -U saltcellar -h localhost -p 15432
+    psql koku -U koku -h localhost -p 15432
 
 There is a known limitation with docker-compose and Linux environments with SELinux enabled. If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
 
@@ -79,7 +79,7 @@ To run a local dev Django server you can use ::
 Testing and Linting
 -------------------
 
-SaltCellar uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environement run ::
+Koku uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environement run ::
 
     tox -r
 
@@ -101,19 +101,19 @@ Please refer to contributing.rst_.
 
 
 
-.. _readthedocs: http://saltcellar.readthedocs.io/en/latest/
+.. _readthedocs: http://koku.readthedocs.io/en/latest/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
-.. _contributing.rst: https://github.com/SaltCellar/SaltCellar/blob/master/CONTRIBUTING.rst
+.. _contributing.rst: https://github.com/project-koku/koku/blob/master/CONTRIBUTING.rst
 
-.. |license| image:: https://img.shields.io/github/license/SaltCellar/SaltCellar.svg
-   :target: https://github.com/SaltCellar/SaltCellar/blob/master/LICENSE
-.. |Build Status| image:: https://travis-ci.org/SaltCellar/SaltCellar.svg?branch=master
-   :target: https://travis-ci.org/SaltCellar/SaltCellar
-.. |codecov| image:: https://codecov.io/gh/SaltCellar/SaltCellar/branch/master/graph/badge.svg
-   :target: https://codecov.io/gh/SaltCellar/SaltCellar
-.. |Updates| image:: https://pyup.io/repos/github/SaltCellar/SaltCellar/shield.svg?t=1524249231720
-   :target: https://pyup.io/repos/github/SaltCellar/SaltCellar/
-.. |Python 3| image:: https://pyup.io/repos/github/SaltCellar/SaltCellar/python-3-shield.svg?t=1524249231720
-   :target: https://pyup.io/repos/github/SaltCellar/SaltCellar/
-.. |Docs| image:: https://readthedocs.org/projects/saltcellar/badge/
-   :target: https://saltcellar.readthedocs.io/en/latest/
+.. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
+   :target: https://github.com/project-koku/koku/blob/master/LICENSE
+.. |Build Status| image:: https://travis-ci.org/project-koku/koku.svg?branch=master
+   :target: https://travis-ci.org/project-koku/koku
+.. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/project-koku/koku
+.. |Updates| image:: https://pyup.io/repos/github/project-koku/koku/shield.svg?t=1524249231720
+   :target: https://pyup.io/repos/github/project-koku/koku/
+.. |Python 3| image:: https://pyup.io/repos/github/project-koku/koku/python-3-shield.svg?t=1524249231720
+   :target: https://pyup.io/repos/github/project-koku/koku/
+.. |Docs| image:: https://readthedocs.org/projects/koku/badge/
+   :target: https://koku.readthedocs.io/en/latest/
