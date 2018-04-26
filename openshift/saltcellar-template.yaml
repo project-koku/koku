@@ -2,15 +2,15 @@ apiVersion: v1
 kind: Template
 metadata:
   creationTimestamp: null
-  name: saltcellar-template
+  name: koku-template
 objects:
 - apiVersion: v1
   kind: Secret
   metadata:
     labels:
-      app: saltcellar
-      template: saltcellar-template
-    name: saltcellar
+      app: koku
+      template: koku-template
+    name: koku
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
@@ -22,8 +22,8 @@ objects:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
     labels:
-      app: saltcellar
-      template: saltcellar-template
+      app: koku
+      template: koku-template
     name: ${NAME}
   spec:
     output:
@@ -58,9 +58,9 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      app: saltcellar
-      template: saltcellar-template
-    name: saltcellar
+      app: koku
+      template: koku-template
+    name: koku
   spec:
     lookupPolicy:
       local: false
@@ -73,9 +73,9 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      app: saltcellar
-      template: saltcellar-template
-    name: saltcellar
+      app: koku
+      template: koku-template
+    name: koku
   spec:
     replicas: 1
     revisionHistoryLimit: 10
@@ -93,7 +93,7 @@ objects:
     template:
       metadata:
         labels:
-          deploymentconfig: saltcellar
+          deploymentconfig: koku
       spec:
         containers:
         - env:
@@ -104,19 +104,19 @@ objects:
           - name: DATABASE_NAME
             value: ${DATABASE_NAME}
           - name: POSTGRES_SQL_SERVICE_HOST
-            value: saltcellar-pgsql
+            value: koku-pgsql
           - name: POSTGRES_SQL_SERVICE_PORT
             value: "5432"
           - name: DATABASE_USER
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: saltcellar
+                name: koku
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: saltcellar
+                name: koku
           image: ${NAME}:latest
           imagePullPolicy: Always
           livenessProbe:
@@ -163,14 +163,14 @@ objects:
       template.alpha.openshift.io/wait-for-ready: "true"
     generation: 1
     labels:
-      app: saltcellar
-      template: saltcellar-template
-    name: saltcellar-pgsql
+      app: koku
+      template: koku-template
+    name: koku-pgsql
   spec:
     replicas: 1
     revisionHistoryLimit: 10
     selector:
-      name: saltcellar-pgsql
+      name: koku-pgsql
     strategy:
       activeDeadlineSeconds: 21600
       recreateParams:
@@ -179,10 +179,10 @@ objects:
     template:
       metadata:
         labels:
-          app: saltcellar
-          name: saltcellar-pgsql
-          template: saltcellar-template
-        name: saltcellar-pgsql
+          app: koku
+          name: koku-pgsql
+          template: koku-template
+        name: koku-pgsql
       spec:
         containers:
         - env:
@@ -190,12 +190,12 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: saltcellar
+                name: koku
           - name: POSTGRESQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: saltcellar
+                name: koku
           - name: POSTGRESQL_DATABASE
             value: default
           image: postgresql:9.6
@@ -210,7 +210,7 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 10
-          name: saltcellar-pgsql
+          name: koku-pgsql
           ports:
           - containerPort: "5432"
             protocol: TCP
@@ -230,21 +230,21 @@ objects:
           terminationMessagePolicy: File
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
-            name: saltcellar-pgsql-data
+            name: koku-pgsql-data
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
         terminationGracePeriodSeconds: 30
         volumes:
-        - name: saltcellar-pgsql-data
+        - name: koku-pgsql-data
           persistentVolumeClaim:
-            claimName: saltcellar-pgsql
+            claimName: koku-pgsql
     test: false
     triggers:
     - imageChangeParams:
         automatic: true
         containerNames:
-        - saltcellar-pgsql
+        - koku-pgsql
         from:
           kind: ImageStreamTag
           name: postgresql:9.6
@@ -262,8 +262,8 @@ objects:
   kind: Route
   metadata:
     labels:
-      app: saltcellar
-      template: saltcellar-template
+      app: koku
+      template: koku-template
     name: ${NAME}
   spec:
     host: ${APPLICATION_DOMAIN}
@@ -278,7 +278,7 @@ objects:
       description: Exposes and load balances the application pods
       service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
         "kind": "Service"}]'
-    name: saltcellar
+    name: koku
   spec:
     ports:
     - name: 8080-tcp
@@ -307,12 +307,12 @@ objects:
     annotations:
       description: Exposes the database server
     labels:
-      app: saltcellar
-      template: saltcellar-template
-    name: saltcellar-pgsql
+      app: koku
+      template: koku-template
+    name: koku-pgsql
   spec:
     ports:
-    - name: saltcellar-pgsql
+    - name: koku-pgsql
       port: 5432
       protocol: TCP
       targetPort: 5432
@@ -323,7 +323,7 @@ parameters:
   displayName: Name
   name: NAME
   required: true
-  value: saltcellar
+  value: koku
 - description: The OpenShift Namespace where the ImageStream resides.
   displayName: Namespace
   name: NAMESPACE
@@ -348,7 +348,7 @@ parameters:
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
   required: true
-  value: https://github.com/SaltCellar/SaltCellar.git
+  value: https://github.com/project-koku/koku.git
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference
@@ -370,7 +370,7 @@ parameters:
 - displayName: Database Service Name
   name: DATABASE_SERVICE_NAME
   required: true
-  value: saltcellar-pgsql
+  value: koku-pgsql
 - description: 'Database engine: postgresql, mysql or sqlite (default).'
   displayName: Database Engine
   name: DATABASE_ENGINE

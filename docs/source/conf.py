@@ -17,15 +17,15 @@ import sys
 
 import django
 
-sys.path.insert(0, os.path.abspath('../../saltcellar/'))
+sys.path.insert(0, os.path.abspath('../../koku/'))
 
 # Ensure django is set up
-os.environ['DJANGO_SETTINGS_MODULE'] = 'saltcellar.settings'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'koku.settings'
 django.setup()
 
 # -- Project information -----------------------------------------------------
 
-project = 'SaltCellar'
+project = 'Koku'
 copyright = '2018, Red Hat, Inc.'
 author = 'Red Hat, Inc.'
 
@@ -116,7 +116,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'SaltCellardoc'
+htmlhelp_basename = 'Kokudoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -143,7 +143,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'SaltCellar.tex', 'SaltCellar Documentation',
+    (master_doc, 'Koku.tex', 'Koku Documentation',
      'Red Hat, Inc.', 'manual'),
 ]
 
@@ -153,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'saltcellar', 'SaltCellar Documentation',
+    (master_doc, 'koku', 'Koku Documentation',
      [author], 1)
 ]
 
@@ -164,8 +164,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'SaltCellar', 'SaltCellar Documentation',
-     author, 'SaltCellar', 'One line description of project.',
+    (master_doc, 'Koku', 'Koku Documentation',
+     author, 'Koku', 'One line description of project.',
      'Miscellaneous'),
 ]
 
