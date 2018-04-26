@@ -1,37 +1,37 @@
-saltcellar package
+koku package
 ==================
 
 Submodules
 ----------
 
-saltcellar.database module
+koku.database module
 --------------------------
 
-.. automodule:: saltcellar.database
+.. automodule:: koku.database
     :members:
     :undoc-members:
     :show-inheritance:
 
-saltcellar.settings module
+koku.settings module
 --------------------------
 
-.. automodule:: saltcellar.settings
+.. automodule:: koku.settings
     :members:
     :undoc-members:
     :show-inheritance:
 
-saltcellar.urls module
+koku.urls module
 ----------------------
 
-.. automodule:: saltcellar.urls
+.. automodule:: koku.urls
     :members:
     :undoc-members:
     :show-inheritance:
 
-saltcellar.wsgi module
+koku.wsgi module
 ----------------------
 
-.. automodule:: saltcellar.wsgi
+.. automodule:: koku.wsgi
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,7 +40,7 @@ saltcellar.wsgi module
 Module contents
 ---------------
 
-.. automodule:: saltcellar
+.. automodule:: koku
     :members:
     :undoc-members:
     :show-inheritance:

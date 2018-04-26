@@ -1,9 +1,9 @@
-Contributing to SaltCellar
+Contributing to Koku
 ==========================
 
 Thank you for your interest in contributing to this project!
 
-The following are a set of guidelines for contributing to SaltCellar. These are
+The following are a set of guidelines for contributing to Koku. These are
 guidelines, not rules. Use your best judgement. Feel free to suggest changes to
 this document in a pull-request.
 
