@@ -2,6 +2,7 @@ PYTHON	= $(shell which python)
 
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
+APIDOC = $(TOPDIR)/apidoc
 
 OC_SOURCE	= registry.access.redhat.com/openshift3/ose
 OC_VERSION	= v3.7
@@ -21,7 +22,10 @@ help:
 	@echo "  html                     to create html documentation for the project"
 	@echo "  lint                     to run linting against the project"
 	@echo "  reinitdb                 to drop and recreate the database"
+	@echo "  make-migrations          to make migrations for the database"
 	@echo "  run-migrations           to run migrations against database"
+	@echo "  gen-apidoc               to create api documentation"
+	@echo "  collect-static           to collect static files to host"
 	@echo "  serve                    to run the Django server locally"
 	@echo "  start-db                 to start the psql db in detached state"
 	@echo "  stop-compose             to stop all containers"
@@ -52,6 +56,13 @@ make-migrations:
 run-migrations:
 	sleep 1
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
+
+gen-apidoc:
+	rm -fr $(PYDIR)/staticfiles/
+	apidoc -i $(PYDIR) -o $(APIDOC)
+
+collect-static:
+	$(PYTHON) $(PYDIR)/manage.py collectstatic --no-input
 
 serve:
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver
