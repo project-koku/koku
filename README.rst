@@ -93,17 +93,20 @@ To lint the code base ::
 
     tox -e lint
 
+Running in OpenShift
+---------------------
+
+Please refer to `Working with Openshift`_.
 
 Contributing
 =============
 
-Please refer to contributing.rst_.
-
-
+Please refer to Contributing_.
 
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
-.. _contributing.rst: https://github.com/project-koku/koku/blob/master/CONTRIBUTING.rst
+.. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
+.. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/master/LICENSE
