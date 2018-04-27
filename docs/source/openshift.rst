@@ -67,3 +67,10 @@ Add `172.30.1.1` to the list of proxies to bypass. This can be found at Docker -
 .. _`OpenShift — Fedora Developer Portal`: https://developer.fedoraproject.org/deployment/openshift/about.html
 .. _`docker-community-edition-17091-ce-mac42-2017-12-11`: https://docs.docker.com/docker-for-mac/release-notes/#docker-community-edition-17091-ce-mac42-2017-12-11
 .. _`Test an insecure registry | Docker Documentation`: https://docs.docker.com/registry/insecure/
+
+Generating the Template
+=======================
+
+To generate a new template from a running configuration, use this command. ::
+
+    oc export all -o yaml --as-template=my-new-template > openshift/my-new-template.yaml
