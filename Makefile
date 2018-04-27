@@ -74,7 +74,7 @@ oc-up:
 		--version=$(OC_VERSION) \
 		--host-data-dir=$(OC_DATA_DIR) \
 		--use-existing-config=true
-	./init-app.sh
+	./init-app.sh -n myproject -b `git branch | awk '{ if (\$$1 ~ /^\*/) { print \$$2 }}'`
 
 oc-down:
 	oc cluster down
