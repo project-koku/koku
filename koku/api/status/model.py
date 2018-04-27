@@ -44,13 +44,12 @@ class Status(models.Model):
         """
         commit_info = os.environ.get('KOKU_COMMIT', None)
         if commit_info is None:
-            try:
-                commit_info = subprocess.check_output(['git',
-                                                       'describe',
-                                                       '--always'])
-                commit_info = commit_info.decode('utf-8').strip()
-            except subprocess.CalledProcessError:
-                pass
+            commit_info = subprocess.run(['git',
+                                          'describe',
+                                          '--always'],
+                                         stdout=subprocess.PIPE)
+            if commit_info.stdout:
+                commit_info = commit_info.stdout.decode('utf-8').strip()
         return commit_info
 
     def get_platform_info(self):  # pylint: disable=R0201
