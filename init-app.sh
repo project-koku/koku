@@ -105,18 +105,19 @@ oc login -u ${OPENSHIFT_USER} https://${OPENSHIFT_HOST}:${OPENSHIFT_PORT}
 oc project ${OPENSHIFT_PROJECT}
 
 # ensure we have imagestreams for our build dependencies.
-OUT=$(oc get -n ${OPENSHIFT_PROJECT} -o yaml is postgresql | grep -c 'tag: "9\.6"')
+OUT=$(oc get -n ${OPENSHIFT_PROJECT} -o yaml is postgresql 2>/dev/null | grep -c 'tag: "9\.6"')
 if [ $OUT != 1 ]; then
     oc create -n ${OPENSHIFT_PROJECT} istag postgresql:9.6 --from-image=centos/postgresql-96-centos7
 fi
 
-OUT=$(oc get -n ${OPENSHIFT_PROJECT} -o yaml is python | grep -c 'tag: "3\.6"')
+OUT=$(oc get -n ${OPENSHIFT_PROJECT} -o yaml is python 2>/dev/null | grep -c 'tag: "3\.6"')
 if [ $OUT != 1 ]; then
     oc create -n ${OPENSHIFT_PROJECT} istag python:3.6 --from-image=centos/python-36-centos7
 fi
 
 # TODO: add intelligence or user-prompt for git tag or somesuch
 oc new-app --file=${OPENSHIFT_TEMPLATE} \
-    --code=${CODE_REPO}#${REPO_BRANCH}
+    --code ${CODE_REPO}#${REPO_BRANCH} \
+    --param NAMESPACE=${OPENSHIFT_PROJECT}
 
 exit 0

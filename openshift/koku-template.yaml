@@ -31,7 +31,7 @@ objects:
         kind: ImageStreamTag
         name: ${NAME}:latest
     postCommit:
-      script: ./manage.py test
+      script: ./koku/manage.py test
     source:
       contextDir: ${CONTEXT_DIR}
       git:
@@ -328,7 +328,7 @@ parameters:
   displayName: Namespace
   name: NAMESPACE
   required: true
-  value: openshift
+  value: koku
 - description: Maximum amount of memory the Django container can use.
   displayName: Memory Limit
   name: MEMORY_LIMIT
