@@ -22,10 +22,16 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf.urls import url, include
 from django.contrib import admin
 from django.urls import path
+from django.views.generic import RedirectView
 
 # pylint: disable=invalid-name
 urlpatterns = [
     path('admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls')),
     url(r'^api/v1/', include('api.urls')),
+
+    # static files (*.css, *.js, *.jpg etc.)
+    url(r'^(?!/?apidoc/)(?P<path>.*\..*)$',
+        RedirectView.as_view(url='/apidoc/%(path)s', permanent=False),
+        name='apidoc'),
 ]
