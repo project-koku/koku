@@ -55,7 +55,7 @@ Then follow these instructions to get OpenShift setup `OpenShift — Fedora Deve
 Mac OS
 -------
 
-There is a known issue with Docker for Mac ignoring `NO_PROXY` settings which are required for OpenShift. The current solution is to use a version of Docker prior to 17.12.0-ce, the most recent of which can be found at `docker-community-edition-17091-ce-mac42-2017-12-11`_
+There is a known issue with Docker for Mac ignoring `NO_PROXY` settings which are required for OpenShift. (https://github.com/openshift/origin/issues/18596) The current solution is to use a version of Docker prior to 17.12.0-ce, the most recent of which can be found at `docker-community-edition-17091-ce-mac42-2017-12-11`_
 
 Docker needs to be configured for OpenShift. A local registry and proxy are used by OpenShift and Docker needs to be made aware.
 
