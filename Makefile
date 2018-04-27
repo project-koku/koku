@@ -45,6 +45,10 @@ reinitdb: stop-compose remove-db start-db run-migrations
 remove-db:
 	rm -rf $(TOPDIR)/pg_data
 
+make-migrations:
+	sleep 1
+	DJANGO_READ_DOT_ENV_FILE=True$(PYTHON) $(PYDIR)/manage.py makemigrations api
+
 run-migrations:
 	sleep 1
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate

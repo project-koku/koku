@@ -1,5 +1,4 @@
-#
-#    Copyright 2018 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -14,31 +13,13 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""
-WSGI config for koku project.
+"""Describes the urls and patterns for the API application."""
+from django.conf.urls import url
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+from api.views import status
 
-For more information on this file, see
-https://docs.djangoproject.com/en/2.0/howto/deployment/wsgi/
-"""
-
-import os
-
-from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 # pylint: disable=invalid-name
-application = get_wsgi_application()
-
-from api.status.model import Status  # noqa: E402 pylint: disable=C0413
-status_info = None
-status_count = Status.objects.count()
-if status_count == 0:
-    status_info = Status.objects.create()
-    status_info.save()
-else:
-    status_info = Status.objects.get(pk=1)
-
-status_info.startup()
+urlpatterns = [
+    url(r'^status/$', status, name='server-status'),
+]
