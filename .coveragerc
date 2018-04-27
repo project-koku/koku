@@ -4,6 +4,7 @@ branch = True
 omit =
   .tox/*
   *virtualenv/*
+  *virtualenvs/*
   *manage.py
   *database.py
   *settings.py

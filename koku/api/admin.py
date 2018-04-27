@@ -1,5 +1,5 @@
 #
-#    Copyright 2018 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -14,18 +14,10 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""koku URL Configuration
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/2.0/topics/http/urls/
-"""
-from django.conf.urls import url, include
+"""Admin module for Django server application."""
 from django.contrib import admin
-from django.urls import path
 
-# pylint: disable=invalid-name
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    url(r'^api-auth/', include('rest_framework.urls')),
-    url(r'^api/v1/', include('api.urls')),
-]
+from api.models import Status
+
+
+admin.site.register(Status)

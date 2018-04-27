@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'rest_framework',
 
     # local apps
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -155,4 +156,51 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ]
+}
+
+LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')
+DJANGO_LOGGING_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'INFO')
+KOKU_LOGGING_LEVEL = os.getenv('KOKU_LOG_LEVEL', 'INFO')
+LOGGING_HANDLERS = os.getenv('DJANGO_LOG_HANDLERS', 'console').split(',')
+VERBOSE_FORMATTING = '%(levelname)s %(asctime)s %(module)s ' \
+    '%(process)d %(thread)d %(message)s'
+
+LOG_DIRECTORY = os.getenv('LOG_DIRECTORY', BASE_DIR)
+DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, 'app.log')
+LOGGING_FILE = os.getenv('DJANGO_LOG_FILE', DEFAULT_LOG_FILE)
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': VERBOSE_FORMATTING
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': LOGGING_FORMATTER
+        },
+        'file': {
+            'level': KOKU_LOGGING_LEVEL,
+            'class': 'logging.FileHandler',
+            'filename': LOGGING_FILE,
+            'formatter': LOGGING_FORMATTER
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': LOGGING_HANDLERS,
+            'level': DJANGO_LOGGING_LEVEL,
+        },
+        'api.status': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
+    },
 }
