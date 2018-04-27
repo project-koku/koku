@@ -49,7 +49,7 @@ class StatusModelTest(TestCase):
     def test_commit_with_subprocess(self, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = 'buildnum'
-        mock_subprocess.return_value = expected
+        mock_subprocess.return_value = b'buildnum'
         result = self.status_info.commit
         self.assertEqual(result, expected)
 
