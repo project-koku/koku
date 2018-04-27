@@ -76,6 +76,21 @@ To run a local dev Django server you can use ::
 
     make serve
 
+API Documentation Generation
+----------------------------
+
+To generate and host the API documentation locally you need to `Install APIDoc`_.
+
+Generate the project API documenttion by running the following command ::
+
+  make gen-apidoc
+
+In order to host the docs locally you need to collect the static files ::
+
+  make collect-static
+
+Now start the server with as described above and point your browser to **http://127.0.0.1:8000/apidoc/index.html**.
+
 Testing and Linting
 -------------------
 
@@ -105,6 +120,7 @@ Please refer to Contributing_.
 
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
+.. _`Install APIDoc`: http://apidocjs.com/#install
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
 .. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
 

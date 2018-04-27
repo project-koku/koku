@@ -28,7 +28,50 @@ from api.status.serializer import StatusSerializer
 @api_view(['GET'])
 @permission_classes((permissions.AllowAny,))
 def status(request):
-    """Provide the server status information."""
+    """Provide the server status information.
+    @api {get} /api/v1/status Request server status
+    @apiName GetStatus
+    @apiGroup Status
+    @apiVersion 1.0.0
+
+    @apiSuccess {Number} api_version The version of the API.
+    @apiSuccess {String} commit  The commit hash of the code base.
+    @apiSuccess {Object} modules  The code modules found on the server.
+    @apiSuccess {Object} platform_info  The server platform information.
+    @apiSuccess {String} python_version  The version of python on the server.
+    @apiSuccess {String} server_address  The address of the server.
+    @apiSuccess {String} server_id  The uuid of the server.
+    @apiSuccessExample {json} Success-Response:
+        HTTP/1.1 200 OK
+        {
+            "api_version": 1,
+            "commit": "178d2ea",
+            "server_address": "127.0.0.1:8000",
+            "platform_info": {
+                "system": "Darwin",
+                "node": "node-1.example.com",
+                "release": "17.5.0",
+                "version": "Darwin Kernel Version 17.5.0",
+                "machine": "x86_64",
+                "processor": "i386"
+                },
+            "python_version": "3.6.1",
+            "modules": {
+                "coverage": "4.5.1",
+                "coverage.version": "4.5.1",
+                "coverage.xmlreport": "4.5.1",
+                "cryptography": "2.0.3",
+                "ctypes": "1.1.0",
+                "ctypes.macholib": "1.0",
+                "decimal": "1.70",
+                "django": "1.11.5",
+                "django.utils.six": "1.10.0",
+                "django_filters": "1.0.4",
+                "http.server": "0.6"
+                },
+            "server_id": "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+        }
+    """
     status_info = Status.objects.get(pk=1)
     serializer = StatusSerializer(status_info)
     server_info = serializer.data

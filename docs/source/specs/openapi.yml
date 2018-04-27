@@ -35,13 +35,13 @@ components:
           type: integer
           format: int64
           example: 1
-        build:
+        commit:
           type: string
           example: "178d2ea"
         server_address:
           type: string
           example: "127.0.0.1:8000"
-        platform:
+        platform_info:
           type: object
           example: {
             "system": "Darwin",
@@ -51,7 +51,7 @@ components:
             "machine": "x86_64",
             "processor": "i386"
             }
-        python:
+        python_version:
           type: string
           example: "3.6.1"
         modules:
