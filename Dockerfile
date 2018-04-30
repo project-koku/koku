@@ -8,6 +8,7 @@ ENV PYTHON_VERSION=3.6 \
     NODEJS_VERSION=8 \
     NPM_RUN=start \
     NAME=nodejs \
+    NODEJS_SCL=rh-nodejs8 \
     NPM_CONFIG_PREFIX=$HOME/.npm-global \
     PATH=$HOME/.local/bin/:$HOME/node_modules/.bin/:$HOME/.npm-global/bin/:$PATH \
     PYTHONUNBUFFERED=1 \
