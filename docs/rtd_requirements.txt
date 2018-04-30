@@ -1,5 +1,5 @@
 boto3==1.7.10
-botocore==1.10.6
+botocore==1.10.10
 django-environ==0.4.4
 django==2.0.4
 djangorestframework==3.8.2
