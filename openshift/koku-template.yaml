@@ -15,6 +15,7 @@ objects:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
+    database-name: ${DATABASE_NAME}
 - apiVersion: v1
   kind: BuildConfig
   metadata:
@@ -98,7 +99,7 @@ objects:
         containers:
         - env:
           - name: DATABASE_SERVICE_NAME
-            value: POSTGRES_SQL
+            value: ${DATABASE_SERVICE_NAME}
           - name: DATABASE_ENGINE
             value: ${DATABASE_ENGINE}
           - name: DATABASE_NAME
@@ -165,12 +166,12 @@ objects:
     labels:
       app: koku
       template: koku-template
-    name: koku-pgsql
+    name: ${DATABASE_SERVICE_NAME}
   spec:
     replicas: 1
     revisionHistoryLimit: 10
     selector:
-      name: koku-pgsql
+      name: ${DATABASE_SERVICE_NAME}
     strategy:
       activeDeadlineSeconds: 21600
       recreateParams:
@@ -180,7 +181,7 @@ objects:
       metadata:
         labels:
           app: koku
-          name: koku-pgsql
+          name: ${DATABASE_SERVICE_NAME}
           template: koku-template
         name: koku-pgsql
       spec:
@@ -197,7 +198,10 @@ objects:
                 key: database-password
                 name: koku
           - name: POSTGRESQL_DATABASE
-            value: default
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: koku
           image: postgresql:9.6
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -210,7 +214,7 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 10
-          name: koku-pgsql
+          name: postgresql
           ports:
           - containerPort: "5432"
             protocol: TCP
@@ -230,21 +234,21 @@ objects:
           terminationMessagePolicy: File
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
-            name: koku-pgsql-data
+            name: ${DATABASE_SERVICE_NAME}-data
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
         terminationGracePeriodSeconds: 30
         volumes:
-        - name: koku-pgsql-data
+        - name: ${DATABASE_SERVICE_NAME}-data
           persistentVolumeClaim:
-            claimName: koku-pgsql
+            claimName: ${DATABASE_SERVICE_NAME}
     test: false
     triggers:
     - imageChangeParams:
         automatic: true
         containerNames:
-        - koku-pgsql
+        - postgresql
         from:
           kind: ImageStreamTag
           name: postgresql:9.6
@@ -309,10 +313,10 @@ objects:
     labels:
       app: koku
       template: koku-template
-    name: koku-pgsql
+    name: ${DATABASE_SERVICE_NAME}
   spec:
     ports:
-    - name: koku-pgsql
+    - name: ${DATABASE_SERVICE_NAME}
       port: 5432
       protocol: TCP
       targetPort: 5432
@@ -371,7 +375,7 @@ parameters:
   name: DATABASE_SERVICE_NAME
   required: true
   value: koku-pgsql
-- description: 'Database engine: postgresql, mysql or sqlite (default).'
+- description: 'Database engine: PostgreSQL'
   displayName: Database Engine
   name: DATABASE_ENGINE
   required: true
@@ -379,11 +383,10 @@ parameters:
 - displayName: Database Name
   name: DATABASE_NAME
   required: true
-  value: default
+  value: koku
 - displayName: Database Username
-  from: '[a-zA-Z0-9]{16}'
-  generate: expression
   name: DATABASE_USER
+  value: kokuadmin
   required: true
 - displayName: Database User Password
   from: '[a-zA-Z0-9]{16}'
