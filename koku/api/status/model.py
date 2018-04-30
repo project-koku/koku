@@ -42,7 +42,7 @@ class Status(models.Model):
 
         :returns: A build number
         """
-        commit_info = os.environ.get('KOKU_COMMIT', None)
+        commit_info = os.environ.get('OPENSHIFT_BUILD_COMMIT', None)
         if commit_info is None:
             commit_info = subprocess.run(['git',
                                           'describe',

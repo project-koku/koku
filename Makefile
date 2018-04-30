@@ -2,7 +2,7 @@ PYTHON	= $(shell which python)
 
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-APIDOC = $(TOPDIR)/apidoc
+APIDOC = apidoc
 
 OC_SOURCE	= registry.access.redhat.com/openshift3/ose
 OC_VERSION	= v3.7
