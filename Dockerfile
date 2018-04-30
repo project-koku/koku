@@ -5,7 +5,11 @@ FROM centos/s2i-base-centos7
 EXPOSE 8080
 
 ENV PYTHON_VERSION=3.6 \
-    PATH=$HOME/.local/bin/:$PATH \
+    NODEJS_VERSION=8 \
+    NPM_RUN=start \
+    NAME=nodejs \
+    NPM_CONFIG_PREFIX=$HOME/.npm-global \
+    PATH=$HOME/.local/bin/:$HOME/node_modules/.bin/:$HOME/.npm-global/bin/:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=UTF-8 \
     LC_ALL=en_US.UTF-8 \
@@ -43,6 +47,13 @@ RUN INSTALL_PKGS="rh-python36 rh-python36-python-devel rh-python36-python-setupt
     rpm -V $INSTALL_PKGS && \
     # Remove centos-logos (httpd dependency) to keep image size smaller.
     rpm -e --nodeps centos-logos && \
+    yum install -y centos-release-scl-rh && \
+    yum remove -y rh-nodejs6\* && \
+    yum-config-manager --enable centos-sclo-rh-testing && \
+    NJS_INSTALL_PKGS="rh-nodejs8 rh-nodejs8-npm rh-nodejs8-nodejs-nodemon nss_wrapper" && \
+    ln -s /usr/lib/node_modules/nodemon/bin/nodemon.js /usr/bin/nodemon && \
+    yum install -y --setopt=tsflags=nodocs $NJS_INSTALL_PKGS && \
+    rpm -V $NJS_INSTALL_PKGS && \
     yum -y clean all --enablerepo='*'
 
 # Copy the S2I scripts from the specific language image to $STI_SCRIPTS_PATH.
@@ -60,7 +71,7 @@ COPY . ${APP_ROOT}/src
 # - In order to drop the root user, we have to make some directories world
 #   writable as OpenShift default security model is to run the container
 #   under random UID.
-RUN source scl_source enable rh-python36 && \
+RUN source scl_source enable rh-python36 rh-nodejs8 && \
     virtualenv ${APP_ROOT} && \
     chown -R 1001:0 ${APP_ROOT} && \
     fix-permissions ${APP_ROOT} -P && \
