@@ -51,7 +51,7 @@ There are a few ways to use OpenShift while developing Koku. It is possible to s
   # Run *just* a database in Openshift, while running the server locally
   make oc-up-db
   # Run Django migrations to initialize the database
-  oc-run-migrations
+  make oc-run-migrations
   # Run the Django server locally with access to the OpenShift database
   make oc-serve
 
