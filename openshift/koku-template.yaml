@@ -357,6 +357,7 @@ parameters:
     of your repository.
   displayName: Context Directory
   name: CONTEXT_DIR
+  value: ${APP_ROOT}/src/koku
 - description: The exposed hostname that will route to the Django service, if left
     blank a value will be defaulted.
   displayName: Application Hostname
