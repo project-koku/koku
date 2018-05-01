@@ -14,6 +14,18 @@ help:
 
 .PHONY: help Makefile
 
+regen-apidocs:
+	sphinx-apidoc \
+		--ext-autodoc \
+		--ext-doctest \
+		--ext-intersphinx \
+		--ext-todo \
+		--ext-coverage \
+		--ext-mathjax \
+		--ext-viewcode \
+		-o source/koku \
+		../koku
+
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
