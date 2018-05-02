@@ -96,6 +96,7 @@ class Status(models.Model):
         module_list = []
         for mod, version in self.modules.items():
             module_list.append('{mod} - {ver}'.format(mod=mod, ver=version))
+
         if module_list:
             logger.info('Modules: %s', ', '.join(module_list))
         else:

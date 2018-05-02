@@ -15,11 +15,9 @@
 import os
 import sys
 
-import django
-
-sys.path.insert(0, os.path.abspath('../../koku/'))
-
 # Ensure django is set up
+import django
+sys.path.insert(0, os.path.abspath('../../koku/'))
 os.environ['DJANGO_SETTINGS_MODULE'] = 'koku.settings'
 django.setup()
 
@@ -78,7 +76,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
-exclude_patterns = []
+exclude_patterns = ["**/*.migrations.rst",]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -165,7 +163,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'Koku', 'Koku Documentation',
-     author, 'Koku', 'One line description of project.',
+     author, 'Koku', 'Cloud Cost Management',
      'Miscellaneous'),
 ]
 
