@@ -3,8 +3,20 @@ source /opt/app-root/etc/generate_container_user
 
 set -e
 
+>&2 echo "$(/usr/bin/env)"
+>&2 echo ""
+>&2 echo "PWD=$(pwd)"
+>&2 echo ""
+>&2 echo "$(ls -al)"
+>&2 echo ""
+
 function is_gunicorn_installed() {
-  hash gunicorn &>/dev/null
+  if [ "$(rpm -q which)" != "package which is not installed" ]
+  then
+    which gunicorn &>/dev/null
+  else
+    hash gunicorn &>/dev/null
+  fi
 }
 
 function is_django_installed() {
@@ -85,7 +97,7 @@ if is_gunicorn_installed; then
     export WEB_CONCURRENCY=${WEB_CONCURRENCY:-$(get_default_web_concurrency)}
 
     echo "---> Serving application with gunicorn ($APP_MODULE) ..."
-    exec gunicorn "$APP_MODULE" --bind=0.0.0.0:8080 --access-logfile=- --config "$APP_CONFIG"
+    exec gunicorn "$APP_MODULE" --chdir=$APP_HOME --bind=0.0.0.0:8080 --access-logfile=- --config "$APP_CONFIG"
   fi
 fi
 
@@ -101,12 +113,6 @@ if is_django_installed; then
   fi
 fi
 
->&2 echo "$(/usr/bin/env)"
->&2 echo ""
->&2 echo "PWD=$(pwd)"
->&2 echo ""
->&2 echo "$(ls -al)"
->&2 echo ""
 >&2 echo "ERROR: don't know how to run your application."
 >&2 echo "Please set either APP_MODULE, APP_FILE or APP_SCRIPT environment variables, or create a file 'app.py' to launch your application."
 exit 1
