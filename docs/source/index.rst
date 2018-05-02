@@ -13,6 +13,7 @@ Welcome to Koku's documentation!
    README
    CONTRIBUTING
    openshift
+   api
 
 Indices and tables
 ==================
