@@ -12,9 +12,8 @@ Welcome to Koku's documentation!
 
    README
    CONTRIBUTING
-   api
-   modules
    openshift
+   api
 
 Indices and tables
 ==================

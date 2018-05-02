@@ -1,19 +1,27 @@
 koku package
-==================
+============
 
 Submodules
 ----------
 
 koku.database module
---------------------------
+--------------------
 
 .. automodule:: koku.database
     :members:
     :undoc-members:
     :show-inheritance:
 
+koku.env module
+---------------
+
+.. automodule:: koku.env
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 koku.settings module
---------------------------
+--------------------
 
 .. automodule:: koku.settings
     :members:
@@ -21,7 +29,7 @@ koku.settings module
     :show-inheritance:
 
 koku.urls module
-----------------------
+----------------
 
 .. automodule:: koku.urls
     :members:
@@ -29,7 +37,7 @@ koku.urls module
     :show-inheritance:
 
 koku.wsgi module
-----------------------
+----------------
 
 .. automodule:: koku.wsgi
     :members:

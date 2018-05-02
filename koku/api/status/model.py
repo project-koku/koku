@@ -95,7 +95,7 @@ class Status(models.Model):
         logger.info('Python: %s', self.python_version)
         module_list = []
         for name, value in self.modules.items():
-            module_list.append(module_list.append(f'{name} - {value}'))
+            module_list.append(module_list.append('{name} - {value}'))
         if module_list:
             logger.info('Modules: None')
         else:
