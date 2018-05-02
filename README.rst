@@ -1,5 +1,5 @@
 ===========
-Koku
+Koku README
 ===========
 
 |license| |Build Status| |codecov| |Updates| |Python 3| |Docs|
