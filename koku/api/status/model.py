@@ -94,12 +94,12 @@ class Status(models.Model):
 
         logger.info('Python: %s', self.python_version)
         module_list = []
-        for name, value in self.modules.items():
-            module_list.append(module_list.append(f'{name} - {value}'))
+        for mod, version in self.modules.items():
+            module_list.append('{m} - {v}'.format(m=mod, v=version))
         if module_list:
-            logger.info('Modules: None')
-        else:
             logger.info('Modules: %s', ', '.join(module_list))
+        else:
+            logger.info('Modules: None')
         logger.info('Commit: %s', self.commit)
         logger.info('Server Id: %s', self.server_id)
         logger.info('API Version: %s', self.api_version)
