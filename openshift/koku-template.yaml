@@ -1,29 +1,107 @@
 apiVersion: v1
 kind: Template
 metadata:
-  creationTimestamp: null
   name: koku-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to run the Koku application, including a build configuration, application deployment configuration, and database deployment configuration."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-template
 objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: python-36-centos7
+    namespace: ${NAMESPACE}
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: centos/python-36-centos7
+      name: latest
+      referencePolicy:
+        type: Source
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: postgresql
+    namespace: ${NAMESPACE}
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: centos/postgresql-96-centos7
+        resourceVersion: latest
+      name: "9.6"
+      referencePolicy:
+        type: Source
 - apiVersion: v1
   kind: Secret
   metadata:
     labels:
-      app: koku
-      template: koku-template
-    name: koku
+      name: ${NAME}
+    name: koku-secret
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
+- apiVersion: v1
+  metadata:
+    name: koku-env
+    labels:
+      name: ${NAME}
+  data:
+    database-engine: ${DATABASE_ENGINE}
+    database-name: ${DATABASE_NAME}
+    database-service-name: POSTGRES_SQL
+    postgres-sql-service-host: ${NAME}-pgsql
+    postgres-sql-service-port: "5432"
+  kind: ConfigMap
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}", "kind": "Service"}]'
+    name: ${NAME}
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      name: ${NAME}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${NAME}
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    to:
+      kind: Service
+      name: ${NAME}
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: ${NAME}
+    annotations:
+      description: "Keeps track of changes in the application image"
 - apiVersion: v1
   kind: BuildConfig
   metadata:
     annotations:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
-    labels:
-      app: koku
-      template: koku-template
     name: ${NAME}
   spec:
     output:
@@ -31,7 +109,7 @@ objects:
         kind: ImageStreamTag
         name: ${NAME}:latest
     postCommit:
-      script: ./koku/manage.py test
+      script: cd koku && python manage.py test
     source:
       contextDir: ${CONTEXT_DIR}
       git:
@@ -39,118 +117,134 @@ objects:
         uri: ${SOURCE_REPOSITORY_URL}
       type: Git
     strategy:
-      sourceStrategy:
+      dockerStrategy:
         env:
-        - name: PIP_INDEX_URL
-          value: ${PIP_INDEX_URL}
+          - name: PIP_INDEX_URL
+            value: ${PIP_INDEX_URL}
+          - name: ENABLE_PIPENV
+            value: "true"
+          - name: APP_CONFIG
+            value: ${APP_CONFIG}
+          - name: APP_HOME
+            value: ${APP_HOME}
+          - name: APP_MODULE
+            value: ${APP_MODULE}
+
         from:
           kind: ImageStreamTag
-          name: python:3.6
+          name: python-36-centos7:latest
           namespace: ${NAMESPACE}
       type: Source
     triggers:
-    - type: ImageChange
     - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
     - github:
         secret: ${GITHUB_WEBHOOK_SECRET}
       type: GitHub
 - apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
-      app: koku
-      template: koku-template
-    name: koku
-  spec:
-    lookupPolicy:
-      local: false
-    tags:
-    - from:
-        kind: DockerImage
-        name: ${NAME}:latest
-      name: ${NAME}
-- apiVersion: v1
   kind: DeploymentConfig
   metadata:
-    labels:
-      app: koku
-      template: koku-template
-    name: koku
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}
   spec:
     replicas: 1
-    revisionHistoryLimit: 10
     selector:
-      deploymentconfig: ${NAME}
+      name: ${NAME}
     strategy:
-      activeDeadlineSeconds: 21600
-      rollingParams:
-        intervalSeconds: 1
-        maxSurge: 25%
-        maxUnavailable: 25%
-        timeoutSeconds: 600
-        updatePeriodSeconds: 1
-      type: Rolling
+      type: Recreate
     template:
       metadata:
         labels:
-          deploymentconfig: koku
+          name: ${NAME}
+        name: ${NAME}
       spec:
         containers:
-        - env:
-          - name: DATABASE_SERVICE_NAME
-            value: POSTGRES_SQL
-          - name: DATABASE_ENGINE
-            value: ${DATABASE_ENGINE}
-          - name: DATABASE_NAME
-            value: ${DATABASE_NAME}
-          - name: POSTGRES_SQL_SERVICE_HOST
-            value: koku-pgsql
-          - name: POSTGRES_SQL_SERVICE_PORT
-            value: "5432"
-          - name: DATABASE_USER
-            valueFrom:
-              secretKeyRef:
-                key: database-user
-                name: koku
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-password
-                name: koku
-          image: ${NAME}:latest
-          imagePullPolicy: Always
+        - name: ${NAME}
+          image: ${NAME}
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: koku-secret
+                  optional: false
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: koku-secret
+                  optional: false
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: koku-secret
+                  optional: false
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: database-name
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: postgres-sql-service-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: postgres-sql-service-port
+                  optional: false
           livenessProbe:
+            failureThreshold: 3
             httpGet:
               path: /api/v1/status
               port: 8080
+              scheme: HTTP
             initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
             timeoutSeconds: 3
-          name: ${NAME}
           ports:
-          - containerPort: 8080
-            protocol: TCP
+            - containerPort: 8080
+              protocol: TCP
           readinessProbe:
             httpGet:
               path: /api/v1/status
               port: 8080
+              scheme: HTTP
             initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
             timeoutSeconds: 3
           resources:
             limits:
               memory: ${MEMORY_LIMIT}
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
-        dnsPolicy: ClusterFirst
-        restartPolicy: Always
-        schedulerName: default-scheduler
-        terminationGracePeriodSeconds: 30
-    test: false
     triggers:
     - type: ConfigChange
     - imageChangeParams:
         automatic: true
         containerNames:
-        - ${NAME}
+          - ${NAME}
         from:
           kind: ImageStreamTag
           name: ${NAME}:latest
@@ -161,20 +255,15 @@ objects:
     annotations:
       description: Defines how to deploy the database
       template.alpha.openshift.io/wait-for-ready: "true"
-    generation: 1
     labels:
       app: koku
       template: koku-template
     name: koku-pgsql
   spec:
     replicas: 1
-    revisionHistoryLimit: 10
     selector:
       name: koku-pgsql
     strategy:
-      activeDeadlineSeconds: 21600
-      recreateParams:
-        timeoutSeconds: 600
       type: Recreate
     template:
       metadata:
@@ -190,14 +279,14 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: koku
+                name: koku-secret
           - name: POSTGRESQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: koku
+                name: koku-secret
           - name: POSTGRESQL_DATABASE
-            value: default
+            value: ${DATABASE_NAME}
           image: postgresql:9.6
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -219,27 +308,20 @@ objects:
               command:
               - /usr/libexec/check-container
             failureThreshold: 3
-            initialDelaySeconds: "5"
+            initialDelaySeconds: 5
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
           resources:
             limits:
               memory: ${MEMORY_POSTGRESQL_LIMIT}
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
             name: koku-pgsql-data
-        dnsPolicy: ClusterFirst
-        restartPolicy: Always
-        schedulerName: default-scheduler
-        terminationGracePeriodSeconds: 30
         volumes:
         - name: koku-pgsql-data
           persistentVolumeClaim:
             claimName: koku-pgsql
-    test: false
     triggers:
     - imageChangeParams:
         automatic: true
@@ -251,49 +333,12 @@ objects:
           namespace: ${NAMESPACE}
       type: ImageChange
     - type: ConfigChange
-  status:
-    availableReplicas: 0
-    latestVersion: 0
-    observedGeneration: 0
-    replicas: 0
-    unavailableReplicas: 0
-    updatedReplicas: 0
-- apiVersion: v1
-  kind: Route
-  metadata:
-    labels:
-      app: koku
-      template: koku-template
-    name: ${NAME}
-  spec:
-    host: ${APPLICATION_DOMAIN}
-    to:
-      kind: Service
-      name: ${NAME}
-      weight: 100
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      description: Exposes and load balances the application pods
-      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
-        "kind": "Service"}]'
-    name: koku
-  spec:
-    ports:
-    - name: 8080-tcp
-      port: 8080
-      protocol: TCP
-      targetPort: 8080
-    selector:
-      deploymentconfig: ${NAME}
-    sessionAffinity: None
-    type: ClusterIP
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     labels:
-      app: ${NAME}
+      app: koku
+      template: koku-template
     name: ${DATABASE_SERVICE_NAME}
   spec:
     accessModes:
@@ -328,7 +373,7 @@ parameters:
   displayName: Namespace
   name: NAMESPACE
   required: true
-  value: koku
+  value: project-koku
 - description: Maximum amount of memory the Django container can use.
   displayName: Memory Limit
   name: MEMORY_LIMIT
@@ -357,7 +402,6 @@ parameters:
     of your repository.
   displayName: Context Directory
   name: CONTEXT_DIR
-  value: ${APP_ROOT}/src/koku
 - description: The exposed hostname that will route to the Django service, if left
     blank a value will be defaulted.
   displayName: Application Hostname
@@ -390,12 +434,21 @@ parameters:
   from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: DATABASE_PASSWORD
-- description: Relative path to Gunicorn configuration file (optional).
+- description: Absolute path to Gunicorn configuration file (optional).
   displayName: Application Configuration File Path
   name: APP_CONFIG
+  value: /opt/app-root/src/koku/gunicorn.py
+- description: Absolute path to application install location (optional).
+  displayName: Application Home Directory
+  name: APP_HOME
+  value: /opt/app-root/src/koku
+- description: Python module name of the application (optional).
+  displayName: Application Module Name
+  name: APP_MODULE
+  value: koku.wsgi
 - description: Set this to a long random string.
   displayName: Django Secret Key
-  from: '[a-zA-Z0-9_]{50}'
+  from: '[a-zA-Z0-9]{50}'
   generate: expression
   name: DJANGO_SECRET_KEY
 - description: The custom PyPi index URL
