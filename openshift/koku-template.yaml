@@ -97,50 +97,50 @@ objects:
           deploymentconfig: koku
       spec:
         containers:
-        - env:
-          - name: DATABASE_SERVICE_NAME
-            value: POSTGRES_SQL
-          - name: DATABASE_ENGINE
-            value: ${DATABASE_ENGINE}
-          - name: DATABASE_NAME
-            value: ${DATABASE_NAME}
-          - name: POSTGRES_SQL_SERVICE_HOST
-            value: ${DATABASE_SERVICE_NAME}
-          - name: POSTGRES_SQL_SERVICE_PORT
-            value: "5432"
-          - name: DATABASE_USER
-            valueFrom:
-              secretKeyRef:
-                key: database-user
-                name: koku
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-password
-                name: koku
-          image: ${NAME}:latest
-          imagePullPolicy: Always
-          livenessProbe:
-            httpGet:
-              path: /api/v1/status
-              port: 8080
-            initialDelaySeconds: 30
-            timeoutSeconds: 3
-          name: ${NAME}
-          ports:
-          - containerPort: 8080
-            protocol: TCP
-          readinessProbe:
-            httpGet:
-              path: /api/v1/status
-              port: 8080
-            initialDelaySeconds: 3
-            timeoutSeconds: 3
-          resources:
-            limits:
-              memory: ${MEMORY_LIMIT}
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
+          - env:
+            - name: DATABASE_SERVICE_NAME
+              value: POSTGRES_SQL
+            - name: DATABASE_ENGINE
+              value: ${DATABASE_ENGINE}
+            - name: DATABASE_NAME
+              value: ${DATABASE_NAME}
+            - name: POSTGRES_SQL_SERVICE_HOST
+              value: ${DATABASE_SERVICE_NAME}
+            - name: POSTGRES_SQL_SERVICE_PORT
+              value: "5432"
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: koku
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: koku
+            image: ${NAME}:latest
+            imagePullPolicy: Always
+            livenessProbe:
+              httpGet:
+                path: /api/v1/status
+                port: 8080
+              initialDelaySeconds: 30
+              timeoutSeconds: 3
+            name: ${NAME}
+            ports:
+              - containerPort: 8080
+                protocol: TCP
+            readinessProbe:
+              httpGet:
+                path: /api/v1/status
+                port: 8080
+              initialDelaySeconds: 3
+              timeoutSeconds: 3
+            resources:
+              limits:
+                memory: ${MEMORY_LIMIT}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
