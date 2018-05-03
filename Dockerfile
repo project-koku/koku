@@ -5,7 +5,6 @@ EXPOSE 8080
 ENV NODEJS_VERSION=8 \
     NODEJS_SCL=rh-nodejs8 \
     NPM_RUN=start \
-    NAME=nodejs \
     NODEJS_SCL=rh-nodejs8 \
     NPM_CONFIG_PREFIX=$HOME/.npm-global \
     PATH=$HOME/.local/bin/:$HOME/node_modules/.bin/:$HOME/.npm-global/bin/:$PATH \
@@ -49,15 +48,6 @@ COPY openshift/root /
 
 # Copy application files to the image.
 COPY . ${APP_ROOT}/src
-
-# XXX: These env vars are set here until we can figure out why the
-# XXX: .s2i/environment file isn't being honored
-#
-# Env vars used by assemble and run s2i scripts.
-ENV ENABLE_PIPENV=true \
-    APP_CONFIG=${APP_ROOT}/src/koku/gunicorn.py \
-    APP_HOME=${APP_ROOT}/src/koku \
-    APP_MODULE=koku.wsgi
 
 # - Create a Python virtual environment for use by any application to avoid
 #   potential conflicts with Python packages preinstalled in the main Python
