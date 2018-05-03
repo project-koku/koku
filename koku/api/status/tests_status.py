@@ -16,8 +16,9 @@
 #
 """Test the status API."""
 
+import logging
 from collections import namedtuple
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import ANY, Mock, patch, PropertyMock
 
 from django.urls import reverse
 from django.test import TestCase
@@ -88,10 +89,20 @@ class StatusModelTest(TestCase):
         self.assertEqual(result, expected)
 
     @patch('api.status.model.logger.info')
-    def test_startup(self, mock_logger):  # pylint: disable=no-self-use
-        """Test the startup method."""
+    def test_startup_with_modules(self, mock_logger):  # pylint: disable=no-self-use
+        """Test the startup method with a module list."""
         self.status_info.startup()
         mock_logger.assert_called_with(ANY, ANY)
+
+    @patch('api.status.model.Status.modules', new_callable=PropertyMock)
+    def test_startup_without_modules(self, mock_mods):  # pylint: disable=no-self-use
+        """Test the startup method without a module list."""
+        mock_mods.return_value = {}
+        expected = 'INFO:api.status.model:Modules: None'
+
+        with self.assertLogs('api.status.model', level='INFO') as logger:
+            self.status_info.startup()
+            self.assertIn(expected, logger.output)
 
 
 class StatusViewTest(TestCase):

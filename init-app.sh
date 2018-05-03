@@ -104,7 +104,7 @@ eval set -- "$PARAMS"
 oc login -u ${OPENSHIFT_USER} https://${OPENSHIFT_HOST}:${OPENSHIFT_PORT}
 oc project ${OPENSHIFT_PROJECT}
 
-oc apply -f openshift/koku-template.yaml
+oc apply -f ${OPENSHIFT_TEMPLATE_PATH}
 
 # TODO: add intelligence or user-prompt for git tag or somesuch
 oc new-app --template ${OPENSHIFT_PROJECT}/$(basename ${OPENSHIFT_TEMPLATE_PATH} .yaml) \
