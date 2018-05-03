@@ -165,13 +165,13 @@ objects:
         - name: ${NAME}
           image: ${NAME}
           env:
-            - name: POSTGRESQL_USER
+            - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
                   key: database-user
                   name: koku-secret
                   optional: false
-            - name: POSTGRESQL_PASSWORD
+            - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   key: database-password
