@@ -47,12 +47,14 @@ class StatusModelTest(TestCase):
         self.assertEqual(result, expected)
 
     @patch('subprocess.run')
-    def test_commit_with_subprocess(self, mock_subprocess):
+    @patch('api.status.model.os.environ')
+    def test_commit_with_subprocess(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = 'buildnum'
         run = Mock()
         run.stdout = b'buildnum'
         mock_subprocess.return_value = run
+        mock_os.get.return_value = None
         result = self.status_info.commit
         self.assertEqual(result, expected)
 
