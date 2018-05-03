@@ -31,9 +31,17 @@ help:
 	@echo "  stop-compose             to stop all containers"
 	@echo "  unittest                 to run unittests"
 	@echo "  user                     to create a Django super user"
-	@echo "  oc-up                    run app in openshift cluster"
-	@echo "  oc-down                  stop app & openshift cluster"
-	@echo "  oc-clean                 stop openshift cluster & remove local config data"
+	@echo "  oc-up                    to initialize an openshift cluster"
+	@echo "  oc-up-all                to run app in openshift cluster"
+	@echo "  oc-up-db                 to run Postgres in an openshift cluster"
+	@echo "  oc-init                  to start app in initialized openshift cluster"
+	@echo "  oc-create-db             to create a Postgres DB in an initialized openshift cluster"
+	@echo "  oc-forward-ports         to port forward the DB to localhost"
+	@echo "  oc-stop-forwarding-ports to stop port forwarding the DB to localhost"
+	@echo "  oc-run-migrations  	  to run Django migrations in the Openshift DB"
+	@echo "  oc-serve 			 	  to run Django server locally against an Openshift DB"
+	@echo "  oc-down                  to stop app & openshift cluster"
+	@echo "  oc-clean                 to stop openshift cluster & remove local config data"
 
 clean:
 	git clean -fdx -e .idea/ -e *env/
@@ -85,12 +93,45 @@ oc-up:
 		--version=$(OC_VERSION) \
 		--host-data-dir=$(OC_DATA_DIR) \
 		--use-existing-config=true
-	./init-app.sh -n myproject -b `git rev-parse --abbrev-ref HEAD`
+
+oc-init:
+	openshift/init-app.sh -n myproject -b `git rev-parse --abbrev-ref HEAD`
+
+oc-up-all: oc-up oc-init
+
+oc-up-db: oc-up oc-create-db
 
 oc-down:
 	oc cluster down
 
 oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
+
+oc-create-db:
+	sleep 30
+	oc create istag postgresql:9.6 --from-image=centos/postgresql-96-centos7
+	oc process openshift//postgresql-persistent \
+		-p NAMESPACE=myproject \
+		-p POSTGRESQL_USER=kokuadmin \
+		-p POSTGRESQL_PASSWORD=admin123 \
+		-p POSTGRESQL_DATABASE=koku \
+		-p POSTGRESQL_VERSION=9.6 \
+		-p DATABASE_SERVICE_NAME=koku-pgsql \
+	| oc create -f -
+
+oc-forward-ports:
+	-make oc-stop-forwarding-ports 2>/dev/null
+	oc port-forward $$(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=koku-pgsql) 15432:5432 >/dev/null 2>&1 &
+
+oc-stop-forwarding-ports:
+	kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}')
+
+oc-run-migrations: oc-forward-ports
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
+	make oc-stop-forwarding-ports
+
+oc-serve: oc-forward-ports
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver
+	make oc-stop-forwarding-ports
 
 .PHONY: docs

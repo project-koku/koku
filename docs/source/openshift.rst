@@ -43,6 +43,28 @@ Alternatively, make commands are provided as a convenience. ::
   # Clean out local data
   make oc-clean
 
+There are a few ways to use OpenShift while developing Koku. It is possible to spin up the entire application and its dependent services, or just the dependent services can be spun up while using the local Django dev server. ::
+
+  # Run everything through OpenShift
+  make oc-up-all
+
+  # Run *just* a database in Openshift, while running the server locally
+  make oc-up-db
+  # Run Django migrations to initialize the database
+  make oc-run-migrations
+  # Run the Django server locally with access to the OpenShift database
+  make oc-serve
+
+To gain temporary access to the database within OpenShift, port forwarding is used. ::
+
+  # Port forward to 15432
+  make oc-forwrd-ports
+
+  psql koku -U kokuadmin -p 15432 -h localhost
+
+  # Stop port forwarding
+  make oc-stop-forwarding-ports
+
 Fedora
 ------
 
