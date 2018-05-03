@@ -1,4 +1,0 @@
-ENABLE_PIPENV=true
-APP_CONFIG=${APP_ROOT}/src/koku/gunicorn.py
-APP_HOME=${APP_ROOT}/src/koku
-APP_MODULE=koku.wsgi
