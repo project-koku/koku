@@ -93,6 +93,7 @@ oc-up:
 		--version=$(OC_VERSION) \
 		--host-data-dir=$(OC_DATA_DIR) \
 		--use-existing-config=true
+	sleep 60
 
 oc-init:
 	openshift/init-app.sh -n myproject -b `git rev-parse --abbrev-ref HEAD`
