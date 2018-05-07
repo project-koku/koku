@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# text editor temp files
+*.swp
+
 # C extensions
 *.so
 
@@ -110,3 +113,5 @@ apidoc/*
 
 # static files
 koku/staticfiles/
+scripts/aws_cost_usage/
+scripts/aws_pricing/
