@@ -35,6 +35,7 @@ help:
 	@echo "  oc-up-all                to run app in openshift cluster"
 	@echo "  oc-up-db                 to run Postgres in an openshift cluster"
 	@echo "  oc-init                  to start app in initialized openshift cluster"
+	@echo "  oc-reinit                to remove existing app and restart app in initialized openshift cluster"
 	@echo "  oc-create-db             to create a Postgres DB in an initialized openshift cluster"
 	@echo "  oc-forward-ports         to port forward the DB to localhost"
 	@echo "  oc-stop-forwarding-ports to stop port forwarding the DB to localhost"
@@ -101,6 +102,14 @@ oc-init:
 oc-up-all: oc-up oc-init
 
 oc-up-db: oc-up oc-create-db
+
+oc-reinit:
+	oc login -u developer
+	oc delete project myproject
+	sleep 60
+	oc new-project myproject
+	sleep 5
+	make oc-init
 
 oc-down:
 	oc cluster down
