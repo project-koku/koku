@@ -50,13 +50,11 @@ objects:
     labels:
       name: ${NAME}
     annotations:
-      template.openshift.io/expose-database_name: "{.data['database-name']}"
       template.openshift.io/expose-password: "{.data['database-password']}"
       template.openshift.io/expose-username: "{.data['database-user']}"
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
     name: koku-secret
   stringData:
-    database-name: ${DATABASE_NAME}
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
@@ -449,12 +447,12 @@ parameters:
   required: true
   value: koku
 - displayName: Database Username
-  from: '[a-zA-Z0-9]{16}'
+  from: 'user_[a-zA-Z0-9]{12}'
   generate: expression
   name: DATABASE_USER
   required: true
 - displayName: Database User Password
-  from: 'user_[a-zA-Z0-9]{6}'
+  from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: DATABASE_PASSWORD
 - description: Absolute path to Gunicorn configuration file (optional).
