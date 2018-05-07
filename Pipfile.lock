@@ -25,10 +25,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:3de8758600e692d5e31d74fb183c57409eb677b21e15608fcc1c059be47988e3",
-                "sha256:10d4880253210ad35cb1b3c3134d8698c2c2d10f15a2cf6a7be3f91b486866ff"
+                "sha256:5e61efeb68688149fb8220f0bca6c8a89bc998dffb99673d0bf24cfe2f2e47a9",
+                "sha256:2d83993e60ba56ca3ddb48a0d4da86c1cfa1f687993abe760eeb0059d10e52f6"
             ],
-            "version": "==1.10.10"
+            "version": "==1.10.14"
         },
         "django": {
             "hashes": [
