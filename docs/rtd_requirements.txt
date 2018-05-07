@@ -2,7 +2,7 @@
 boto3==1.7.14
 botocore==1.10.14
 django-environ==0.4.4
-django==2.0.4
+django==2.0.5
 djangorestframework==3.8.2
 docutils==0.14
 gunicorn==19.8.0
