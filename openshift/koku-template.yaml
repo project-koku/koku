@@ -53,11 +53,12 @@ objects:
       template.openshift.io/expose-password: "{.data['database-password']}"
       template.openshift.io/expose-username: "{.data['database-user']}"
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
-    name: koku-secret
+    name: ${DATABASE_SERVICE_NAME}-secret
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
+    database-admin-password: ${DATABASE_ADMIN_PASSWORD}
 - apiVersion: v1
   kind: Secret
   metadata:
@@ -81,8 +82,11 @@ objects:
     database-engine: ${DATABASE_ENGINE}
     database-name: ${DATABASE_NAME}
     database-service-name: POSTGRES_SQL
-    postgres-sql-service-host: ${NAME}-pgsql
+    postgres-sql-service-host: ${NAME}-pgsql.${NAMESPACE}.svc
     postgres-sql-service-port: "5432"
+    app-config: ${APP_CONFIG}
+    app-home: ${APP_HOME}
+    app-module: ${APP_MODULE}
   kind: ConfigMap
 - apiVersion: v1
   kind: Service
@@ -142,12 +146,21 @@ objects:
           - name: ENABLE_PIPENV
             value: "true"
           - name: APP_CONFIG
-            value: ${APP_CONFIG}
+            valueFrom:
+              configMapKeyRef:
+                name: koku-env
+                key: app-config
+                optional: false
           - name: APP_HOME
-            value: ${APP_HOME}
+            valueFrom:
+              configMapKeyRef:
+                name: koku-env
+                key: app-home
           - name: APP_MODULE
-            value: ${APP_MODULE}
-
+            valueFrom:
+              configMapKeyRef:
+                name: koku-env
+                key: app-module
         from:
           kind: ImageStreamTag
           name: python-36-centos7:latest
@@ -187,19 +200,19 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: database-user
-                  name: koku-secret
+                  name: ${DATABASE_SERVICE_NAME}-secret
                   optional: false
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   key: database-password
-                  name: koku-secret
+                  name: ${DATABASE_SERVICE_NAME}-secret
                   optional: false
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   key: django-secret-key
-                  name: koku-secret
+                  name: ${DATABASE_SERVICE_NAME}-secret
                   optional: false
             - name: DATABASE_ENGINE
               valueFrom:
@@ -303,11 +316,13 @@ objects:
               secretKeyRef:
                 key: database-password
                 name: ${DATABASE_SERVICE_NAME}-secret
-          - name: POSTGRESQL_DATABASE
+          - name: POSTGRESQL_ADMIN_PASSWORD
             valueFrom:
               secretKeyRef:
-                key: database-name
+                key: database-admin-password
                 name: ${DATABASE_SERVICE_NAME}-secret
+          - name: POSTGRESQL_DATABASE
+            value: ${DATABASE_NAME}
           image: postgresql:9.6
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -455,6 +470,10 @@ parameters:
   from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: DATABASE_PASSWORD
+- displayName: Database Admin Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: DATABASE_ADMIN_PASSWORD
 - description: Absolute path to Gunicorn configuration file (optional).
   displayName: Application Configuration File Path
   name: APP_CONFIG
