@@ -18,25 +18,24 @@
     "default": {
         "boto3": {
             "hashes": [
-                "sha256:413065f58f90c1a55c6aa43f023e95a12cf3b9032f958e78ededba86f040e8c3",
-                "sha256:30239a3c16da19c0a0886e7904195fb1a191dafc5773ad1656b7896577241cb5"
+                "sha256:f303b0feaabbe98b36ab12be1c641799104c935c9e0c9315b6fe53a39d668d79",
+                "sha256:a2d5c0a007ff50b4a08f402925495e18e41e336d22767a2b4fa21913fa875b2f"
             ],
-            "version": "==1.7.10"
+            "version": "==1.7.14"
         },
         "botocore": {
             "hashes": [
-                "sha256:3de8758600e692d5e31d74fb183c57409eb677b21e15608fcc1c059be47988e3",
-                "sha256:10d4880253210ad35cb1b3c3134d8698c2c2d10f15a2cf6a7be3f91b486866ff"
+                "sha256:5e61efeb68688149fb8220f0bca6c8a89bc998dffb99673d0bf24cfe2f2e47a9",
+                "sha256:2d83993e60ba56ca3ddb48a0d4da86c1cfa1f687993abe760eeb0059d10e52f6"
             ],
-            "version": "==1.10.10"
+            "version": "==1.10.14"
         },
         "django": {
             "hashes": [
-                "sha256:2d8b9eed8815f172a8e898678ae4289a5e9176bc08295676eff4228dd638ea61",
-                "sha256:d81a1652963c81488e709729a80b510394050e312f386037f26b54912a3a10d0"
+                "sha256:26b34f4417aa38d895b6b5307177b51bc3f4d53179d8696a5c19dcb50582523c",
+                "sha256:71d1a584bb4ad2b4f933d07d02c716755c1394feaac1ce61ce37843ac5401092"
             ],
-            "index": "pypi",
-            "version": "==2.0.4"
+            "version": "==2.0.5"
         },
         "django-environ": {
             "hashes": [
@@ -64,10 +63,10 @@
         },
         "gunicorn": {
             "hashes": [
-                "sha256:f5ca088d029fe3cea166c59bb43b7ccc9c850fe25af3da61350fe712c5cc5aa2",
-                "sha256:eb8d8924b117a609fae9f8cd85df0cad3535dd613fdbcdbba3ee88d5459f1d4f"
+                "sha256:7ef2b828b335ed58e3b64ffa84caceb0a7dd7c5ca12f217241350dec36a1d5dc",
+                "sha256:bc59005979efb6d2dd7d5ba72d99f8a8422862ad17ff3a16e900684630dd2a10"
             ],
-            "version": "==19.8.0"
+            "version": "==19.8.1"
         },
         "jmespath": {
             "hashes": [
@@ -429,11 +428,10 @@
         },
         "sphinx-rtd-theme": {
             "hashes": [
-                "sha256:220dbf14814001c6475f0c6c25ac4129a18fb5e3681251a7c6ffb1646da5cc30",
-                "sha256:665135dfbdf8f1d218442458a18cf266444354b8c98eed93d1543f7e701cfdba"
+                "sha256:32424dac2779f0840b4788fbccb032ba2496c1ca47a439ad2510c8b1e55dfd33",
+                "sha256:6d0481532b5f441b075127a2d755f430f1f8410a50112b1af6b069518548381d"
             ],
-            "index": "pypi",
-            "version": "==0.3.0"
+            "version": "==0.3.1"
         },
         "sphinxcontrib-httpdomain": {
             "hashes": [
