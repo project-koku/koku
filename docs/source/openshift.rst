@@ -90,6 +90,14 @@ Add `172.30.1.1` to the list of proxies to bypass. This can be found at Docker -
 .. _`docker-community-edition-17091-ce-mac42-2017-12-11`: https://docs.docker.com/docker-for-mac/release-notes/#docker-community-edition-17091-ce-mac42-2017-12-11
 .. _`Test an insecure registry | Docker Documentation`: https://docs.docker.com/registry/insecure/
 
+
+Troubleshooting
+---------------
+
+OpenShift uses Docker to run containers. When running a cluster locally for developement, deployment can be strained by low resource allowances in Docker. For development it is recommended that Docker have at least 4 GB of memory available for use.
+
+Also, if Openshift services misbehave or do not deploy properly, it can be useful to spin the cluster down, restart the Docker service and retry.
+
 Generating the Template
 =======================
 

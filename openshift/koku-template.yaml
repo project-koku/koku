@@ -49,11 +49,29 @@ objects:
   metadata:
     labels:
       name: ${NAME}
+    annotations:
+      template.openshift.io/expose-password: "{.data['database-password']}"
+      template.openshift.io/expose-username: "{.data['database-user']}"
+      template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
     name: koku-secret
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      name: ${DATABASE_SERVICE_NAME}-secret
+    annotations:
+      template.openshift.io/expose-database_name: "{.data['database-name']}"
+      template.openshift.io/expose-password: "{.data['database-password']}"
+      template.openshift.io/expose-username: "{.data['database-user']}"
+    name: ${DATABASE_SERVICE_NAME}-secret
+  stringData:
+    database-name: ${DATABASE_NAME}
+    database-password: ${DATABASE_PASSWORD}
+    database-user: ${DATABASE_USER}
 - apiVersion: v1
   metadata:
     name: koku-env
@@ -279,14 +297,17 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: koku-secret
+                name: ${DATABASE_SERVICE_NAME}-secret
           - name: POSTGRESQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: koku-secret
+                name: ${DATABASE_SERVICE_NAME}-secret
           - name: POSTGRESQL_DATABASE
-            value: ${DATABASE_NAME}
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: ${DATABASE_SERVICE_NAME}-secret
           image: postgresql:9.6
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -424,9 +445,9 @@ parameters:
 - displayName: Database Name
   name: DATABASE_NAME
   required: true
-  value: default
+  value: koku
 - displayName: Database Username
-  from: '[a-zA-Z0-9]{16}'
+  from: 'user_[a-zA-Z0-9]{12}'
   generate: expression
   name: DATABASE_USER
   required: true
