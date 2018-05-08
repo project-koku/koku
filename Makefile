@@ -105,10 +105,8 @@ oc-up-db: oc-up oc-create-db
 
 oc-reinit:
 	oc login -u developer
-	oc delete project myproject
-	sleep 60
-	oc new-project myproject
-	sleep 5
+	oc delete all -l app=koku && oc delete configmap/koku-env secret/koku-secret secret/koku-pgsql-secret pvc/koku-pgsql
+	sleep 10
 	make oc-init
 
 oc-down:
