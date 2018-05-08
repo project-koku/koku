@@ -35,6 +35,7 @@ help:
 	@echo "  oc-up-all                to run app in openshift cluster"
 	@echo "  oc-up-db                 to run Postgres in an openshift cluster"
 	@echo "  oc-init                  to start app in initialized openshift cluster"
+	@echo "  oc-reinit                to remove existing app and restart app in initialized openshift cluster"
 	@echo "  oc-create-db             to create a Postgres DB in an initialized openshift cluster"
 	@echo "  oc-forward-ports         to port forward the DB to localhost"
 	@echo "  oc-stop-forwarding-ports to stop port forwarding the DB to localhost"
@@ -93,6 +94,7 @@ oc-up:
 		--version=$(OC_VERSION) \
 		--host-data-dir=$(OC_DATA_DIR) \
 		--use-existing-config=true
+	sleep 60
 
 oc-init:
 	openshift/init-app.sh -n myproject -b `git rev-parse --abbrev-ref HEAD`
@@ -100,6 +102,12 @@ oc-init:
 oc-up-all: oc-up oc-init
 
 oc-up-db: oc-up oc-create-db
+
+oc-reinit:
+	oc login -u developer
+	oc delete all -l app=koku && oc delete configmap/koku-env secret/koku-secret secret/koku-pgsql-secret pvc/koku-pgsql
+	sleep 10
+	make oc-init
 
 oc-down:
 	oc cluster down
