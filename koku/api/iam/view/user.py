@@ -15,14 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Customers."""
+"""View for Users."""
 
 from rest_framework import viewsets
 
 import api.iam.model as model
 import api.iam.serializers as serializers
 
-class CustomerViewSet(viewsets.ModelViewSet):
-    """customer viewset"""
-    queryset = model.Customer.objects.all()
-    serializer_class = serializers.CustomerSerializer
+class UserViewSet(viewsets.ModelViewSet):
+    """ generic user viewset """
+    queryset = model.User.objects.all()
+    serializer_class = serializers.UserSerializer

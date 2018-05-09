@@ -20,9 +20,11 @@ from rest_framework.routers import DefaultRouter
 
 from api.views import status
 from api.iam.view.customer import CustomerViewSet
+from api.iam.view.user import UserViewSet
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)
+ROUTER.register(r'users', UserViewSet)
 
 # pylint: disable=invalid-name
 urlpatterns = [

@@ -17,6 +17,8 @@
 
 """Models for identity and access management."""
 
+from uuid import uuid4
+
 from django.db import models
 from django.contrib.auth.models import User as DjangoUser, \
                                        Group as DjangoGroup
@@ -28,7 +30,12 @@ class Customer(DjangoGroup):
         A customer is an organization of N-number of users
     """
     date_created = models.DateTimeField(auto_now_add=True)
-    owner = models.ForeignKey('User', null=True, on_delete=models.PROTECT)
+    owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
+    customer_id = models.UUIDField(default=uuid4, editable=False,
+                                   unique=True, null=False)
 
 class User(DjangoUser):
     """A Koku User"""
+
+    user_id = models.UUIDField(default=uuid4, editable=False,
+                               unique=True, null=False)
