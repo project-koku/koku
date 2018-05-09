@@ -30,6 +30,13 @@ paths:
       operationId: createCustomer
       tags:
         - Customer
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
       requestBody:
         description: Customer to add to the service
         required: true
@@ -55,6 +62,13 @@ paths:
       operationId: listCustomers
       tags:
         - Customer
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
       responses:
         '200':
           description: A paginated list of customer objects
@@ -75,6 +89,12 @@ paths:
       tags:
         - Customer
       parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
         - name: id
           in: path
           description: ID of customer to get
@@ -90,6 +110,138 @@ paths:
               schema:
                 $ref: "#/components/schemas/CustomerOut"
 
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/users/:
+    post:
+      summary: Create a user
+      operationId: createUser
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      requestBody:
+        description: User to add to a Customer
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserIn'
+      responses:
+        '201':
+          description: An object describing the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: List the users
+      operationId: listUsers
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: A paginated list of user objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPagination"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/users/{id}/:
+    get:
+      summary: Get a user
+      operationId: getUser
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: id
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A User objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a user
+      operationId: deleteUser
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: id
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
         '404':
           description: Not Found
           content:
@@ -241,6 +393,16 @@ components:
           type: string
           format: uuid
           example: "str0ng!P@ss"
+    UserPagination:
+      allOf:
+        - $ref: "#/components/schemas/ListPagination"
+        - required:
+          - results
+      properties:
+        results:
+          type: array
+          items:
+              $ref: "#/components/schemas/UserOut"
     UserOut:
       allOf:
         - $ref: "#/components/schemas/User"
