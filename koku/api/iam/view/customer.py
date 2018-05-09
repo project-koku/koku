@@ -26,4 +26,3 @@ class CustomerViewSet(viewsets.ModelViewSet):
     """ generic customer list """
     queryset = model.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
-    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
