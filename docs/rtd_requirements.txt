@@ -12,5 +12,4 @@ python-dateutil==2.7.2; python_version >= '2.7'
 pytz==2018.4
 s3transfer==0.1.13
 six==1.11.0
-sphinxcontrib-openapi>=0.3.2
 whitenoise==3.3.1
