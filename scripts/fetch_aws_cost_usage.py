@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import boto3
+import botocore
 
 try:
     S3_BUCKET = sys.argv[1]
@@ -65,13 +66,16 @@ def retrieve_files():
                 objsumm.e_tag == etags.get(objsumm.key, None):
             continue
         else:
-            LOG.info("%s == %s", objsumm.e_tag, etags.get(objsumm.key, None))
+            LOG.debug("%s == %s", objsumm.e_tag, etags.get(objsumm.key, None))
             LOG.info("checksums do not match. retrieving %s from s3...",
                      objsumm.key)
             etags[objsumm.key] = objsumm.e_tag
 
-            bucket.download_file(objsumm.key, CACHE_DIR+objsumm.key)
-            save_json(ETAG_FILE, etags)
+            try:
+                bucket.download_file(objsumm.key, CACHE_DIR+objsumm.key)
+                save_json(ETAG_FILE, etags)
+            except botocore.exceptions.ClientError as exc:
+                LOG.error(exc)
 
 def main():
     ''' main '''
