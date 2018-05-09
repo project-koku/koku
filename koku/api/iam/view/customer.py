@@ -15,8 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""API views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.view import status
-from api.iam.view.customer import CustomerViewSet
+"""View for Customers."""
+
+from rest_framework import permissions, viewsets
+
+import api.iam.model as model
+import api.iam.serializers as serializers
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    """ generic customer list """
+    queryset = model.Customer.objects.all()
+    serializer_class = serializers.CustomerSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)

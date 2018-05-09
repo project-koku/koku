@@ -14,12 +14,19 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Describes the urls and patterns for the API application."""
-from django.conf.urls import url
+from django.conf.urls import include, url
+
+from rest_framework.routers import DefaultRouter
 
 from api.views import status
+from api.iam.view.customer import CustomerViewSet
 
+ROUTER = DefaultRouter()
+ROUTER.register(r'customers', CustomerViewSet)
 
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
+
+    url(r'^', include(ROUTER.urls))
 ]
