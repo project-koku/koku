@@ -10,6 +10,9 @@ omit =
   *settings.py
   *urls.py
   *wsgi.py
+  *migrations/*
+  *test/*
+  tests_*.py
 
 [paths]
 source = koku

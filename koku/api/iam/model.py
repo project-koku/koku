@@ -15,8 +15,20 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""API views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.view import status
-from api.iam.view.customer import CustomerViewSet
+"""Models for identity and access management."""
+
+from django.db import models
+from django.contrib.auth.models import User as DjangoUser, \
+                                       Group as DjangoGroup
+
+class Customer(DjangoGroup):
+    """
+        A Koku Customer
+
+        A customer is an organization of N-number of users
+    """
+    date_created = models.DateTimeField(auto_now_add=True)
+    owner = models.ForeignKey('User', null=True, on_delete=models.PROTECT)
+
+class User(DjangoUser):
+    """A Koku User"""

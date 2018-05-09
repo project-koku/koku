@@ -15,8 +15,27 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""API views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.view import status
-from api.iam.view.customer import CustomerViewSet
+"""Identity and Access Serializers."""
+# disabled module-wide due to meta-programming
+# pylint: disable=too-few-public-methods
+
+from rest_framework import serializers
+
+from .model import Customer, User
+
+class CustomerSerializer(serializers.ModelSerializer):
+    """Serializer for the Customer model."""
+
+    class Meta:
+        """Metadata for the serializer."""
+        model = Customer
+        fields = '__all__'
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Serializer for the User model."""
+
+    class Meta:
+        """Metadata for the serializer."""
+        model = User
+        fields = '__all__'
