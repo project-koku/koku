@@ -16,7 +16,6 @@
 #
 """Test the status API."""
 
-import logging
 from collections import namedtuple
 from unittest.mock import ANY, Mock, patch, PropertyMock
 
