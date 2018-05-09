@@ -14,7 +14,6 @@ Django = ">=2.0.0"
 
 [dev-packages]
 pylint = "==1.8.4"
-sphinxcontrib-openapi = ">=0.3.2"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"
 tox = ">=3.0.0"
