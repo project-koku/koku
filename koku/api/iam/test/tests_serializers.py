@@ -18,8 +18,6 @@
 
 import uuid
 
-from django.test import TestCase
-
 from api.iam.model import Customer, User
 from api.iam.serializers import CustomerSerializer, \
                                 UserSerializer
@@ -34,22 +32,24 @@ class CustomerSerializerTest(IamTestCase):
 
         # create users to reference in the 'owner' field
         for idx, user in enumerate(self.user_data):
+            instance = None
+
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
-            self.customer_data[idx]['owner'] = User.objects.get(pk=idx+1)
+                instance = serializer.save()
+            self.customer_data[idx]['owner'] = instance
 
     def test_create_customer(self):
         '''test creating a customer'''
         # create the customers
         for customer in self.customer_data:
+            instance = None
+
             serializer = CustomerSerializer(data=customer)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
+                instance = serializer.save()
 
-        for idx, customer in enumerate(self.customer_data):
-            self.assertEqual(customer['name'],
-                             Customer.objects.get(pk=idx+1).name)
+            self.assertEqual(customer['name'], instance.name)
 
     def test_update_customer(self):
         '''test updating a customer'''
@@ -59,25 +59,31 @@ class CustomerSerializerTest(IamTestCase):
             serializer.save()
 
         # update the customer
+        username = self.user_data[0]['username']
+        cust_name = self.customer_data[0]['name']
+
+        current_customer = Customer.objects.get(name__exact=cust_name)
+        updated_customer = None
+
         new_data = {'name' : 'other_customer',
-                    'owner' : User.objects.get(pk=1)}
-        new_serializer = CustomerSerializer(Customer.objects.get(pk=1),
-                                            new_data)
+                    'owner' : User.objects.get(username__exact=username)}
+        new_serializer = CustomerSerializer(current_customer, new_data)
         if new_serializer.is_valid(raise_exception=True):
-            new_serializer.save()
+            updated_customer = new_serializer.save()
 
         # test the update
-        self.assertEqual(new_data['name'], Customer.objects.get(pk=1).name)
+        self.assertEqual(new_data['name'], updated_customer.name)
 
     def test_uuid_field(self):
         '''test that we generate a uuid'''
+        instance = None
+
         # create the customer
         serializer = CustomerSerializer(data=self.customer_data[0])
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            instance = serializer.save()
 
-        self.assertIsInstance(Customer.objects.get(pk=1).customer_id,
-                              uuid.UUID)
+        self.assertIsInstance(instance.customer_id, uuid.UUID)
 
 
 class UserSerializerTest(IamTestCase):
@@ -86,24 +92,16 @@ class UserSerializerTest(IamTestCase):
     def test_create_user(self):
         '''test creating a user'''
         # create the users
-        for idx, user in enumerate(self.user_data):
+        for user in self.user_data:
+            user_obj = None
+
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
+                user_obj = serializer.save()
 
-        for idx, user in enumerate(self.user_data):
-            self.assertEqual(user['username'],
-                             User.objects.get(pk=idx+1).username)
-
-            # FIXME: we shouldn't store the password unencrypted.
-            self.assertEqual(user['password'],
-                             User.objects.get(pk=idx+1).password)
-
-            self.assertEqual(user['first_name'],
-                             User.objects.get(pk=idx+1).first_name)
-
-            self.assertEqual(user['last_name'],
-                             User.objects.get(pk=idx+1).last_name)
+            self.assertEqual(user['password'], user_obj.password)
+            self.assertEqual(user['first_name'], user_obj.first_name)
+            self.assertEqual(user['last_name'], user_obj.last_name)
 
     def test_update_user(self):
         '''test updating a user'''
@@ -113,23 +111,31 @@ class UserSerializerTest(IamTestCase):
             serializer.save()
 
         # update the user
-        current_user = User.objects.get(pk=1)
-        new_data = {'username': current_user.username,
-                    'password' : 's3kr!t'}
+        username = self.user_data[0]['username']
+        current_user = User.objects.get(username__exact=username)
+        updated_user = None
+
+        new_data = {'username': username,
+                    'password': 'n3w P4sSw0Rd',
+                    'first_name': 'Wade',
+                    'last_name': 'Wilson'}
         new_serializer = UserSerializer(current_user,
                                         new_data)
         if new_serializer.is_valid(raise_exception=True):
-            new_serializer.save()
+            updated_user = new_serializer.save()
 
         # test the update
-        self.assertEqual(new_data['password'], User.objects.get(pk=1).password)
+        self.assertEqual(new_data['password'], updated_user.password)
+        self.assertEqual(new_data['first_name'], updated_user.first_name)
+        self.assertEqual(new_data['last_name'], updated_user.last_name)
 
     def test_uuid_field(self):
         '''test that we generate a uuid'''
+        instance = None
+
         # create the user
         serializer = UserSerializer(data=self.user_data[0])
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            instance = serializer.save()
 
-        self.assertIsInstance(User.objects.get(pk=1).user_id,
-                              uuid.UUID)
+        self.assertIsInstance(instance.user_id, uuid.UUID)

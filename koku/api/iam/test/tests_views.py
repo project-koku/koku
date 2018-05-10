@@ -17,7 +17,6 @@
 """Test the IAM views"""
 
 from django.urls import reverse
-from django.test import TestCase
 
 from rest_framework.test import APIClient
 
@@ -35,10 +34,12 @@ class CustomerViewTest(IamTestCase):
 
         # create a user to reference in the 'owner' field
         for idx, user in enumerate(self.user_data):
+            instance = None
+
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
-            self.customer_data[idx]['owner'] = User.objects.get(pk=idx+1)
+                instance = serializer.save()
+            self.customer_data[idx]['owner'] = instance
 
         for customer in self.customer_data:
             serial = CustomerSerializer(data=customer)
@@ -96,11 +97,19 @@ class UserViewTest(IamTestCase):
         url = reverse('user-detail', args=[2])
         response = APIClient().get(url)
         json_result = response.json()
-        print(json_result)
 
-        self.assertEqual(json_result['username'], self.user_data[1]['username'])
-        # FIXME: we shouldn't store or expose plain-text passwords
-        self.assertEqual(json_result['password'], self.user_data[1]['password'])
-        self.assertEqual(json_result['email'], self.user_data[1]['email'])
-        self.assertEqual(json_result['first_name'], self.user_data[1]['first_name'])
-        self.assertEqual(json_result['last_name'], self.user_data[1]['last_name'])
+        # ensure fields match test data
+        self.assertEqual(json_result['username'],
+                         self.user_data[1]['username'])
+
+        self.assertEqual(json_result['email'],
+                         self.user_data[1]['email'])
+
+        self.assertEqual(json_result['first_name'],
+                         self.user_data[1]['first_name'])
+
+        self.assertEqual(json_result['last_name'],
+                         self.user_data[1]['last_name'])
+
+        # ensure passwords don't leak
+        self.assertIsNone(json_result.get('password'))

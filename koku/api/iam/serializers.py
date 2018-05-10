@@ -39,3 +39,4 @@ class UserSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
         model = User
         fields = '__all__'
+        extra_kwargs = {'password': {'write_only': True, 'required': False}}
