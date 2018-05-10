@@ -48,7 +48,8 @@ objects:
   kind: Secret
   metadata:
     labels:
-      name: ${DATABASE_SERVICE_NAME}-secret
+      app: koku
+      template: koku-template
     annotations:
       template.openshift.io/expose-database_name: "{.data['database-name']}"
       template.openshift.io/expose-password: "{.data['database-password']}"
@@ -63,7 +64,8 @@ objects:
   kind: Secret
   metadata:
     labels:
-      name: ${NAME}-secret
+      app: koku
+      template: koku-template
     annotations:
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
       template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
