@@ -31,14 +31,3 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
 # pylint: disable=invalid-name
 application = get_wsgi_application()
-
-from api.status.model import Status  # noqa: E402 pylint: disable=C0413
-status_info = None
-status_count = Status.objects.count()
-if status_count == 0:
-    status_info = Status.objects.create()
-    status_info.save()
-else:
-    status_info = Status.objects.get(pk=1)
-
-status_info.startup()
