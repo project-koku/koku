@@ -53,12 +53,18 @@ objects:
       template.openshift.io/expose-password: "{.data['database-password']}"
       template.openshift.io/expose-username: "{.data['database-user']}"
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
+      template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
+      template.openshift.io/expose-service_admin_email: "{.data['service-admin-email']}"
+      template.openshift.io/expose-service_admin_password: "{.data['service-admin-password']}"
     name: ${DATABASE_SERVICE_NAME}-secret
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
     django-secret-key: ${DJANGO_SECRET_KEY}
     database-admin-password: ${DATABASE_ADMIN_PASSWORD}
+    service-admin-user: ${SERVICE_ADMIN_USER}
+    service-admin-email: ${SERVICE_ADMIN_EMAIL}
+    service-admin-password: ${SERVICE_ADMIN_PASSWORD}
 - apiVersion: v1
   kind: Secret
   metadata:
@@ -212,7 +218,25 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: django-secret-key
-                  name: ${DATABASE_SERVICE_NAME}-secret
+                  name: ${NAME}-secret
+                  optional: false
+            - name: SERVICE_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  key: service-admin-user
+                  name: ${NAME}-secret
+                  optional: false
+            - name: SERVICE_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  key: service-admin-email
+                  name: ${NAME}-secret
+                  optional: false
+            - name: SERVICE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: service-admin-password
+                  name: ${NAME}-secret
                   optional: false
             - name: DATABASE_ENGINE
               valueFrom:
@@ -491,6 +515,20 @@ parameters:
   from: '[a-zA-Z0-9]{50}'
   generate: expression
   name: DJANGO_SECRET_KEY
+- displayName: Service Admin Username
+  from: 'user_[a-zA-Z0-9]{12}'
+  generate: expression
+  name: SERVICE_ADMIN_USER
+  required: true
+- displayName: Service Admin Email
+  from: 'cost-mgmt@redhat.com'
+  generate: expression
+  name: SERVICE_ADMIN_EMAIL
+  required: true
+- displayName: Service Admin Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: SERVICE_ADMIN_PASSWORD
 - description: The custom PyPi index URL
   displayName: Custom PyPi Index URL
   name: PIP_INDEX_URL
