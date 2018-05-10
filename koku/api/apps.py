@@ -33,8 +33,13 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         """Action on application startup."""
-        self.startup_status()
-        self.check_and_create_service_admin()
+        # noqa: E402 pylint: disable=C0413
+        from django.db.utils import OperationalError
+        try:
+            self.startup_status()
+            self.check_and_create_service_admin()
+        except OperationalError as op_error:
+            logger.error('Error: %s.', op_error)
 
     def startup_status(self):  # pylint: disable=R0201
         """Log the status of the server at startup."""
