@@ -17,7 +17,6 @@
 """Test the IAM views"""
 
 from django.urls import reverse
-from django.test import TestCase
 
 from rest_framework.test import APIClient
 
@@ -35,10 +34,12 @@ class CustomerViewTest(IamTestCase):
 
         # create a user to reference in the 'owner' field
         for idx, user in enumerate(self.user_data):
+            instance = None
+
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
-                serializer.save()
-            self.customer_data[idx]['owner'] = User.objects.get(pk=idx+1)
+                instance = serializer.save()
+            self.customer_data[idx]['owner'] = instance
 
         for customer in self.customer_data:
             serial = CustomerSerializer(data=customer)
