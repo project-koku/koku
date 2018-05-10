@@ -203,7 +203,7 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': DJANGO_LOGGING_LEVEL,
         },
-        'api.status': {
+        'api': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
