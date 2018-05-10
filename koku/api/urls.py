@@ -18,9 +18,7 @@ from django.conf.urls import include, url
 
 from rest_framework.routers import DefaultRouter
 
-from api.views import status
-from api.iam.view.customer import CustomerViewSet
-from api.iam.view.user import UserViewSet
+from api.views import status, CustomerViewSet, UserViewSet
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)
