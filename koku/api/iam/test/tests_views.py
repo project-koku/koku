@@ -111,4 +111,4 @@ class UserViewTest(IamTestCase):
                          self.user_data[1]['last_name'])
 
         # ensure passwords don't leak
-       self.assertIsNone(json_result.get('password', None))
+        self.assertIsNone(json_result.get('password'))
