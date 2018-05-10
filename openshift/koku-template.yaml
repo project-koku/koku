@@ -48,27 +48,6 @@ objects:
   kind: Secret
   metadata:
     labels:
-      name: ${NAME}
-    annotations:
-      template.openshift.io/expose-password: "{.data['database-password']}"
-      template.openshift.io/expose-username: "{.data['database-user']}"
-      template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
-      template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
-      template.openshift.io/expose-service_admin_email: "{.data['service-admin-email']}"
-      template.openshift.io/expose-service_admin_password: "{.data['service-admin-password']}"
-    name: ${DATABASE_SERVICE_NAME}-secret
-  stringData:
-    database-password: ${DATABASE_PASSWORD}
-    database-user: ${DATABASE_USER}
-    django-secret-key: ${DJANGO_SECRET_KEY}
-    database-admin-password: ${DATABASE_ADMIN_PASSWORD}
-    service-admin-user: ${SERVICE_ADMIN_USER}
-    service-admin-email: ${SERVICE_ADMIN_EMAIL}
-    service-admin-password: ${SERVICE_ADMIN_PASSWORD}
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    labels:
       name: ${DATABASE_SERVICE_NAME}-secret
     annotations:
       template.openshift.io/expose-database_name: "{.data['database-name']}"
@@ -79,6 +58,23 @@ objects:
     database-name: ${DATABASE_NAME}
     database-password: ${DATABASE_PASSWORD}
     database-user: ${DATABASE_USER}
+    database-admin-password: ${DATABASE_ADMIN_PASSWORD}
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    labels:
+      name: ${NAME}-secret
+    annotations:
+      template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
+      template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
+      template.openshift.io/expose-service_admin_email: "{.data['service-admin-email']}"
+      template.openshift.io/expose-service_admin_password: "{.data['service-admin-password']}"
+    name: ${NAME}-secret
+  stringData:
+    django-secret-key: ${DJANGO_SECRET_KEY}
+    service-admin-user: ${SERVICE_ADMIN_USER}
+    service-admin-email: ${SERVICE_ADMIN_EMAIL}
+    service-admin-password: ${SERVICE_ADMIN_PASSWORD}
 - apiVersion: v1
   metadata:
     name: koku-env

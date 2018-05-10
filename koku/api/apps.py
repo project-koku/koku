@@ -51,7 +51,7 @@ class ApiConfig(AppConfig):
             status_info = Status.objects.create()
             status_info.save()
         else:
-            status_info = Status.objects.get(pk=1)
+            status_info = Status.objects.first()
 
         status_info.startup()
 
