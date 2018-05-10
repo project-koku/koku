@@ -96,11 +96,19 @@ class UserViewTest(IamTestCase):
         url = reverse('user-detail', args=[2])
         response = APIClient().get(url)
         json_result = response.json()
-        print(json_result)
 
-        self.assertEqual(json_result['username'], self.user_data[1]['username'])
-        # FIXME: we shouldn't store or expose plain-text passwords
-        self.assertEqual(json_result['password'], self.user_data[1]['password'])
-        self.assertEqual(json_result['email'], self.user_data[1]['email'])
-        self.assertEqual(json_result['first_name'], self.user_data[1]['first_name'])
-        self.assertEqual(json_result['last_name'], self.user_data[1]['last_name'])
+        # ensure fields match test data
+        self.assertEqual(json_result['username'],
+                         self.user_data[1]['username'])
+
+        self.assertEqual(json_result['email'],
+                         self.user_data[1]['email'])
+
+        self.assertEqual(json_result['first_name'],
+                         self.user_data[1]['first_name'])
+
+        self.assertEqual(json_result['last_name'],
+                         self.user_data[1]['last_name'])
+
+        # ensure passwords don't leak
+       self.assertIsNone(json_result.get('password', None))

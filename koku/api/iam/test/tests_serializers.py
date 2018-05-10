@@ -18,8 +18,6 @@
 
 import uuid
 
-from django.test import TestCase
-
 from api.iam.model import Customer, User
 from api.iam.serializers import CustomerSerializer, \
                                 UserSerializer
@@ -95,7 +93,6 @@ class UserSerializerTest(IamTestCase):
             self.assertEqual(user['username'],
                              User.objects.get(pk=idx+1).username)
 
-            # FIXME: we shouldn't store the password unencrypted.
             self.assertEqual(user['password'],
                              User.objects.get(pk=idx+1).password)
 
@@ -115,14 +112,21 @@ class UserSerializerTest(IamTestCase):
         # update the user
         current_user = User.objects.get(pk=1)
         new_data = {'username': current_user.username,
-                    'password' : 's3kr!t'}
+                    'password': 'n3w P4sSw0Rd',
+                    'first_name': 'Wade',
+                    'last_name': 'Wilson'}
         new_serializer = UserSerializer(current_user,
                                         new_data)
         if new_serializer.is_valid(raise_exception=True):
             new_serializer.save()
 
         # test the update
-        self.assertEqual(new_data['password'], User.objects.get(pk=1).password)
+        self.assertEqual(new_data['password'],
+                         User.objects.get(pk=1).password)
+        self.assertEqual(new_data['first_name'],
+                         User.objects.get(pk=1).first_name)
+        self.assertEqual(new_data['last_name'],
+                         User.objects.get(pk=1).last_name)
 
     def test_uuid_field(self):
         '''test that we generate a uuid'''
