@@ -19,6 +19,7 @@
 import logging
 
 from django.apps import AppConfig
+from django.db import connection
 
 from koku.env import ENVIRONMENT
 
@@ -34,6 +35,17 @@ class ApiConfig(AppConfig):
     def ready(self):
         """Action on application startup."""
         # noqa: E402 pylint: disable=C0413
+        tables = connection.introspection.table_names()
+        if 'api_status' not in tables:
+            logger.warning('api_status table not found. skipping status output.')
+            logger.warning('available tables: {}'.format(tables))
+            return
+
+        if 'auth_user' not in tables:
+            logger.warning('auth_user table not found. skipping status output.')
+            logger.warning('available tables: {}'.format(tables))
+            return
+
         from django.db.utils import OperationalError
         try:
             self.startup_status()
@@ -44,13 +56,6 @@ class ApiConfig(AppConfig):
     def startup_status(self):  # pylint: disable=R0201
         """Log the status of the server at startup."""
         # noqa: E402 pylint: disable=C0413
-        from django.db import connection
-        tables = connection.introspection.table_names()
-        if 'api_status' not in tables:
-            logger.warning('status table not found. skipping status output.')
-            logger.warning('available tables: {}'.format(tables))
-            return
-
         from api.status.model import Status
         status_info = None
         status_count = Status.objects.count()
