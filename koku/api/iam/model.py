@@ -31,11 +31,14 @@ class Customer(DjangoGroup):
     """
     date_created = models.DateTimeField(auto_now_add=True)
     owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
-    customer_id = models.UUIDField(default=uuid4, editable=False,
-                                   unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False,
+                            unique=True, null=False)
+    class Meta:
+        ordering = ['name']
 
 class User(DjangoUser):
     """A Koku User"""
-
-    user_id = models.UUIDField(default=uuid4, editable=False,
-                               unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, editable=False,
+                            unique=True, null=False)
+    class Meta:
+        ordering = ['username']

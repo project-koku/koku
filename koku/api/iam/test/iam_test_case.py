@@ -32,6 +32,7 @@ class IamTestCase(TestCase):
                            'last_name': 'Bar',
                            'email': 'foo@foo.bar'}]
 
-        self.customer_data = [{'name' : 'test_customer_1'},
-                              {'name' : 'test_customer_2'}]
-
+        self.customer_data = [{'name' : 'test_customer_1',
+                               'owner': self.user_data[0]},
+                              {'name' : 'test_customer_2',
+                               'owner': self.user_data[1]}]
