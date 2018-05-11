@@ -17,14 +17,145 @@
 
 """View for Users."""
 
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 
 import api.iam.model as model
 import api.iam.serializers as serializers
 
-class UserViewSet(viewsets.ModelViewSet):
-    """ generic user viewset """
+class UserViewSet(mixins.CreateModelMixin,
+                  mixins.DestroyModelMixin,
+                  mixins.ListModelMixin,
+                  mixins.RetrieveModelMixin,
+                  viewsets.GenericViewSet):
+    """User View .
 
+    A viewset that provides default `create()`, `destroy`, `retrieve()`,
+    and `list()` actions.
+    """
     lookup_field = 'uuid'
     queryset = model.User.objects.all()
     serializer_class = serializers.UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Create a user.
+        @api {post} /api/v1/users/
+        @apiName createUser
+        @apiGroup Users
+        @apiVersion 1.0.0
+        @apiDescription Create a user.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam (Request Body) {String} username The username for access
+        @apiParam (Request Body) {String} email The email address of the user
+        @apiParam (Request Body) {String} password The password for the user
+        @apiParamExample {json} Request Body:
+            {
+            "username": "smithj",
+            "email": "smithj@mytechco.com",
+            "password": "str0ng!P@ss"
+            }
+
+        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} username  The name of the user.
+        @apiSuccess {String} email  The email address of the user.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 201 CREATED
+            {
+                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "username": "smithj",
+                "email": "smithj@mytechco.com"
+            }
+        """
+        return super().create(request=request, args=args, kwargs=kwargs)
+
+    def list(self, request, *args, **kwargs):
+        """Obtain the list of users.
+        @api {get} /api/v1/users/
+        @apiName GetUsers
+        @apiGroup Users
+        @apiVersion 1.0.0
+        @apiDescription Obtain the list of users.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiSuccess {Number} count The number of users.
+        @apiSuccess {String} previous  The uri of the previous page of results.
+        @apiSuccess {String} next  The uri of the previous page of results.
+        @apiSuccess {Object[]} results  The array of user results.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "count": 30,
+                "previous": "/api/v1/users/?page=2",
+                "next": "/api/v1/users/?page=4",
+                "results": [
+                    {
+                        "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                        "username": "smithj",
+                        "email": "smithj@mytechco.com"
+                    }
+              ]
+            }
+        """
+        return super().list(request=request, args=args, kwargs=kwargs)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        """Get a user.
+        @api {get} /api/v1/user/:id/
+        @apiName GetUser
+        @apiGroup Users
+        @apiVersion 1.0.0
+        @apiDescription Get a user.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam {Number} id User unique ID.
+
+        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} username  The name of the user.
+        @apiSuccess {String} email  The email address of the user.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "username": "smithj",
+                "email": "smithj@mytechco.com"
+            }
+        """
+        return super().retrieve(request=request, args=args, kwargs=kwargs)
+
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete a user.
+        @api {delete} /api/v1/user/:id/
+        @apiName DeleteUser
+        @apiGroup Users
+        @apiVersion 1.0.0
+        @apiDescription Delete a user.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam {Number} id User unique ID.
+
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 204 NO CONTENT
+        """
+        return super().destroy(request=request, args=args, kwargs=kwargs)
