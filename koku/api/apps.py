@@ -44,6 +44,11 @@ class ApiConfig(AppConfig):
     def startup_status(self):  # pylint: disable=R0201
         """Log the status of the server at startup."""
         # noqa: E402 pylint: disable=C0413
+        from django.db import connection
+        if 'status_api' not in connection.introspection.table_names():
+            logger.warning('status table not found. skipping status output.')
+            return
+
         from api.status.model import Status
         status_info = None
         status_count = Status.objects.count()
