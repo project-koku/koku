@@ -18,6 +18,9 @@
 """View for Customers."""
 
 from rest_framework import viewsets, mixins
+from rest_framework.authentication import (SessionAuthentication,
+                                           TokenAuthentication)
+from rest_framework.permissions import IsAdminUser
 
 import api.iam.model as model
 import api.iam.serializers as serializers
@@ -34,11 +37,9 @@ class CustomerViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = model.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
-
-
-    def perform_create(self, serializer):
-        out = serializer.save()
-        print(out)
+    authentication_classes = (TokenAuthentication,
+                              SessionAuthentication)
+    permission_classes = (IsAdminUser,)
 
 
     def create(self, request, *args, **kwargs):
