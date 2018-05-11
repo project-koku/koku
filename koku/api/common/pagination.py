@@ -15,16 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Users."""
+"""Common pagination class."""
 
-from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
 
-import api.iam.model as model
-import api.iam.serializers as serializers
 
-class UserViewSet(viewsets.ModelViewSet):
-    """ generic user viewset """
+class StandardResultsSetPagination(PageNumberPagination):
+    """Create standard paginiation class with page size."""
 
-    lookup_field = 'uuid'
-    queryset = model.User.objects.all()
-    serializer_class = serializers.UserSerializer
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 1000

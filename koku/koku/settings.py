@@ -154,13 +154,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 INTERNAL_IPS = ['127.0.0.1']
 
+DEFAULT_PAGINATION_CLASS = 'api.common.pagination.StandardResultsSetPagination'
+
 # django rest_framework settings
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ]
+    ],
+    'DEFAULT_PAGINATION_CLASS': DEFAULT_PAGINATION_CLASS,
 }
 
 LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')

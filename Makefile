@@ -83,7 +83,7 @@ stop-compose:
 	docker-compose down
 
 unittest:
-	$(PYTHON) $(PYDIR)/manage.py test $(PYDIR)
+	$(PYTHON) $(PYDIR)/manage.py test $(PYDIR) -v 2
 
 user:
 	$(PYTHON) $(PYDIR)/manage.py createsuperuser
