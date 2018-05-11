@@ -21,7 +21,7 @@ from django.test import TestCase
 
 from rest_framework.test import APIClient
 
-from ..model import User
+from ..model import Customer, User
 from ..serializers import CustomerSerializer, \
                           UserSerializer
 
@@ -32,13 +32,6 @@ class CustomerViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-
-        # create a user to reference in the 'owner' field
-        for idx, user in enumerate(self.user_data):
-            serializer = UserSerializer(data=user)
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-            self.customer_data[idx]['owner'] = User.objects.get(pk=idx+1)
 
         for customer in self.customer_data:
             serial = CustomerSerializer(data=customer)
@@ -51,20 +44,24 @@ class CustomerViewTest(IamTestCase):
         response = APIClient().get(url)
         json_result = response.json()
 
-        self.assertEqual(len(json_result), 2)
-        self.assertEqual(json_result[0]['name'], self.customer_data[0]['name'])
-        self.assertEqual(json_result[1]['name'], self.customer_data[1]['name'])
+        results = json_result.get('results')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['name'], self.customer_data[0]['name'])
+        self.assertEqual(results[1]['name'], self.customer_data[1]['name'])
 
 
     def test_get_customer_detail(self):
         """Test get customer detail."""
-        url = reverse('customer-detail', args=[2])
+        first = Customer.objects.first()
+        url = reverse('customer-detail', args=[first.uuid])
         response = APIClient().get(url)
         json_result = response.json()
 
-        self.assertEqual(json_result['name'], self.customer_data[1]['name'])
-        self.assertEqual(json_result['owner'], User.objects.get(pk=2).id)
-        self.assertRegex(json_result['customer_id'], r'\w{8}-(\w{4}-){3}\w{12}')
+        self.assertEqual(json_result['name'], self.customer_data[0]['name'])
+        self.assertEqual(json_result['owner']['username'],
+                         self.user_data[0]['username'])
+        self.assertRegex(json_result['uuid'], r'\w{8}-(\w{4}-){3}\w{12}')
 
 class UserViewTest(IamTestCase):
     """Tests the user view."""
@@ -84,23 +81,23 @@ class UserViewTest(IamTestCase):
         response = APIClient().get(url)
         json_result = response.json()
 
-        self.assertEqual(len(json_result), 2)
-        self.assertEqual(json_result[0]['username'],
-                         self.user_data[0]['username'])
-        self.assertEqual(json_result[1]['username'],
+        results = json_result.get('results')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['username'],
                          self.user_data[1]['username'])
+        self.assertEqual(results[1]['username'],
+                         self.user_data[0]['username'])
 
 
     def test_get_user_detail(self):
         """Test get user detail."""
-        url = reverse('user-detail', args=[2])
+        first = User.objects.first()
+        url = reverse('user-detail', args=[first.uuid])
         response = APIClient().get(url)
         json_result = response.json()
-        print(json_result)
 
-        self.assertEqual(json_result['username'], self.user_data[1]['username'])
-        # FIXME: we shouldn't store or expose plain-text passwords
-        self.assertEqual(json_result['password'], self.user_data[1]['password'])
-        self.assertEqual(json_result['email'], self.user_data[1]['email'])
-        self.assertEqual(json_result['first_name'], self.user_data[1]['first_name'])
-        self.assertEqual(json_result['last_name'], self.user_data[1]['last_name'])
+        self.assertEqual(json_result['username'], first.username)
+        self.assertEqual(json_result['email'], first.email)
+        # ensure passwords don't leak
+        self.assertIsNone(json_result.get('password'))

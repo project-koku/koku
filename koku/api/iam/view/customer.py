@@ -17,12 +17,147 @@
 
 """View for Customers."""
 
-from rest_framework import viewsets
+from rest_framework import viewsets, mixins
 
 import api.iam.model as model
 import api.iam.serializers as serializers
 
-class CustomerViewSet(viewsets.ModelViewSet):
-    """customer viewset"""
+class CustomerViewSet(mixins.CreateModelMixin,
+                      mixins.ListModelMixin,
+                      mixins.RetrieveModelMixin,
+                      viewsets.GenericViewSet):
+    """Customer View .
+
+    A viewset that provides default `create()`, `retrieve()`,
+    and `list()` actions.
+    """
+    lookup_field = 'uuid'
     queryset = model.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
+
+
+    def perform_create(self, serializer):
+        out = serializer.save()
+        print(out)
+
+
+    def create(self, request, *args, **kwargs):
+        """Create a customer.
+        @api {post} /api/v1/customers/
+        @apiName createCustomer
+        @apiGroup Customers
+        @apiVersion 1.0.0
+        @apiDescription Create a customer.
+
+        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam (Request Body) {String} name Customer Name
+        @apiParam (Request Body) {Object} owner User object
+        @apiParamExample {json} Request Body:
+            {
+            "name": "My Tech Company",
+            "owner": {
+                "username": "smithj",
+                "email": "smithj@mytechco.com",
+                "password": "str0ng!P@ss"
+                }
+            }
+
+        @apiSuccess {Number} id The identifier of the customer.
+        @apiSuccess {String} name  The name of the customer.
+        @apiSuccess {Object} owner  The user associated with the customer creation.
+        @apiSuccess {String} date_created  The date-time the customer is created.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 201 CREATED
+            {
+                "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                "name": "My Tech Company",
+                "owner": {
+                    "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "username": "smithj",
+                    "email": "smithj@mytechco.com"
+                },
+                "date_created": "2018-05-09T18:17:29.386Z"
+            }
+        """
+        return super().create(request=request, args=args, kwargs=kwargs)
+
+    def list(self, request, *args, **kwargs):
+        """Obtain the list of customers.
+        @api {get} /api/v1/customers/
+        @apiName GetCustomers
+        @apiGroup Customers
+        @apiVersion 1.0.0
+        @apiDescription Obtain the list of customers.
+
+        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiSuccess {Number} count The number of customers.
+        @apiSuccess {String} previous  The uri of the previous page of results.
+        @apiSuccess {String} next  The uri of the previous page of results.
+        @apiSuccess {Object[]} results  The array of customer results.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "count": 30,
+                "previous": "/api/v1/customers/?page=2",
+                "next": "/api/v1/customers/?page=4",
+                "results": [
+                    {
+                        "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                        "name": "My Tech Company",
+                        "owner": {
+                            "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                            "username": "smithj",
+                            "email": "smithj@mytechco.com"
+                          },
+                         "date_created": "2018-05-09T18:17:29.386Z"
+                    }
+              ]
+            }
+        """
+        return super().list(request=request, args=args, kwargs=kwargs)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        """Get a customer.
+        @api {get} /api/v1/customers/:id/
+        @apiName GetCustomer
+        @apiGroup Customers
+        @apiVersion 1.0.0
+        @apiDescription Get a customer.
+
+        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam {Number} id Customer unique ID.
+
+        @apiSuccess {Number} id The identifier of the customer.
+        @apiSuccess {String} name  The name of the customer.
+        @apiSuccess {Object} owner  The user associated with the customer creation.
+        @apiSuccess {String} date_created  The date-time the customer is created.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                "name": "My Tech Company",
+                "owner": {
+                    "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "username": "smithj",
+                    "email": "smithj@mytechco.com"
+                },
+                "date_created": "2018-05-09T18:17:29.386Z"
+            }
+        """
+        return super().retrieve(request=request, args=args, kwargs=kwargs)
