@@ -30,18 +30,34 @@ from .iam_test_case import IamTestCase
 class CustomerViewTest(IamTestCase):
     """Tests the customer view."""
 
+    service_admin_token = None
+
     def setUp(self):
         super().setUp()
+        User.objects.create_superuser(username='service_user',
+                                      email='service_user@foo.com',
+                                      password='service_pass')
+        url = reverse('token-auth')
+        body = {'username': 'service_user',
+                'password': 'service_pass'}
+        response = APIClient().post(url, body, format='json')
+        json_result = response.json()
+        token = json_result.get('token')
+        self.service_admin_token = 'Token {}'.format(token)
 
         for customer in self.customer_data:
             serial = CustomerSerializer(data=customer)
             if serial.is_valid(raise_exception=True):
                 serial.save()
+    def tearDown(self):
+        User.objects.filter(username='service_user').all().delete()
 
     def test_get_customer_list(self):
         """Test get customer list."""
         url = reverse('customer-list')
-        response = APIClient().get(url)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        response = client.get(url)
         json_result = response.json()
 
         results = json_result.get('results')
@@ -55,7 +71,9 @@ class CustomerViewTest(IamTestCase):
         """Test get customer detail."""
         first = Customer.objects.first()
         url = reverse('customer-detail', args=[first.uuid])
-        response = APIClient().get(url)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        response = client.get(url)
         json_result = response.json()
 
         self.assertEqual(json_result['name'], self.customer_data[0]['name'])

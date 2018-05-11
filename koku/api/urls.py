@@ -16,6 +16,7 @@
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
 
+from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
 
 from api.views import status, CustomerViewSet, UserViewSet
@@ -26,7 +27,7 @@ ROUTER.register(r'users', UserViewSet)
 
 # pylint: disable=invalid-name
 urlpatterns = [
+    url(r'^token-auth/', views.obtain_auth_token, name='token-auth'),
     url(r'^status/$', status, name='server-status'),
-
     url(r'^', include(ROUTER.urls))
 ]

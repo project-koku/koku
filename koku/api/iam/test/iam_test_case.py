@@ -19,7 +19,7 @@
 from django.test import TestCase
 
 class IamTestCase(TestCase):
-    '''Abstract Class for sharing test data'''
+    """Abstract Class for sharing test data"""
     def setUp(self):
         self.user_data = [{'username': 'testy',
                            'password': '12345',
