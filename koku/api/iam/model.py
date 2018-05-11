@@ -33,8 +33,12 @@ class Customer(DjangoGroup):
     owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    class Meta:
+        ordering = ['name']
 
 class User(DjangoUser):
     """A Koku User"""
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    class Meta:
+        ordering = ['username']
