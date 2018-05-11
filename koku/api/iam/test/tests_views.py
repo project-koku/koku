@@ -85,9 +85,9 @@ class UserViewTest(IamTestCase):
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]['username'],
-                         self.user_data[0]['username'])
-        self.assertEqual(results[1]['username'],
                          self.user_data[1]['username'])
+        self.assertEqual(results[1]['username'],
+                         self.user_data[0]['username'])
 
 
     def test_get_user_detail(self):
