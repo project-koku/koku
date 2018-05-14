@@ -14,35 +14,36 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test Case extension to collect common test data"""
-from django.urls import reverse
-from django.test import TestCase
-
-from faker import Faker
+"""Test Case extension to collect common test data."""
 from random import randint
 
+from django.test import TestCase
+from django.urls import reverse
+from faker import Faker
 from rest_framework.test import APIClient
 
-from ..model import Customer, User
+from ..models import User
+
 
 class IamTestCase(TestCase):
-    """Abstract Class for sharing test data"""
+    """Parent Class for IAM test cases."""
 
     service_admin_token = None
+    fake = Faker()
 
     def setUp(self):
-        """Creates test case objects."""
-        self.customer_data = [{'name' : 'test_customer_1',
+        """Create test case objects."""
+        self.customer_data = [{'name': 'test_customer_1',
                                'owner': self.gen_user_data()},
-                              {'name' : 'test_customer_2',
+                              {'name': 'test_customer_2',
                                'owner': self.gen_user_data()}]
 
     def tearDown(self):
-        """Tears down test case objects."""
+        """Tear down test case objects."""
         User.objects.filter(username='service_user').all().delete()
 
     def get_token(self, username, password):  # pylint: disable=R0201
-        """Gets the token for the user."""
+        """Get the token for the user."""
         url = reverse('token-auth')
         body = {'username': username,
                 'password': password}
@@ -89,14 +90,13 @@ class IamTestCase(TestCase):
 
     def gen_user_data(self):
         """Generate user data."""
-        fake = Faker()
-        user_data = {'username': fake.user_name(),
-                     'password': fake.password(length=randint(8, 12),
-                                               special_chars=True,
-                                               digits=True,
-                                               upper_case=True,
-                                               lower_case=True),
-                     'first_name': fake.first_name(),
-                     'last_name': fake.last_name(),
-                     'email': fake.email()}
+        user_data = {'username': self.fake.user_name(),
+                     'password': self.fake.password(length=randint(8, 12),
+                                                    special_chars=True,
+                                                    digits=True,
+                                                    upper_case=True,
+                                                    lower_case=True),
+                     'first_name': self.fake.first_name(),
+                     'last_name': self.fake.last_name(),
+                     'email': self.fake.email()}
         return user_data

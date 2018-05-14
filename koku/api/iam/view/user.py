@@ -21,9 +21,11 @@ from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 
-from api.common.permissions.customer_owner import IsCustomerOwner
-import api.iam.model as model
+
+import api.iam.models as model
 import api.iam.serializers as serializers
+from api.common.permissions.customer_owner import IsCustomerOwner
+
 
 class UserViewSet(mixins.CreateModelMixin,
                   mixins.DestroyModelMixin,
@@ -35,6 +37,7 @@ class UserViewSet(mixins.CreateModelMixin,
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
     and `list()` actions.
     """
+
     lookup_field = 'uuid'
     queryset = model.User.objects.all()
     serializer_class = serializers.UserSerializer
@@ -42,9 +45,9 @@ class UserViewSet(mixins.CreateModelMixin,
                               SessionAuthentication)
     permission_classes = (IsCustomerOwner,)
 
-
     def get_queryset(self):
-        """
+        """Get a queryset.
+
         Optionally restricts the returned purchases to a given user,
         by filtering against a `username` query parameter in the URL.
         """
@@ -55,6 +58,7 @@ class UserViewSet(mixins.CreateModelMixin,
         return queryset
 
     def perform_create(self, serializer):
+        """Create a user."""
         user = serializer.save()
         group = self.request.user.groups.first()
         if group:
@@ -63,6 +67,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def create(self, request, *args, **kwargs):
         """Create a user.
+
         @api {post} /api/v1/users/ Create a user
         @apiName createUser
         @apiGroup Users
@@ -100,6 +105,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of users.
+
         @api {get} /api/v1/users/ Obtain the list of users
         @apiName GetUsers
         @apiGroup Users
@@ -133,9 +139,9 @@ class UserViewSet(mixins.CreateModelMixin,
         """
         return super().list(request=request, args=args, kwargs=kwargs)
 
-
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
+
         @api {get} /api/v1/user/:id/ Get a user
         @apiName GetUser
         @apiGroup Users
@@ -163,9 +169,9 @@ class UserViewSet(mixins.CreateModelMixin,
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
-
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
+
         @api {delete} /api/v1/user/:id/ Delete a user
         @apiName DeleteUser
         @apiGroup Users

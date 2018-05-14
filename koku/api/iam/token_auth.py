@@ -14,12 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Generate Authentication Tokens"""
+"""Generate Authentication Tokens."""
 
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
 from rest_framework.authtoken.models import Token
 
 

@@ -14,25 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the IAM views"""
-
-from django.urls import reverse
-from django.test import TestCase
+"""Test the IAM views."""
 
 from random import randint
 
+from django.urls import reverse
 from rest_framework.test import APIClient
 
-from ..model import Customer, User
-from ..serializers import CustomerSerializer, \
-                          UserSerializer
-
 from .iam_test_case import IamTestCase
+from ..models import Customer, User
+
 
 class CustomerViewTest(IamTestCase):
     """Tests the customer view."""
 
     def setUp(self):
+        """Set up the customer view tests."""
         super().setUp()
         self.create_service_admin()
         for customer in self.customer_data:
@@ -40,6 +37,7 @@ class CustomerViewTest(IamTestCase):
             self.assertEqual(response.status_code, 201)
 
     def tearDown(self):
+        """Tear down customers tests."""
         super().tearDown()
         Customer.objects.all().delete()
 
@@ -57,7 +55,6 @@ class CustomerViewTest(IamTestCase):
         self.assertEqual(results[0]['name'], self.customer_data[0]['name'])
         self.assertEqual(results[1]['name'], self.customer_data[1]['name'])
 
-
     def test_get_customer_detail(self):
         """Test get customer detail."""
         first = Customer.objects.first()
@@ -72,10 +69,12 @@ class CustomerViewTest(IamTestCase):
                          self.customer_data[0]['owner']['username'])
         self.assertRegex(json_result['uuid'], r'\w{8}-(\w{4}-){3}\w{12}')
 
+
 class UserViewTest(IamTestCase):
     """Tests the user view."""
 
     def setUp(self):
+        """Set up the user view tests."""
         super().setUp()
         self.create_service_admin()
         self.customers = []
@@ -91,8 +90,8 @@ class UserViewTest(IamTestCase):
             co_token = self.get_customer_owner_token(customer)
             owner['token'] = co_token
             customer_json['users'] = []
-            num_users = randint(1,5)
-            for x in range(0, num_users):
+            num_users = randint(1, 5)
+            for _ in range(0, num_users):
                 a_user = self.gen_user_data()
                 user_response = self.create_user(co_token, a_user)
                 user_json = user_response.json()
@@ -107,6 +106,7 @@ class UserViewTest(IamTestCase):
             self.customers.append(customer_json)
 
     def tearDown(self):
+        """Tear down user tests."""
         super().tearDown()
         Customer.objects.all().delete()
         User.objects.all().delete()
@@ -154,7 +154,6 @@ class UserViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url)
         self.assertEqual(response.status_code, 401)
-
 
     def test_get_user_detail(self):
         """Test get user detail with a customer owner."""
