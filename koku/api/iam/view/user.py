@@ -63,7 +63,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def create(self, request, *args, **kwargs):
         """Create a user.
-        @api {post} /api/v1/users/
+        @api {post} /api/v1/users/ Create a user
         @apiName createUser
         @apiGroup Users
         @apiVersion 1.0.0
@@ -100,7 +100,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of users.
-        @api {get} /api/v1/users/
+        @api {get} /api/v1/users/ Obtain the list of users
         @apiName GetUsers
         @apiGroup Users
         @apiVersion 1.0.0
@@ -136,7 +136,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
-        @api {get} /api/v1/user/:id/
+        @api {get} /api/v1/user/:id/ Get a user
         @apiName GetUser
         @apiGroup Users
         @apiVersion 1.0.0
@@ -166,7 +166,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
-        @api {delete} /api/v1/user/:id/
+        @api {delete} /api/v1/user/:id/ Delete a user
         @apiName DeleteUser
         @apiGroup Users
         @apiVersion 1.0.0

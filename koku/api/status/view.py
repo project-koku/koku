@@ -29,7 +29,7 @@ from api.status.serializer import StatusSerializer
 @permission_classes((permissions.AllowAny,))
 def status(request):
     """Provide the server status information.
-    @api {get} /api/v1/status/
+    @api {get} /api/v1/status/ Request server status
     @apiName GetStatus
     @apiGroup Status
     @apiVersion 1.0.0
