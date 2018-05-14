@@ -19,10 +19,9 @@
 import logging
 
 from django.apps import AppConfig
-from django.db import connection
+from django.db.utils import OperationalError, ProgrammingError
 
 from koku.env import ENVIRONMENT
-
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -34,24 +33,16 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         """Determine if app is ready on application startup."""
-        # noqa: E402 pylint: disable=C0413
-        tables = connection.introspection.table_names()
-        if 'api_status' not in tables:
-            logger.warning('api_status table not found. skipping status output.')
-            logger.warning('available tables: {}'.format(tables))
-            return
-
-        if 'auth_user' not in tables:
-            logger.warning('auth_user table not found. skipping status output.')
-            logger.warning('available tables: {}'.format(tables))
-            return
-
-        from django.db.utils import OperationalError
         try:
             self.startup_status()
             self.check_and_create_service_admin()
-        except OperationalError as op_error:
-            logger.error('Error: %s.', op_error)
+        except (OperationalError, ProgrammingError) as op_error:
+            if "no such table" in str(op_error) or \
+                    "does not exist" in str(op_error):
+                # skip this if we haven't created tables yet.
+                return
+            else:
+                logger.error('Error: %s.', op_error)
 
     def startup_status(self):  # pylint: disable=R0201
         """Log the status of the server at startup."""
