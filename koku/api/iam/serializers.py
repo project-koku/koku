@@ -19,17 +19,22 @@
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
 from django.db import transaction
-
+from django.core.validators import validate_email
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 
 from .model import Customer, User
 
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
-    email = serializers.CharField(required=True,
-                                  max_length=150,
-                                  allow_null=False)
+    email = serializers.EmailField(required=True,
+                                   max_length=150,
+                                   allow_blank=False,
+                                   validators=[validate_email,
+                                               UniqueValidator(queryset=User.objects.all())])
+
+
     class Meta:
         """Metadata for the serializer."""
         model = User
