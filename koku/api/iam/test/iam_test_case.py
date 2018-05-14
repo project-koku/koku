@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Case extension to collect common test data"""
+import logging
+
 from django.urls import reverse
 from django.test import TestCase
 
@@ -24,6 +26,10 @@ from random import randint
 from rest_framework.test import APIClient
 
 from ..model import Customer, User
+
+# prevent faker from spamming logs
+# see: https://github.com/joke2k/faker/issues/753
+logging.getLogger('faker.factory').setLevel(logging.ERROR)
 
 class IamTestCase(TestCase):
     """Abstract Class for sharing test data"""
