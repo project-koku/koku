@@ -22,6 +22,7 @@ from rest_framework import mixins, viewsets
 import api.iam.model as model
 import api.iam.serializers as serializers
 
+
 class UserViewSet(mixins.CreateModelMixin,
                   mixins.DestroyModelMixin,
                   mixins.ListModelMixin,
@@ -32,12 +33,14 @@ class UserViewSet(mixins.CreateModelMixin,
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
     and `list()` actions.
     """
+
     lookup_field = 'uuid'
     queryset = model.User.objects.all()
     serializer_class = serializers.UserSerializer
 
     def create(self, request, *args, **kwargs):
         """Create a user.
+
         @api {post} /api/v1/users/
         @apiName createUser
         @apiGroup Users
@@ -75,6 +78,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of users.
+
         @api {get} /api/v1/users/
         @apiName GetUsers
         @apiGroup Users
@@ -108,9 +112,9 @@ class UserViewSet(mixins.CreateModelMixin,
         """
         return super().list(request=request, args=args, kwargs=kwargs)
 
-
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
+
         @api {get} /api/v1/user/:id/
         @apiName GetUser
         @apiGroup Users
@@ -138,9 +142,9 @@ class UserViewSet(mixins.CreateModelMixin,
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
-
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
+
         @api {delete} /api/v1/user/:id/
         @apiName DeleteUser
         @apiGroup Users

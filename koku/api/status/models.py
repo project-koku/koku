@@ -59,14 +59,12 @@ class Status(models.Model):
         """
         return platform.uname()._asdict()
 
-
     def get_python_version(self):  # pylint: disable=R0201
         """Collect the python version information.
 
         :returns: The python version string.
         """
         return sys.version.replace('\n', '')
-
 
     def get_modules(self):  # pylint: disable=R0201
         """Collect the installed modules.
@@ -84,7 +82,6 @@ class Status(models.Model):
     python_version = property(get_python_version)
     modules = property(get_modules)
     api_version = API_VERSION
-
 
     def startup(self):
         """Log startup information."""

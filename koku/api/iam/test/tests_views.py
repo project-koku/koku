@@ -14,18 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the IAM views"""
+"""Test the IAM views."""
 
 from django.urls import reverse
-from django.test import TestCase
-
 from rest_framework.test import APIClient
 
-from ..model import Customer, User
-from ..serializers import CustomerSerializer, \
-                          UserSerializer
-
 from .iam_test_case import IamTestCase
+from ..model import Customer, User
+from ..serializers import CustomerSerializer, UserSerializer
+
 
 class CustomerViewTest(IamTestCase):
     """Tests the customer view."""
@@ -33,6 +30,7 @@ class CustomerViewTest(IamTestCase):
     service_admin_token = None
 
     def setUp(self):
+        """Set up the customer view tests."""
         super().setUp()
         User.objects.create_superuser(username='service_user',
                                       email='service_user@foo.com',
@@ -49,7 +47,9 @@ class CustomerViewTest(IamTestCase):
             serial = CustomerSerializer(data=customer)
             if serial.is_valid(raise_exception=True):
                 serial.save()
+
     def tearDown(self):
+        """Tear down the customer view tests."""
         User.objects.filter(username='service_user').all().delete()
 
     def test_get_customer_list(self):
@@ -66,7 +66,6 @@ class CustomerViewTest(IamTestCase):
         self.assertEqual(results[0]['name'], self.customer_data[0]['name'])
         self.assertEqual(results[1]['name'], self.customer_data[1]['name'])
 
-
     def test_get_customer_detail(self):
         """Test get customer detail."""
         first = Customer.objects.first()
@@ -81,10 +80,12 @@ class CustomerViewTest(IamTestCase):
                          self.user_data[0]['username'])
         self.assertRegex(json_result['uuid'], r'\w{8}-(\w{4}-){3}\w{12}')
 
+
 class UserViewTest(IamTestCase):
     """Tests the user view."""
 
     def setUp(self):
+        """Set up the user view tests."""
         super().setUp()
 
         # create the users to test
@@ -106,7 +107,6 @@ class UserViewTest(IamTestCase):
                          self.user_data[1]['username'])
         self.assertEqual(results[1]['username'],
                          self.user_data[0]['username'])
-
 
     def test_get_user_detail(self):
         """Test get user detail."""

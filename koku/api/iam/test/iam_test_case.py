@@ -14,13 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test Case extension to collect common test data"""
+"""Test Case extension to collect common test data."""
 
 from django.test import TestCase
 
+
 class IamTestCase(TestCase):
-    """Abstract Class for sharing test data"""
+    """Parent Class for IAM tests."""
+
     def setUp(self):
+        """Set up the IAM test case."""
         self.user_data = [{'username': 'testy',
                            'password': '12345',
                            'first_name': 'Testy',
@@ -32,7 +35,7 @@ class IamTestCase(TestCase):
                            'last_name': 'Bar',
                            'email': 'foo@foo.bar'}]
 
-        self.customer_data = [{'name' : 'test_customer_1',
+        self.customer_data = [{'name': 'test_customer_1',
                                'owner': self.user_data[0]},
-                              {'name' : 'test_customer_2',
+                              {'name': 'test_customer_2',
                                'owner': self.user_data[1]}]

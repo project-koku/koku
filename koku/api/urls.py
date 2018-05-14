@@ -15,11 +15,10 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
-
 from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
 
-from api.views import status, CustomerViewSet, UserViewSet
+from api.views import CustomerViewSet, UserViewSet, status
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)

@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""API application configuration module"""
+"""API application configuration module."""
 
 import logging
 
@@ -28,12 +28,12 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class ApiConfig(AppConfig):
-    """API application configuration"""
+    """API application configuration."""
 
     name = 'api'
 
     def ready(self):
-        """Action on application startup."""
+        """Determine if app is ready on application startup."""
         # noqa: E402 pylint: disable=C0413
         tables = connection.introspection.table_names()
         if 'api_status' not in tables:

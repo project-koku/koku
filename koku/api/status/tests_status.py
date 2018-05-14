@@ -17,12 +17,13 @@
 """Test the status API."""
 
 from collections import namedtuple
-from unittest.mock import ANY, Mock, patch, PropertyMock
+from unittest.mock import ANY, Mock, PropertyMock, patch
 
-from django.urls import reverse
 from django.test import TestCase
+from django.urls import reverse
 
 from api.status.model import Status
+
 
 class StatusModelTest(TestCase):
     """Tests against the status functions."""
