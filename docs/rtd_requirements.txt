@@ -8,7 +8,7 @@ docutils==0.14
 gunicorn==19.8.1
 jmespath==0.9.3
 psycopg2-binary==2.7.4
-python-dateutil==2.7.2; python_version >= '2.7'
+python-dateutil==2.7.3; python_version >= '2.7'
 pytz==2018.4
 s3transfer==0.1.13
 six==1.11.0
