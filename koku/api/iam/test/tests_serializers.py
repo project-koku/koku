@@ -53,6 +53,10 @@ class CustomerSerializerTest(IamTestCase):
 
 class UserSerializerTest(IamTestCase):
     """Tests for the user serializer."""
+    def setUp(self):
+        """Creates test case objects."""
+        self.user_data = [self.gen_user_data(),
+                          self.gen_user_data()]
 
     def test_create_user(self):
         """test creating a user"""
@@ -64,7 +68,7 @@ class UserSerializerTest(IamTestCase):
                 instance = serializer.save()
 
             self.assertEqual(user['username'], instance.username)
-            self.assertEqual(user['password'], instance.password)
+            self.assertIsNotNone(instance.password)
 
 
     def test_update_user(self):
