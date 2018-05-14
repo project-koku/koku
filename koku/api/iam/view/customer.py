@@ -17,23 +17,25 @@
 
 """View for Customers."""
 
-from rest_framework import viewsets, mixins
+from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.permissions import IsAdminUser
 
-import api.iam.model as model
+import api.iam.models as model
 import api.iam.serializers as serializers
+
 
 class CustomerViewSet(mixins.CreateModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
-    """Customer View .
+    """Customer View.
 
     A viewset that provides default `create()`, `retrieve()`,
     and `list()` actions.
     """
+
     lookup_field = 'uuid'
     queryset = model.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
@@ -41,9 +43,9 @@ class CustomerViewSet(mixins.CreateModelMixin,
                               SessionAuthentication)
     permission_classes = (IsAdminUser,)
 
-
     def create(self, request, *args, **kwargs):
         """Create a customer.
+
         @api {post} /api/v1/customers/ Create a customer
         @apiName createCustomer
         @apiGroup Customers
@@ -89,6 +91,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of customers.
+
         @api {get} /api/v1/customers/ Obtain the list of customers
         @apiName GetCustomers
         @apiGroup Customers
@@ -127,9 +130,9 @@ class CustomerViewSet(mixins.CreateModelMixin,
         """
         return super().list(request=request, args=args, kwargs=kwargs)
 
-
     def retrieve(self, request, *args, **kwargs):
         """Get a customer.
+
         @api {get} /api/v1/customers/:id/ Get a customer
         @apiName GetCustomer
         @apiGroup Customers

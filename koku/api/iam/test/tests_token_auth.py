@@ -18,18 +18,17 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
-
 from rest_framework.test import APIClient
-
 
 USERNAME = 'testuser'
 PASSWORD = 'password1'
+
 
 class TokenTestCase(TestCase):
     """Test Class for the authentication token flow."""
 
     def setUp(self):
-        """Setup the test cases."""
+        """Set up the test cases."""
         User.objects.create_user(username=USERNAME,
                                  password=PASSWORD)
 
@@ -42,7 +41,6 @@ class TokenTestCase(TestCase):
         json_result = response.json()
 
         self.assertIsNotNone(json_result.get('token'))
-
 
     def test_token_endpoint_invalid(self):
         """Test the token endpoint for an invalid user."""

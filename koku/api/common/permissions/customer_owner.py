@@ -17,13 +17,15 @@
 """Defines the Customer Owner Permissions class."""
 from rest_framework import permissions
 
-from api.iam.model import Customer
+from api.iam.models import Customer
+
 
 class IsCustomerOwner(permissions.BasePermission):
     """Permission class for customer owners to use create/delete methods."""
 
     def has_permission(self, request, view):
         """Allow permission only for to create/delete to customer owners.
+
         Authenticated users may perform read methods.
         """
         if request.user and request.user.is_authenticated:
