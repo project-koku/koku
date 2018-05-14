@@ -18,12 +18,14 @@
 """Identity and Access Serializers."""
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
+
+from django.conf import settings
 from django.core.validators import validate_email
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import Customer, ResetToken, User
+from .models import Customer, ResetToken, User, UserPreference
 
 
 def create_user(username, email, password):
@@ -62,7 +64,22 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data.get('username'),
             email=validated_data.get('email'),
             password=validated_data.get('password'))
+
+        UserSerializer._create_default_preferences(user)
         return user
+
+    @staticmethod
+    def _create_default_preferences(user):
+        """Set preference defaults for this user."""
+        defaults = [{'currency': settings.KOKU_DEFAULT_CURRENCY},
+                    {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
+                    {'locale': settings.KOKU_DEFAULT_LOCALE}]
+
+        for pref in defaults:
+            data = {'preference': pref, 'user': user}
+            serializer = UserPreferenceSerializer(data=data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -90,3 +107,13 @@ class CustomerSerializer(serializers.ModelSerializer):
         customer.save()
 
         return customer
+
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for the UserPreference model."""
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = UserPreference
+        fields = ('__all__')

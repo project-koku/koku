@@ -5,7 +5,6 @@
 # it under the terms of the GNU Affero General Public License as
 # published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
-#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -21,6 +20,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import Group as DjangoGroup, User as DjangoUser
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils import timezone
 
@@ -66,3 +66,18 @@ class ResetToken(models.Model):
     expiration_date = models.DateTimeField(default=token_expiration)
     user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
     used = models.BooleanField(default=False)
+
+
+class UserPreference(models.Model):
+    """A user preference."""
+
+    uuid = models.UUIDField(default=uuid4, editable=False,
+                            unique=True, null=False)
+    user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
+    preference = JSONField(default=dict)
+
+    def __str__(self):
+        """Return string representation of user preferences."""
+        return 'UserPreference({}): User: {}, Preference: {}'.format(self.uuid,
+                                                                     self.user,
+                                                                     self.preference)

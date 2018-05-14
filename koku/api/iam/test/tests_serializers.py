@@ -20,8 +20,10 @@ import uuid
 
 from rest_framework.exceptions import ValidationError
 
-from api.iam.models import ResetToken
-from api.iam.serializers import CustomerSerializer, UserSerializer
+from api.iam.models import ResetToken, UserPreference
+from api.iam.serializers import (CustomerSerializer,
+                                 UserPreferenceSerializer,
+                                 UserSerializer)
 from .iam_test_case import IamTestCase
 
 
@@ -127,3 +129,48 @@ class UserSerializerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             if serializer_2.is_valid(raise_exception=True):
                 serializer_2.save()
+
+
+class UserPreferenceSerializerTest(IamTestCase):
+    """Tests for the user preference serializer."""
+
+    def setUp(self):
+        """Create test case objects."""
+        from django.conf import settings
+        self.user_data = self.gen_user_data()
+        self.preference_defaults = [
+            {'currency': settings.KOKU_DEFAULT_CURRENCY},
+            {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
+            {'locale': settings.KOKU_DEFAULT_LOCALE}]
+
+    def test_user_preference_defaults(self):
+        """Test that defaults are set for new users."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        query = UserPreference.objects.filter(user__exact=user)
+        prefs = [q.preference for q in query]
+
+        for default in self.preference_defaults:
+            self.assertIn(default, prefs)
+
+    def test_user_preference_arbitrary(self):
+        """Test that we can set and retrieve an arbitrary preference."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
+        data = {'user': user, 'preference': test_pref}
+
+        serializer = UserPreferenceSerializer(data=data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
+        query = UserPreference.objects.filter(user__exact=user)
+        self.assertEqual(len(query), len(self.preference_defaults) + 1)
+        prefs = [q.preference for q in query]
+        self.assertIn(test_pref, prefs)
