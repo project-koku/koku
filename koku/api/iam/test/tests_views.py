@@ -16,16 +16,13 @@
 #
 """Test the IAM views."""
 
-from django.urls import reverse
-from django.test import TestCase
-
 from random import randint
 
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
 from ..models import Customer, User
-from ..serializers import CustomerSerializer, UserSerializer
 
 
 class CustomerViewTest(IamTestCase):
@@ -40,6 +37,7 @@ class CustomerViewTest(IamTestCase):
             self.assertEqual(response.status_code, 201)
 
     def tearDown(self):
+        """Tear down customers tests."""
         super().tearDown()
         Customer.objects.all().delete()
 
@@ -92,8 +90,8 @@ class UserViewTest(IamTestCase):
             co_token = self.get_customer_owner_token(customer)
             owner['token'] = co_token
             customer_json['users'] = []
-            num_users = randint(1,5)
-            for x in range(0, num_users):
+            num_users = randint(1, 5)
+            for _ in range(0, num_users):
                 a_user = self.gen_user_data()
                 user_response = self.create_user(co_token, a_user)
                 user_json = user_response.json()
@@ -108,6 +106,7 @@ class UserViewTest(IamTestCase):
             self.customers.append(customer_json)
 
     def tearDown(self):
+        """Tear down user tests."""
         super().tearDown()
         Customer.objects.all().delete()
         User.objects.all().delete()

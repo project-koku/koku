@@ -51,8 +51,9 @@ class CustomerSerializerTest(IamTestCase):
 
 class UserSerializerTest(IamTestCase):
     """Tests for the user serializer."""
+
     def setUp(self):
-        """Creates test case objects."""
+        """Create test case objects."""
         self.user_data = [self.gen_user_data(),
                           self.gen_user_data()]
 

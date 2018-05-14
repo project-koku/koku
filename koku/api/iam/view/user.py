@@ -21,9 +21,10 @@ from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 
-from api.common.permissions.customer_owner import IsCustomerOwner
-import api.iam.model as model
+
+import api.iam.models as model
 import api.iam.serializers as serializers
+from api.common.permissions.customer_owner import IsCustomerOwner
 
 
 class UserViewSet(mixins.CreateModelMixin,
@@ -44,9 +45,9 @@ class UserViewSet(mixins.CreateModelMixin,
                               SessionAuthentication)
     permission_classes = (IsCustomerOwner,)
 
-
     def get_queryset(self):
-        """
+        """Get a queryset.
+
         Optionally restricts the returned purchases to a given user,
         by filtering against a `username` query parameter in the URL.
         """
@@ -57,6 +58,7 @@ class UserViewSet(mixins.CreateModelMixin,
         return queryset
 
     def perform_create(self, serializer):
+        """Create a user."""
         user = serializer.save()
         group = self.request.user.groups.first()
         if group:

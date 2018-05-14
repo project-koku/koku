@@ -43,6 +43,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True, 'required': True,
                                      'style': {'input_type': 'password'},
                                      'max_length': 128, 'allow_null': False}}
+
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""

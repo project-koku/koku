@@ -24,7 +24,9 @@ from koku.env import ENVIRONMENT
 
 class AppsModelTest(TestCase):
     """Tests against the apps functions."""
+
     def tearDown(self):
+        """Tear down the app tests."""
         User.objects.all().delete()
 
     def test_check_service_admin(self):
