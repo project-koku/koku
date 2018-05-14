@@ -18,7 +18,8 @@
 
 import uuid
 
-from api.iam.model import User
+from rest_framework.exceptions import ValidationError
+
 from api.iam.serializers import CustomerSerializer, \
                                 UserSerializer
 
@@ -36,8 +37,7 @@ class CustomerSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
-            self.assertEqual(customer['name'],
-                             instance.name)
+            self.assertEqual(customer['name'], instance.name)
 
 
     def test_uuid_field(self):
@@ -48,8 +48,7 @@ class CustomerSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             instance = serializer.save()
 
-        self.assertIsInstance(instance.uuid,
-                              uuid.UUID)
+        self.assertIsInstance(instance.uuid, uuid.UUID)
 
 
 class UserSerializerTest(IamTestCase):
@@ -64,11 +63,9 @@ class UserSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
-            self.assertEqual(user['username'],
-                             instance.username)
+            self.assertEqual(user['username'], instance.username)
+            self.assertEqual(user['password'], instance.password)
 
-            self.assertEqual(user['password'],
-                             instance.password)
 
     def test_update_user(self):
         """test updating a user"""
@@ -90,6 +87,7 @@ class UserSerializerTest(IamTestCase):
         # test the update
         self.assertEqual(new_data['password'], instance.password)
 
+
     def test_uuid_field(self):
         """test that we generate a uuid"""
         # create the user
@@ -98,5 +96,31 @@ class UserSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             instance = serializer.save()
 
-        self.assertIsInstance(instance.uuid,
-                              uuid.UUID)
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+
+
+    def test_invalid_email(self):
+        """test that we only accept valid e-mail addresses"""
+        bad_email_user = {'username': 'foo',
+                          'password': 's3kr1t',
+                          'email': 'this.is.not.an.email.address'}
+        serializer = UserSerializer(data=bad_email_user)
+        with self.assertRaises(ValidationError):
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+
+    def test_unique_user(self):
+        """test that a user must be unique"""
+        # create the user
+        serializer_1 = UserSerializer(data=self.user_data[0])
+        if serializer_1.is_valid(raise_exception=True):
+            serializer_1.save()
+
+        duplicate_email = self.user_data[0]
+        duplicate_email['username'] = "other_user"
+
+        serializer_2 = UserSerializer(data=duplicate_email)
+        with self.assertRaises(ValidationError):
+            if serializer_2.is_valid(raise_exception=True):
+                serializer_2.save()
