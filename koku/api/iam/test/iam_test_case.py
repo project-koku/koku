@@ -17,9 +17,11 @@
 """Test Case extension to collect common test data."""
 from random import randint
 
-from django.test import TestCase
 from django.urls import reverse
+from django.test import TestCase
+
 from faker import Faker
+
 from rest_framework.test import APIClient
 
 from ..models import User
