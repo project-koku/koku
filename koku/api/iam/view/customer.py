@@ -46,7 +46,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a customer.
 
-        @api {post} /api/v1/customers/
+        @api {post} /api/v1/customers/ Create a customer
         @apiName createCustomer
         @apiGroup Customers
         @apiVersion 1.0.0
@@ -92,7 +92,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of customers.
 
-        @api {get} /api/v1/customers/
+        @api {get} /api/v1/customers/ Obtain the list of customers
         @apiName GetCustomers
         @apiGroup Customers
         @apiVersion 1.0.0
@@ -133,7 +133,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a customer.
 
-        @api {get} /api/v1/customers/:id/
+        @api {get} /api/v1/customers/:id/ Get a customer
         @apiName GetCustomer
         @apiGroup Customers
         @apiVersion 1.0.0

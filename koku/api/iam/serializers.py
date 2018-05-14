@@ -43,6 +43,14 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True, 'required': True,
                                      'style': {'input_type': 'password'},
                                      'max_length': 128, 'allow_null': False}}
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create a user from validated data."""
+        user = User.objects.create_user(
+            username=validated_data.get('username'),
+            email=validated_data.get('email'),
+            password=validated_data.get('password'))
+        return user
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -60,7 +68,9 @@ class CustomerSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a customer and owner."""
         owner_data = validated_data.pop('owner')
-        owner = User.objects.create(**owner_data)
+        owner = User.objects.create_user(username=owner_data.get('username'),
+                                         email=owner_data.get('email'),
+                                         password=owner_data.get('password'))
 
         validated_data['owner_id'] = owner.id
         customer = Customer.objects.create(**validated_data)

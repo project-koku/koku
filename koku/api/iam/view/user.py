@@ -18,8 +18,11 @@
 """View for Users."""
 
 from rest_framework import mixins, viewsets
+from rest_framework.authentication import (SessionAuthentication,
+                                           TokenAuthentication)
 
-import api.iam.models as model
+from api.common.permissions.customer_owner import IsCustomerOwner
+import api.iam.model as model
 import api.iam.serializers as serializers
 
 
@@ -37,11 +40,33 @@ class UserViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = model.User.objects.all()
     serializer_class = serializers.UserSerializer
+    authentication_classes = (TokenAuthentication,
+                              SessionAuthentication)
+    permission_classes = (IsCustomerOwner,)
+
+
+    def get_queryset(self):
+        """
+        Optionally restricts the returned purchases to a given user,
+        by filtering against a `username` query parameter in the URL.
+        """
+        queryset = model.User.objects.none()
+        group = self.request.user.groups.first()
+        if group:
+            queryset = model.User.objects.filter(groups__id=group.id)
+        return queryset
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        group = self.request.user.groups.first()
+        if group:
+            user.groups.add(group)
+            user.save()
 
     def create(self, request, *args, **kwargs):
         """Create a user.
 
-        @api {post} /api/v1/users/
+        @api {post} /api/v1/users/ Create a user
         @apiName createUser
         @apiGroup Users
         @apiVersion 1.0.0
@@ -79,7 +104,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of users.
 
-        @api {get} /api/v1/users/
+        @api {get} /api/v1/users/ Obtain the list of users
         @apiName GetUsers
         @apiGroup Users
         @apiVersion 1.0.0
@@ -115,7 +140,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
 
-        @api {get} /api/v1/user/:id/
+        @api {get} /api/v1/user/:id/ Get a user
         @apiName GetUser
         @apiGroup Users
         @apiVersion 1.0.0
@@ -145,7 +170,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
 
-        @api {delete} /api/v1/user/:id/
+        @api {delete} /api/v1/user/:id/ Delete a user
         @apiName DeleteUser
         @apiGroup Users
         @apiVersion 1.0.0

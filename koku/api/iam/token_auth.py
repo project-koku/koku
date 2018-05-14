@@ -27,7 +27,7 @@ from rest_framework.authtoken.models import Token
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     """Create authentication tokens when users are created.
 
-    @api {post} /api/v1/token-auth/
+    @api {post} /api/v1/token-auth/ Create authentication tokens
     @apiName getToken
     @apiGroup Authentication
     @apiVersion 1.0.0
