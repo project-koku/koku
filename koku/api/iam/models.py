@@ -19,26 +19,31 @@
 
 from uuid import uuid4
 
+from django.contrib.auth.models import Group as DjangoGroup, User as DjangoUser
 from django.db import models
-from django.contrib.auth.models import User as DjangoUser, \
-                                       Group as DjangoGroup
+
 
 class Customer(DjangoGroup):
-    """
-        A Koku Customer
+    """A Koku Customer.
 
-        A customer is an organization of N-number of users
+    A customer is an organization of N-number of users
+
     """
+
     date_created = models.DateTimeField(auto_now_add=True)
     owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+
     class Meta:
         ordering = ['name']
 
+
 class User(DjangoUser):
-    """A Koku User"""
+    """A Koku User."""
+
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+
     class Meta:
         ordering = ['username']

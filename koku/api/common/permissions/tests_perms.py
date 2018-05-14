@@ -14,13 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the Permissions"""
+"""Tests for Permissions."""
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
 from api.common.permissions.customer_owner import IsCustomerOwner
-from api.iam.model import Customer
+from api.iam.models import Customer
+
 
 def get_fake_customer():
     """Mock a fake customer."""
@@ -28,8 +29,9 @@ def get_fake_customer():
     objects.get.return_value = Customer()
     return objects
 
+
 class IsCustomerOwnerTest(TestCase):
-    """Tests the customer view."""
+    """Test the customer view."""
 
     def test_has_permission_no_user(self):
         """Test that empty user cannot execute."""
@@ -59,8 +61,6 @@ class IsCustomerOwnerTest(TestCase):
         co_perm = IsCustomerOwner()
         result = co_perm.has_permission(request=req, view=None)
         self.assertTrue(result)
-
-
 
     @patch('api.common.permissions.customer_owner.Customer.objects.get',
            new_callable=get_fake_customer)

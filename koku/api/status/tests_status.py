@@ -17,12 +17,13 @@
 """Test the status API."""
 
 from collections import namedtuple
-from unittest.mock import ANY, Mock, patch, PropertyMock
+from unittest.mock import ANY, Mock, PropertyMock, patch
 
-from django.urls import reverse
 from django.test import TestCase
+from django.urls import reverse
 
-from api.status.model import Status
+from api.status.models import Status
+
 
 class StatusModelTest(TestCase):
     """Tests against the status functions."""
@@ -46,7 +47,7 @@ class StatusModelTest(TestCase):
         self.assertEqual(result, expected)
 
     @patch('subprocess.run')
-    @patch('api.status.model.os.environ')
+    @patch('api.status.models.os.environ')
     def test_commit_with_subprocess(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = 'buildnum'
@@ -87,19 +88,19 @@ class StatusModelTest(TestCase):
         result = self.status_info.modules
         self.assertEqual(result, expected)
 
-    @patch('api.status.model.logger.info')
+    @patch('api.status.models.logger.info')
     def test_startup_with_modules(self, mock_logger):  # pylint: disable=no-self-use
         """Test the startup method with a module list."""
         self.status_info.startup()
         mock_logger.assert_called_with(ANY, ANY)
 
-    @patch('api.status.model.Status.modules', new_callable=PropertyMock)
+    @patch('api.status.models.Status.modules', new_callable=PropertyMock)
     def test_startup_without_modules(self, mock_mods):  # pylint: disable=no-self-use
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
-        expected = 'INFO:api.status.model:Modules: None'
+        expected = 'INFO:api.status.models:Modules: None'
 
-        with self.assertLogs('api.status.model', level='INFO') as logger:
+        with self.assertLogs('api.status.models', level='INFO') as logger:
             self.status_info.startup()
             self.assertIn(expected, logger.output)
 
