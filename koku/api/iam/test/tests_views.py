@@ -34,7 +34,7 @@ class CustomerViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-
+        self.create_service_admin()
         for customer in self.customer_data:
             response = self.create_customer(customer)
             self.assertEqual(response.status_code, 201)
@@ -77,7 +77,7 @@ class UserViewTest(IamTestCase):
 
     def setUp(self):
         super().setUp()
-
+        self.create_service_admin()
         self.customers = []
 
         for customer in self.customer_data:

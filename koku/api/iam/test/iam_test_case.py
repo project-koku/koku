@@ -37,12 +37,6 @@ class IamTestCase(TestCase):
                               {'name' : 'test_customer_2',
                                'owner': self.gen_user_data()}]
 
-        User.objects.create_superuser(username='service_user',
-                                      email='service_user@foo.com',
-                                      password='service_pass')
-        self.service_admin_token = self.get_token('service_user',
-                                                  'service_pass')
-
     def tearDown(self):
         """Tears down test case objects."""
         User.objects.filter(username='service_user').all().delete()
@@ -56,6 +50,14 @@ class IamTestCase(TestCase):
         json_result = response.json()
         token = json_result.get('token')
         return 'Token {}'.format(token)
+
+    def create_service_admin(self):
+        """Create a service admin."""
+        User.objects.create_superuser(username='service_user',
+                                      email='service_user@foo.com',
+                                      password='service_pass')
+        self.service_admin_token = self.get_token('service_user',
+                                                  'service_pass')
 
     def create_customer(self, customer_data):
         """Create a customer."""
