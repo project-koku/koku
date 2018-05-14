@@ -21,8 +21,8 @@ from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from api.status.model import Status
-from api.status.serializer import StatusSerializer
+from api.status.models import Status
+from api.status.serializers import StatusSerializer
 
 
 @api_view(['GET'])

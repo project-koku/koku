@@ -22,7 +22,7 @@ from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.permissions import IsAdminUser
 
-import api.iam.model as model
+import api.iam.models as model
 import api.iam.serializers as serializers
 
 

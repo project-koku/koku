@@ -23,7 +23,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .model import Customer, User
+from .models import Customer, User
 
 
 class UserSerializer(serializers.ModelSerializer):

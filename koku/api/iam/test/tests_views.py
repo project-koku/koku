@@ -20,7 +20,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
-from ..model import Customer, User
+from ..models import Customer, User
 from ..serializers import CustomerSerializer, UserSerializer
 
 

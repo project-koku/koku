@@ -19,7 +19,7 @@
 
 from rest_framework import mixins, viewsets
 
-import api.iam.model as model
+import api.iam.models as model
 import api.iam.serializers as serializers
 
 
