@@ -19,6 +19,7 @@ from django.apps import apps
 from django.contrib.auth.models import User
 from django.test import TestCase
 
+from api.models import Status
 from koku.env import ENVIRONMENT
 
 
@@ -69,3 +70,9 @@ class AppsModelTest(TestCase):
         api_config.create_service_admin(service_email)
         self.assertTrue(User.objects.filter(
             email=service_email).count() != 0)
+
+    def test_startup_status(self):
+        """Test the server status startup."""
+        api_config = apps.get_app_config('api')
+        api_config.startup_status()
+        self.assertEqual(Status.objects.count(), 1)

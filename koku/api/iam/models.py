@@ -19,8 +19,10 @@
 
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.auth.models import Group as DjangoGroup, User as DjangoUser
 from django.db import models
+from django.utils import timezone
 
 
 class Customer(DjangoGroup):
@@ -47,3 +49,20 @@ class User(DjangoUser):
 
     class Meta:
         ordering = ['username']
+
+
+def token_expiration():
+    """Get the date time for token expiration."""
+    expire_setting = settings.PASSWORD_RESET_TIMEOUT_DAYS
+    expire = timezone.now() + timezone.timedelta(days=expire_setting)
+    return expire
+
+
+class ResetToken(models.Model):
+    """A Reset Token for managing user password resets."""
+
+    token = models.UUIDField(default=uuid4, editable=False,
+                             unique=True, null=False)
+    expiration_date = models.DateTimeField(default=token_expiration)
+    user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
+    used = models.BooleanField(default=False)
