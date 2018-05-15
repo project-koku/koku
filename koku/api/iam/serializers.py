@@ -58,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
-        user = User.objects.create_user(
+        user = create_user(
             username=validated_data.get('username'),
             email=validated_data.get('email'),
             password=validated_data.get('password'))
