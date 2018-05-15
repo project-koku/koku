@@ -37,8 +37,8 @@ class ApiConfig(AppConfig):
             self.startup_status()
             self.check_and_create_service_admin()
         except (OperationalError, ProgrammingError) as op_error:
-            if "no such table" in str(op_error) or \
-                    "does not exist" in str(op_error):
+            if 'no such table' in str(op_error) or \
+                    'does not exist' in str(op_error):
                 # skip this if we haven't created tables yet.
                 return
             else:
