@@ -18,30 +18,32 @@
 """Identity and Access Serializers."""
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
-from django.db import transaction
 from django.core.validators import validate_email
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .model import Customer, User
+from .models import Customer, User
 
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
+
     email = serializers.EmailField(required=True,
                                    max_length=150,
                                    allow_blank=False,
                                    validators=[validate_email,
                                                UniqueValidator(queryset=User.objects.all())])
 
-
     class Meta:
         """Metadata for the serializer."""
+
         model = User
         fields = ('uuid', 'username', 'email', 'password')
         extra_kwargs = {'password': {'write_only': True, 'required': True,
                                      'style': {'input_type': 'password'},
                                      'max_length': 128, 'allow_null': False}}
+
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
@@ -54,12 +56,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 class CustomerSerializer(serializers.ModelSerializer):
     """Serializer for the Customer model."""
+
     owner = UserSerializer()
+
     class Meta:
         """Metadata for the serializer."""
+
         model = Customer
         fields = ('uuid', 'name', 'owner', 'date_created')
-
 
     @transaction.atomic
     def create(self, validated_data):

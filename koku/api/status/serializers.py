@@ -19,7 +19,8 @@
 
 from rest_framework import serializers
 
-from .model import Status
+from .models import Status
+
 
 class StatusSerializer(serializers.Serializer):
     """Serializer for the Status model."""

@@ -116,7 +116,7 @@ oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
 oc-create-db:
-	sleep 30
+	oc login -u developer
 	oc create istag postgresql:9.6 --from-image=centos/postgresql-96-centos7
 	oc process openshift//postgresql-persistent \
 		-p NAMESPACE=myproject \

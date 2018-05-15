@@ -17,18 +17,19 @@
 
 """View for server status."""
 
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework import permissions
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
-from api.status.model import Status
-from api.status.serializer import StatusSerializer
+from api.status.models import Status
+from api.status.serializers import StatusSerializer
 
 
 @api_view(['GET'])
 @permission_classes((permissions.AllowAny,))
 def status(request):
     """Provide the server status information.
+
     @api {get} /api/v1/status/ Request server status
     @apiName GetStatus
     @apiGroup Status
