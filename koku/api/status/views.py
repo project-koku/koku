@@ -74,7 +74,7 @@ def status(request):
             "server_id": "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
         }
     """
-    status_info = Status.objects.get(pk=1)
+    status_info = Status.objects.first()
     serializer = StatusSerializer(status_info)
     server_info = serializer.data
     server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
