@@ -58,7 +58,7 @@ There are a few ways to use OpenShift while developing Koku. It is possible to s
 To gain temporary access to the database within OpenShift, port forwarding is used. ::
 
   # Port forward to 15432
-  make oc-forwrd-ports
+  make oc-forward-ports
 
   psql koku -U kokuadmin -p 15432 -h localhost
 
