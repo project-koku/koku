@@ -23,7 +23,18 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import Customer, User
+from .models import Customer, ResetToken, User
+
+
+def create_user(username, email, password):
+    """Create a user and associated password reset token."""
+    user = User.objects.create_user(username=username,
+                                    email=email,
+                                    password=password)
+    reset_token = ResetToken(user=user)
+    reset_token.save()
+
+    return user
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
-        user = User.objects.create_user(
+        user = create_user(
             username=validated_data.get('username'),
             email=validated_data.get('email'),
             password=validated_data.get('password'))
@@ -69,9 +80,9 @@ class CustomerSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a customer and owner."""
         owner_data = validated_data.pop('owner')
-        owner = User.objects.create_user(username=owner_data.get('username'),
-                                         email=owner_data.get('email'),
-                                         password=owner_data.get('password'))
+        owner = create_user(username=owner_data.get('username'),
+                            email=owner_data.get('email'),
+                            password=owner_data.get('password'))
 
         validated_data['owner_id'] = owner.id
         customer = Customer.objects.create(**validated_data)

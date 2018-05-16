@@ -20,6 +20,7 @@ import uuid
 
 from rest_framework.exceptions import ValidationError
 
+from api.iam.models import ResetToken
 from api.iam.serializers import CustomerSerializer, UserSerializer
 from .iam_test_case import IamTestCase
 
@@ -37,6 +38,8 @@ class CustomerSerializerTest(IamTestCase):
                 instance = serializer.save()
 
             self.assertEqual(customer['name'], instance.name)
+            self.assertTrue(ResetToken.objects.filter(
+                user=instance.owner).exists)
 
     def test_uuid_field(self):
         """Test that a uuid is generated."""
@@ -68,6 +71,7 @@ class UserSerializerTest(IamTestCase):
 
             self.assertEqual(user['username'], instance.username)
             self.assertIsNotNone(instance.password)
+            self.assertTrue(ResetToken.objects.filter(user=instance).exists)
 
     def test_update_user(self):
         """Test updating a user."""
