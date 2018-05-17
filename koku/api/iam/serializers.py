@@ -18,7 +18,7 @@
 """Identity and Access Serializers."""
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
-import random
+import secrets
 import string
 
 from django.core.validators import validate_email
@@ -30,12 +30,12 @@ from .email import new_user_reset_email
 from .models import Customer, ResetToken, User
 
 
-def generate_password():
-    """Generate a complex password."""
+def gen_temp_password():
+    """Generate a temporary password."""
     choices = '!@#$%^&*()_+' + string.digits \
         + string.ascii_uppercase + string.ascii_lowercase
 
-    return ''.join(random.choices(choices, k=10))
+    return ''.join(secrets.choice(choices) for i in range(10))
 
 
 def create_user(username, email, password):
@@ -44,7 +44,7 @@ def create_user(username, email, password):
     if password:
         user_pass = password
     else:
-        user_pass = generate_password()
+        user_pass = gen_temp_password()
 
     user = User.objects.create_user(username=username,
                                     email=email,

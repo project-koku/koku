@@ -93,6 +93,9 @@ objects:
     app-config: ${APP_CONFIG}
     app-home: ${APP_HOME}
     app-module: ${APP_MODULE}
+    email-service-host: ${EMAIL_HOST}
+    email-service-port: ${EMAIL_PORT}
+    email-service-host-user: ${EMAIL_HOST_USER}
   kind: ConfigMap
 - apiVersion: v1
   kind: Service
@@ -236,6 +239,12 @@ objects:
                   key: service-admin-password
                   name: ${NAME}-secret
                   optional: false
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: email-service-password
+                  name: ${NAME}-secret
+                  optional: false
             - name: DATABASE_ENGINE
               valueFrom:
                 configMapKeyRef:
@@ -265,6 +274,24 @@ objects:
                 configMapKeyRef:
                   name: koku-env
                   key: postgres-sql-service-port
+                  optional: false
+            - name: EMAIL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-host
+                  optional: false
+            - name: EMAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-port
+                  optional: false
+            - name: EMAIL_HOST_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-host-user
                   optional: false
           livenessProbe:
             failureThreshold: 3
