@@ -17,17 +17,13 @@
 
 """Utility for emailing users on creation and password reset."""
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 from koku.env import ENVIRONMENT
 
 SUBJECT = 'Welcome to Hybrid Cost Management'
 SENDER = ENVIRONMENT.get_value('EMAIL_SENDER',
                                default='noreply@project-koku.com')
-BODY = 'Welcome to Hybrid Cost Management.' \
-    ' Start gaining insights on your costs today.' \
-    ' You user has been created with username {username}.' \
-    ' Point your browser to the following URL to reset your password' \
-    ' and begin using the service. {reset_link}'
 DEFAULT_RESET = 'https://koku-ui.project-koku.com/password-reset.html'
 RESET_LINK = ENVIRONMENT.get_value('PASSWORD_RESET_LINK',
                                    default=DEFAULT_RESET)
@@ -36,5 +32,7 @@ RESET_LINK = ENVIRONMENT.get_value('PASSWORD_RESET_LINK',
 def new_user_reset_email(username, email, uuid, token):
     """Send an email with a password reset link for new users."""
     reset_link = RESET_LINK + '?uuid=' + uuid + '&token=' + token
-    body = BODY.format(username=username, reset_link=reset_link)
-    send_mail(SUBJECT, body, SENDER, [email])
+    msg_params = {'username': username, 'reset_link': reset_link}
+    msg_plain = render_to_string('welcome.txt', msg_params)
+    msg_html = render_to_string('welcome.html', msg_params)
+    send_mail(SUBJECT, msg_plain, SENDER, [email], html_message=msg_html)
