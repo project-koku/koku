@@ -134,8 +134,6 @@ objects:
       to:
         kind: ImageStreamTag
         name: ${NAME}:latest
-    postCommit:
-      script: cd koku && python manage.py test
     source:
       contextDir: ${CONTEXT_DIR}
       git:

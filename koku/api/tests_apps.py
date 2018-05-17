@@ -15,10 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the API apps module."""
+from unittest.mock import patch
+
 from django.apps import apps
 from django.contrib.auth.models import User
+from django.db.utils import OperationalError, ProgrammingError
 from django.test import TestCase
 
+from api.apps import ApiConfig as KokuApiConfig
 from api.models import Status
 from koku.env import ENVIRONMENT
 
@@ -76,3 +80,31 @@ class AppsModelTest(TestCase):
         api_config = apps.get_app_config('api')
         api_config.startup_status()
         self.assertEqual(Status.objects.count(), 1)
+
+    # patching a method called by ApiConfig.ready()
+    @patch.object(KokuApiConfig, 'startup_status',
+                  lambda x: exec('raise OperationalError("This is a Test Exception")'))
+    def test_catch_operational_error(self):
+        """Test that we handle exceptions thrown when tables are missing."""
+        api_config = apps.get_app_config('api')
+
+        # the real test
+        api_config.ready()
+
+        # sanity-checking that the mocked object is raising the expected error
+        with self.assertRaises(OperationalError):
+            api_config.startup_status()
+
+    # patching a method called by ApiConfig.ready()
+    @patch.object(KokuApiConfig, 'check_and_create_service_admin',
+                  lambda x: exec('raise ProgrammingError("This is a Test Exception")'))
+    def test_catch_programming_error(self):
+        """Test that we handle exceptions thrown when tables are missing."""
+        api_config = apps.get_app_config('api')
+
+        # the real test
+        api_config.ready()
+
+        # sanity-checking that the mocked object is raising the expected error
+        with self.assertRaises(ProgrammingError):
+            api_config.check_and_create_service_admin()
