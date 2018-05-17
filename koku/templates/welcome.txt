@@ -1,0 +1,6 @@
+Welcome to Hybrid Cost Management.
+
+Start gaining insights on your costs today.
+
+You user has been created with username {{username}}.
+Point your browser to the following URL to reset your password and begin using the service. {{reset_link}}

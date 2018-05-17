@@ -71,12 +71,14 @@ objects:
       template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
       template.openshift.io/expose-service_admin_email: "{.data['service-admin-email']}"
       template.openshift.io/expose-service_admin_password: "{.data['service-admin-password']}"
+      template.openshift.io/expose-email_service_password: "{.data['email-service-password']}"
     name: ${NAME}-secret
   stringData:
     django-secret-key: ${DJANGO_SECRET_KEY}
     service-admin-user: ${SERVICE_ADMIN_USER}
     service-admin-email: ${SERVICE_ADMIN_EMAIL}
     service-admin-password: ${SERVICE_ADMIN_PASSWORD}
+    email-service-password: ${EMAIL_SERVICE_PASSWORD}
 - apiVersion: v1
   metadata:
     name: koku-env
@@ -91,6 +93,9 @@ objects:
     app-config: ${APP_CONFIG}
     app-home: ${APP_HOME}
     app-module: ${APP_MODULE}
+    email-service-host: ${EMAIL_HOST}
+    email-service-port: ${EMAIL_PORT}
+    email-service-host-user: ${EMAIL_HOST_USER}
   kind: ConfigMap
 - apiVersion: v1
   kind: Service
@@ -234,6 +239,12 @@ objects:
                   key: service-admin-password
                   name: ${NAME}-secret
                   optional: false
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: email-service-password
+                  name: ${NAME}-secret
+                  optional: false
             - name: DATABASE_ENGINE
               valueFrom:
                 configMapKeyRef:
@@ -263,6 +274,24 @@ objects:
                 configMapKeyRef:
                   name: koku-env
                   key: postgres-sql-service-port
+                  optional: false
+            - name: EMAIL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-host
+                  optional: false
+            - name: EMAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-port
+                  optional: false
+            - name: EMAIL_HOST_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: email-service-host-user
                   optional: false
           livenessProbe:
             failureThreshold: 3
@@ -517,14 +546,25 @@ parameters:
   name: SERVICE_ADMIN_USER
   required: true
 - displayName: Service Admin Email
-  from: 'cost-mgmt@redhat.com'
-  generate: expression
+  from: 'cost-mgmt@project-koku.com'
   name: SERVICE_ADMIN_EMAIL
   required: true
 - displayName: Service Admin Password
   from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: SERVICE_ADMIN_PASSWORD
+- displayName: Email Service Host
+  from: 'smtp.mailgun.org'
+  name: EMAIL_HOST
+- displayName: Email Service Port
+  from: '587'
+  name: EMAIL_PORT
+- displayName: Email Service User
+  from: 'postmaster@mg.project-koku.com'
+  name: EMAIL_HOST_USER
+- displayName: Email Service Password
+  from: ${EMAIL_SERVICE_PASSWORD}
+  name: EMAIL_HOST_PASSWORD
 - description: The custom PyPi index URL
   displayName: Custom PyPi Index URL
   name: PIP_INDEX_URL
