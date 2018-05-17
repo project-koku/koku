@@ -29,7 +29,7 @@ import os
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
-from . import database
+from . import database, email
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -87,7 +87,7 @@ ROOT_URLCONF = 'koku.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -166,6 +166,13 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': DEFAULT_PAGINATION_CLASS,
 }
+
+EMAIL_HOST = email.EMAIL_HOST
+EMAIL_PORT = email.EMAIL_PORT
+EMAIL_HOST_USER = email.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = email.EMAIL_HOST_PASSWORD
+EMAIL_USE_TLS = email.EMAIL_USE_TLS
+EMAIL_BACKEND = email.get_email_backend()
 
 PASSWORD_RESET_TIMEOUT_DAYS = 1
 
