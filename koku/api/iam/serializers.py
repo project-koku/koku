@@ -25,17 +25,33 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .models import Customer, ResetToken, User, UserPreference
+from .email import new_user_reset_email
+from .models import Customer, ResetToken, User
+
+
+def gen_temp_password():
+    """Generate a temporary password."""
+    choices = '!@#$%^&*()_+' + string.digits \
+        + string.ascii_uppercase + string.ascii_lowercase
+
+    return ''.join(secrets.choice(choices) for i in range(10))
 
 
 def create_user(username, email, password):
     """Create a user and associated password reset token."""
+    user_pass = None
+    if password:
+        user_pass = password
+    else:
+        user_pass = gen_temp_password()
+
     user = User.objects.create_user(username=username,
                                     email=email,
-                                    password=password)
+                                    password=user_pass)
     reset_token = ResetToken(user=user)
     reset_token.save()
-
+    new_user_reset_email(username, email, str(user.uuid),
+                         str(reset_token.token))
     return user
 
 
@@ -53,7 +69,7 @@ class UserSerializer(serializers.ModelSerializer):
 
         model = User
         fields = ('uuid', 'username', 'email', 'password')
-        extra_kwargs = {'password': {'write_only': True, 'required': True,
+        extra_kwargs = {'password': {'write_only': True, 'required': False,
                                      'style': {'input_type': 'password'},
                                      'max_length': 128, 'allow_null': False}}
 

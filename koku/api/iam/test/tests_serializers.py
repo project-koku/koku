@@ -20,6 +20,8 @@ import uuid
 
 from rest_framework.exceptions import ValidationError
 
+from api.iam.email import SUBJECT
+from api.iam.models import ResetToken
 from api.iam.models import ResetToken, UserPreference
 from api.iam.serializers import (CustomerSerializer,
                                  UserPreferenceSerializer,
@@ -66,6 +68,7 @@ class UserSerializerTest(IamTestCase):
         """Test creating a user."""
         # create the users
         for user in self.user_data:
+            outbox_count = len(mail.outbox)
             instance = None
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
@@ -74,6 +77,8 @@ class UserSerializerTest(IamTestCase):
             self.assertEqual(user['username'], instance.username)
             self.assertIsNotNone(instance.password)
             self.assertTrue(ResetToken.objects.filter(user=instance).exists)
+            self.assertEqual(len(mail.outbox), outbox_count + 1)
+            self.assertEqual(mail.outbox[0].subject, SUBJECT)
 
     def test_update_user(self):
         """Test updating a user."""
@@ -129,6 +134,16 @@ class UserSerializerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             if serializer_2.is_valid(raise_exception=True):
                 serializer_2.save()
+
+    def test_non_password_user(self):
+        """Test that a user with no password."""
+        # create the user
+        gen_user = self.gen_user_data()
+        del gen_user['password']
+        serializer = UserSerializer(data=gen_user)
+        if serializer.is_valid(raise_exception=True):
+            instance = serializer.save()
+        self.assertIsNotNone(instance.password)
 
 
 class UserPreferenceSerializerTest(IamTestCase):
