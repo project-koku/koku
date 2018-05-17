@@ -54,7 +54,7 @@ objects:
       template.openshift.io/expose-database_name: "{.data['database-name']}"
       template.openshift.io/expose-password: "{.data['database-password']}"
       template.openshift.io/expose-username: "{.data['database-user']}"
-    name: ${DATABASE_SERVICE_NAME}-secret
+    name: ${DATABASE_SERVICE_NAME}
   stringData:
     database-name: ${DATABASE_NAME}
     database-password: ${DATABASE_PASSWORD}
@@ -202,13 +202,13 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: database-user
-                  name: ${DATABASE_SERVICE_NAME}-secret
+                  name: ${DATABASE_SERVICE_NAME}
                   optional: false
             - name: DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   key: database-password
-                  name: ${DATABASE_SERVICE_NAME}-secret
+                  name: ${DATABASE_SERVICE_NAME}
                   optional: false
             - name: DJANGO_SECRET_KEY
               valueFrom:
@@ -330,17 +330,17 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: ${DATABASE_SERVICE_NAME}-secret
+                name: ${DATABASE_SERVICE_NAME}
           - name: POSTGRESQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: ${DATABASE_SERVICE_NAME}-secret
+                name: ${DATABASE_SERVICE_NAME}
           - name: POSTGRESQL_ADMIN_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-admin-password
-                name: ${DATABASE_SERVICE_NAME}-secret
+                name: ${DATABASE_SERVICE_NAME}
           - name: POSTGRESQL_DATABASE
             value: ${DATABASE_NAME}
           image: postgresql:9.6
