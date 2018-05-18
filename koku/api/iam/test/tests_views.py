@@ -317,3 +317,20 @@ class UserViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.put(url, data=reset_body, format='json')
         self.assertEqual(response.status_code, 400)
+
+    def test_current_user(self):
+        """Test getting current user."""
+        test_user = self.customers[1]['users'][0]
+        token = test_user['token']
+        url = reverse('user-current')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_current_user_anon(self):
+        """Test getting current user with an anonymous user."""
+        url = reverse('user-current')
+        client = APIClient()
+        response = client.get(url)
+        self.assertEqual(response.status_code, 401)

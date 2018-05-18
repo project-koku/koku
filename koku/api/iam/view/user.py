@@ -76,7 +76,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
         @api {post} /api/v1/users/ Create a user
         @apiName createUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Create a user.
 
@@ -114,7 +114,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
         @api {get} /api/v1/users/ Obtain the list of users
         @apiName GetUsers
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Obtain the list of users.
 
@@ -148,9 +148,9 @@ class UserViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
 
-        @api {get} /api/v1/user/:id/ Get a user
+        @api {get} /api/v1/users/:id/ Get a user
         @apiName GetUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Get a user.
 
@@ -178,9 +178,9 @@ class UserViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
 
-        @api {delete} /api/v1/user/:id/ Delete a user
+        @api {delete} /api/v1/users/:id/ Delete a user
         @apiName DeleteUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Delete a user.
 
@@ -203,9 +203,9 @@ class UserViewSet(mixins.CreateModelMixin,
     def reset_password(self, request, uuid=None):
         """Reset a user's password.
 
-        @api {put} /api/v1/user/:id/reset-password/ Reset user password
+        @api {put} /api/v1/users/:id/reset-password/ Reset user password
         @apiName ResetUserPassword
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Reset a user's password.
 
@@ -266,6 +266,40 @@ class UserViewSet(mixins.CreateModelMixin,
         reset_token.used = True
         reset_token.save()
 
+        output = {'uuid': user.uuid,
+                  'username': user.username,
+                  'email': user.email}
+        return Response(output)
+
+    @action(methods=['get'], detail=False, permission_classes=[IsAuthenticated],
+            url_path='current', url_name='current')
+    def current(self, request):
+        """Get the current user.
+
+        @api {get} /api/v1/users/current/ Get the current user
+        @apiName GetCurrentUser
+        @apiGroup User
+        @apiVersion 1.0.0
+        @apiDescription Get the current user.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} username  The name of the user.
+        @apiSuccess {String} email  The email address of the user.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "username": "smithj",
+                "email": "smithj@mytechco.com"
+            }
+        """
+        user = get_object_or_404(self.queryset, pk=request.user.id)
         output = {'uuid': user.uuid,
                   'username': user.username,
                   'email': user.email}
