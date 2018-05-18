@@ -88,14 +88,18 @@ class IamTestCase(TestCase):
         response = client.post(url, data=user_data, format='json')
         return response
 
+    def gen_password(self):
+        """Generate a password."""
+        return self.fake.password(length=randint(8, 12),
+                                  special_chars=True,
+                                  digits=True,
+                                  upper_case=True,
+                                  lower_case=True)
+
     def gen_user_data(self):
         """Generate user data."""
         user_data = {'username': self.fake.user_name(),
-                     'password': self.fake.password(length=randint(8, 12),
-                                                    special_chars=True,
-                                                    digits=True,
-                                                    upper_case=True,
-                                                    lower_case=True),
+                     'password': self.gen_password(),
                      'first_name': self.fake.first_name(),
                      'last_name': self.fake.last_name(),
                      'email': self.fake.email()}

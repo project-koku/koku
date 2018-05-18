@@ -136,3 +136,14 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
 
         model = UserPreference
         fields = ('__all__')
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """Serializer for the Password change."""
+
+    token = serializers.UUIDField(required=True)
+    password = serializers.CharField(write_only=True,
+                                     required=True,
+                                     max_length=128,
+                                     allow_null=False,
+                                     style={'input_type': 'password'})
