@@ -35,12 +35,15 @@ def config():
                                          default='').upper().replace('-', '_')
     if service_name:
         engine = engines.get(ENVIRONMENT.get_value('DATABASE_ENGINE'),
-                             engines['sqlite'])
+                             engines['postgresql'])
     else:
-        engine = engines['sqlite']
+        engine = engines['postgresql']
+
     name = ENVIRONMENT.get_value('DATABASE_NAME', default=None)
+
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+
     return {
         'ENGINE': engine,
         'NAME': name,
