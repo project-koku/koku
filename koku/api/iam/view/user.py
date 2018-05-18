@@ -255,6 +255,13 @@ class UserViewSet(mixins.CreateModelMixin,
             raise ValidationError(error)
 
         reset_token = token_qs.first()
+        if user.check_password(password):
+            msg = 'Password cannot be the same as the previous password.'
+            error = {
+                'password': [_(msg)]
+            }
+            raise ValidationError(error)
+
         user.set_password(password)
         reset_token.used = True
         reset_token.save()

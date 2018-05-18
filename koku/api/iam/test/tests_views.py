@@ -252,6 +252,18 @@ class UserViewTest(IamTestCase):
         response = client.put(url, data=reset_body, format='json')
         self.assertEqual(response.status_code, 200)
 
+    def test_reset_password_same_pass(self):
+        """Test reset password with valid user, token and same password."""
+        test_user = self.customers[0]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': test_user['reset_token'],
+                      'password': test_user['password']}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 400)
+
     def test_reset_password_no_reuse(self):
         """Test reset password with valid user and token twice."""
         test_user = self.customers[1]['users'][0]
