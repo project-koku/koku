@@ -18,10 +18,10 @@
 
 import uuid
 
+from django.core import mail
 from rest_framework.exceptions import ValidationError
 
 from api.iam.email import SUBJECT
-from api.iam.models import ResetToken
 from api.iam.models import ResetToken, UserPreference
 from api.iam.serializers import (CustomerSerializer,
                                  UserPreferenceSerializer,

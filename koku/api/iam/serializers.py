@@ -19,6 +19,9 @@
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
 
+import secrets
+import string
+
 from django.conf import settings
 from django.core.validators import validate_email
 from django.db import transaction
@@ -26,7 +29,7 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from .email import new_user_reset_email
-from .models import Customer, ResetToken, User
+from .models import Customer, ResetToken, User, UserPreference
 
 
 def gen_temp_password():
