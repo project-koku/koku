@@ -1,19 +1,24 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+
 [packages]
+
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
-"boto3" = ">=1.6.0"
+boto3 = ">=1.6.0"
 whitenoise = ">=3.3.0"
 Django = ">=2.0.0"
-"psycopg2-binary" = ">=2.7.0"
+psycopg2-binary = ">=2.7.0"
+
 
 [dev-packages]
-pylint = "==1.8.4"
+
+pylint = "==1.9.1"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"
 tox = ">=3.0.0"
@@ -21,5 +26,7 @@ coverage = ">=4.5.0"
 codecov = ">=2.0.0"
 faker = ">=0.8.14"
 
+
 [requires]
+
 python_version = "3.6"
