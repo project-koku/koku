@@ -95,7 +95,10 @@ class UserSerializer(serializers.ModelSerializer):
                     {'locale': settings.KOKU_DEFAULT_LOCALE}]
 
         for pref in defaults:
-            data = {'preference': pref, 'user': user}
+            data = {'preference': pref,
+                    'user': user,
+                    'name': list(pref.keys())[0],
+                    'description': 'default preference'}
             serializer = UserPreferenceSerializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
@@ -131,11 +134,14 @@ class CustomerSerializer(serializers.ModelSerializer):
 class UserPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for the UserPreference model."""
 
+    user_uuid = serializers.StringRelatedField(source='user.uuid')
+
     class Meta:
         """Metadata for the serializer."""
 
         model = UserPreference
-        fields = ('__all__')
+        fields = ('uuid', 'name', 'description', 'preference', 'user', 'user_uuid')
+        extra_kwargs = {'user': {'write_only': True, 'required': False}}
 
 
 class PasswordChangeSerializer(serializers.Serializer):

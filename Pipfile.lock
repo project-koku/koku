@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6bcc76b15d10a07b4fc708a316a2fd4c33861deef14569d839927250a8dfe55f"
+            "sha256": "a2df74de24e570f93660fe95cc59c963c7949edeedcaf496c27011e3a980dd00"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,6 +21,7 @@
                 "sha256:7911f4b593a268a9b218839af972dbeeca886037e1090fa06aaef94276545a4d",
                 "sha256:c5942bb27d364625be6b0521e88ccfcd60a2d2b58b9b126748fb22d613693260"
             ],
+            "index": "pypi",
             "version": "==1.7.24"
         },
         "botocore": {
@@ -61,6 +62,14 @@
                 "sha256:7a4bd47eaf6596e1295ecb11361139febe29b084a87bf005bf899f9a42edc3c6"
             ],
             "version": "==0.14"
+        },
+        "drf-nested-routers": {
+            "hashes": [
+                "sha256:52cbc4900e3ccd652bfb73017ff466d7b3e4d99838c912c250d75763b32669af",
+                "sha256:a4d97de1be554f5db3fd11c881f578d10a3e1324b6e99be1749a11c7248d3360"
+            ],
+            "index": "pypi",
+            "version": "==0.90.2"
         },
         "gunicorn": {
             "hashes": [
@@ -115,6 +124,7 @@
                 "sha256:1adb80e7a782c12e52ef9a8182bebeb73f1d7e24e374397af06fb4956c8dc5c0",
                 "sha256:e27001de32f627c22380a688bcc43ce83504a7bc5da472209b4c70f02829f0b8"
             ],
+            "markers": "python_version >= '2.7'",
             "version": "==2.7.3"
         },
         "pytz": {
@@ -246,6 +256,7 @@
                 "sha256:782a58cec0e083df8e3536b0a890fce9bdc1633782c140b64183dcc626fea53e",
                 "sha256:a77a1a2223a8e0d32618878350bbd2171040f32b526ba2cddfab8864704bb370"
             ],
+            "index": "pypi",
             "version": "==0.8.15"
         },
         "idna": {
@@ -358,6 +369,7 @@
                 "sha256:aa519865f8890a5905fa34924fed0f3bfc7d84fc9f9142c16dac52ffecd25a39",
                 "sha256:c353d8225195b37cc3aef18248b8f3fe94c5a6a95affaf885ae21a24ca31d8eb"
             ],
+            "index": "pypi",
             "version": "==1.9.1"
         },
         "pyparsing": {
