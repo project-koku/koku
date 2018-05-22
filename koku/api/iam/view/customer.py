@@ -70,17 +70,17 @@ class CustomerViewSet(mixins.CreateModelMixin,
                 }
             }
 
-        @apiSuccess {Number} id The identifier of the customer.
+        @apiSuccess {String} uuid The identifier of the customer.
         @apiSuccess {String} name  The name of the customer.
         @apiSuccess {Object} owner  The user associated with the customer creation.
         @apiSuccess {String} date_created  The date-time the customer is created.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 201 CREATED
             {
-                "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                "uuid": "600562e7-d7d7-4516-8522-410e72792daf",
                 "name": "My Tech Company",
                 "owner": {
-                    "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                     "username": "smithj",
                     "email": "smithj@mytechco.com"
                 },
@@ -116,10 +116,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
                 "next": "/api/v1/customers/?page=4",
                 "results": [
                     {
-                        "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                        "uuid": "600562e7-d7d7-4516-8522-410e72792daf",
                         "name": "My Tech Company",
                         "owner": {
-                            "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                            "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                             "username": "smithj",
                             "email": "smithj@mytechco.com"
                           },
@@ -133,7 +133,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a customer.
 
-        @api {get} /api/v1/customers/:id/ Get a customer
+        @api {get} /api/v1/customers/:uuid/ Get a customer
         @apiName GetCustomer
         @apiGroup Customer
         @apiVersion 1.0.0
@@ -145,19 +145,19 @@ class CustomerViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id Customer unique ID.
+        @apiParam {String} uuid Customer unique ID.
 
-        @apiSuccess {Number} id The identifier of the customer.
+        @apiSuccess {String} uuid The identifier of the customer.
         @apiSuccess {String} name  The name of the customer.
         @apiSuccess {Object} owner  The user associated with the customer creation.
         @apiSuccess {String} date_created  The date-time the customer is created.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": "600562e7-d7d7-4516-8522-410e72792daf",
+                "uuid": "600562e7-d7d7-4516-8522-410e72792daf",
                 "name": "My Tech Company",
                 "owner": {
-                    "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                     "username": "smithj",
                     "email": "smithj@mytechco.com"
                 },
