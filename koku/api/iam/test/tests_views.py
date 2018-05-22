@@ -22,8 +22,8 @@ from django.contrib.auth.models import User as UserAuth
 from django.db import DatabaseError
 from django.http import HttpResponse
 from django.urls import reverse
-from rest_framework import mixins
 from django.utils import timezone
+from rest_framework import mixins
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
