@@ -19,7 +19,7 @@ from django.db import transaction
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from api.iam.models import Customer
+from api.iam.models import Customer, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
@@ -91,16 +91,10 @@ class ProviderSerializer(serializers.ModelSerializer):
         customer = None
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            user = request.user
+            user = User.objects.get(pk=request.user.id)
             if user.groups.count() == 1:
                 group = user.groups.first()
-                customer_qs = Customer.objects.filter(pk=group.id)
-                if customer_qs.count() == 1:
-                    customer = customer_qs.first()
-                else:
-                    key = 'customer'
-                    message = 'Customer for requesting user could not be found.'
-                    raise serializers.ValidationError(error_obj(key, message))
+                customer = Customer.objects.get(pk=group.id)
             else:
                 key = 'customer'
                 message = 'Group for requesting user could not be found.'

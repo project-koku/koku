@@ -20,7 +20,7 @@ from unittest.mock import Mock
 
 from rest_framework import serializers
 
-from api.iam.serializers import CustomerSerializer
+from api.iam.serializers import CustomerSerializer, UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.serializers import ProviderSerializer
 
@@ -52,8 +52,11 @@ class ProviderSerializerTest(IamTestCase):
                         'bucket': 'my_s3_bucket'
                     }}
         request = Mock()
-        request.user = Mock()
-        request.user.groups.count.return_value = 0
+        new_user = None
+        serializer = UserSerializer(data=self.gen_user_data())
+        if serializer.is_valid(raise_exception=True):
+            new_user = serializer.save()
+        request.user = new_user
         context = {'request': request}
         serializer = ProviderSerializer(data=provider, context=context)
         if serializer.is_valid(raise_exception=True):
@@ -70,11 +73,11 @@ class ProviderSerializerTest(IamTestCase):
                         'bucket': 'my_s3_bucket'
                     }}
         request = Mock()
-        request.user = Mock()
-        group = Mock()
-        group.id = 1
-        request.user.groups.count.return_value = 1
-        request.user.groups.first.return_value = group
+        new_user = None
+        serializer = UserSerializer(data=self.gen_user_data())
+        if serializer.is_valid(raise_exception=True):
+            new_user = serializer.save()
+        request.user = new_user
         context = {'request': request}
         serializer = ProviderSerializer(data=provider, context=context)
         if serializer.is_valid(raise_exception=True):
