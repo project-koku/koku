@@ -18,16 +18,18 @@
 """Identity and Access Serializers."""
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
+
 import secrets
 import string
 
+from django.conf import settings
 from django.core.validators import validate_email
 from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from .email import new_user_reset_email
-from .models import Customer, ResetToken, User
+from .models import Customer, ResetToken, User, UserPreference
 
 
 def gen_temp_password():
@@ -81,7 +83,22 @@ class UserSerializer(serializers.ModelSerializer):
             username=validated_data.get('username'),
             email=validated_data.get('email'),
             password=validated_data.get('password'))
+
+        UserSerializer._create_default_preferences(user)
         return user
+
+    @staticmethod
+    def _create_default_preferences(user):
+        """Set preference defaults for this user."""
+        defaults = [{'currency': settings.KOKU_DEFAULT_CURRENCY},
+                    {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
+                    {'locale': settings.KOKU_DEFAULT_LOCALE}]
+
+        for pref in defaults:
+            data = {'preference': pref, 'user': user}
+            serializer = UserPreferenceSerializer(data=data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -109,3 +126,24 @@ class CustomerSerializer(serializers.ModelSerializer):
         customer.save()
 
         return customer
+
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for the UserPreference model."""
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = UserPreference
+        fields = ('__all__')
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """Serializer for the Password change."""
+
+    token = serializers.UUIDField(required=True)
+    password = serializers.CharField(write_only=True,
+                                     required=True,
+                                     max_length=128,
+                                     allow_null=False,
+                                     style={'input_type': 'password'})

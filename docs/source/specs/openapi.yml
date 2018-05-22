@@ -290,6 +290,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/v1/users/{id}/reset-password/:
+    put:
+      summary: Reset a user's password
+      operationId: resetUserPassword
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: id
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: User password reset information
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeIn'
+      responses:
+        '200':
+          description: A User objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/users/current/:
+    get:
+      summary: Get the current user
+      operationId: getCurrentUser
+      tags:
+        - User
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: An object describing the user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Customer:
@@ -361,6 +434,18 @@ components:
           type: string
           format: uri
           example: "/api/v1/(resources)/?page=4"
+    PasswordChangeIn:
+      required:
+        - token
+        - password
+      properties:
+        password:
+          type: string
+          example: "str0ng!P@ss"
+        token:
+          type: string
+          format: uuid
+          example: "40874085-358e-43a8-908f-59c5b11f9179"
     Status:
       required:
         - api_version
@@ -427,7 +512,6 @@ components:
       properties:
         password:
           type: string
-          format: uuid
           example: "str0ng!P@ss"
     UserPagination:
       allOf:

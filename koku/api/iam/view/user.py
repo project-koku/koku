@@ -16,10 +16,16 @@
 #
 
 """View for Users."""
-
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.translation import ugettext as _
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
 
 import api.iam.models as model
@@ -70,7 +76,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
         @api {post} /api/v1/users/ Create a user
         @apiName createUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Create a user.
 
@@ -108,7 +114,7 @@ class UserViewSet(mixins.CreateModelMixin,
 
         @api {get} /api/v1/users/ Obtain the list of users
         @apiName GetUsers
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Obtain the list of users.
 
@@ -142,9 +148,9 @@ class UserViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
 
-        @api {get} /api/v1/user/:id/ Get a user
+        @api {get} /api/v1/users/:id/ Get a user
         @apiName GetUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Get a user.
 
@@ -172,9 +178,9 @@ class UserViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
 
-        @api {delete} /api/v1/user/:id/ Delete a user
+        @api {delete} /api/v1/users/:id/ Delete a user
         @apiName DeleteUser
-        @apiGroup Users
+        @apiGroup User
         @apiVersion 1.0.0
         @apiDescription Delete a user.
 
@@ -190,3 +196,111 @@ class UserViewSet(mixins.CreateModelMixin,
             HTTP/1.1 204 NO CONTENT
         """
         return super().destroy(request=request, args=args, kwargs=kwargs)
+
+    @action(methods=['put'], detail=True, permission_classes=[IsAuthenticated],
+            url_path='reset-password', url_name='reset-password',
+            serializer_class=serializers.PasswordChangeSerializer)
+    def reset_password(self, request, uuid=None):
+        """Reset a user's password.
+
+        @api {put} /api/v1/users/:id/reset-password/ Reset user password
+        @apiName ResetUserPassword
+        @apiGroup User
+        @apiVersion 1.0.0
+        @apiDescription Reset a user's password.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiParam {Number} id User unique ID.
+
+        @apiParam (Request Body) {String} token The reset token for the user
+        @apiParam (Request Body) {String} password The password for the user
+        @apiParamExample {json} Request Body:
+            {
+            "token": "cc0111c4ffab478e802c-579bd14f5818",
+            "password": "str0ng!P@ss"
+            }
+
+        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} username  The name of the user.
+        @apiSuccess {String} email  The email address of the user.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "username": "smithj",
+                "email": "smithj@mytechco.com"
+            }
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = get_object_or_404(model.User.objects.all(), uuid=uuid)
+
+        token = request.data.get('token')
+        password = request.data.get('password')
+        now = timezone.now()
+        # check for reset token
+        token_qs = model.ResetToken.objects.filter(token=token,
+                                                   user=user,
+                                                   used=False,
+                                                   expiration_date__gt=now)
+        if not token_qs.exists():
+            error = {
+                'token': [_('Token has expired or is invalid.')]
+            }
+            raise ValidationError(error)
+
+        reset_token = token_qs.first()
+        if user.check_password(password):
+            msg = 'Password cannot be the same as the previous password.'
+            error = {
+                'password': [_(msg)]
+            }
+            raise ValidationError(error)
+
+        user.set_password(password)
+        reset_token.used = True
+        reset_token.save()
+
+        output = {'uuid': user.uuid,
+                  'username': user.username,
+                  'email': user.email}
+        return Response(output)
+
+    @action(methods=['get'], detail=False, permission_classes=[IsAuthenticated],
+            url_path='current', url_name='current')
+    def current(self, request):
+        """Get the current user.
+
+        @api {get} /api/v1/users/current/ Get the current user
+        @apiName GetCurrentUser
+        @apiGroup User
+        @apiVersion 1.0.0
+        @apiDescription Get the current user.
+
+        @apiHeader {String} token User authorizaton token.
+        @apiHeaderExample {json} Header-Example:
+            {
+                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            }
+
+        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} username  The name of the user.
+        @apiSuccess {String} email  The email address of the user.
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 200 OK
+            {
+                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "username": "smithj",
+                "email": "smithj@mytechco.com"
+            }
+        """
+        user = get_object_or_404(self.queryset, pk=request.user.id)
+        output = {'uuid': user.uuid,
+                  'username': user.username,
+                  'email': user.email}
+        return Response(output)

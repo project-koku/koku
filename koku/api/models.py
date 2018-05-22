@@ -18,4 +18,4 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.status.models import Status
-from api.iam.models import Customer, ResetToken, User
+from api.iam.models import Customer, ResetToken, User, UserPreference

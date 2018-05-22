@@ -70,7 +70,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
         @api {post} /api/v1/customers/ Create a customer
         @apiName createCustomer
-        @apiGroup Customers
+        @apiGroup Customer
         @apiVersion 1.0.0
         @apiDescription Create a customer.
 
@@ -116,7 +116,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
         @api {get} /api/v1/customers/ Obtain the list of customers
         @apiName GetCustomers
-        @apiGroup Customers
+        @apiGroup Customer
         @apiVersion 1.0.0
         @apiDescription Obtain the list of customers.
 
@@ -157,7 +157,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
         @api {get} /api/v1/customers/:id/ Get a customer
         @apiName GetCustomer
-        @apiGroup Customers
+        @apiGroup Customer
         @apiVersion 1.0.0
         @apiDescription Get a customer.
 

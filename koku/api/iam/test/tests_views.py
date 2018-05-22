@@ -23,10 +23,11 @@ from django.db import DatabaseError
 from django.http import HttpResponse
 from django.urls import reverse
 from rest_framework import mixins
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
-from ..models import Customer, User
+from ..models import Customer, ResetToken, User
 
 
 class CustomerViewTest(IamTestCase):
@@ -273,6 +274,13 @@ class UserViewTest(IamTestCase):
                 user_token = self.get_token(a_user['username'],
                                             a_user['password'])
                 a_user['token'] = user_token
+                db_user_qs = User.objects.filter(uuid=user_uuid)
+                self.assertEqual(db_user_qs.count(), 1)
+                db_user = db_user_qs.first()
+                reset_token_qs = ResetToken.objects.filter(user=db_user)
+                self.assertEqual(reset_token_qs.count(), 1)
+                reset_token = reset_token_qs.first()
+                a_user['reset_token'] = reset_token.token
                 customer_json['users'].append(a_user)
             customer_json['users'].append(owner)
             self.customers.append(customer_json)
@@ -383,6 +391,17 @@ class UserViewTest(IamTestCase):
         response = self.create_user(token, self.gen_user_data())
         self.assertEqual(response.status_code, 403)
 
+    def test_delete_with_owner(self):
+        """Test delete user with a customer owner."""
+        owner = self.customers[0]['owner']
+        token = owner['token']
+        test_user = self.customers[0]['users'][0]
+        url = reverse('user-detail', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.delete(url)
+        self.assertEqual(response.status_code, 204)
+
     def test_delete_reg_user(self):
         """Test delete user with a non-customer owner."""
         test_user = self.customers[0]['users'][0]
@@ -392,3 +411,98 @@ class UserViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.delete(url)
         self.assertEqual(response.status_code, 403)
+
+    def test_reset_password(self):
+        """Test reset password with valid user and token."""
+        test_user = self.customers[0]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': test_user['reset_token'],
+                      'password': self.gen_password()}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 200)
+
+    def test_reset_password_same_pass(self):
+        """Test reset password with valid user, token and same password."""
+        test_user = self.customers[0]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': test_user['reset_token'],
+                      'password': test_user['password']}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_reset_password_no_reuse(self):
+        """Test reset password with valid user and token twice."""
+        test_user = self.customers[1]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': test_user['reset_token'],
+                      'password': self.gen_password()}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 200)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_reset_password_anon(self):
+        """Test reset password with an anonymous user and valid token."""
+        test_user = self.customers[1]['users'][0]
+        reset_body = {'token': test_user['reset_token'],
+                      'password': self.gen_password()}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_reset_password_invalid_token(self):
+        """Test reset password with valid user and invalid token."""
+        test_user = self.customers[1]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': 'invalid',
+                      'password': self.gen_password()}
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_reset_password_expired_token(self):
+        """Test reset password with valid user and expired token."""
+        test_user = self.customers[1]['users'][0]
+        token = test_user['token']
+        reset_body = {'token': test_user['reset_token'],
+                      'password': self.gen_password()}
+        rt_qs = ResetToken.objects.filter(token=test_user['reset_token'])
+        self.assertEqual(rt_qs.count(), 1)
+        reset_token = rt_qs.first()
+        yesterday = timezone.now() - timezone.timedelta(days=1)
+        reset_token.expiration_date = yesterday
+        reset_token.save()
+        url = reverse('user-reset-password', args=[test_user['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_current_user(self):
+        """Test getting current user."""
+        test_user = self.customers[1]['users'][0]
+        token = test_user['token']
+        url = reverse('user-current')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_current_user_anon(self):
+        """Test getting current user with an anonymous user."""
+        url = reverse('user-current')
+        client = APIClient()
+        response = client.get(url)
+        self.assertEqual(response.status_code, 401)
