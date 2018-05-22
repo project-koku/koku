@@ -46,8 +46,11 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     SECRET_KEY = os.getenv('MASU_SECRET_KEY')
-    if not SECRET_KEY:
+    if SECRET_KEY is None:
         raise ValueError('No secret key set for Masu application')
 
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+
+    # Data directory for processing incoming data
+    TMP_DIR = '/var/tmp/masu'
