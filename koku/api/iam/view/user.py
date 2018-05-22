@@ -54,8 +54,8 @@ class UserViewSet(mixins.CreateModelMixin,
     def get_queryset(self):
         """Get a queryset.
 
-        Optionally restricts the returned purchases to a given user,
-        by filtering against a `username` query parameter in the URL.
+        Restricts the returned users to associated Customer,
+        by filtering against a `user` object in the request.
         """
         queryset = model.User.objects.none()
         group = self.request.user.groups.first()
@@ -96,13 +96,13 @@ class UserViewSet(mixins.CreateModelMixin,
             "password": "str0ng!P@ss"
             }
 
-        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the user.
         @apiSuccess {String} username  The name of the user.
         @apiSuccess {String} email  The email address of the user.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 201 CREATED
             {
-                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                 "username": "smithj",
                 "email": "smithj@mytechco.com"
             }
@@ -136,7 +136,7 @@ class UserViewSet(mixins.CreateModelMixin,
                 "next": "/api/v1/users/?page=4",
                 "results": [
                     {
-                        "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                        "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                         "username": "smithj",
                         "email": "smithj@mytechco.com"
                     }
@@ -148,7 +148,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user.
 
-        @api {get} /api/v1/users/:id/ Get a user
+        @api {get} /api/v1/users/:uuid/ Get a user
         @apiName GetUser
         @apiGroup User
         @apiVersion 1.0.0
@@ -160,15 +160,15 @@ class UserViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id User unique ID.
+        @apiParam {String} uuid User unique ID.
 
-        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the user.
         @apiSuccess {String} username  The name of the user.
         @apiSuccess {String} email  The email address of the user.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                 "username": "smithj",
                 "email": "smithj@mytechco.com"
             }
@@ -178,7 +178,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user.
 
-        @api {delete} /api/v1/users/:id/ Delete a user
+        @api {delete} /api/v1/users/:uuid/ Delete a user
         @apiName DeleteUser
         @apiGroup User
         @apiVersion 1.0.0
@@ -190,7 +190,7 @@ class UserViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id User unique ID.
+        @apiParam {String} uuid User unique ID.
 
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 204 NO CONTENT
@@ -203,7 +203,7 @@ class UserViewSet(mixins.CreateModelMixin,
     def reset_password(self, request, uuid=None):
         """Reset a user's password.
 
-        @api {put} /api/v1/users/:id/reset-password/ Reset user password
+        @api {put} /api/v1/users/:uuid/reset-password/ Reset user password
         @apiName ResetUserPassword
         @apiGroup User
         @apiVersion 1.0.0
@@ -215,7 +215,7 @@ class UserViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id User unique ID.
+        @apiParam {String} id User unique ID.
 
         @apiParam (Request Body) {String} token The reset token for the user
         @apiParam (Request Body) {String} password The password for the user
@@ -225,13 +225,13 @@ class UserViewSet(mixins.CreateModelMixin,
             "password": "str0ng!P@ss"
             }
 
-        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the user.
         @apiSuccess {String} username  The name of the user.
         @apiSuccess {String} email  The email address of the user.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                 "username": "smithj",
                 "email": "smithj@mytechco.com"
             }
@@ -288,13 +288,13 @@ class UserViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiSuccess {Number} id The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the user.
         @apiSuccess {String} username  The name of the user.
         @apiSuccess {String} email  The email address of the user.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                 "username": "smithj",
                 "email": "smithj@mytechco.com"
             }
