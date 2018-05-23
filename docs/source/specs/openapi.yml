@@ -82,7 +82,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /api/v1/customers/{id}/:
+  /api/v1/customers/{uuid}/:
     get:
       summary: Get a customer
       operationId: getCustomer
@@ -95,7 +95,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of customer to get
           required: true
@@ -135,7 +135,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of customer to delete
           required: true
@@ -216,7 +216,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /api/v1/users/{id}/:
+  /api/v1/users/{uuid}/:
     get:
       summary: Get a user
       operationId: getUser
@@ -229,7 +229,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -238,7 +238,7 @@ paths:
             format: uuid
       responses:
         '200':
-          description: A User objects
+          description: A User object
           content:
             application/json:
               schema:
@@ -268,7 +268,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -303,7 +303,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -390,6 +390,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProviderOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: List the providers
+      operationId: listProviders
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: A paginated list of provider objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderPagination"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/providers/{uuid}/:
+    get:
+      summary: Get a provider
+      operationId: getProvider
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of provider to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A Provider object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOut"
+
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         '500':
           description: Unexpected Error
           content:
@@ -549,6 +614,16 @@ components:
           $ref: "#/components/schemas/ProviderAuthenticationOut"
         billing_source:
           $ref: "#/components/schemas/ProviderBillingSourceOut"
+    ProviderPagination:
+      allOf:
+        - $ref: "#/components/schemas/ListPagination"
+        - required:
+          - results
+      properties:
+        results:
+          type: array
+          items:
+              $ref: "#/components/schemas/ProviderOut"
     Status:
       required:
         - api_version

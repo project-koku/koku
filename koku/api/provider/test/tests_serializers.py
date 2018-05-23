@@ -226,6 +226,28 @@ class ProviderSerializerTest(IamTestCase):
                 serializer.save()
                 check_org_access.assert_called_once()
 
+    @patch('boto3.client')
+    def test_get_sts_access_no_cred(self, mock_boto3):
+        """Test _get_sts_access with no credentials."""
+        client = Mock()
+        client.assume_role.return_value = {}
+        mock_boto3.return_value = client
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        self.assertIsNone(access_key_id)
+        self.assertIsNone(secret_access_key)
+        self.assertIsNone(session_token)
+
+    def test_get_sts_access_fail(self):
+        """Test _get_sts_access with boto exception."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        self.assertIsNone(access_key_id)
+        self.assertIsNone(secret_access_key)
+        self.assertIsNone(session_token)
+
     @mock_sts
     def test_check_s3_access_no_bucket(self):
         """Test _check_s3_access with boto exception."""

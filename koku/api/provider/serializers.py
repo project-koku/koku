@@ -15,11 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Model Serializers."""
+import logging
+
 import boto3
 from botocore.exceptions import ClientError
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError as BotoConnectionError
 from rest_framework import serializers
 
 from api.iam.models import Customer, User
@@ -27,6 +29,9 @@ from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)
+
+
+LOG = logging.getLogger(__name__)
 
 
 def error_obj(key, message):
@@ -68,19 +73,26 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
 def _get_sts_access(provider_resource_name):
     """Get for sts access."""
+    access_key_id = None
+    secret_access_key = None
+    session_token = None
     # create an STS client
     sts_client = boto3.client('sts')
 
-    # Call the assume_role method of the STSConnection object and pass the role
-    # ARN and a role session name.
-    assumed_role = sts_client.assume_role(
-        RoleArn=provider_resource_name,
-        RoleSessionName='AccountCreationSession'
-    )
-    credentials = assumed_role.get('Credentials')
-    access_key_id = credentials.get('AccessKeyId') if credentials else None
-    secret_access_key = credentials.get('SecretAccessKey') if credentials else None
-    session_token = credentials.get('SessionToken') if credentials else None
+    try:
+        # Call the assume_role method of the STSConnection object and pass the role
+        # ARN and a role session name.
+        assumed_role = sts_client.assume_role(
+            RoleArn=provider_resource_name,
+            RoleSessionName='AccountCreationSession'
+        )
+        credentials = assumed_role.get('Credentials')
+        if credentials:
+            access_key_id = credentials.get('AccessKeyId')
+            secret_access_key = credentials.get('SecretAccessKey')
+            session_token = credentials.get('SessionToken')
+    except (ClientError, BotoConnectionError) as boto_error:
+        LOG.exception(boto_error)
 
     return (access_key_id, secret_access_key, session_token)
 
@@ -97,7 +109,8 @@ def _check_s3_access(access_key_id, secret_access_key,
     )
     try:
         s3_resource.meta.client.head_bucket(Bucket=bucket)
-    except (ClientError, ConnectionError):
+    except (ClientError, BotoConnectionError) as boto_error:
+        LOG.exception(boto_error)
         s3_exists = False
     return s3_exists
 
@@ -113,7 +126,8 @@ def _check_org_access(access_key_id, secret_access_key, session_token):
     )
     try:
         org_client.describe_organization()
-    except (ClientError, ConnectionError):
+    except (ClientError, BotoConnectionError) as boto_error:
+        LOG.exception(boto_error)
         access_ok = False
     return access_ok
 
