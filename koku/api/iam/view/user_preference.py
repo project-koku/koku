@@ -17,6 +17,7 @@
 
 """View for User Preferences."""
 
+from django.forms.models import model_to_dict
 from rest_framework import exceptions, mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -92,7 +93,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'preference': {'currency': 'USD'},
                 'name': 'my-preference-name',
                 'description': None,
-                'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
         if not self._validate_user(request.user.id, kwargs['user_uuid']):
@@ -100,7 +101,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
             raise exceptions.PermissionDenied()
 
         user = models.User.objects.get(uuid=kwargs['user_uuid'])
-        request.data['user'] = user
+        request.data['user'] = model_to_dict(user)
         return super().create(request=request, args=args, kwargs=kwargs)
 
     def list(self, request, *args, **kwargs):
@@ -136,21 +137,21 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                                     'preference': {'currency': 'USD'},
                                     'name': 'currency',
                                     'description': 'default preference',
-                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                                    'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 },
                                 {
                                     'uuid': 'b5572625-0856-4ecf-a6fd-d1977114e90c',
                                     'preference': {'locale': 'en_US.UTF-8'},
                                     'name': 'locale',
                                     'description': 'default preference',
-                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                                    'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 },
                                 {
                                     'uuid': '7c7d73c1-9134-4736-b92b-4fee4811ba96',
                                     'preference': {'timezone': 'UTC'},
                                     'name': 'timezone',
                                     'description': 'default preference',
-                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                                    'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 }
                             ]
             }
@@ -191,7 +192,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'preference': {'currency': 'USD'},
                 'name': 'currency',
                 'description': 'default preference',
-                'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
         if not self._validate_user(request.user.id, kwargs['user_uuid']):
@@ -257,7 +258,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'name': 'test-pref',
                 'description': 'test-pref',
                 'preference': {'test-pref': ['a', ['b', 'c'], {'foo': 'bar'}]},
-                'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
+                'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
         if not self._validate_user(request.user.id, kwargs['user_uuid']):
@@ -265,5 +266,5 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
             raise exceptions.PermissionDenied()
 
         user = models.User.objects.get(uuid=kwargs['user_uuid'])
-        request.data['user'] = user
-        return super().update(request=request, args=args, kwargs=kwargs)
+        request.data['user'] = model_to_dict(user)
+        return super(UserPreferenceViewSet, self).update(request=request, args=args, kwargs=kwargs)
