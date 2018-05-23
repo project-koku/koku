@@ -363,6 +363,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/v1/providers/:
+    post:
+      summary: Create a provider
+      operationId: createProvider
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      requestBody:
+        description: Provider to add to a Customer
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderIn'
+      responses:
+        '201':
+          description: An object describing the provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Customer:
@@ -394,11 +427,11 @@ components:
       allOf:
         - $ref: "#/components/schemas/Customer"
         - required:
-          - id
+          - uuid
           - owner
           - date_created
       properties:
-        id:
+        uuid:
           type: string
           format: uuid
           example: "600562e7-d7d7-4516-8522-410e72792daf"
@@ -409,14 +442,12 @@ components:
           format: date-time
     Error:
       required:
-        - code
-        - message
+        - error_key
       properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
+        error_key:
+          oneOf:
+            - type: string
+            - type: array
     ListPagination:
       required:
         - previous
@@ -446,6 +477,78 @@ components:
           type: string
           format: uuid
           example: "40874085-358e-43a8-908f-59c5b11f9179"
+    ProviderAuthenticationIn:
+      required:
+        - provider_resource_name
+      properties:
+        provider_resource_name:
+          type: string
+          example: "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData"
+    ProviderBillingSourceIn:
+      required:
+        - bucket
+      properties:
+        bucket:
+          type: string
+          example: "cost_s3"
+    Provider:
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "My Company AWS production"
+        type:
+          type: string
+          example: "AWS"
+    ProviderIn:
+      allOf:
+        - $ref: "#/components/schemas/Provider"
+        - required:
+          - authentication
+          - billing_source
+      properties:
+        authentication:
+          $ref: "#/components/schemas/ProviderAuthenticationIn"
+        billing_source:
+          $ref: "#/components/schemas/ProviderBillingSourceIn"
+    ProviderAuthenticationOut:
+      allOf:
+        - $ref: "#/components/schemas/ProviderAuthenticationIn"
+        - required:
+          - uuid
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+    ProviderBillingSourceOut:
+      allOf:
+        - $ref: "#/components/schemas/ProviderBillingSourceIn"
+        - required:
+          - uuid
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+    ProviderOut:
+      allOf:
+        - $ref: "#/components/schemas/Provider"
+        - required:
+          - uuid
+          - authentication
+          - billing_source
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+        authentication:
+          $ref: "#/components/schemas/ProviderAuthenticationOut"
+        billing_source:
+          $ref: "#/components/schemas/ProviderBillingSourceOut"
     Status:
       required:
         - api_version
@@ -527,9 +630,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/User"
         - required:
-          - id
+          - uuid
       properties:
-        id:
+        uuid:
           type: string
           format: uuid
           example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"

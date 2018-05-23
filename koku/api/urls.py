@@ -18,10 +18,14 @@ from django.conf.urls import include, url
 from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
 
-from api.views import CustomerViewSet, UserViewSet, status
+from api.views import (CustomerViewSet,
+                       ProviderViewSet,
+                       UserViewSet,
+                       status)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)
+ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'users', UserViewSet)
 
 # pylint: disable=invalid-name
