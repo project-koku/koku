@@ -16,10 +16,10 @@
 #
 """Provider Model Serializers."""
 import boto3
-import botocore
-import requests
+from botocore.exceptions import ClientError
 from django.db import transaction
 from django.utils.translation import ugettext as _
+from requests.exceptions import ConnectionError
 from rest_framework import serializers
 
 from api.iam.models import Customer, User
@@ -97,8 +97,7 @@ def _check_s3_access(access_key_id, secret_access_key,
     )
     try:
         s3_resource.meta.client.head_bucket(Bucket=bucket)
-    except (botocore.exceptions.ClientError,
-            requests.exceptions.ConnectionError):
+    except (ClientError, ConnectionError):
         s3_exists = False
     return s3_exists
 
@@ -114,8 +113,7 @@ def _check_org_access(access_key_id, secret_access_key, session_token):
     )
     try:
         org_client.describe_organization()
-    except (botocore.exceptions.ClientError,
-            requests.exceptions.ConnectionError):
+    except (ClientError, ConnectionError):
         access_ok = False
     return access_ok
 
