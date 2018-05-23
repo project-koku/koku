@@ -19,6 +19,7 @@
 import uuid
 
 from django.core import mail
+from django.forms.models import model_to_dict
 from rest_framework.exceptions import ValidationError
 
 from api.iam.email import SUBJECT
@@ -179,7 +180,7 @@ class UserPreferenceSerializerTest(IamTestCase):
             user = serializer.save()
 
         test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
-        data = {'user': user, 'preference': test_pref}
+        data = {'user': model_to_dict(user), 'preference': test_pref}
 
         serializer = UserPreferenceSerializer(data=data)
         if serializer.is_valid(raise_exception=True):
