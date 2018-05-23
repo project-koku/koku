@@ -56,13 +56,15 @@ class ProviderViewSet(mixins.CreateModelMixin,
             }
 
         @apiParam (Request Body) {String} name The name for the provider.
+        @apiParam (Request Body) {String} type The provider type.
         @apiParam (Request Body) {Object} authentication The authentication for the provider.
         @apiParam (Request Body) {Object} billing_source The billing source information for the provider.
         @apiParamExample {json} Request Body:
             {
             "name": "My Company AWS production",
+            "type": "AWS",
             "authentication": {
-                    'provider_resource_name': 'arn:aws:s3:::cost_s3'
+                    'provider_resource_name': 'arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData'
                 },
             "billing_source": {
                     "bucket": "cost_s3"
@@ -99,7 +101,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
                     "date_created": "2018-05-09T18:17:29.386Z"
                 },
                 "created_by": {
-                    "id": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                     "username": "smithj",
                     "email": "smithj@mytechco.com"
                 }
