@@ -20,6 +20,7 @@ import logging
 
 from django.contrib.auth.models import Group
 from django.db import DatabaseError, transaction
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
@@ -31,9 +32,7 @@ import api.iam.models as model
 import api.iam.serializers as serializers
 
 
-logging.basicConfig()
 LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.INFO)
 
 
 class UserDeleteException(APIException):
@@ -194,7 +193,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
             @api {delete} /api/v1/customers/:id/ Delete a customer
             @apiName DeleteCustomers
-            @apiGroup UCustomers
+            @apiGroup Customer
             @apiVersion 1.0.0
             @apiDescription Delete a customer.
 
@@ -209,22 +208,20 @@ class CustomerViewSet(mixins.CreateModelMixin,
             @apiSuccessExample {json} Success-Response:
                 HTTP/1.1 204 NO CONTENT
             """
-            customer = model.Customer.objects.filter(uuid=kwargs['uuid']).first()
-            user_savepoint = transaction.savepoint()
-            try:
-                group = Group.objects.get(name=customer)
-                try:
-                    users = group.user_set.all()
-                    if users:
-                        for user in users:
-                            LOG.info('Removing User: {}'.format(user))
-                            user.delete()
-                except DatabaseError:
-                    transaction.savepoint_rollback(user_savepoint)
-                    raise UserDeleteException
+            customer = get_object_or_404(model.Customer.objects.all(), uuid=kwargs['uuid'])
 
-            except Group.DoesNotExist:
-                LOG.info('Customer does not exist. UUID: {}'.format(kwargs['uuid']))
+            user_savepoint = transaction.savepoint()
+
+            group = Group.objects.get(name=customer)
+            try:
+                users = group.user_set.all()
+                if users:
+                    for user in users:
+                        LOG.info('Removing User: {}'.format(user))
+                        user.delete()
+            except DatabaseError:
+                transaction.savepoint_rollback(user_savepoint)
+                raise UserDeleteException
 
             http_response = super().destroy(request=request, args=args, kwargs=kwargs)
             if http_response.status_code is not 204:
