@@ -189,6 +189,44 @@ class ProviderSerializerTest(IamTestCase):
                 check_s3_access.assert_called_once(iam_arn)
 
     @mock_sts
+    @mock_s3
+    @patch('api.provider.serializers._check_org_access')
+    def test_provider_org_fail(self, check_org_access):
+        """Test creating a provider with AWS org access failure."""
+        check_org_access.return_value = False
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        s3_resource = boto3.resource(
+            's3',
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
+        )
+        s3_resource.create_bucket(Bucket=bucket_name)
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': iam_arn
+                    },
+                    'billing_source': {
+                        'bucket': bucket_name
+                    }}
+        new_cust = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            new_cust = serializer.save()
+        request = Mock()
+        request.user = new_cust.owner
+        context = {'request': request}
+        serializer = ProviderSerializer(data=provider, context=context)
+        if serializer.is_valid(raise_exception=True):
+            with self.assertRaises(serializers.ValidationError):
+                serializer.save()
+                check_org_access.assert_called_once()
+
+    @mock_sts
     def test_check_s3_access_no_bucket(self):
         """Test _check_s3_access with boto exception."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'

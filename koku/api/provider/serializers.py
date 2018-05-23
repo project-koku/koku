@@ -98,14 +98,8 @@ def _check_s3_access(access_key_id, secret_access_key,
     try:
         s3_resource.meta.client.head_bucket(Bucket=bucket)
     except (botocore.exceptions.ClientError,
-            requests.exceptions.ConnectionError) as boto_error:
-        # If a client error is thrown, then check that it was a 404 error.
-        # If it was a 404 error, then the bucket does not exist.
-        response = boto_error.response if boto_error.response else {}
-        error = response.get('Error', {})
-        error_code = int(error.get('Code', 404))
-        if error_code == 404:
-            s3_exists = False
+            requests.exceptions.ConnectionError):
+        s3_exists = False
     return s3_exists
 
 
@@ -121,14 +115,8 @@ def _check_org_access(access_key_id, secret_access_key, session_token):
     try:
         org_client.describe_organization()
     except (botocore.exceptions.ClientError,
-            requests.exceptions.ConnectionError) as boto_error:
-        # If a client error is thrown, then check that it was a 404 error.
-        # If it was a 404 error, then the bucket does not exist.
-        response = boto_error.response if boto_error.response else {}
-        error = response.get('Error', {})
-        error_code = int(error.get('Code', 404))
-        if error_code == 404:
-            access_ok = False
+            requests.exceptions.ConnectionError):
+        access_ok = False
     return access_ok
 
 
