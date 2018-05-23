@@ -22,6 +22,7 @@ from django.urls import reverse
 from moto import mock_s3, mock_sts
 from rest_framework.test import APIClient
 
+from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import _get_sts_access
@@ -158,6 +159,27 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token2)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_provider_with_no_group(self):
+        """Test get a provider with user no group."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        token1 = self.get_customer_owner_token(self.customer_data[0])
+        create_response = self.create_provider(bucket_name, iam_arn, token1)
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+        no_group_user = None
+        serializer = UserSerializer(data=user_data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+        token = self.get_token(user_data.get('username'),
+                               user_data.get('password'))
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
         self.assertEqual(response.status_code, 404)
 
