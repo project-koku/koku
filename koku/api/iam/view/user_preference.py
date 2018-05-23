@@ -24,7 +24,7 @@ from rest_framework.permissions import IsAuthenticated
 
 import api.iam.models as models
 import api.iam.serializers as serializers
-from api.common.permissions.owner import IsObjectOwner
+from api.common.permissions.object_owner import IsObjectOwner
 
 
 class UserPreferenceViewSet(mixins.CreateModelMixin,
