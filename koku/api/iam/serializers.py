@@ -24,8 +24,11 @@ import string
 
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import validate_email
 from django.db import transaction
+from django.forms.models import model_to_dict
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -96,7 +99,10 @@ class UserSerializer(serializers.ModelSerializer):
                     {'locale': settings.KOKU_DEFAULT_LOCALE}]
 
         for pref in defaults:
-            data = {'preference': pref, 'user': user}
+            data = {'preference': pref,
+                    'user': model_to_dict(user),
+                    'name': list(pref.keys())[0],
+                    'description': _('default preference')}
             serializer = UserPreferenceSerializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
@@ -139,14 +145,53 @@ class CustomerSerializer(serializers.ModelSerializer):
         return group.user_set.all()
 
 
+class NestedUserSerializer(serializers.ModelSerializer):
+    """
+    User Serializer for nesting inside other serializers.
+
+    This serializer removes uniqueness validation from the username and email
+    fields to work around issues documented here:
+    https://medium.com/django-rest-framework/dealing-with-unique-constraints-in-nested-serializers-dade33b831d9
+    """
+
+    email = serializers.EmailField(required=True,
+                                   max_length=150,
+                                   allow_blank=False,
+                                   validators=[validate_email])
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = User
+        fields = ('uuid', 'username', 'email')
+        extra_kwargs = {'username': {'validators': [UnicodeUsernameValidator()]}}
+
+
 class UserPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for the UserPreference model."""
+
+    user = NestedUserSerializer(label='User')
 
     class Meta:
         """Metadata for the serializer."""
 
         model = UserPreference
-        fields = ('__all__')
+        fields = ('uuid', 'name', 'description', 'preference', 'user')
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create a preference."""
+        user_data = validated_data.pop('user')
+        user = User.objects.get(username=user_data['username'])
+        validated_data['user_id'] = user.id
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """Update a preference."""
+        user_data = validated_data.pop('user')
+        user = User.objects.get(username=user_data['username'])
+        validated_data['user_id'] = user.id
+        return super().update(instance, validated_data)
 
 
 class PasswordChangeSerializer(serializers.Serializer):

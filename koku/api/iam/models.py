@@ -76,9 +76,14 @@ class UserPreference(models.Model):
                             unique=True, null=False)
     user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
     preference = JSONField(default=dict)
+    name = models.CharField(max_length=255, null=False, default=uuid4)
+    description = models.CharField(max_length=255, null=True)
+
+    class Meta:
+        ordering = ('name',)
 
     def __str__(self):
         """Return string representation of user preferences."""
-        return 'UserPreference({}): User: {}, Preference: {}'.format(self.uuid,
+        return 'UserPreference({}): User: {}, Preference: {}'.format(self.name,
                                                                      self.user,
                                                                      self.preference)

@@ -17,9 +17,11 @@
 from django.conf.urls import include, url
 from rest_framework.authtoken import views
 from rest_framework.routers import DefaultRouter
+from rest_framework_nested.routers import NestedSimpleRouter
 
 from api.views import (CustomerViewSet,
                        ProviderViewSet,
+                       UserPreferenceViewSet,
                        UserViewSet,
                        status)
 
@@ -28,9 +30,14 @@ ROUTER.register(r'customers', CustomerViewSet)
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'users', UserViewSet)
 
+USER_ROUTER = NestedSimpleRouter(ROUTER, r'users', lookup='user')
+USER_ROUTER.register(r'preferences', UserPreferenceViewSet,
+                     base_name='preferences')
+
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^token-auth/', views.obtain_auth_token, name='token-auth'),
     url(r'^status/$', status, name='server-status'),
-    url(r'^', include(ROUTER.urls))
+    url(r'^', include(ROUTER.urls)),
+    url(r'^', include(USER_ROUTER.urls))
 ]
