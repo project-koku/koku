@@ -25,6 +25,7 @@ import string
 from django.conf import settings
 from django.core.validators import validate_email
 from django.db import transaction
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -98,7 +99,7 @@ class UserSerializer(serializers.ModelSerializer):
             data = {'preference': pref,
                     'user': user,
                     'name': list(pref.keys())[0],
-                    'description': 'default preference'}
+                    'description': _('default preference')}
             serializer = UserPreferenceSerializer(data=data)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()

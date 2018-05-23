@@ -24,7 +24,7 @@ from rest_framework.permissions import IsAuthenticated
 
 import api.iam.models as models
 import api.iam.serializers as serializers
-from api.common.permissions.owner import IsOwner
+from api.common.permissions.owner import IsObjectOwner
 
 
 class UserPreferenceViewSet(mixins.CreateModelMixin,
@@ -44,15 +44,11 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     serializer_class = serializers.UserPreferenceSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
-    permission_classes = (IsOwner, IsAuthenticated)
+    permission_classes = (IsObjectOwner, IsAuthenticated)
 
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
         return self.queryset.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        """Create a preference."""
-        serializer.save()
 
     def _validate_user(self, user_id, uuid):
         """Validate that the user object is assigned the given uuid."""
@@ -63,7 +59,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a user preference.
 
-        @api {post} /api/v1/user/:id/preferences/ Create a user preference
+        @api {post} /api/v1/user/:user_uuid/preferences/ Create a user preference
         @apiName createUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -75,17 +71,17 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id User unique ID.
+        @apiParam {String} user_uuid User unique ID.
 
         @apiParam (Request Body) {String} preference a stringified JSON object
         @apiParamExample {json} Request Body:
             {
                 "name": "my-preference-name",
-                'preference': {'test-pref': ['a', ['b', 'c'], {'foo': 'bar'}]},
+                'preference': {'currency': 'USD'},
             }
 
-        @apiSuccess {Number} uuid The identifier of the preference.
-        @apiSuccess {Number} user_uuid The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the preference.
+        @apiSuccess {String} user_uuid The identifier of the user.
         @apiSuccess {Object} preference The user preference JSON object.
         @apiSuccess {String} name The name of the user preference.
         @apiSuccess {String} description The description of the user preference.
@@ -93,7 +89,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
             HTTP/1.1 201 CREATED
             {
                 'uuid': 'ff2cb4a9-26c3-4b97-9b19-74560698676d',
-                'preference': {'test-pref': ['a', ['b', 'c'], {'foo': 'bar'}]},
+                'preference': {'currency': 'USD'},
                 'name': 'my-preference-name',
                 'description': None,
                 'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
@@ -110,7 +106,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
-        @api {get} /api/v1/user/:id/preferences/ Obtain a list of user preferences
+        @api {get} /api/v1/user/:user_uuid/preferences/ Obtain a list of user preferences
         @apiName GetUserPreferences
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -122,7 +118,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} id User unique ID.
+        @apiParam {String} user_uuid User unique ID.
 
         @apiSuccess {Number} count The number of preferences.
         @apiSuccess {String} previous  The uri of the previous page of results.
@@ -139,21 +135,22 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                                     'uuid': '7f273d8a-50cb-4a3a-a4c0-6b7fae0bfd61',
                                     'preference': {'currency': 'USD'},
                                     'name': 'currency',
-                                    'description': 'default preference'
+                                    'description': 'default preference',
+                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 },
                                 {
                                     'uuid': 'b5572625-0856-4ecf-a6fd-d1977114e90c',
                                     'preference': {'locale': 'en_US.UTF-8'},
                                     'name': 'locale',
-                                    'description':
-                                    'default preference'
+                                    'description': 'default preference',
+                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 },
                                 {
                                     'uuid': '7c7d73c1-9134-4736-b92b-4fee4811ba96',
                                     'preference': {'timezone': 'UTC'},
                                     'name': 'timezone',
-                                    'description':
-                                    'default preference'
+                                    'description': 'default preference',
+                                    'user_uuid': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
                                 }
                             ]
             }
@@ -167,7 +164,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 
-        @api {get} /api/v1/user/:user_id/preferences/:pref_id Get a preference
+        @api {get} /api/v1/user/:user_uuid/preferences/:pref_uuid Get a preference
         @apiName GetUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -179,11 +176,11 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} user_id User unique ID.
-        @apiParam {Number} pref_id User Preference unique ID.
+        @apiParam {String} user_uuid User unique ID.
+        @apiParam {String} pref_uuid User Preference unique ID.
 
-        @apiSuccess {Number} uuid The identifier of the preference.
-        @apiSuccess {Number} user_uuid The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the preference.
+        @apiSuccess {String} user_uuid The identifier of the user.
         @apiSuccess {Object} preference The user preference JSON object.
         @apiSuccess {String} name The name of the user preference.
         @apiSuccess {String} description The description of the user preference.
@@ -206,7 +203,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user preference.
 
-        @api {delete} /api/v1/user/:user_id/preferences/:pref_id Delete a preference
+        @api {delete} /api/v1/user/:user_uuid/preferences/:pref_uuid Delete a preference
         @apiName DeleteUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -218,8 +215,8 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} user_id User unique ID.
-        @apiParam {Number} pref_id User Preference unique ID.
+        @apiParam {String} user_uuid User unique ID.
+        @apiParam {String} pref_uuid User Preference unique ID.
 
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 204 NO CONTENT
@@ -233,7 +230,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a user preference.
 
-        @api {put} /api/v1/user/:user_id/preferences/:pref_id Update a preference
+        @api {put} /api/v1/user/:user_uuid/preferences/:pref_uuid Update a preference
         @apiName UpdateUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -245,11 +242,11 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {Number} user_id User unique ID.
-        @apiParam {Number} pref_id User Preference unique ID.
+        @apiParam {String} user_uuid User unique ID.
+        @apiParam {String} pref_uuid User Preference unique ID.
 
-        @apiSuccess {Number} uuid The identifier of the preference.
-        @apiSuccess {Number} user_uuid The identifier of the user.
+        @apiSuccess {String} uuid The identifier of the preference.
+        @apiSuccess {String} user_uuid The identifier of the user.
         @apiSuccess {Object} preference The user preference JSON object.
         @apiSuccess {String} name The name of the user preference.
         @apiSuccess {String} description The description of the user preference.

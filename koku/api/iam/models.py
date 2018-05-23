@@ -80,7 +80,7 @@ class UserPreference(models.Model):
     description = models.CharField(max_length=255, null=True)
 
     class Meta:
-        ordering = ['preference']
+        ordering = ('name',)
 
     def __str__(self):
         """Return string representation of user preferences."""
