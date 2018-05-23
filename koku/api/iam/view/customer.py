@@ -16,17 +16,37 @@
 #
 
 """View for Customers."""
+import logging
 
-from rest_framework import mixins, viewsets
+from django.db import DatabaseError, transaction
+from django.shortcuts import get_object_or_404
+from django.utils.encoding import force_text
+from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAdminUser
 
 import api.iam.models as model
 import api.iam.serializers as serializers
 
 
+LOG = logging.getLogger(__name__)
+
+
+class UserDeleteException(APIException):
+    """User deletion custom internal error exception."""
+
+    default_detail = 'Error removing user'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
+
+
 class CustomerViewSet(mixins.CreateModelMixin,
+                      mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
@@ -165,3 +185,44 @@ class CustomerViewSet(mixins.CreateModelMixin,
             }
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+            """Delete a customer.
+
+            @api {delete} /api/v1/customers/:uuid/ Delete a customer
+            @apiName DeleteCustomers
+            @apiGroup Customer
+            @apiVersion 1.0.0
+            @apiDescription Delete a customer.
+
+            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeaderExample {json} Header-Example:
+                {
+                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                }
+
+            @apiParam {String} uuid Customer unique ID.
+
+            @apiSuccessExample {json} Success-Response:
+                HTTP/1.1 204 NO CONTENT
+            """
+            customer = get_object_or_404(self.queryset, uuid=kwargs['uuid'])
+
+            user_savepoint = transaction.savepoint()
+
+            group = self.serializer_class.get_authentication_group_for_customer(customer)
+            try:
+                users = self.serializer_class.get_users_for_group(group)
+                if users:
+                    for user in users:
+                        LOG.info('Removing User: {}'.format(user))
+                        user.delete()
+            except DatabaseError:
+                transaction.savepoint_rollback(user_savepoint)
+                raise UserDeleteException
+
+            http_response = super().destroy(request=request, args=args, kwargs=kwargs)
+            if http_response.status_code is not 204:
+                transaction.savepoint_rollback(user_savepoint)
+            return http_response
