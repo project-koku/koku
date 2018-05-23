@@ -27,6 +27,7 @@ from api.provider.models import Provider
 
 
 class ProviderViewSet(mixins.CreateModelMixin,
+                      mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
