@@ -122,6 +122,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a customer
+      operationId: deleteCustomer
+      tags:
+        - Customer
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: id
+          in: path
+          description: ID of customer to delete
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Customer deleted
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/v1/users/:
     post:
       summary: Create a user
