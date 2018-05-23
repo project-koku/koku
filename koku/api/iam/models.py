@@ -34,7 +34,7 @@ class Customer(DjangoGroup):
     """
 
     date_created = models.DateTimeField(auto_now_add=True)
-    owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
+    owner = models.ForeignKey('User', null=True, on_delete=models.SET_NULL)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
 
