@@ -16,18 +16,18 @@
 #
 """Test the Customer views."""
 
+from unittest.mock import patch
+
 from django.contrib.auth.models import User as UserAuth
 from django.db import DatabaseError
 from django.http import HttpResponse
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import mixins
-from rest_framework import status
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
-from ..models import Customer
-
+from ..models import Customer, User
+from ..serializers import CustomerSerializer
 
 class CustomerViewTest(IamTestCase):
     """Tests the customer view."""
