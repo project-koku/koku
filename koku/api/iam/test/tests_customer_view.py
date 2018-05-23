@@ -29,6 +29,7 @@ from .iam_test_case import IamTestCase
 from ..models import Customer, User
 from ..serializers import CustomerSerializer
 
+
 class CustomerViewTest(IamTestCase):
     """Tests the customer view."""
 

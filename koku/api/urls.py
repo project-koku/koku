@@ -20,12 +20,14 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_nested.routers import NestedSimpleRouter
 
 from api.views import (CustomerViewSet,
+                       ProviderViewSet,
                        UserPreferenceViewSet,
                        UserViewSet,
                        status)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)
+ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'users', UserViewSet)
 
 USER_ROUTER = NestedSimpleRouter(ROUTER, r'users', lookup='user')
