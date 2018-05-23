@@ -23,6 +23,7 @@ import secrets
 import string
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.validators import validate_email
 from django.db import transaction
 from rest_framework import serializers
@@ -126,6 +127,16 @@ class CustomerSerializer(serializers.ModelSerializer):
         customer.save()
 
         return customer
+
+    @staticmethod
+    def get_authentication_group_for_customer(customer):
+        """Get auth group for given customer."""
+        return Group.objects.get(name=customer)
+
+    @staticmethod
+    def get_users_for_group(group):
+        """Get users that belong to a given authentication group."""
+        return group.user_set.all()
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):

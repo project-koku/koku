@@ -18,7 +18,6 @@
 """View for Customers."""
 import logging
 
-from django.contrib.auth.models import Group
 from django.db import DatabaseError, transaction
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
@@ -191,7 +190,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
             """Delete a customer.
 
-            @api {delete} /api/v1/customers/:id/ Delete a customer
+            @api {delete} /api/v1/customers/:uuid/ Delete a customer
             @apiName DeleteCustomers
             @apiGroup Customer
             @apiVersion 1.0.0
@@ -203,18 +202,18 @@ class CustomerViewSet(mixins.CreateModelMixin,
                     "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
                 }
 
-            @apiParam {Number} id Customer unique ID.
+            @apiParam {String} uuid Customer unique ID.
 
             @apiSuccessExample {json} Success-Response:
                 HTTP/1.1 204 NO CONTENT
             """
-            customer = get_object_or_404(model.Customer.objects.all(), uuid=kwargs['uuid'])
+            customer = get_object_or_404(self.queryset, uuid=kwargs['uuid'])
 
             user_savepoint = transaction.savepoint()
 
-            group = Group.objects.get(name=customer)
+            group = self.serializer_class.get_authentication_group_for_customer(customer)
             try:
-                users = group.user_set.all()
+                users = self.serializer_class.get_users_for_group(group)
                 if users:
                     for user in users:
                         LOG.info('Removing User: {}'.format(user))

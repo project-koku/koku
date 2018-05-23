@@ -28,6 +28,7 @@ from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
 from ..models import Customer, ResetToken, User
+from ..serializers import CustomerSerializer
 
 
 class CustomerViewTest(IamTestCase):
@@ -221,7 +222,7 @@ class CustomerViewTest(IamTestCase):
             response = client.delete(url)
         self.assertEqual(response.status_code, 500)
 
-    def test_delete_customer__exception(self):
+    def test_delete_customer_exception(self):
         """Test customer deletion with deletion exception."""
         customer_1 = self.customers[0]
         self.assertIsNotNone(customer_1)
@@ -241,6 +242,21 @@ class CustomerViewTest(IamTestCase):
         # Verify that all users still exist even though customer deletion failed.
         for user in customer_1['users']:
             self.assertTrue(User.objects.filter(uuid=user['uuid']).exists())
+
+    def test_delete_customer_exception_missing_group(self):
+        """Test customer deletion with deletion exception."""
+        customer_1 = self.customers[0]
+        self.assertIsNotNone(customer_1)
+
+        # Setup Regular users
+        self._create_regular_users_for_customer(customer_1['uuid'], 3)
+
+        url = reverse('customer-detail', args=[customer_1['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        with patch.object(CustomerSerializer, 'get_users_for_group', return_value=None):
+            response = client.delete(url)
+        self.assertEqual(response.status_code, 204)
 
 
 class UserViewTest(IamTestCase):
