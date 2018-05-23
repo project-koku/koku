@@ -171,7 +171,7 @@ class ProviderViewTest(IamTestCase):
         provider_result = create_response.json()
         provider_uuid = provider_result.get('uuid')
         self.assertIsNotNone(provider_uuid)
-        no_group_user = None
+        user_data = self.gen_user_data()
         serializer = UserSerializer(data=user_data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
