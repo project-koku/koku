@@ -24,6 +24,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/v1/token-auth/:
+    post:
+      summary: Obtain an authentication token
+      operationId: getAuthToken
+      tags:
+        - Token
+      requestBody:
+        description: Username and password to exchange for token
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenIn'
+      responses:
+        '200':
+          description: An token object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/customers/:
     post:
       summary: Create a customer
@@ -82,7 +108,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /api/v1/customers/{id}/:
+  /api/v1/customers/{uuid}/:
     get:
       summary: Get a customer
       operationId: getCustomer
@@ -95,7 +121,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of customer to get
           required: true
@@ -122,6 +148,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete a customer
+      operationId: deleteCustomer
+      tags:
+        - Customer
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of customer to delete
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Customer deleted
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/v1/users/:
     post:
       summary: Create a user
@@ -180,7 +242,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /api/v1/users/{id}/:
+  /api/v1/users/{uuid}/:
     get:
       summary: Get a user
       operationId: getUser
@@ -193,7 +255,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -202,7 +264,7 @@ paths:
             format: uuid
       responses:
         '200':
-          description: A User objects
+          description: A User object
           content:
             application/json:
               schema:
@@ -232,7 +294,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -254,7 +316,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /api/v1/users/{id}/reset-password/:
+  /api/v1/users/{uuid}/reset-password/:
     put:
       summary: Reset a user's password
       operationId: resetUserPassword
@@ -267,7 +329,7 @@ paths:
           schema:
             type: string
           required: true
-        - name: id
+        - name: uuid
           in: path
           description: ID of user to get
           required: true
@@ -327,6 +389,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/v1/providers/:
+    post:
+      summary: Create a provider
+      operationId: createProvider
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      requestBody:
+        description: Provider to add to a Customer
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderIn'
+      responses:
+        '201':
+          description: An object describing the provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOut"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: List the providers
+      operationId: listProviders
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: A paginated list of provider objects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderPagination"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/providers/{uuid}/:
+    get:
+      summary: Get a provider
+      operationId: getProvider
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of provider to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A Provider object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderOut"
+
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Customer:
@@ -358,11 +518,11 @@ components:
       allOf:
         - $ref: "#/components/schemas/Customer"
         - required:
-          - id
+          - uuid
           - owner
           - date_created
       properties:
-        id:
+        uuid:
           type: string
           format: uuid
           example: "600562e7-d7d7-4516-8522-410e72792daf"
@@ -373,14 +533,12 @@ components:
           format: date-time
     Error:
       required:
-        - code
-        - message
+        - error_key
       properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
+        error_key:
+          oneOf:
+            - type: string
+            - type: array
     ListPagination:
       required:
         - previous
@@ -410,6 +568,88 @@ components:
           type: string
           format: uuid
           example: "40874085-358e-43a8-908f-59c5b11f9179"
+    ProviderAuthenticationIn:
+      required:
+        - provider_resource_name
+      properties:
+        provider_resource_name:
+          type: string
+          example: "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData"
+    ProviderBillingSourceIn:
+      required:
+        - bucket
+      properties:
+        bucket:
+          type: string
+          example: "cost_s3"
+    Provider:
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          example: "My Company AWS production"
+        type:
+          type: string
+          example: "AWS"
+    ProviderIn:
+      allOf:
+        - $ref: "#/components/schemas/Provider"
+        - required:
+          - authentication
+          - billing_source
+      properties:
+        authentication:
+          $ref: "#/components/schemas/ProviderAuthenticationIn"
+        billing_source:
+          $ref: "#/components/schemas/ProviderBillingSourceIn"
+    ProviderAuthenticationOut:
+      allOf:
+        - $ref: "#/components/schemas/ProviderAuthenticationIn"
+        - required:
+          - uuid
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+    ProviderBillingSourceOut:
+      allOf:
+        - $ref: "#/components/schemas/ProviderBillingSourceIn"
+        - required:
+          - uuid
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+    ProviderOut:
+      allOf:
+        - $ref: "#/components/schemas/Provider"
+        - required:
+          - uuid
+          - authentication
+          - billing_source
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+        authentication:
+          $ref: "#/components/schemas/ProviderAuthenticationOut"
+        billing_source:
+          $ref: "#/components/schemas/ProviderBillingSourceOut"
+    ProviderPagination:
+      allOf:
+        - $ref: "#/components/schemas/ListPagination"
+        - required:
+          - results
+      properties:
+        results:
+          type: array
+          items:
+              $ref: "#/components/schemas/ProviderOut"
     Status:
       required:
         - api_version
@@ -456,6 +696,24 @@ components:
         server_id:
           type: string
           example: "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+    TokenIn:
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "smithj"
+        password:
+          type: string
+          example: "str0ng!P@ss"
+    TokenOut:
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"
     User:
       required:
         - username
@@ -491,9 +749,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/User"
         - required:
-          - id
+          - uuid
       properties:
-        id:
+        uuid:
           type: string
           format: uuid
           example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"

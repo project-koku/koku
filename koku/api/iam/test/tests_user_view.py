@@ -14,61 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the IAM views."""
+"""Test the User views."""
 
 from random import randint
 
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from .iam_test_case import IamTestCase
 from ..models import Customer, ResetToken, User
-
-
-class CustomerViewTest(IamTestCase):
-    """Tests the customer view."""
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        self.create_service_admin()
-        for customer in self.customer_data:
-            response = self.create_customer(customer)
-            self.assertEqual(response.status_code, 201)
-
-    def tearDown(self):
-        """Tear down customers tests."""
-        super().tearDown()
-        Customer.objects.all().delete()
-
-    def test_get_customer_list(self):
-        """Test get customer list."""
-        url = reverse('customer-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        response = client.get(url)
-        json_result = response.json()
-
-        results = json_result.get('results')
-        self.assertIsNotNone(results)
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]['name'], self.customer_data[0]['name'])
-        self.assertEqual(results[1]['name'], self.customer_data[1]['name'])
-
-    def test_get_customer_detail(self):
-        """Test get customer detail."""
-        first = Customer.objects.first()
-        url = reverse('customer-detail', args=[first.uuid])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        response = client.get(url)
-        json_result = response.json()
-
-        self.assertEqual(json_result['name'], self.customer_data[0]['name'])
-        self.assertEqual(json_result['owner']['username'],
-                         self.customer_data[0]['owner']['username'])
-        self.assertRegex(json_result['uuid'], r'\w{8}-(\w{4}-){3}\w{12}')
 
 
 class UserViewTest(IamTestCase):
@@ -83,7 +39,7 @@ class UserViewTest(IamTestCase):
         for customer in self.customer_data:
             response = self.create_customer(customer)
             customer_json = response.json()
-            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             customer_uuid = customer_json.get('uuid')
             owner = customer_json.get('owner')
             self.assertIsNotNone(customer_uuid)
@@ -161,7 +117,7 @@ class UserViewTest(IamTestCase):
         url = reverse('user-list')
         client = APIClient()
         response = client.get(url)
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_user_detail(self):
         """Test get user detail with a customer owner."""
@@ -199,7 +155,7 @@ class UserViewTest(IamTestCase):
         url = reverse('user-detail', args=[first['uuid']])
         client = APIClient()
         response = client.get(url)
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_get_user_diff_customer(self):
         """Test get user detail with a user for a user in another customer."""
@@ -210,14 +166,14 @@ class UserViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_create_reg_user(self):
         """Test create user with a non-customer owner."""
         test_user = self.customers[0]['users'][0]
         token = test_user['token']
         response = self.create_user(token, self.gen_user_data())
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_delete_with_owner(self):
         """Test delete user with a customer owner."""
@@ -228,7 +184,7 @@ class UserViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.delete(url)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_delete_reg_user(self):
         """Test delete user with a non-customer owner."""
@@ -238,72 +194,53 @@ class UserViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.delete(url)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_reset_password(self):
         """Test reset password with valid user and token."""
         test_user = self.customers[0]['users'][0]
-        token = test_user['token']
         reset_body = {'token': test_user['reset_token'],
                       'password': self.gen_password()}
         url = reverse('user-reset-password', args=[test_user['uuid']])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
         response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_reset_password_same_pass(self):
         """Test reset password with valid user, token and same password."""
         test_user = self.customers[0]['users'][0]
-        token = test_user['token']
         reset_body = {'token': test_user['reset_token'],
                       'password': test_user['password']}
         url = reverse('user-reset-password', args=[test_user['uuid']])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
         response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_reset_password_no_reuse(self):
         """Test reset password with valid user and token twice."""
         test_user = self.customers[1]['users'][0]
-        token = test_user['token']
-        reset_body = {'token': test_user['reset_token'],
-                      'password': self.gen_password()}
-        url = reverse('user-reset-password', args=[test_user['uuid']])
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 200)
-        response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 400)
-
-    def test_reset_password_anon(self):
-        """Test reset password with an anonymous user and valid token."""
-        test_user = self.customers[1]['users'][0]
         reset_body = {'token': test_user['reset_token'],
                       'password': self.gen_password()}
         url = reverse('user-reset-password', args=[test_user['uuid']])
         client = APIClient()
         response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        response = client.put(url, data=reset_body, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_reset_password_invalid_token(self):
         """Test reset password with valid user and invalid token."""
         test_user = self.customers[1]['users'][0]
-        token = test_user['token']
         reset_body = {'token': 'invalid',
                       'password': self.gen_password()}
         url = reverse('user-reset-password', args=[test_user['uuid']])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
         response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_reset_password_expired_token(self):
         """Test reset password with valid user and expired token."""
         test_user = self.customers[1]['users'][0]
-        token = test_user['token']
         reset_body = {'token': test_user['reset_token'],
                       'password': self.gen_password()}
         rt_qs = ResetToken.objects.filter(token=test_user['reset_token'])
@@ -314,9 +251,8 @@ class UserViewTest(IamTestCase):
         reset_token.save()
         url = reverse('user-reset-password', args=[test_user['uuid']])
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
         response = client.put(url, data=reset_body, format='json')
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_current_user(self):
         """Test getting current user."""
@@ -326,11 +262,11 @@ class UserViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_current_user_anon(self):
         """Test getting current user with an anonymous user."""
         url = reverse('user-current')
         client = APIClient()
         response = client.get(url)
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

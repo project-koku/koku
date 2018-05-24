@@ -35,7 +35,7 @@ class Customer(DjangoGroup):
     """
 
     date_created = models.DateTimeField(auto_now_add=True)
-    owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
+    owner = models.ForeignKey('User', null=True, on_delete=models.SET_NULL)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     schema_name = models.TextField(unique=True, null=False, default='public')
@@ -78,10 +78,15 @@ class UserPreference(models.Model):
                             unique=True, null=False)
     user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
     preference = JSONField(default=dict)
+    name = models.CharField(max_length=255, null=False, default=uuid4)
+    description = models.CharField(max_length=255, null=True)
+
+    class Meta:
+        ordering = ('name',)
 
     def __str__(self):
         """Return string representation of user preferences."""
-        return 'UserPreference({}): User: {}, Preference: {}'.format(self.uuid,
+        return 'UserPreference({}): User: {}, Preference: {}'.format(self.name,
                                                                      self.user,
                                                                      self.preference)
 
