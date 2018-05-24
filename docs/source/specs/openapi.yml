@@ -23,7 +23,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /api/v1/token-auth/:
     post:
       summary: Obtain an authentication token
@@ -43,13 +43,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenOut"
+                $ref: '#/components/schemas/TokenOut'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /api/v1/customers/:
     post:
       summary: Create a customer
@@ -384,7 +384,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  '/api/v1/users/{user_uuid}/preferences/{pref_uuid}':
+  '/api/v1/users/{user_uuid}/preferences/{pref_uuid}/':
     get:
       summary: Get a user preference
       operationId: getUserPreference
@@ -497,6 +497,13 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        description: Update to a Preference
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferenceIn'
       responses:
         '200':
           description: Preference updated
@@ -694,7 +701,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Customer'
         - required:
-          - owner
+            - owner
       properties:
         owner:
           $ref: '#/components/schemas/UserIn'
@@ -702,7 +709,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
@@ -712,9 +719,9 @@ components:
       allOf:
         - $ref: '#/components/schemas/Customer'
         - required:
-          - uuid
-          - owner
-          - date_created
+            - uuid
+            - owner
+            - date_created
       properties:
         uuid:
           type: string
@@ -791,8 +798,8 @@ components:
       allOf:
         - $ref: '#/components/schemas/Provider'
         - required:
-          - authentication
-          - billing_source
+            - authentication
+            - billing_source
       properties:
         authentication:
           $ref: '#/components/schemas/ProviderAuthenticationIn'
@@ -802,7 +809,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProviderAuthenticationIn'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
@@ -812,7 +819,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ProviderBillingSourceIn'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
@@ -822,9 +829,9 @@ components:
       allOf:
         - $ref: '#/components/schemas/Provider'
         - required:
-          - uuid
-          - authentication
-          - billing_source
+            - uuid
+            - authentication
+            - billing_source
       properties:
         uuid:
           type: string
@@ -838,7 +845,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
@@ -887,7 +894,7 @@ components:
             http.server: '0.6'
         server_id:
           type: string
-          example: "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+          example: ff4eb8e4-ddfb-4b66-8e0e-045a244990f3
     TokenIn:
       required:
         - username
@@ -895,17 +902,17 @@ components:
       properties:
         username:
           type: string
-          example: "smithj"
+          example: smithj
         password:
           type: string
-          example: "str0ng!P@ss"
+          example: str0ng!P@ss
     TokenOut:
       required:
         - token
       properties:
         token:
           type: string
-          example: "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b"
+          example: 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
     User:
       required:
         - username
@@ -937,7 +944,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/User'
         - required:
-          - password
+            - password
       properties:
         password:
           type: string
@@ -946,7 +953,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
@@ -956,7 +963,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/User'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
