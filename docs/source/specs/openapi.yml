@@ -1,4 +1,4 @@
-openapi: "3.0.0"
+openapi: 3.0.0
 info:
   version: 1.0.0
   title: Koku
@@ -17,13 +17,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Status"
+                $ref: '#/components/schemas/Status'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /api/v1/customers/:
     post:
       summary: Create a customer
@@ -33,7 +33,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -50,13 +50,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CustomerOut"
+                $ref: '#/components/schemas/CustomerOut'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     get:
       summary: List the customers
       operationId: listCustomers
@@ -65,7 +65,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -75,14 +75,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CustomerPagination"
+                $ref: '#/components/schemas/CustomerPagination'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-  /api/v1/customers/{uuid}/:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/customers/{uuid}/':
     get:
       summary: Get a customer
       operationId: getCustomer
@@ -91,7 +91,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -108,21 +108,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CustomerOut"
-
+                $ref: '#/components/schemas/CustomerOut'
         '404':
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Delete a customer
       operationId: deleteCustomer
@@ -131,7 +129,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -150,14 +148,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-
+                $ref: '#/components/schemas/Error'
   /api/v1/users/:
     post:
       summary: Create a user
@@ -167,7 +164,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -184,13 +181,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserOut"
+                $ref: '#/components/schemas/UserOut'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     get:
       summary: List the users
       operationId: listUsers
@@ -199,7 +196,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -209,14 +206,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserPagination"
+                $ref: '#/components/schemas/UserPagination'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-  /api/v1/users/{uuid}/:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/users/{uuid}/':
     get:
       summary: Get a user
       operationId: getUser
@@ -225,7 +222,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -242,20 +239,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserOut"
-
+                $ref: '#/components/schemas/UserOut'
         '404':
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Delete a user
       operationId: deleteUser
@@ -264,7 +260,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -283,14 +279,214 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-  /api/v1/users/{id}/reset-password/:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/users/{uuid}/preferences/':
+    post:
+      summary: Create a user preference
+      operationId: createUserPreference
+      tags:
+        - UserPreference
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Preference to add to a Preference
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferenceIn'
+      responses:
+        '201':
+          description: An object describing the user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferenceOut'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: List the user's preferences
+      operationId: listUserPreferences
+      tags:
+        - UserPreference
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A paginated list of preference objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferencePagination'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/users/{user_uuid}/preferences/{pref_uuid}':
+    get:
+      summary: Get a user preference
+      operationId: getUserPreference
+      tags:
+        - UserPreference
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: user_uuid
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: pref_uuid
+          in: path
+          description: ID of preference to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: A UserPreference object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferenceOut'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a user preference
+      operationId: deleteUserPreference
+      tags:
+        - UserPreference
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: user_uuid
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: pref_uuid
+          in: path
+          description: ID of preference to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update a user preference
+      operationId: updateUserPreference
+      tags:
+        - UserPreference
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: user_uuid
+          in: path
+          description: ID of user to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: pref_uuid
+          in: path
+          description: ID of preference to get
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Preference updated
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/users/{uuid}/reset-password/':
     put:
       summary: Reset a user's password
       operationId: resetUserPassword
@@ -299,7 +495,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -323,20 +519,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserOut"
-
+                $ref: '#/components/schemas/UserOut'
         '404':
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /api/v1/users/current/:
     get:
       summary: Get the current user
@@ -346,7 +541,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -356,13 +551,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserOut"
+                $ref: '#/components/schemas/UserOut'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
   /api/v1/providers/:
     post:
       summary: Create a provider
@@ -372,7 +567,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -389,13 +584,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProviderOut"
+                $ref: '#/components/schemas/ProviderOut'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
     get:
       summary: List the providers
       operationId: listProviders
@@ -404,7 +599,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -414,14 +609,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProviderPagination"
+                $ref: '#/components/schemas/ProviderPagination'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
-  /api/v1/providers/{uuid}/:
+                $ref: '#/components/schemas/Error'
+  '/api/v1/providers/{uuid}/':
     get:
       summary: Get a provider
       operationId: getProvider
@@ -430,7 +625,7 @@ paths:
       parameters:
         - in: header
           name: Authorization
-          description: "e.g. Token 45138a913da44ab89532bab0352ef84b"
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
           schema:
             type: string
           required: true
@@ -447,20 +642,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ProviderOut"
-
+                $ref: '#/components/schemas/ProviderOut'
         '404':
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
         '500':
           description: Unexpected Error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Customer:
@@ -469,39 +663,39 @@ components:
       properties:
         name:
           type: string
-          example: "My Tech Company"
+          example: My Tech Company
     CustomerIn:
       allOf:
-        - $ref: "#/components/schemas/Customer"
+        - $ref: '#/components/schemas/Customer'
         - required:
-          - owner
+            - owner
       properties:
         owner:
-          $ref: "#/components/schemas/UserIn"
+          $ref: '#/components/schemas/UserIn'
     CustomerPagination:
       allOf:
-        - $ref: "#/components/schemas/ListPagination"
+        - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
           items:
-              $ref: "#/components/schemas/CustomerOut"
+            $ref: '#/components/schemas/CustomerOut'
     CustomerOut:
       allOf:
-        - $ref: "#/components/schemas/Customer"
+        - $ref: '#/components/schemas/Customer'
         - required:
-          - uuid
-          - owner
-          - date_created
+            - uuid
+            - owner
+            - date_created
       properties:
         uuid:
           type: string
           format: uuid
-          example: "600562e7-d7d7-4516-8522-410e72792daf"
+          example: 600562e7-d7d7-4516-8522-410e72792daf
         owner:
-          $ref: "#/components/schemas/UserOut"
+          $ref: '#/components/schemas/UserOut'
         date_created:
           type: string
           format: date-time
@@ -525,11 +719,11 @@ components:
         previous:
           type: string
           format: uri
-          example: "/api/v1/(resources)/?page=2"
+          example: /api/v1/(resources)/?page=2
         next:
           type: string
           format: uri
-          example: "/api/v1/(resources)/?page=4"
+          example: /api/v1/(resources)/?page=4
     PasswordChangeIn:
       required:
         - token
@@ -537,25 +731,25 @@ components:
       properties:
         password:
           type: string
-          example: "str0ng!P@ss"
+          example: str0ng!P@ss
         token:
           type: string
           format: uuid
-          example: "40874085-358e-43a8-908f-59c5b11f9179"
+          example: 40874085-358e-43a8-908f-59c5b11f9179
     ProviderAuthenticationIn:
       required:
         - provider_resource_name
       properties:
         provider_resource_name:
           type: string
-          example: "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData"
+          example: 'arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData'
     ProviderBillingSourceIn:
       required:
         - bucket
       properties:
         bucket:
           type: string
-          example: "cost_s3"
+          example: cost_s3
     Provider:
       required:
         - name
@@ -563,67 +757,67 @@ components:
       properties:
         name:
           type: string
-          example: "My Company AWS production"
+          example: My Company AWS production
         type:
           type: string
-          example: "AWS"
+          example: AWS
     ProviderIn:
       allOf:
-        - $ref: "#/components/schemas/Provider"
+        - $ref: '#/components/schemas/Provider'
         - required:
-          - authentication
-          - billing_source
+            - authentication
+            - billing_source
       properties:
         authentication:
-          $ref: "#/components/schemas/ProviderAuthenticationIn"
+          $ref: '#/components/schemas/ProviderAuthenticationIn'
         billing_source:
-          $ref: "#/components/schemas/ProviderBillingSourceIn"
+          $ref: '#/components/schemas/ProviderBillingSourceIn'
     ProviderAuthenticationOut:
       allOf:
-        - $ref: "#/components/schemas/ProviderAuthenticationIn"
+        - $ref: '#/components/schemas/ProviderAuthenticationIn'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
           format: uuid
-          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+          example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
     ProviderBillingSourceOut:
       allOf:
-        - $ref: "#/components/schemas/ProviderBillingSourceIn"
+        - $ref: '#/components/schemas/ProviderBillingSourceIn'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
           format: uuid
-          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+          example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
     ProviderOut:
       allOf:
-        - $ref: "#/components/schemas/Provider"
+        - $ref: '#/components/schemas/Provider'
         - required:
-          - uuid
-          - authentication
-          - billing_source
+            - uuid
+            - authentication
+            - billing_source
       properties:
         uuid:
           type: string
           format: uuid
-          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+          example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
         authentication:
-          $ref: "#/components/schemas/ProviderAuthenticationOut"
+          $ref: '#/components/schemas/ProviderAuthenticationOut'
         billing_source:
-          $ref: "#/components/schemas/ProviderBillingSourceOut"
+          $ref: '#/components/schemas/ProviderBillingSourceOut'
     ProviderPagination:
       allOf:
-        - $ref: "#/components/schemas/ListPagination"
+        - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
           items:
-              $ref: "#/components/schemas/ProviderOut"
+            $ref: '#/components/schemas/ProviderOut'
     Status:
       required:
         - api_version
@@ -635,41 +829,39 @@ components:
           example: 1
         commit:
           type: string
-          example: "178d2ea"
+          example: 178d2ea
         server_address:
           type: string
-          example: "127.0.0.1:8000"
+          example: '127.0.0.1:8000'
         platform_info:
           type: object
-          example: {
-            "system": "Darwin",
-            "node": "node-1.example.com",
-            "release": "17.5.0",
-            "version": "Darwin Kernel Version 17.5.0",
-            "machine": "x86_64",
-            "processor": "i386"
-            }
+          example:
+            system: Darwin
+            node: node-1.example.com
+            release: 17.5.0
+            version: Darwin Kernel Version 17.5.0
+            machine: x86_64
+            processor: i386
         python_version:
           type: string
-          example: "3.6.1"
+          example: 3.6.1
         modules:
           type: object
-          example: {
-            "coverage": "4.5.1",
-            "coverage.version": "4.5.1",
-            "coverage.xmlreport": "4.5.1",
-            "cryptography": "2.0.3",
-            "ctypes": "1.1.0",
-            "ctypes.macholib": "1.0",
-            "decimal": "1.70",
-            "django": "1.11.5",
-            "django.utils.six": "1.10.0",
-            "django_filters": "1.0.4",
-            "http.server": "0.6",
-          }
+          example:
+            coverage: 4.5.1
+            coverage.version: 4.5.1
+            coverage.xmlreport: 4.5.1
+            cryptography: 2.0.3
+            ctypes: 1.1.0
+            ctypes.macholib: '1.0'
+            decimal: '1.70'
+            django: 1.11.5
+            django.utils.six: 1.10.0
+            django_filters: 1.0.4
+            http.server: '0.6'
         server_id:
           type: string
-          example: "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+          example: ff4eb8e4-ddfb-4b66-8e0e-045a244990f3
     User:
       required:
         - username
@@ -677,37 +869,84 @@ components:
       properties:
         username:
           type: string
-          example: "smithj"
+          example: smithj
         email:
           type: string
           format: email
-          example: "smithj@mytechco.com"
+          example: smithj@mytechco.com
+    UserPreference:
+      required:
+        - name
+        - preference
+      properties:
+        name:
+          type: string
+          example: my-preference-name
+        preference:
+          type: object
+          example: "{'timezone': 'UTC'}"
+        description:
+          type: string
+          example: my long preference description
     UserIn:
       allOf:
-        - $ref: "#/components/schemas/User"
+        - $ref: '#/components/schemas/User'
         - required:
-          - password
+            - password
       properties:
         password:
           type: string
-          example: "str0ng!P@ss"
+          example: str0ng!P@ss
     UserPagination:
       allOf:
-        - $ref: "#/components/schemas/ListPagination"
+        - $ref: '#/components/schemas/ListPagination'
         - required:
-          - results
+            - results
       properties:
         results:
           type: array
           items:
-              $ref: "#/components/schemas/UserOut"
+            $ref: '#/components/schemas/UserOut'
     UserOut:
       allOf:
-        - $ref: "#/components/schemas/User"
+        - $ref: '#/components/schemas/User'
         - required:
-          - uuid
+            - uuid
       properties:
         uuid:
           type: string
           format: uuid
-          example: "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+          example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
+    UserPreferenceIn:
+      allOf:
+        - $ref: '#/components/schemas/UserPreference'
+        - required:
+            - name
+            - preference
+      properties:
+        name:
+          type: string
+          example: my-preference-name
+        preferenece:
+          type: object
+          example: '{"currency": "USD"}'
+    UserPreferencePagination:
+      allOf:
+        - $ref: '#/components/schemas/ListPagination'
+        - required:
+            - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserPreferenceOut'
+    UserPreferenceOut:
+      allOf:
+        - $ref: '#/components/schemas/UserPreference'
+        - required:
+            - uuid
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
