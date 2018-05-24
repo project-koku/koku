@@ -22,7 +22,7 @@ from django.urls import reverse
 from faker import Faker
 from rest_framework.test import APIClient
 
-from ..models import User
+from ..models import User, Tenant
 
 
 class IamTestCase(TestCase):
@@ -33,6 +33,8 @@ class IamTestCase(TestCase):
 
     def setUp(self):
         """Create test case objects."""
+        tenant = Tenant.objects.get_or_create(schema_name='public')
+
         self.customer_data = [{'name': 'test_customer_1',
                                'owner': self.gen_user_data()},
                               {'name': 'test_customer_2',

@@ -20,6 +20,8 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from api.iam.models import Tenant
+
 USERNAME = 'testuser'
 PASSWORD = 'password1'
 
@@ -29,6 +31,8 @@ class TokenTestCase(TestCase):
 
     def setUp(self):
         """Set up the test cases."""
+        tenant = Tenant.objects.get_or_create(schema_name='public')
+
         User.objects.create_user(username=USERNAME,
                                  password=PASSWORD)
 
