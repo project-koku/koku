@@ -23,7 +23,7 @@ from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 
@@ -197,7 +197,7 @@ class UserViewSet(mixins.CreateModelMixin,
         """
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
-    @action(methods=['put'], detail=True, permission_classes=[IsAuthenticated],
+    @action(methods=['put'], detail=True, permission_classes=[AllowAny],
             url_path='reset-password', url_name='reset-password',
             serializer_class=serializers.PasswordChangeSerializer)
     def reset_password(self, request, uuid=None):
@@ -263,6 +263,7 @@ class UserViewSet(mixins.CreateModelMixin,
             raise ValidationError(error)
 
         user.set_password(password)
+        user.save()
         reset_token.used = True
         reset_token.save()
 
