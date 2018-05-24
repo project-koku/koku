@@ -120,16 +120,4 @@ class Migration(migrations.Migration):
             name='bill',
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='reporting.AWSCostEntryBill'),
         ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitem',
-            index=models.Index(fields=['cost_entry'], name='reporting_a_cost_en_463c5a_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitem',
-            index=models.Index(fields=['cost_entry_bill'], name='reporting_a_cost_en_0dbdb7_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='awscostentrylineitem',
-            index=models.Index(fields=['cost_entry_product'], name='reporting_a_cost_en_71cc55_idx'),
-        ),
     ]

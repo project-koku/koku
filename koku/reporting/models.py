@@ -95,14 +95,6 @@ class AWSCostEntryLineItem(models.Model):
     blended_cost = models.FloatField()
     tax_type = models.TextField()
 
-    class Meta:
-        indexes = [
-            models.Index(fields=['cost_entry']),
-            models.Index(fields=['cost_entry_bill']),
-            models.Index(fields=['cost_entry_product']),
-            # TODO: Consider index for tags
-        ]
-
 
 class AWSCostEntryPricing(models.Model):
     """ Pricing information for a cost entry line item."""
