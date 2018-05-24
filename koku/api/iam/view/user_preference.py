@@ -16,8 +16,8 @@
 #
 
 """View for User Preferences."""
-
 from django.forms.models import model_to_dict
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -46,6 +46,8 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsObjectOwner, IsAuthenticated)
+    filter_backends = (DjangoFilterBackend,)
+    filter_fields = ('name',)
 
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
@@ -119,7 +121,9 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
-        @apiParam {String} user_uuid User unique ID.
+        @apiParam (Path) {String} user_uuid User unique ID.
+
+        @apiParam (Query) {String} name Filter by preference name.
 
         @apiSuccess {Number} count The number of preferences.
         @apiSuccess {String} previous  The uri of the previous page of results.
