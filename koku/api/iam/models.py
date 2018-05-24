@@ -90,6 +90,7 @@ class UserPreference(models.Model):
                                                                      self.user,
                                                                      self.preference)
 
+
 class Tenant(TenantMixin):
     """The model used to create a tenant schema."""
 

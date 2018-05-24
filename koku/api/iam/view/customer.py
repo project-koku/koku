@@ -28,7 +28,7 @@ from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAdminUser
 
 from api.iam import models
-from  api.iam import serializers
+from api.iam import serializers
 
 
 LOG = logging.getLogger(__name__)

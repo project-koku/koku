@@ -22,7 +22,7 @@ from django.db import models
 
 
 class AWSCostEntryBill(models.Model):
-    """ The billing information for a Cost Usage Report.
+    """The billing information for a Cost Usage Report.
 
     The billing period (1 month) will cover many cost entries.
 
@@ -50,7 +50,7 @@ class AWSCostEntry(models.Model):
 
 
 class AWSCostEntryLineItem(models.Model):
-    """ A line item in a cost entry.
+    """A line item in a cost entry.
 
     This identifies specific costs and usage of AWS resources.
 
@@ -97,7 +97,7 @@ class AWSCostEntryLineItem(models.Model):
 
 
 class AWSCostEntryPricing(models.Model):
-    """ Pricing information for a cost entry line item."""
+    """Pricing information for a cost entry line item."""
 
     line_item = models.ForeignKey('AWSCostEntryLineItem',
                                   on_delete=models.PROTECT)
@@ -111,7 +111,7 @@ class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
 
     # AWS unique identifier for the product
-    sku = models.CharField(max_length = 128, null=False, unique=True)
+    sku = models.CharField(max_length=128, null=False, unique=True)
     product_name = models.CharField(max_length=63, null=False)
     product_family = models.CharField(max_length=150)
     service_code = models.CharField(max_length=50)
@@ -125,7 +125,7 @@ class AWSCostEntryProduct(models.Model):
 class AWSCostEntryReservation(models.Model):
     """Information on a particular reservation in the AWS account."""
 
-    reservation_arn =  models.TextField(unique=True)
+    reservation_arn = models.TextField(unique=True)
     availability_zone = models.CharField(max_length=50)
     number_of_reservations = models.PositiveIntegerField()
     units_per_reservation = models.PositiveIntegerField()

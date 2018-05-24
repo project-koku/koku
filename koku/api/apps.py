@@ -74,6 +74,7 @@ class ApiConfig(AppConfig):
         logger.info('Created Service Admin: %s.', service_email)
 
     def get_or_create_public_schema(self):
+        """Get or create a tenant for the public schema."""
         from api.iam.models import Tenant
 
         tenant = Tenant.objects.get_or_create(schema_name='public')
