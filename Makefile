@@ -60,7 +60,7 @@ remove-db:
 
 make-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True$(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
 
 run-migrations:
 	sleep 1
