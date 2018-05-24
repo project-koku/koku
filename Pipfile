@@ -12,6 +12,7 @@ whitenoise = ">=3.3.0"
 Django = ">=2.0.0"
 psycopg2-binary = ">=2.7.0"
 drf-nested-routers = ">=0.90.0"
+django-filter = ">=1.1.0"
 
 [dev-packages]
 pylint = "==1.9.1"
