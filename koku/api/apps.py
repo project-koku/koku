@@ -75,9 +75,9 @@ class ApiConfig(AppConfig):
 
     def get_or_create_public_schema(self):
         from api.iam.models import Tenant
-        tenant = Tenant.objects.get_or_create(
-            schema_name='public'
-        )
+
+        tenant = Tenant.objects.get_or_create(schema_name='public')
+
         return tenant
 
     def check_and_create_service_admin(self):  # pylint: disable=R0201
