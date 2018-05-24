@@ -119,7 +119,7 @@ class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
 
     # AWS unique identifier for the product
-    sku = models.CharField(null=False, unique=True)
+    sku = models.CharField(max_length = 128, null=False, unique=True)
     product_name = models.CharField(max_length=63, null=False)
     product_family = models.CharField(max_length=150)
     service_code = models.CharField(max_length=50)
