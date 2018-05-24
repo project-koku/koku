@@ -24,7 +24,7 @@ from .env import ENVIRONMENT
 # pylint: disable=invalid-name
 engines = {
     'sqlite': 'django.db.backends.sqlite3',
-    'postgresql': 'django.db.backends.postgresql_psycopg2',
+    'postgresql': 'tenant_schemas.postgresql_backend',
     'mysql': 'django.db.backends.mysql',
 }
 

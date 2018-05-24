@@ -36,6 +36,7 @@ class ApiConfig(AppConfig):
         try:
             self.startup_status()
             self.check_and_create_service_admin()
+            self.get_or_create_public_schema()
         except (OperationalError, ProgrammingError) as op_error:
             if 'no such table' in str(op_error) or \
                     'does not exist' in str(op_error):
@@ -71,6 +72,13 @@ class ApiConfig(AppConfig):
                                       service_email,
                                       service_pass)
         logger.info('Created Service Admin: %s.', service_email)
+
+    def get_or_create_public_schema(self):
+        from api.iam.models import Tenant
+        tenant = Tenant.objects.get_or_create(
+            schema_name='public'
+        )
+        return tenant
 
     def check_and_create_service_admin(self):  # pylint: disable=R0201
         """Check for the service admin and create it if necessary."""

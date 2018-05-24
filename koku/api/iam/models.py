@@ -24,6 +24,7 @@ from django.contrib.auth.models import Group as DjangoGroup, User as DjangoUser
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils import timezone
+from tenant_schemas.models import TenantMixin
 
 
 class Customer(DjangoGroup):
@@ -37,6 +38,7 @@ class Customer(DjangoGroup):
     owner = models.ForeignKey('User', null=False, on_delete=models.PROTECT)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    schema_name = models.TextField(unique=True, null=False, default='public')
 
     class Meta:
         ordering = ['name']
@@ -82,3 +84,9 @@ class UserPreference(models.Model):
         return 'UserPreference({}): User: {}, Preference: {}'.format(self.uuid,
                                                                      self.user,
                                                                      self.preference)
+
+class Tenant(TenantMixin):
+    """The model used to create a tenant schema."""
+
+    # Override the mixin domain url to make it nullable, non-unique
+    domain_url = None

@@ -22,8 +22,8 @@ from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.permissions import IsAdminUser
 
-import api.iam.models as model
-import api.iam.serializers as serializers
+from api.iam import models
+from  api.iam import serializers
 
 
 class CustomerViewSet(mixins.CreateModelMixin,
@@ -37,11 +37,17 @@ class CustomerViewSet(mixins.CreateModelMixin,
     """
 
     lookup_field = 'uuid'
-    queryset = model.Customer.objects.all()
+    queryset = models.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsAdminUser,)
+
+    def perform_create(self, serializer):
+        """Create a customer with a tenant."""
+        customer = serializer.save()
+        tenant = models.Tenant(schema_name=customer.schema_name)
+        tenant.save()
 
     def create(self, request, *args, **kwargs):
         """Create a customer.
