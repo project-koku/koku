@@ -884,7 +884,8 @@ components:
           example: my-preference-name
         preference:
           type: object
-          example: "{'timezone': 'UTC'}"
+          format: json
+          example: '{''timezone'': ''UTC''}'
         description:
           type: string
           example: my long preference description
@@ -927,9 +928,13 @@ components:
         name:
           type: string
           example: my-preference-name
-        preferenece:
+        preference:
           type: object
+          format: json
           example: '{"currency": "USD"}'
+        description:
+          type: string
+          example: my long preference description
     UserPreferencePagination:
       allOf:
         - $ref: '#/components/schemas/ListPagination'
@@ -945,8 +950,11 @@ components:
         - $ref: '#/components/schemas/UserPreference'
         - required:
             - uuid
+            - user
       properties:
         uuid:
           type: string
           format: uuid
           example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
+        user:
+          $ref: '#/components/schemas/UserOut'
