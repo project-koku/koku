@@ -125,6 +125,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 }
             }
         """
+        if request.user.is_superuser:
+            raise PermissionDenied()
+
         return super().create(request=request, args=args, kwargs=kwargs)
 
     def list(self, request, *args, **kwargs):

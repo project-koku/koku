@@ -204,6 +204,14 @@ class ProviderViewTest(IamTestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, 401)
 
+    def test_create_provider_as_service_admin(self):
+        """Test create a provider as service admin."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        token = self.service_admin_token
+        response = self.create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 403)
+
     def test_remove_provider_with_customer_owner(self):
         """Test removing a provider as the customer owner."""
         # Create Provider with customer owner token
@@ -361,4 +369,3 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=other_user_token)
         response = client.delete(url)
-        self.assertEqual(response.status_code, 403)
