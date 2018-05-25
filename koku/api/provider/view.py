@@ -19,6 +19,7 @@
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
 from api.iam.models import Customer
@@ -188,7 +189,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         """Get a provider.
 
         @api {get} /api/v1/providers/:uuid/ Get a provider
-        @apiName GetUser
+        @apiName GetProvider
         @apiGroup Provider
         @apiVersion 1.0.0
         @apiDescription Get a provider.
@@ -238,3 +239,39 @@ class ProviderViewSet(mixins.CreateModelMixin,
             }
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+            """Delete a provider.
+
+            @api {delete} /api/v1/providers/:uuid/ Delete a provider
+            @apiName DeleteProvider
+            @apiGroup Provider
+            @apiVersion 1.0.0
+            @apiDescription Delete a provider.
+
+            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeaderExample {json} Header-Example:
+                {
+                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                }
+
+            @apiParam {String} uuid Provider unique ID.
+
+            @apiSuccessExample {json} Success-Response:
+                HTTP/1.1 204 NO CONTENT
+            """
+            # Block any users not part of the orginization
+            if not self.get_queryset():
+                raise PermissionDenied()
+
+            # Block users of the orginization that are not customer owner
+            # or did not create the provider
+            provider = Provider.objects.all().filter(uuid=kwargs['uuid'])
+            user_created_by = provider.get().created_by
+            provider_customer_owner = provider.get().customer.owner
+            current_user = request.user
+            if current_user.id != provider_customer_owner.id:
+                if current_user.id != user_created_by.id:
+                    raise PermissionDenied()
+
+            return super().destroy(request=request, args=args, kwargs=kwargs)
