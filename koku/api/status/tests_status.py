@@ -31,7 +31,7 @@ class StatusModelTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
-        tenant = Tenant.objects.get_or_create(schema_name='public')
+        Tenant.objects.get_or_create(schema_name='public')
 
         self.status_info = None
         status_count = Status.objects.count()
@@ -113,7 +113,7 @@ class StatusViewTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
-        tenant = Tenant.objects.get_or_create(schema_name='public')
+        Tenant.objects.get_or_create(schema_name='public')
 
         self.status_info = None
         status_count = Status.objects.count()

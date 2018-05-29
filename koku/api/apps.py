@@ -17,6 +17,7 @@
 """API application configuration module."""
 
 import logging
+import sys
 
 from django.apps import AppConfig
 from django.db.utils import OperationalError, ProgrammingError
@@ -33,10 +34,12 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         """Determine if app is ready on application startup."""
+        # Don't run on Django tab completion commands
+        if 'manage.py' in sys.argv[0] and 'runserver' not in sys.argv:
+            return
         try:
             self.startup_status()
             self.check_and_create_service_admin()
-            self.get_or_create_public_schema()
         except (OperationalError, ProgrammingError) as op_error:
             if 'no such table' in str(op_error) or \
                     'does not exist' in str(op_error):
@@ -49,13 +52,7 @@ class ApiConfig(AppConfig):
         """Log the status of the server at startup."""
         # noqa: E402 pylint: disable=C0413
         from api.status.models import Status
-        status_info = None
-        status_count = Status.objects.count()
-        if status_count == 0:
-            status_info = Status.objects.create()
-            status_info.save()
-        else:
-            status_info = Status.objects.first()
+        status_info, _ = Status.objects.get_or_create()
 
         status_info.startup()
 
@@ -72,14 +69,6 @@ class ApiConfig(AppConfig):
                                       service_email,
                                       service_pass)
         logger.info('Created Service Admin: %s.', service_email)
-
-    def get_or_create_public_schema(self):
-        """Get or create a tenant for the public schema."""
-        from api.iam.models import Tenant
-
-        tenant = Tenant.objects.get_or_create(schema_name='public')
-
-        return tenant
 
     def check_and_create_service_admin(self):  # pylint: disable=R0201
         """Check for the service admin and create it if necessary."""

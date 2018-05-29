@@ -31,7 +31,7 @@ class TokenTestCase(TestCase):
 
     def setUp(self):
         """Set up the test cases."""
-        tenant = Tenant.objects.get_or_create(schema_name='public')
+        Tenant.objects.get_or_create(schema_name='public')
 
         User.objects.create_user(username=USERNAME,
                                  password=PASSWORD)
