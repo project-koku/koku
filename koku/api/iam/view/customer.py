@@ -19,16 +19,16 @@
 import logging
 
 from django.db import DatabaseError, transaction
-from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import IsAdminUser
 
 import api.iam.models as model
 import api.iam.serializers as serializers
+from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
 
 
 LOG = logging.getLogger(__name__)
@@ -207,17 +207,14 @@ class CustomerViewSet(mixins.CreateModelMixin,
             @apiSuccessExample {json} Success-Response:
                 HTTP/1.1 204 NO CONTENT
             """
-            customer = get_object_or_404(self.queryset, uuid=kwargs['uuid'])
-
             user_savepoint = transaction.savepoint()
-
-            group = self.serializer_class.get_authentication_group_for_customer(customer)
             try:
-                users = self.serializer_class.get_users_for_group(group)
-                if users:
-                    for user in users:
-                        LOG.info('Removing User: {}'.format(user))
-                        user.delete()
+                customer_manager = CustomerManager(kwargs['uuid'])
+            except CustomerManagerDoesNotExist:
+                raise NotFound
+
+            try:
+                customer_manager.remove_users(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
                 raise UserDeleteException

@@ -25,6 +25,7 @@ from rest_framework.permissions import IsAuthenticated
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
+from .manager import ProviderManager
 
 
 class ProviderViewSet(mixins.CreateModelMixin,
@@ -269,12 +270,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
             # Block users of the orginization that are not customer owner
             # or did not create the provider
-            provider = Provider.objects.all().filter(uuid=kwargs['uuid'])
-            user_created_by = provider.get().created_by
-            provider_customer_owner = provider.get().customer.owner
-            current_user = request.user
-            if current_user.id != provider_customer_owner.id:
-                if current_user.id != user_created_by.id:
-                    raise PermissionDenied()
+            manager = ProviderManager(kwargs['uuid'])
+            if not manager.is_removable_by_user(request.user):
+                raise PermissionDenied()
 
             return super().destroy(request=request, args=args, kwargs=kwargs)
