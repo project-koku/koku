@@ -19,6 +19,7 @@
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
 from api.iam.models import Customer
@@ -124,6 +125,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 }
             }
         """
+        if request.user.is_superuser:
+            raise PermissionDenied()
+
         return super().create(request=request, args=args, kwargs=kwargs)
 
     def list(self, request, *args, **kwargs):

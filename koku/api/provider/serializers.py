@@ -18,7 +18,7 @@
 import logging
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 from django.db import transaction
 from django.utils.translation import ugettext as _
 from requests.exceptions import ConnectionError as BotoConnectionError
@@ -91,7 +91,7 @@ def _get_sts_access(provider_resource_name):
             access_key_id = credentials.get('AccessKeyId')
             secret_access_key = credentials.get('SecretAccessKey')
             session_token = credentials.get('SessionToken')
-    except (ClientError, BotoConnectionError) as boto_error:
+    except (ClientError, BotoConnectionError, NoCredentialsError) as boto_error:
         LOG.exception(boto_error)
 
     return (access_key_id, secret_access_key, session_token)
