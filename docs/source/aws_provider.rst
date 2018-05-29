@@ -1,7 +1,7 @@
 Adding an AWS Account
 #####################
 
-This following describes the steps necessary to configure an AWS account for cost and usage reporting to an S3 bucket, creation of an IAM Policy and Role to be utilized by Koku to process the cost usage data, and AWS organization setup in order to control cost visibility.
+This section describes how to configure your AWS account to allow Koku access.  Configuring your account involves configuring three AWS services. Setting up the AWS account for cost and usage reporting to an S3 bucket to make the cost and usage data available. Creating an Identity Access Management (IAM) Policy and Role to be utilized by Koku to process the cost and usage data. AWS organization setup in order to control cost visibility.
 
 Configuring an Amazon Account for Cost & Usage Reporting
 ********************************************************
@@ -19,7 +19,7 @@ Make a note of the name of the S3 bucket as you will need it when creating an IA
 Creating an IAM Policy and Role for Cost & Usage Consumption
 ************************************************************
 
-In order for Koku to provide data within the web interface and API it must be able to consume the cost and usage reports produced by AWS. In order to obtain this data with the minimal amount of access follow the steps below to create an Identity Access Management (IAM) Policy and Role for Koku to utilize.
+In order for Koku to provide data within the web interface and API it must be able to consume the cost and usage reports produced by AWS. In order to obtain this data with the minimal amount of access follow the steps below to create an IAM Policy and Role for Koku to utilize.
 
 Sign in to the AWS Management Console as an administrator of the account you wish to add, and open the IAM console at `https://console.aws.amazon.com/iam/ <https://console.aws.amazon.com/iam/>`_.
 

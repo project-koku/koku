@@ -6,7 +6,7 @@ This section covers the customer owner, adding and removing users, email on-boar
 Customer Owner
 ##############
 
-When a customer is created a user is also created associated with the customer. This initial user is referred to a the customer owner and has special privileges. A customer owner has the following privileges:
+When a customer is created, a user is also created associated with the customer. This initial user is referred to as the customer owner and has special privileges. A customer owner has the following privileges:
 
 - Adding new users
 - Removing users
@@ -15,9 +15,9 @@ When a customer is created a user is also created associated with the customer. 
 Adding and Removing Users
 #########################
 
-In order to allow more people to access to view the cost data, the customer owner can add more users to their customer. In order to add a user you must supply a username and valid email for the associated user. A password can be optionally provided, if a password is not provided one will be generated for the user. When the user is created they will receive an email to assist with on-boarding, see the section on `Email On-boarding`_ for more information.
+In order to allow more people to access the cost data, the customer owner can add more users to their customer. In order to add a user you must supply a username and valid email for the associated user. A password can be optionally provided, if a password is not provided one will be generated for the user. When the user is created they will receive an email to assist with on-boarding, see the section on `Email On-boarding`_ for more information.
 
-Users can also be removed from access, but only a customer owner has privileges to do so. Only the associated user data and preferences will be removed when a user is removed; any providers, such as Amazon Web Services accounts, added by a removed user will continue to remain, but can be removed by the customer owner at any point.
+Customer owners may remove a user's access. Only customer owners have the privilege to grant or revoke access. Only the associated user data and preferences will be removed when a user is removed; any providers, such as Amazon Web Services accounts, added by a removed user will continue to remain, but can be removed by the customer owner at any point.
 
 Email On-boarding
 #################
