@@ -16,6 +16,8 @@
 #
 
 """View for Providers."""
+import logging
+
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -25,7 +27,10 @@ from rest_framework.permissions import IsAuthenticated
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
-from .manager import ProviderManager
+from .provider_manager import ProviderManager
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ProviderViewSet(mixins.CreateModelMixin,
@@ -272,6 +277,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
             # or did not create the provider
             manager = ProviderManager(kwargs['uuid'])
             if not manager.is_removable_by_user(request.user):
+                err_msg = '{} does not have permission to remove provider uuid: {}.'.format(request.user.username,
+                                                                                            kwargs['uuid'])
+                LOG.error(err_msg)
                 raise PermissionDenied()
 
             return super().destroy(request=request, args=args, kwargs=kwargs)

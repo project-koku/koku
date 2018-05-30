@@ -20,8 +20,8 @@ from django.contrib.auth.models import Group
 from api.iam.models import Customer, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.manager import ProviderManager, ProviderManagerError
 from api.provider.models import Provider
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 
 
 class ProviderManagerTest(IamTestCase):
@@ -39,7 +39,26 @@ class ProviderManagerTest(IamTestCase):
         Customer.objects.all().delete()
         Provider.objects.all().delete()
 
-    def test_get_providers_for_customer(self):
+    def test_get_name(self):
+        """Can the provider name be returned."""
+        # Create Customer
+        customer = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+
+        # Create Provider
+        provider_name = 'sample_provider'
+        provider = Provider.objects.create(name=provider_name, created_by=customer.owner, customer=customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertEqual(manager.get_name(), provider_name)
+
+    def test_get_providers_queryset_for_customer(self):
         """Verify all providers returned by a customer."""
         # Create Customer
         customer = None
@@ -48,14 +67,13 @@ class ProviderManagerTest(IamTestCase):
             customer = serializer.save()
 
         # Verify no providers are returned
-        self.assertFalse(ProviderManager.get_providers_for_customer(customer).exists())
+        self.assertFalse(ProviderManager.get_providers_queryset_for_customer(customer).exists())
 
         # Create Providers
-        provider_1 = Provider.objects.create(created_by=customer.owner, customer=customer)
-        provider_2 = Provider.objects.create(created_by=customer.owner, customer=customer)
+        provider_1 = Provider.objects.create(name='provider1', created_by=customer.owner, customer=customer)
+        provider_2 = Provider.objects.create(name='provider2', created_by=customer.owner, customer=customer)
 
-        providers = ProviderManager.get_providers_for_customer(customer)
-
+        providers = ProviderManager.get_providers_queryset_for_customer(customer)
         # Verify providers are returned
         provider_1_found = False
         provider_2_found = False
@@ -79,7 +97,7 @@ class ProviderManagerTest(IamTestCase):
             customer = serializer.save()
 
         # Create Provider
-        provider = Provider.objects.create(created_by=customer.owner, customer=customer)
+        provider = Provider.objects.create(name='providername', created_by=customer.owner, customer=customer)
         provider_uuid = provider.uuid
 
         # Create another user for negative tests
@@ -99,7 +117,7 @@ class ProviderManagerTest(IamTestCase):
         self.assertFalse(manager.is_removable_by_user(new_user))
 
         superuser = User.objects.filter(is_superuser=True).first()
-        self.assertTrue(manager.is_removable_by_user(superuser))
+        self.assertFalse(manager.is_removable_by_user(superuser))
 
     def test_provider_manager_error(self):
         """Raise ProviderManagerError."""
@@ -118,7 +136,7 @@ class ProviderManagerTest(IamTestCase):
             customer = serializer.save()
 
         # Create Provider
-        provider = Provider.objects.create(created_by=customer.owner, customer=customer)
+        provider = Provider.objects.create(name='providername', created_by=customer.owner, customer=customer)
         provider_uuid = provider.uuid
 
         # Create another user for negative tests

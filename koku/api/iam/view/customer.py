@@ -29,7 +29,7 @@ from rest_framework.permissions import IsAdminUser
 import api.iam.models as model
 import api.iam.serializers as serializers
 from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
-from api.provider.manager import ProviderManager, ProviderManagerError
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 
 
 LOG = logging.getLogger(__name__)
@@ -224,22 +224,25 @@ class CustomerViewSet(mixins.CreateModelMixin,
             try:
                 customer_manager = CustomerManager(kwargs['uuid'])
             except CustomerManagerDoesNotExist:
+                LOG.error('Unable to find provider for uuid {}.'.format(kwargs['uuid']))
                 raise NotFound
 
-            providers = ProviderManager.get_providers_for_customer(customer_manager.get_model())
+            providers = ProviderManager.get_providers_queryset_for_customer(customer_manager.get_model())
 
             try:
                 customer_manager.remove_users(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
+                LOG.error('Failed to remove users for customer {}.'.format(customer_manager.get_name()))
                 raise UserDeleteException
 
             try:
                 for provider in providers:
                     provider_manager = ProviderManager(provider.uuid)
-                    provider_manager.remove(request.user)
+                    provider_manager.remove(request.user, customer_remove_context=True)
             except (DatabaseError, ProviderManagerError):
                 transaction.savepoint_rollback(user_savepoint)
+                LOG.error('{} failed to remove provider {}.'.format(request.user.username, provider_manager.get_name()))
                 raise ProviderDeleteException
 
             http_response = super().destroy(request=request, args=args, kwargs=kwargs)

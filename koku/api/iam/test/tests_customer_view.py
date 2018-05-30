@@ -27,8 +27,8 @@ from moto import mock_s3, mock_sts
 from rest_framework import mixins
 from rest_framework.test import APIClient
 
-from api.provider.manager import ProviderManager
 from api.provider.models import Provider
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.serializers import _get_sts_access
 from .iam_test_case import IamTestCase
 from ..models import Customer, User
@@ -302,7 +302,7 @@ class CustomerViewTest(IamTestCase):
         url = reverse('customer-detail', args=[customer_1['uuid']])
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
-        with patch.object(ProviderManager, 'is_removable_by_user', return_value=False):
+        with patch.object(ProviderManager, 'remove', side_effect=ProviderManagerError('fake')):
             response = client.delete(url)
         self.assertEqual(response.status_code, 500)
 

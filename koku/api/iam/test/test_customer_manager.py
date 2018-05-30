@@ -52,6 +52,18 @@ class CustomerManagerTest(IamTestCase):
         manager = CustomerManager(customer_uuid)
         self.assertEqual(manager.get_model(), customer)
 
+    def test_get_name(self):
+        """Can the customer name be returned."""
+        # Create Customer
+        customer = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+        customer_uuid = customer.uuid
+
+        manager = CustomerManager(customer_uuid)
+        self.assertEqual(manager.get_name(), self.customer_data[0]['name'])
+
     def test_get_users_for_customer(self):
         """Can current user remove provider."""
         # Create Customer

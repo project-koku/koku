@@ -69,6 +69,10 @@ class CustomerManager:
         """Get the model object for the customer."""
         return self.model
 
+    def get_name(self):
+        """Get the name of the customer."""
+        return self.model.name
+
     def get_users_for_customer(self):
         """List of users that belong to the customer."""
         group = CustomerSerializer.get_authentication_group_for_customer(self.model)
