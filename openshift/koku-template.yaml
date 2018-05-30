@@ -562,7 +562,7 @@ parameters:
   name: SERVICE_ADMIN_USER
   required: true
 - displayName: Service Admin Email
-  from: 'cost-mgmt@project-koku.com'
+  value: 'cost-mgmt@project-koku.com'
   name: SERVICE_ADMIN_EMAIL
   required: true
 - displayName: Service Admin Password
@@ -570,13 +570,13 @@ parameters:
   generate: expression
   name: SERVICE_ADMIN_PASSWORD
 - displayName: Email Service Host
-  from: 'smtp.mailgun.org'
+  value: 'smtp.mailgun.org'
   name: EMAIL_HOST
 - displayName: Email Service Port
-  from: '587'
+  value: '587'
   name: EMAIL_PORT
 - displayName: Email Service User
-  from: 'postmaster@mg.project-koku.com'
+  value: 'postmaster@mg.project-koku.com'
   name: EMAIL_HOST_USER
 - displayName: Email Service Password
   from: ${EMAIL_SERVICE_PASSWORD}
