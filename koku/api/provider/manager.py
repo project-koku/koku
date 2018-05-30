@@ -16,10 +16,15 @@
 #
 """Management capabilities for Provider functionality."""
 
+import logging
+
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 
 from api.provider.models import Provider
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ProviderManagerError(Exception):
@@ -42,8 +47,16 @@ class ProviderManager:
         except (ObjectDoesNotExist, ValidationError) as e:
             raise(ProviderManagerError(str(e)))
 
+    @staticmethod
+    def get_providers_for_customer(customer):
+        """Get all providers created by a given customer."""
+        return Provider.objects.all().filter(customer=customer)
+
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
+        if current_user.is_superuser:
+            return True
+
         if current_user.id != self.owned_by.id:
             if current_user.id != self.created_by.id:
                 return False

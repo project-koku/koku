@@ -40,6 +40,18 @@ class CustomerManagerTest(IamTestCase):
         Customer.objects.all().delete()
         Provider.objects.all().delete()
 
+    def test_get_model(self):
+        """Can the model object be returned."""
+        # Create Customer
+        customer = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+        customer_uuid = customer.uuid
+
+        manager = CustomerManager(customer_uuid)
+        self.assertEqual(manager.get_model(), customer)
+
     def test_get_users_for_customer(self):
         """Can current user remove provider."""
         # Create Customer

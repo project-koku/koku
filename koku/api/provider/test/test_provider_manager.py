@@ -30,6 +30,7 @@ class ProviderManagerTest(IamTestCase):
     def setUp(self):
         """Set up the provider manager tests."""
         super().setUp()
+        self.create_service_admin()
 
     def tearDown(self):
         """Tear down the provider manager tests."""
@@ -37,6 +38,37 @@ class ProviderManagerTest(IamTestCase):
         User.objects.all().delete()
         Customer.objects.all().delete()
         Provider.objects.all().delete()
+
+    def test_get_providers_for_customer(self):
+        """Verify all providers returned by a customer."""
+        # Create Customer
+        customer = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+
+        # Verify no providers are returned
+        self.assertFalse(ProviderManager.get_providers_for_customer(customer).exists())
+
+        # Create Providers
+        provider_1 = Provider.objects.create(created_by=customer.owner, customer=customer)
+        provider_2 = Provider.objects.create(created_by=customer.owner, customer=customer)
+
+        providers = ProviderManager.get_providers_for_customer(customer)
+
+        # Verify providers are returned
+        provider_1_found = False
+        provider_2_found = False
+
+        for provider in providers:
+            if provider.uuid == provider_1.uuid:
+                provider_1_found = True
+            elif provider.uuid == provider_2.uuid:
+                provider_2_found = True
+
+        self.assertTrue(provider_1_found)
+        self.assertTrue(provider_2_found)
+        self.assertEqual((len(providers)), 2)
 
     def test_is_removable_by_user(self):
         """Can current user remove provider."""
@@ -65,6 +97,9 @@ class ProviderManagerTest(IamTestCase):
 
         self.assertTrue(manager.is_removable_by_user(customer.owner))
         self.assertFalse(manager.is_removable_by_user(new_user))
+
+        superuser = User.objects.filter(is_superuser=True).first()
+        self.assertTrue(manager.is_removable_by_user(superuser))
 
     def test_provider_manager_error(self):
         """Raise ProviderManagerError."""

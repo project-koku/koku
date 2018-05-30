@@ -65,6 +65,10 @@ class CustomerManager:
         except ValidationError as e:
             raise(CustomerManagerError(str(e)))
 
+    def get_model(self):
+        """Get the model object for the customer."""
+        return self.model
+
     def get_users_for_customer(self):
         """List of users that belong to the customer."""
         group = CustomerSerializer.get_authentication_group_for_customer(self.model)

@@ -29,6 +29,7 @@ from rest_framework.permissions import IsAdminUser
 import api.iam.models as model
 import api.iam.serializers as serializers
 from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
+from api.provider.manager import ProviderManager, ProviderManagerError
 
 
 LOG = logging.getLogger(__name__)
@@ -38,6 +39,17 @@ class UserDeleteException(APIException):
     """User deletion custom internal error exception."""
 
     default_detail = 'Error removing user'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
+
+
+class ProviderDeleteException(APIException):
+    """Provider deletion custom internal error exception."""
+
+    default_detail = 'Error removing provider'
 
     def __init__(self):
         """Initialize with status code 500."""
@@ -208,16 +220,27 @@ class CustomerViewSet(mixins.CreateModelMixin,
                 HTTP/1.1 204 NO CONTENT
             """
             user_savepoint = transaction.savepoint()
+            customer_manager = None
             try:
                 customer_manager = CustomerManager(kwargs['uuid'])
             except CustomerManagerDoesNotExist:
                 raise NotFound
+
+            providers = ProviderManager.get_providers_for_customer(customer_manager.get_model())
 
             try:
                 customer_manager.remove_users(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
                 raise UserDeleteException
+
+            try:
+                for provider in providers:
+                    provider_manager = ProviderManager(provider.uuid)
+                    provider_manager.remove(request.user)
+            except (DatabaseError, ProviderManagerError):
+                transaction.savepoint_rollback(user_savepoint)
+                raise ProviderDeleteException
 
             http_response = super().destroy(request=request, args=args, kwargs=kwargs)
             if http_response.status_code is not 204:
