@@ -29,25 +29,19 @@ LOG = logging.getLogger(__name__)
 class CustomerManagerError(Exception):
     """General Exception class for CustomerManager errors."""
 
-    def __init__(self, message):
-        """Set custom error message for CustomerManager errors."""
-        self.message = message
+    pass
 
 
 class CustomerManagerDoesNotExist(Exception):
     """CustomerManager could not find customer error."""
 
-    def __init__(self, message):
-        """Set custom error message for CustomerManager errors."""
-        self.message = message
+    pass
 
 
 class CustomerManagerPermissionError(Exception):
     """CustomerManager permission error."""
 
-    def __init__(self, message):
-        """Set custom error message for CustomerManager errors."""
-        self.message = message
+    pass
 
 
 class CustomerManager:

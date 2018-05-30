@@ -191,7 +191,9 @@ class CustomerViewTest(IamTestCase):
         self.assertEqual(response.status_code, 201)
 
         bucket2_name = 'my_other_s3_bucket'
-        response = self._create_provider(bucket2_name, iam_arn, token)
+        iam_arn2 = 'arn:aws:s3:::my_other_s3_bucket'
+
+        response = self._create_provider(bucket2_name, iam_arn2, token)
         self.assertEqual(response.status_code, 201)
 
         # Verify providers are created
@@ -204,9 +206,7 @@ class CustomerViewTest(IamTestCase):
         results = json_result.get('results')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 2)
-        provider_uuids = []
-        for provider in results:
-            provider_uuids.append(provider['uuid'])
+        provider_uuids = [provider['uuid'] for provider in results]
 
         # Verify that customer_1 providers are  in the database
         for uuid in provider_uuids:

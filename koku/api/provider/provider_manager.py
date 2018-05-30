@@ -74,8 +74,9 @@ class ProviderManager:
             force_removal_allowed = True
 
         if force_removal_allowed or self.is_removable_by_user(current_user):
-            LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
             self.model.delete()
+            LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
+
         else:
             err_msg = 'User {} does not have permission to delete provider {}'.format(current_user, str(self.model))
             raise ProviderManagerError(err_msg)

@@ -19,9 +19,8 @@
 from django.contrib.auth.models import Group
 
 from api.iam.customer_manager import (CustomerManager, CustomerManagerError, CustomerManagerPermissionError)
-from api.iam.models import Customer, User
+from api.iam.models import User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
-from api.provider.models import Provider
 from .iam_test_case import IamTestCase
 
 
@@ -36,9 +35,6 @@ class CustomerManagerTest(IamTestCase):
     def tearDown(self):
         """Tear down the Customer Manager tests."""
         super().tearDown()
-        User.objects.all().delete()
-        Customer.objects.all().delete()
-        Provider.objects.all().delete()
 
     def test_get_model(self):
         """Can the model object be returned."""

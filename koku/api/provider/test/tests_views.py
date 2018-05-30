@@ -369,6 +369,7 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=other_user_token)
         response = client.delete(url)
+        self.assertEqual(response.status_code, 403)
 
     def test_create_provider_invalid_rolearn(self):
         """Test create a provider with an invalid RoleARN."""
