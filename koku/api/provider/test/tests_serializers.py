@@ -268,3 +268,12 @@ class ProviderSerializerTest(IamTestCase):
         access_exists = _check_org_access(access_key_id, secret_access_key,
                                           session_token)
         self.assertFalse(access_exists)
+
+    def test_get_sts_access_invalid_param(self):
+        """Test _get_sts_access with invalid RoleARN parameter."""
+        iam_arn = 'invalid'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        self.assertIsNone(access_key_id)
+        self.assertIsNone(secret_access_key)
+        self.assertIsNone(session_token)
