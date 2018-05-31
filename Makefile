@@ -60,7 +60,7 @@ remove-db:
 
 make-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True$(PYTHON) $(PYDIR)/manage.py makemigrations api
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
 
 run-migrations:
 	sleep 1
@@ -134,11 +134,18 @@ oc-forward-ports:
 oc-stop-forwarding-ports:
 	kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}')
 
+oc-make-migrations: oc-forward-ports
+	sleep 3
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
+	make oc-stop-forwarding-ports
+
 oc-run-migrations: oc-forward-ports
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
+	sleep 3
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas --shared
 	make oc-stop-forwarding-ports
 
 oc-serve: oc-forward-ports
+	sleep 3
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver
 	make oc-stop-forwarding-ports
 

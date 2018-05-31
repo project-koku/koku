@@ -19,6 +19,7 @@
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
 
+import re
 import secrets
 import string
 
@@ -128,6 +129,9 @@ class CustomerSerializer(serializers.ModelSerializer):
                              password=owner_data.get('password'))
 
         validated_data['owner_id'] = owner.id
+        name = validated_data['name']
+        validated_data['schema_name'] = \
+            re.compile(r'[\W_]+').sub('', name).lower()
         customer = Customer.objects.create(**validated_data)
         customer.user_set.add(owner)
         customer.save()

@@ -26,8 +26,8 @@ from rest_framework.authentication import (SessionAuthentication,
 from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import IsAdminUser
 
-import api.iam.models as model
-import api.iam.serializers as serializers
+from api.iam import models
+from api.iam import serializers
 from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 
@@ -69,11 +69,17 @@ class CustomerViewSet(mixins.CreateModelMixin,
     """
 
     lookup_field = 'uuid'
-    queryset = model.Customer.objects.all()
+    queryset = models.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsAdminUser,)
+
+    def perform_create(self, serializer):
+        """Create a customer with a tenant."""
+        customer = serializer.save()
+        tenant = models.Tenant(schema_name=customer.schema_name)
+        tenant.save()
 
     def create(self, request, *args, **kwargs):
         """Create a customer.
