@@ -860,7 +860,7 @@ paths:
   /api/v1/reports/storage/:
     get:
       summary: Query to obtain storage reports
-      operationId: getCostReports
+      operationId: getStorageReports
       tags:
         - Report
       parameters:
