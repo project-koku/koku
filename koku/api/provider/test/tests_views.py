@@ -24,6 +24,7 @@ from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.models import Customer, User
 from api.provider.models import Provider
 from api.provider.serializers import _get_sts_access
 
@@ -38,6 +39,12 @@ class ProviderViewTest(IamTestCase):
         for customer in self.customer_data:
             response = self.create_customer(customer)
             self.assertEqual(response.status_code, 201)
+
+    def tearDown(self):
+        """Tear down user tests."""
+        super().tearDown()
+        Customer.objects.all().delete()
+        User.objects.all().delete()
 
     @mock_sts
     @mock_s3
@@ -203,6 +210,165 @@ class ProviderViewTest(IamTestCase):
         bucket_name = 'my_s3_bucket'
         token = self.service_admin_token
         response = self.create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 403)
+
+    def test_remove_provider_with_customer_owner(self):
+        """Test removing a provider as the customer owner."""
+        # Create Provider with customer owner token
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        customer_owner_token = self.get_token(self.customer_data[0]['owner']['username'],
+                                              self.customer_data[0]['owner']['password'])
+        response = self.create_provider(bucket_name, iam_arn, customer_owner_token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify that the Provider creation was successful
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('name'),
+                         self.customer_data[0].get('name'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.customer_data[0].get('owner').get('username'))
+
+        # Remove Provider with customer token
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=customer_owner_token)
+        response = client.delete(url)
+        self.assertEqual(response.status_code, 204)
+
+    def test_remove_provider_with_regular_user(self):
+        """
+        Test removing a provider with the user account that created it.
+
+        This user is not a customer owner.
+        """
+        # Get the customer owner token so a regular user can be created
+        user_name = self.customer_data[0]['owner']['username']
+        user_pass = self.customer_data[0]['owner']['password']
+        customer_owner_token = self.get_token(user_name, user_pass)
+
+        # Create a regular user and get the user's token
+        user_data = {'username': 'joe', 'password': 'joespassword', 'email': 'joe@me.com'}
+        user = self.create_user(customer_owner_token, user_data)
+        self.assertEquals(user.status_code, 201)
+        user_token = self.get_token(user_data['username'], user_data['password'])
+
+        # Create a Provider as a regular user
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, user_token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify that the Provider creation was successful
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('name'),
+                         self.customer_data[0].get('name'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
+
+        # Remove Provider as the regular user that created the Provider
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=user_token)
+        response = client.delete(url)
+        self.assertEqual(response.status_code, 204)
+
+    def test_remove_provider_with_non_customer_user(self):
+        """
+        Test removing a provider with the user account that does not belong to the customer group.
+
+        PermissionDenied is expected.
+        """
+        # Get the customer owner token so a regular user can be created
+        user_name = self.customer_data[0]['owner']['username']
+        user_pass = self.customer_data[0]['owner']['password']
+        owner_token = self.get_token(user_name, user_pass)
+
+        # Create a regular user and get the user's token
+        user_data = {'username': 'james', 'password': 'jamespassword', 'email': 'james@me.com'}
+        user = self.create_user(owner_token, user_data)
+        self.assertEquals(user.status_code, 201)
+        user_token = self.get_token(user_data['username'], user_data['password'])
+
+        # Create a Provider as a regular user
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, user_token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify that the Provider creation was successful
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('name'),
+                         self.customer_data[0].get('name'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
+
+        # Create a regular user that belongs to a different customer
+        other_owner_token = self.get_token(self.customer_data[1]['owner']['username'],
+                                           self.customer_data[1]['owner']['password'])
+
+        other_user_data = {'username': 'sally', 'password': 'sallypassword', 'email': 'sally@me.com'}
+        other_user = self.create_user(other_owner_token, other_user_data)
+        self.assertEquals(other_user.status_code, 201)
+        other_user_token = self.get_token(other_user_data['username'], other_user_data['password'])
+
+        # Remove Provider as the regular user that belongs to the other company
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=other_user_token)
+        response = client.delete(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_remove_provider_with_reg_user_same_company_didnt_create(self):
+        """
+        Test removing a provider by a regular user of the same company but did not create the provider.
+
+        PermissionDenied is expected.
+        """
+        # Get the customer owner token so a regular user can be created
+        user_name = self.customer_data[0]['owner']['username']
+        user_pass = self.customer_data[0]['owner']['password']
+        owner_token = self.get_token(user_name, user_pass)
+
+        # Create a regular user and get the user's token
+        user_data = {'username': 'james', 'password': 'jamespassword', 'email': 'james@me.com'}
+        user = self.create_user(owner_token, user_data)
+        self.assertEquals(user.status_code, 201)
+        user_token = self.get_token(user_data['username'], user_data['password'])
+
+        # Create a Provider as a regular user
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn, user_token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify that the Provider creation was successful
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('name'),
+                         self.customer_data[0].get('name'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'), user_data['username'])
+
+        # Create another regular user and get the user's token
+        other_user_data = {'username': 'sally', 'password': 'sallypassword', 'email': 'sally@me.com'}
+        other_user = self.create_user(owner_token, other_user_data)
+        self.assertEquals(other_user.status_code, 201)
+        other_user_token = self.get_token(other_user_data['username'], other_user_data['password'])
+
+        # Remove Provider as a regular user that belongs to the same company but did not create the Provider
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=other_user_token)
+        response = client.delete(url)
         self.assertEqual(response.status_code, 403)
 
     def test_create_provider_invalid_rolearn(self):
