@@ -141,3 +141,12 @@ class AWSProviderTestCase(TestCase):
         self.assertIsNone(access_key_id)
         self.assertIsNone(secret_access_key)
         self.assertIsNone(session_token)
+
+    def test_invalid_roleARN(self):
+        """Test _get_sts_access with an invalid RoleARN."""
+        iam_arn = 'toosmall'
+        bucket_name = 'my_s3_bucket'
+
+        provider_interface = AWSProvider()
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)

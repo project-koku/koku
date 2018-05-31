@@ -356,12 +356,3 @@ class ProviderViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=other_user_token)
         response = client.delete(url)
         self.assertEqual(response.status_code, 403)
-
-    def test_create_provider_invalid_rolearn(self):
-        """Test create a provider with an invalid RoleARN."""
-        iam_arn = 'toosmall'
-        bucket_name = 'my_s3_bucket'
-        token = self.get_customer_owner_token(self.customer_data[0])
-
-        response = self.create_provider(bucket_name, iam_arn, token)
-        self.assertEqual(response.status_code, 201)  # TODO: fix this
