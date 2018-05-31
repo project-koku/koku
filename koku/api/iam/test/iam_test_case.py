@@ -16,13 +16,14 @@
 #
 """Test Case extension to collect common test data."""
 from random import randint
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
 from faker import Faker
 from rest_framework.test import APIClient
 
-from ..models import User
+from ..models import Tenant, User
 
 
 class IamTestCase(TestCase):
@@ -33,6 +34,8 @@ class IamTestCase(TestCase):
 
     def setUp(self):
         """Create test case objects."""
+        Tenant.objects.get_or_create(schema_name='public')
+
         self.customer_data = [{'name': 'test_customer_1',
                                'owner': self.gen_user_data()},
                               {'name': 'test_customer_2',
@@ -60,8 +63,11 @@ class IamTestCase(TestCase):
         self.service_admin_token = self.get_token('service_user',
                                                   'service_pass')
 
-    def create_customer(self, customer_data):
+    @patch('api.iam.view.customer.models.Tenant')
+    def create_customer(self, customer_data, mock_tenant):
         """Create a customer."""
+        # Mock the tenant so a customer schema is not created for every test
+        mock_tenant.return_value.save.return_value = None
         url = reverse('customer-list')
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)

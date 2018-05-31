@@ -22,6 +22,7 @@ from unittest.mock import ANY, Mock, PropertyMock, patch
 from django.test import TestCase
 from django.urls import reverse
 
+from api.iam.models import Tenant
 from api.status.models import Status
 
 
@@ -30,6 +31,8 @@ class StatusModelTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
+        Tenant.objects.get_or_create(schema_name='public')
+
         self.status_info = None
         status_count = Status.objects.count()
         if status_count == 0:
@@ -110,6 +113,8 @@ class StatusViewTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
+        Tenant.objects.get_or_create(schema_name='public')
+
         self.status_info = None
         status_count = Status.objects.count()
         if status_count == 0:

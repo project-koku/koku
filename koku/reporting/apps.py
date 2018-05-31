@@ -14,11 +14,12 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""API models for import organization."""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.models import Status
-from api.iam.models import Customer, ResetToken, Tenant, User, UserPreference
-from api.provider.models import (Provider,
-                                 ProviderAuthentication,
-                                 ProviderBillingSource)
+"""Reporting application configuration module."""
+
+from django.apps import AppConfig
+
+
+class ReportingConfig(AppConfig):
+    """Reporting application configuration."""
+
+    name = 'reporting'

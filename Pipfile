@@ -14,6 +14,7 @@ psycopg2-binary = ">=2.7.0"
 drf-nested-routers = ">=0.90.0"
 django-filter = ">=1.1.0"
 requests = ">=2.18.0"
+django-tenant-schemas = "==1.9.0"
 
 [dev-packages]
 pylint = "==1.9.1"

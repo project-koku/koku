@@ -30,9 +30,13 @@ from koku.env import ENVIRONMENT
 class AppsModelTest(TestCase):
     """Tests against the apps functions."""
 
-    def tearDown(self):
-        """Tear down the app tests."""
-        User.objects.all().delete()
+    @patch('api.apps.sys.argv', ['manage.py', 'test'])
+    @patch('api.apps.ApiConfig.startup_status')
+    @patch('api.apps.ApiConfig.check_and_create_service_admin')
+    def test_ready_silent_run(self, mock_create, mock_status):
+        """Test that ready functions are not called."""
+        mock_create.assert_not_called()
+        mock_status.assert_not_called()
 
     def test_check_service_admin(self):
         """Test the check and create of service admin."""
@@ -70,6 +74,9 @@ class AppsModelTest(TestCase):
         """Test the creation of the service admin."""
         service_email = ENVIRONMENT.get_value('SERVICE_ADMIN_EMAIL',
                                               default='admin@example.com')
+        # An admin user is created using migratons.
+        # Wipe it before testing creation.
+        User.objects.filter(email=service_email).first().delete()
         api_config = apps.get_app_config('api')
         api_config.create_service_admin(service_email)
         self.assertTrue(User.objects.filter(

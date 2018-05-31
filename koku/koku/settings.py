@@ -57,6 +57,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'tenant_schemas',
     # django
     'django.contrib.admin',
     'django.contrib.auth',
@@ -72,9 +73,28 @@ INSTALLED_APPS = [
 
     # local apps
     'api',
+    'reporting'
 ]
 
+SHARED_APPS = (
+    'tenant_schemas',
+    'api',
+    'django.contrib.contenttypes',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'rest_framework',
+    'rest_framework.authtoken',
+)
+
+TENANT_APPS = (
+    'reporting',
+)
+
 MIDDLEWARE = [
+    'koku.middleware.KokuTenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -108,6 +128,13 @@ WSGI_APPLICATION = 'koku.wsgi.application'
 DATABASES = {
     'default': database.config()
 }
+
+DATABASE_ROUTERS = (
+    'tenant_schemas.routers.TenantSyncRouter',
+)
+
+#
+TENANT_MODEL = 'api.Tenant'
 
 
 # Password validation
