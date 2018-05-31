@@ -209,13 +209,7 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Reset a user's password.
 
-        @apiHeader {String} token User authorizaton token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
-            }
-
-        @apiParam {String} id User unique ID.
+        @apiParam {String} uuid User unique ID.
 
         @apiParam (Request Body) {String} token The reset token for the user
         @apiParam (Request Body) {String} password The password for the user
