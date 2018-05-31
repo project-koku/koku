@@ -16,6 +16,8 @@
 #
 
 """View for Providers."""
+import logging
+
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
@@ -25,6 +27,10 @@ from rest_framework.permissions import IsAuthenticated
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
+from .provider_manager import ProviderManager
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ProviderViewSet(mixins.CreateModelMixin,
@@ -192,7 +198,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         """Get a provider.
 
         @api {get} /api/v1/providers/:uuid/ Get a provider
-        @apiName GetUser
+        @apiName GetProvider
         @apiGroup Provider
         @apiVersion 1.0.0
         @apiDescription Get a provider.
@@ -242,3 +248,38 @@ class ProviderViewSet(mixins.CreateModelMixin,
             }
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+            """Delete a provider.
+
+            @api {delete} /api/v1/providers/:uuid/ Delete a provider
+            @apiName DeleteProvider
+            @apiGroup Provider
+            @apiVersion 1.0.0
+            @apiDescription Delete a provider.
+
+            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeaderExample {json} Header-Example:
+                {
+                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                }
+
+            @apiParam {String} uuid Provider unique ID.
+
+            @apiSuccessExample {json} Success-Response:
+                HTTP/1.1 204 NO CONTENT
+            """
+            # Block any users not part of the orginization
+            if not self.get_queryset():
+                raise PermissionDenied()
+
+            # Block users of the orginization that are not customer owner
+            # or did not create the provider
+            manager = ProviderManager(kwargs['uuid'])
+            if not manager.is_removable_by_user(request.user):
+                err_msg = '{} does not have permission to remove provider uuid: {}.'.format(request.user.username,
+                                                                                            kwargs['uuid'])
+                LOG.error(err_msg)
+                raise PermissionDenied()
+
+            return super().destroy(request=request, args=args, kwargs=kwargs)
