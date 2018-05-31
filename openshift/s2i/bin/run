@@ -75,7 +75,7 @@ manage_file=$APP_HOME/manage.py
 if should_migrate; then
   if [[ -f "$manage_file" ]]; then
     echo "---> Migrating database ..."
-    python "$manage_file" migrate --no-input
+    python "$manage_file" migrate_schemas --shared --noinput
   else
     echo "WARNING: seems that you're using Django, but we could not find a 'manage.py' file."
     echo "Skipped 'python manage.py migrate'."
