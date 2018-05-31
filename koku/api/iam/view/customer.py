@@ -19,16 +19,17 @@
 import logging
 
 from django.db import DatabaseError, transaction
-from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.permissions import IsAdminUser
 
-import api.iam.models as model
-import api.iam.serializers as serializers
+from api.iam import models
+from api.iam import serializers
+from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 
 
 LOG = logging.getLogger(__name__)
@@ -38,6 +39,17 @@ class UserDeleteException(APIException):
     """User deletion custom internal error exception."""
 
     default_detail = 'Error removing user'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
+
+
+class ProviderDeleteException(APIException):
+    """Provider deletion custom internal error exception."""
+
+    default_detail = 'Error removing provider'
 
     def __init__(self):
         """Initialize with status code 500."""
@@ -57,11 +69,17 @@ class CustomerViewSet(mixins.CreateModelMixin,
     """
 
     lookup_field = 'uuid'
-    queryset = model.Customer.objects.all()
+    queryset = models.Customer.objects.all()
     serializer_class = serializers.CustomerSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsAdminUser,)
+
+    def perform_create(self, serializer):
+        """Create a customer with a tenant."""
+        customer = serializer.save()
+        tenant = models.Tenant(schema_name=customer.schema_name)
+        tenant.save()
 
     def create(self, request, *args, **kwargs):
         """Create a customer.
@@ -207,20 +225,31 @@ class CustomerViewSet(mixins.CreateModelMixin,
             @apiSuccessExample {json} Success-Response:
                 HTTP/1.1 204 NO CONTENT
             """
-            customer = get_object_or_404(self.queryset, uuid=kwargs['uuid'])
-
             user_savepoint = transaction.savepoint()
-
-            group = self.serializer_class.get_authentication_group_for_customer(customer)
+            customer_manager = None
             try:
-                users = self.serializer_class.get_users_for_group(group)
-                if users:
-                    for user in users:
-                        LOG.info('Removing User: {}'.format(user))
-                        user.delete()
+                customer_manager = CustomerManager(kwargs['uuid'])
+            except CustomerManagerDoesNotExist:
+                LOG.error('Unable to find provider for uuid {}.'.format(kwargs['uuid']))
+                raise NotFound
+
+            providers = ProviderManager.get_providers_queryset_for_customer(customer_manager.get_model())
+
+            try:
+                customer_manager.remove_users(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
+                LOG.error('Failed to remove users for customer {}.'.format(customer_manager.get_name()))
                 raise UserDeleteException
+
+            try:
+                for provider in providers:
+                    provider_manager = ProviderManager(provider.uuid)
+                    provider_manager.remove(request.user, customer_remove_context=True)
+            except (DatabaseError, ProviderManagerError):
+                transaction.savepoint_rollback(user_savepoint)
+                LOG.error('{} failed to remove provider {}.'.format(request.user.username, provider_manager.get_name()))
+                raise ProviderDeleteException
 
             http_response = super().destroy(request=request, args=args, kwargs=kwargs)
             if http_response.status_code is not 204:

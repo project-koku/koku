@@ -27,7 +27,7 @@ from rest_framework import mixins
 from rest_framework.test import APIClient
 
 from api.provider.models import Provider
-# from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from .iam_test_case import IamTestCase
 from ..models import Customer, User
 from ..serializers import CustomerSerializer
@@ -160,14 +160,43 @@ class CustomerViewTest(IamTestCase):
         # Sanity check that the customer count was reduced by 1
         self.assertEquals(Customer.objects.all().count(), customer_count - 1)
 
-    def test_delete_customer_with_reg_users(self):
-        """Test deleting customers with regular users."""
+    def test_delete_customer_with_reg_users_providers(self):
+        """Test deleting customers with regular users and providers."""
         customers = self.customers
         self.assertIsNotNone(customers)
 
         self.assertEquals(len(customers), 2)
         customer_1 = customers[0]
         customer_2 = customers[1]
+
+        # Setup Providers
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        token = customer_1['owner']['token']
+        response = self._create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 201)
+
+        bucket2_name = 'my_other_s3_bucket'
+        iam_arn2 = 'arn:aws:s3:::my_other_s3_bucket'
+
+        response = self._create_provider(bucket2_name, iam_arn2, token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify providers are created
+        provider_url = reverse('provider-list')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(provider_url)
+        self.assertEqual(response.status_code, 200)
+        json_result = response.json()
+        results = json_result.get('results')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 2)
+        provider_uuids = [provider['uuid'] for provider in results]
+
+        # Verify that customer_1 providers are  in the database
+        for uuid in provider_uuids:
+            self.assertTrue(Provider.objects.filter(uuid=uuid).exists())
 
         # Setup Regular users
         self._create_regular_users_for_customer(customer_1['uuid'], 3)
@@ -198,6 +227,10 @@ class CustomerViewTest(IamTestCase):
 
         for user in customer_1['users']:
             self.assertFalse(User.objects.filter(uuid=user['uuid']).exists())
+
+        # Verify that customer_1 providers are not in the database
+        for uuid in provider_uuids:
+            self.assertFalse(Provider.objects.filter(uuid=uuid).exists())
 
         # Verify customer_2 users are still intact
         token = customer_2['owner']['token']
@@ -237,6 +270,25 @@ class CustomerViewTest(IamTestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
         with patch.object(UserAuth, 'delete', side_effect=DatabaseError):
+            response = client.delete(url)
+        self.assertEqual(response.status_code, 500)
+
+    def test_delete_customer_provider_del_exception(self):
+        """Test customer deletion with provider deletion exception."""
+        customer_1 = self.customers[0]
+        self.assertIsNotNone(customer_1)
+
+        # Setup Providers
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        token = customer_1['owner']['token']
+        response = self._create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 201)
+
+        url = reverse('customer-detail', args=[customer_1['uuid']])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        with patch.object(ProviderManager, 'remove', side_effect=ProviderManagerError('fake')):
             response = client.delete(url)
         self.assertEqual(response.status_code, 500)
 

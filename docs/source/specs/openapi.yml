@@ -649,6 +649,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete a provider
+      operationId: deleteProvider
+      tags:
+        - Provider
+      parameters:
+        - in: header
+          name: Authorization
+          description: e.g. Token 45138a913da44ab89532bab0352ef84b
+          schema:
+            type: string
+          required: true
+        - name: uuid
+          in: path
+          description: ID of provider to delete
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Provider deleted
+        '403':
+          description: Insufficent permissions to delete provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   '/api/v1/providers/{uuid}/':
     get:
       summary: Get a provider

@@ -14,11 +14,20 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""API models for import organization."""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.models import Status
-from api.iam.models import Customer, ResetToken, Tenant, User, UserPreference
-from api.provider.models import (Provider,
-                                 ProviderAuthentication,
-                                 ProviderBillingSource)
+"""Admin module for Django server application."""
+
+from django.contrib import admin
+
+from reporting.models import (AWSCostEntry,
+                              AWSCostEntryBill,
+                              AWSCostEntryLineItem,
+                              AWSCostEntryPricing,
+                              AWSCostEntryProduct,
+                              AWSCostEntryReservation)
+
+admin.site.register(AWSCostEntry)
+admin.site.register(AWSCostEntryBill)
+admin.site.register(AWSCostEntryLineItem)
+admin.site.register(AWSCostEntryPricing)
+admin.site.register(AWSCostEntryProduct)
+admin.site.register(AWSCostEntryReservation)

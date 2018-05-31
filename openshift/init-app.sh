@@ -47,6 +47,7 @@ OPENSHIFT_USER='system:admin'
 OPENSHIFT_TEMPLATE_PATH='openshift/koku-template.yaml'
 CODE_REPO='https://github.com/project-koku/koku.git'
 REPO_BRANCH='master'
+EMAIL_SERVICE_PASSWORD=$EMAIL_SERVICE_PASSWORD
 
 # accept cli arguments for params
 PARAMS=""
