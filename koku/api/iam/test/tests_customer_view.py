@@ -22,9 +22,12 @@ from django.contrib.auth.models import User as UserAuth
 from django.db import DatabaseError
 from django.http import HttpResponse
 from django.urls import reverse
+from providers.provider_access import ProviderAccess
 from rest_framework import mixins
 from rest_framework.test import APIClient
 
+from api.provider.models import Provider
+# from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from .iam_test_case import IamTestCase
 from ..models import Customer, User
 from ..serializers import CustomerSerializer
@@ -51,6 +54,22 @@ class CustomerViewTest(IamTestCase):
                                         a_user['password'])
             a_user['token'] = user_token
             customer_json['users'].append(a_user)
+
+    def _create_provider(self, bucket_name, iam_arn, token):
+        """Create a provider and return response."""
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': iam_arn
+                    },
+                    'billing_source': {
+                        'bucket': bucket_name
+                    }}
+        url = reverse('provider-list')
+        with patch.object(ProviderAccess, 'cost_usage_source_ready', returns=True):
+            client = APIClient()
+            client.credentials(HTTP_AUTHORIZATION=token)
+            return client.post(url, data=provider, format='json')
 
     def setUp(self):
         """Set up the customer view tests."""

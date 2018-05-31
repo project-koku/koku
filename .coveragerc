@@ -13,6 +13,7 @@ omit =
   *migrations/*
   *test/*
   */tests_*.py
+  *provider_interface.py
 
 [paths]
 source = koku
