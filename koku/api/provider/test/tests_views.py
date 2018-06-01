@@ -76,6 +76,16 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.customer_data[0].get('owner').get('username'))
 
+    def test_create_provider_no_duplicate(self):
+        """Test create a provider should catch duplicate PRN."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        token = self.get_customer_owner_token(self.customer_data[0])
+        response = self.create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 201)
+        response = self.create_provider(bucket_name, iam_arn, token)
+        self.assertEqual(response.status_code, 400)
+
     def test_create_provider_anon(self):
         """Test create a provider with an anonymous user."""
         url = reverse('provider-list')
@@ -93,12 +103,14 @@ class ProviderViewTest(IamTestCase):
 
     def test_list_provider(self):
         """Test list providers."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
+        iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name1 = 'my_s3_bucket'
+        iam_arn2 = 'arn:aws:s3:::a_s3_bucket'
+        bucket_name2 = 'a_s3_bucket'
         token1 = self.get_customer_owner_token(self.customer_data[0])
-        self.create_provider(bucket_name, iam_arn, token1)
+        self.create_provider(bucket_name1, iam_arn1, token1)
         token2 = self.get_customer_owner_token(self.customer_data[1])
-        self.create_provider(bucket_name, iam_arn, token2)
+        self.create_provider(bucket_name2, iam_arn2, token2)
         url = reverse('provider-list')
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token1)

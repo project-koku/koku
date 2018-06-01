@@ -116,8 +116,10 @@ class AWSProviderTestCase(TestCase):
         s3_resource.create_bucket(Bucket=bucket_name)
 
         provider_interface = AWSProvider()
-        with self.assertRaises(ValidationError):
+        try:
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
+        except Exception:
+            self.fail('Unexpected error thrown')
 
     def test_no_credential_error(self):
         """Test attempting STS access where no credentials are found."""

@@ -26,6 +26,7 @@ help:
 	@echo "  run-migrations           to run migrations against database"
 	@echo "  gen-apidoc               to create api documentation"
 	@echo "  collect-static           to collect static files to host"
+	@echo "  requirements             to generate Pipfile.lock and RTD requirements"
 	@echo "  serve                    to run the Django server locally"
 	@echo "  start-db                 to start the psql db in detached state"
 	@echo "  stop-compose             to stop all containers"
@@ -64,7 +65,7 @@ make-migrations:
 
 run-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
 
 gen-apidoc:
 	rm -fr $(PYDIR)/staticfiles/
@@ -72,6 +73,10 @@ gen-apidoc:
 
 collect-static:
 	$(PYTHON) $(PYDIR)/manage.py collectstatic --no-input
+
+requirements:
+	pipenv lock
+	pipenv lock -r > docs/rtd_requirements.txt
 
 serve:
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver

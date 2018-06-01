@@ -129,4 +129,4 @@ class AWSProvider(ProviderInterface):
             key = 'provider_resource_name'
             message = 'Unable to obtain organization data with {}.'.format(
                 credential_name)
-            raise serializers.ValidationError(error_obj(key, message))
+            LOG.info(message)

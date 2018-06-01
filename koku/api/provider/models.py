@@ -30,7 +30,7 @@ class ProviderAuthentication(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     # Ex: AWS ARN for cross-acount role access
-    provider_resource_name = models.TextField(null=False)
+    provider_resource_name = models.TextField(null=False, unique=True)
 
 
 class ProviderBillingSource(models.Model):
