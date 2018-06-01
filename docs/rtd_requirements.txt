@@ -1,16 +1,24 @@
 -i https://pypi.python.org/simple
-boto3==1.7.24
-botocore==1.10.24
+boto3==1.7.30
+botocore==1.10.30
+certifi==2018.4.16
+chardet==3.0.4
 django-environ==0.4.4
 django-filter==1.1.0
-django==2.0.5
+django-tenant-schemas==1.9.0
+django==2.0.6
 djangorestframework==3.8.2
 docutils==0.14
+drf-nested-routers==0.90.2
 gunicorn==19.8.1
+idna==2.6
 jmespath==0.9.3
 psycopg2-binary==2.7.4
+psycopg2==2.7.4
 python-dateutil==2.7.3; python_version >= '2.7'
 pytz==2018.4
+requests==2.18.4
 s3transfer==0.1.13
 six==1.11.0
+urllib3==1.22
 whitenoise==3.3.1
