@@ -65,7 +65,7 @@ make-migrations:
 
 run-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
 
 gen-apidoc:
 	rm -fr $(PYDIR)/staticfiles/
