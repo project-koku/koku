@@ -222,9 +222,8 @@ class ProviderSerializerTest(IamTestCase):
         context = {'request': request}
         serializer = ProviderSerializer(data=provider, context=context)
         if serializer.is_valid(raise_exception=True):
-            with self.assertRaises(serializers.ValidationError):
-                serializer.save()
-                check_org_access.assert_called_once()
+            serializer.save()
+            check_org_access.assert_called_once()
 
     @patch('boto3.client')
     def test_get_sts_access_no_cred(self, mock_boto3):

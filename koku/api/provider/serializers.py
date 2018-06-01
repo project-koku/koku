@@ -201,7 +201,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             key = 'provider_resource_name'
             message = 'Unable to obtain organization data with {}.'.format(
                 provider_resource_name)
-            raise serializers.ValidationError(error_obj(key, message))
+            LOG.info(message)
 
         auth = ProviderAuthentication.objects.create(**authentication)
         bill = ProviderBillingSource.objects.create(**billing_source)
