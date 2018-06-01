@@ -785,20 +785,10 @@ paths:
             type: string
           required: true
         - in: query
-          name: group_by
+          name: filter
           schema:
-            $ref: '#/components/schemas/ReportGroupingCost'
-          description: The grouping to apply to the cost report. No grouping by default.
-        - in: query
-          name: resolution
-          schema:
-            $ref: '#/components/schemas/ReportResolution'
-          description: The resolution to apply to the cost report. Default resolution is daily.
-        - in: query
-          name: time_scope
-          schema:
-            $ref: '#/components/schemas/ReportTimeScope'
-          description: The time scope to apply to the cost report. Default resolution is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'daily' resolution.'-1' is used for current month, '-2' is used for last month when resolution is 'monthly' otherwise invalid.
+            $ref: '#/components/schemas/ReportFilter'
+          description: The filter to apply to the report.
       responses:
         '200':
           description: A report object
@@ -814,10 +804,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /api/v1/reports/instances/:
+  /api/v1/reports/inventory/:
     get:
-      summary: Query to obtain instance reports
-      operationId: getInstanceReports
+      summary: Query to obtain inventory reports
+      operationId: getInventoryReports
       tags:
         - Report
       parameters:
@@ -828,27 +818,17 @@ paths:
             type: string
           required: true
         - in: query
-          name: group_by
+          name: filter
           schema:
-            $ref: '#/components/schemas/ReportGroupingInstance'
-          description: The grouping to apply to the instance report. No grouping by default.
-        - in: query
-          name: resolution
-          schema:
-            $ref: '#/components/schemas/ReportResolution'
-          description: The resolution to apply to the instance report. Default resolution is daily.
-        - in: query
-          name: time_scope
-          schema:
-            $ref: '#/components/schemas/ReportTimeScope'
-          description: The time scope to apply to the instance report. Default resolution is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'daily' resolution.'-1' is used for current month, '-2' is used for last month when resolution is 'monthly' otherwise invalid.
+            $ref: '#/components/schemas/ReportFilter'
+          description: The filter to apply to the report.
       responses:
         '200':
           description: A report object
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReportInstance'
+                $ref: '#/components/schemas/ReportInventory'
         '401':
           description: Unauthorized
         '500':
@@ -871,20 +851,10 @@ paths:
             type: string
           required: true
         - in: query
-          name: group_by
+          name: filter
           schema:
-            $ref: '#/components/schemas/ReportGroupingStorage'
-          description: The grouping to apply to the storage report. No grouping by default.
-        - in: query
-          name: resolution
-          schema:
-            $ref: '#/components/schemas/ReportResolution'
-          description: The resolution to apply to the storage report. Default resolution is daily.
-        - in: query
-          name: time_scope
-          schema:
-            $ref: '#/components/schemas/ReportTimeScope'
-          description: The time scope to apply to the storage report. Default resolution is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'daily' resolution.'-1' is used for current month, '-2' is used for last month when resolution is 'monthly' otherwise invalid.
+            $ref: '#/components/schemas/ReportFilter'
+          description: The filter to apply to the report.
       responses:
         '200':
           description: A report object
@@ -965,10 +935,12 @@ components:
           type: string
           format: uri
           example: /api/v1/(resources)/?page=2
+          nullable: true
         next:
           type: string
           format: uri
           example: /api/v1/(resources)/?page=4
+          nullable: true
     PasswordChangeIn:
       required:
         - token
@@ -1044,6 +1016,8 @@ components:
             - uuid
             - authentication
             - billing_source
+            - customer
+            - created_by
       properties:
         uuid:
           type: string
@@ -1053,6 +1027,10 @@ components:
           $ref: '#/components/schemas/ProviderAuthenticationOut'
         billing_source:
           $ref: '#/components/schemas/ProviderBillingSourceOut'
+        customer:
+          $ref: '#/components/schemas/CustomerOut'
+        created_by:
+          $ref: '#/components/schemas/UserOut'
     ProviderPagination:
       allOf:
         - $ref: '#/components/schemas/ListPagination'
@@ -1063,6 +1041,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProviderOut'
+    ReportFilter:
+      type: object
+      properties:
+        group_by:
+          oneOf:
+            - $ref: '#/components/schemas/ReportGroupingCost'
+            - $ref: '#/components/schemas/ReportGroupingInventory'
+            - $ref: '#/components/schemas/ReportGroupingStorage'
+          nullable: true
+          example: 'account'
+        resolution:
+          $ref: '#/components/schemas/ReportResolution'
+        time_scope:
+          $ref: '#/components/schemas/ReportTimeScope'
+        resource_scope:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportResourceScope'
+          example: []
     ReportGroupingCost:
       type: string
       enum:
@@ -1070,21 +1067,29 @@ components:
         - service
         - instance_type
         - storage_type
-    ReportGroupingInstance:
+      nullable: true
+      description: The grouping to apply to the cost report. No grouping by default.
+    ReportGroupingInventory:
       type: string
       enum:
         - account
         - instance_type
+      nullable: true
+      description: The grouping to apply to the inventory report. No grouping by default.
     ReportGroupingStorage:
       type: string
       enum:
         - account
         - storage_type
+      nullable: true
+      description: The grouping to apply to the storage report. No grouping by default.
     ReportResolution:
       type: string
       enum:
         - daily
         - monthly
+      nullable: true
+      description: The resolution to apply to the report. Default resolution is daily.
     ReportTimeScope:
       type: integer
       enum:
@@ -1093,38 +1098,38 @@ components:
         - -10
         - -30
       example: -10
+      nullable: true
+      description: The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'daily' resolution.'-1' is used for current month, '-2' is used for last month when resolution is 'monthly' otherwise invalid.
+    ReportResourceScope:
+      type: string
+      enum:
+        - ec2
+      nullable: true
+      description: The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering.
     Report:
       required:
         - resolution
         - time_scope
       properties:
-        resolution:
-          $ref: '#/components/schemas/ReportResolution'
-        time_scope:
-          $ref: '#/components/schemas/ReportTimeScope'
+        filter:
+          $ref: '#/components/schemas/ReportFilter'
     ReportCost:
       allOf:
         - $ref: '#/components/schemas/Report'
         - required:
-            - group_by
             - data
       properties:
-        group_by:
-          $ref: '#/components/schemas/ReportGroupingCost'
         data:
           type: array
           items:
             type: object
             example: [{'2018-05-28': [{'accountA': 52.80, 'accountB': 29.47, 'accountC': 1.39}]}]
-    ReportInstance:
+    ReportInventory:
       allOf:
         - $ref: '#/components/schemas/Report'
         - required:
-            - group_by
             - data
       properties:
-        group_by:
-          $ref: '#/components/schemas/ReportGroupingInstance'
         data:
           type: array
           items:
@@ -1134,11 +1139,8 @@ components:
       allOf:
         - $ref: '#/components/schemas/Report'
         - required:
-            - group_by
             - data
       properties:
-        group_by:
-          $ref: '#/components/schemas/ReportGroupingStorage'
         data:
           type: array
           items:
