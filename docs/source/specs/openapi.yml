@@ -789,6 +789,10 @@ paths:
           schema:
             $ref: '#/components/schemas/ReportFilter'
           description: The filter to apply to the report.
+        - in: query
+          name: group_by
+          schema:
+            $ref: '#/components/schemas/ReportGrouping'
       responses:
         '200':
           description: A report object
@@ -822,6 +826,10 @@ paths:
           schema:
             $ref: '#/components/schemas/ReportFilter'
           description: The filter to apply to the report.
+        - in: query
+          name: group_by
+          schema:
+            $ref: '#/components/schemas/ReportGrouping'
       responses:
         '200':
           description: A report object
@@ -829,39 +837,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReportInventory'
-        '401':
-          description: Unauthorized
-        '500':
-          description: Unexpected Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /api/v1/reports/storage/:
-    get:
-      summary: Query to obtain storage reports
-      operationId: getStorageReports
-      tags:
-        - Report
-      parameters:
-        - in: header
-          name: Authorization
-          description: e.g. Token 45138a913da44ab89532bab0352ef84b
-          schema:
-            type: string
-          required: true
-        - in: query
-          name: filter
-          schema:
-            $ref: '#/components/schemas/ReportFilter'
-          description: The filter to apply to the report.
-      responses:
-        '200':
-          description: A report object
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReportStorage'
         '401':
           description: Unauthorized
         '500':
@@ -1044,13 +1019,6 @@ components:
     ReportFilter:
       type: object
       properties:
-        group_by:
-          oneOf:
-            - $ref: '#/components/schemas/ReportGroupingCost'
-            - $ref: '#/components/schemas/ReportGroupingInventory'
-            - $ref: '#/components/schemas/ReportGroupingStorage'
-          nullable: true
-          example: 'account'
         resolution:
           $ref: '#/components/schemas/ReportResolution'
         time_scope:
@@ -1060,7 +1028,7 @@ components:
           items:
             $ref: '#/components/schemas/ReportResourceScope'
           example: []
-    ReportGroupingCost:
+    ReportGrouping:
       type: string
       enum:
         - account
@@ -1068,21 +1036,8 @@ components:
         - instance_type
         - storage_type
       nullable: true
-      description: The grouping to apply to the cost report. No grouping by default.
-    ReportGroupingInventory:
-      type: string
-      enum:
-        - account
-        - instance_type
-      nullable: true
-      description: The grouping to apply to the inventory report. No grouping by default.
-    ReportGroupingStorage:
-      type: string
-      enum:
-        - account
-        - storage_type
-      nullable: true
-      description: The grouping to apply to the storage report. No grouping by default.
+      example: 'account'
+      description: The grouping to apply to the report. No grouping by default.
     ReportResolution:
       type: string
       enum:
@@ -1103,14 +1058,19 @@ components:
     ReportResourceScope:
       type: string
       enum:
-        - ec2
+        - EC2
+        - EBS
+        - EFS
+        - S3
       nullable: true
       description: The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering.
     Report:
       required:
-        - resolution
-        - time_scope
+        - group_by
+        - filter
       properties:
+        group_by:
+          $ref: '#/components/schemas/ReportGrouping'
         filter:
           $ref: '#/components/schemas/ReportFilter'
     ReportCost:
@@ -1135,17 +1095,6 @@ components:
           items:
             type: object
             example: [{'2018-05-28': [{'t2.medium': 5, 'm5.2xlarge': 290}]}]
-    ReportStorage:
-      allOf:
-        - $ref: '#/components/schemas/Report'
-        - required:
-            - data
-      properties:
-        data:
-          type: array
-          items:
-            type: object
-            example: [{'2018-05-28': [{'EBS': 7005, 'S3': 290}]}]
     Status:
       required:
         - api_version
