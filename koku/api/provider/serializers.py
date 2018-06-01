@@ -23,6 +23,7 @@ from django.db import transaction
 from django.utils.translation import ugettext as _
 from requests.exceptions import ConnectionError as BotoConnectionError
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 
 from api.iam.models import Customer, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
@@ -46,9 +47,10 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Authentication model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_resource_name = serializers.CharField(required=True,
-                                                   allow_null=True,
-                                                   allow_blank=True)
+    provider_resource_name = serializers.CharField(
+        required=True, allow_null=True, allow_blank=True,
+        validators=[UniqueValidator(
+            queryset=ProviderAuthentication.objects.all())])
 
     class Meta:
         """Metadata for the serializer."""
