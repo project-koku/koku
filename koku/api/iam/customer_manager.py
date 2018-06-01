@@ -20,7 +20,7 @@ import logging
 
 from django.core.exceptions import ValidationError
 
-from api.iam.models import Customer
+from api.iam.models import Customer, Tenant
 from api.iam.serializers import CustomerSerializer
 
 LOG = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ class CustomerManager:
     def __init__(self, uuid):
         """Establish provider manager database objects."""
         self.model = None
+        self.tenant = None
         try:
             query = Customer.objects.all().filter(uuid=uuid)
             self.model = query.get()
@@ -59,9 +60,25 @@ class CustomerManager:
         except ValidationError as e:
             raise(CustomerManagerError(str(e)))
 
+        try:
+            self.tenant = self._get_tenant_query().get()
+        except Tenant.DoesNotExist as e:
+            msg = 'No tenant found for {}'.format(self.get_name())
+            LOG.error(msg)
+
     def get_model(self):
         """Get the model object for the customer."""
         return self.model
+
+    def _get_tenant_query(self):
+        """Get the tenant model query for the customer."""
+        customer_schema_name = self.get_model().schema_name
+        query = Tenant.objects.all().filter(schema_name=customer_schema_name)
+        return query
+
+    def get_tenant(self):
+        """Get the tenant object for the customer."""
+        return self.tenant
 
     def get_name(self):
         """Get the name of the customer."""
@@ -83,4 +100,16 @@ class CustomerManager:
                     user.delete()
         else:
             err_msg = '{} does not have pemrissions to remove users.'.format(current_user)
+            raise CustomerManagerPermissionError(err_msg)
+
+    def remove_tenant(self, current_user):
+        """Remove tenant associated with this customer."""
+        if current_user.is_superuser:
+            tenant = self.get_tenant()
+            if tenant:
+                customer_name = self.get_model().name
+                LOG.info('Removing tenant for customer: {}'.format(customer_name))
+                tenant.delete()
+        else:
+            err_msg = '{} does not have pemrissions to tenant.'.format(current_user)
             raise CustomerManagerPermissionError(err_msg)

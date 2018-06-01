@@ -19,7 +19,7 @@
 from django.contrib.auth.models import Group
 
 from api.iam.customer_manager import (CustomerManager, CustomerManagerError, CustomerManagerPermissionError)
-from api.iam.models import User
+from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from .iam_test_case import IamTestCase
 
@@ -135,3 +135,85 @@ class CustomerManagerTest(IamTestCase):
         with self.assertRaises(CustomerManagerError):
             uuid = 'invalidid'
             CustomerManager(uuid)
+
+    def test_get_tenant(self):
+        """Get the tenant object for a customer."""
+        # Create customer.
+        customer_name = 'test_customer_tenant'
+        customer_json = {'name': customer_name,
+                         'owner': self.gen_user_data()}
+
+        customer = None
+        serializer = CustomerSerializer(data=customer_json)
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+        customer_uuid = customer.uuid
+
+        # Create tenant
+        customer_obj = Customer.objects.all().filter(name=customer_name).get()
+        tenant = Tenant(schema_name=customer_obj.schema_name)
+        tenant.save()
+
+        # Get manager
+        manager = CustomerManager(customer_uuid)
+        customer_obj = manager.get_model()
+        customer_schema_name = customer_obj.schema_name
+
+        # Verify tenant is returned from manager
+        tenant_obj = Tenant.objects.all().filter(schema_name=customer_schema_name).get()
+
+        self.assertEqual(manager.get_tenant(), tenant_obj)
+
+    def test_get_tenant_not_found(self):
+        """Try to get a missing tenant object for a customer."""
+        # Create customer.
+        customer_name = 'test_customer_tenant'
+        customer_json = {'name': customer_name,
+                         'owner': self.gen_user_data()}
+
+        customer = None
+        serializer = CustomerSerializer(data=customer_json)
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+        customer_uuid = customer.uuid
+
+        # Get manager
+        manager = CustomerManager(customer_uuid)
+
+        self.assertEqual(manager.get_tenant(), None)
+
+    def test_removing_tenant(self):
+        """Remove the tenant object for a customer."""
+        # Create customer.
+        customer_name = 'test_customer_tenant'
+        customer_json = {'name': customer_name,
+                         'owner': self.gen_user_data()}
+
+        customer = None
+        serializer = CustomerSerializer(data=customer_json)
+        if serializer.is_valid(raise_exception=True):
+            customer = serializer.save()
+        customer_uuid = customer.uuid
+
+        # Create tenant
+        customer_obj = Customer.objects.all().filter(name=customer_name).get()
+        tenant = Tenant(schema_name=customer_obj.schema_name)
+        tenant.save()
+
+        # Get manager
+        manager = CustomerManager(customer_uuid)
+        customer_obj = manager.get_model()
+        customer_schema_name = customer_obj.schema_name
+
+        # Verify tenant is returned from manager
+        tenant_obj = Tenant.objects.all().filter(schema_name=customer_schema_name).get()
+
+        self.assertEqual(manager.get_tenant(), tenant_obj)
+
+        # Attempt to remove as customer owner
+        with self.assertRaises(CustomerManagerPermissionError):
+            manager.remove_tenant(customer_obj.owner)
+
+        # Attempt to remove tenant as super user
+        superuser = User.objects.filter(is_superuser=True).first()
+        manager.remove_tenant(superuser)
