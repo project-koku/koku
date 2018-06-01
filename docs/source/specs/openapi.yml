@@ -793,6 +793,12 @@ paths:
           name: group_by
           schema:
             $ref: '#/components/schemas/ReportGrouping'
+          description: The grouping to apply to the report.
+        - in: query
+          name: order_by
+          schema:
+            $ref: '#/components/schemas/ReportOrdering'
+          description: The ordering to apply to the report.
       responses:
         '200':
           description: A report object
@@ -830,6 +836,12 @@ paths:
           name: group_by
           schema:
             $ref: '#/components/schemas/ReportGrouping'
+          description: The grouping to apply to the report.
+        - in: query
+          name: order_by
+          schema:
+            $ref: '#/components/schemas/ReportOrdering'
+          description: The ordering to apply to the report.
       responses:
         '200':
           description: A report object
@@ -1029,15 +1041,41 @@ components:
             $ref: '#/components/schemas/ReportResourceScope'
           example: []
     ReportGrouping:
-      type: string
-      enum:
-        - account
-        - service
-        - instance_type
-        - storage_type
-      nullable: true
-      example: 'account'
+      type: object
+      properties:
+        account:
+          type: array
+          items:
+            type: string
+        service:
+          type: array
+          items:
+            type: string
+        instance_type:
+          type: array
+          items:
+            type: string
+        storage_type:
+          type: array
+          items:
+            type: string
+      example: {'account': ['*']}
       description: The grouping to apply to the report. No grouping by default.
+    ReportOrdering:
+      type: object
+      properties:
+        cost:
+          type: string
+          enum:
+            - asc
+            - desc
+        inventory:
+          type: string
+          enum:
+            - asc
+            - desc
+      example: { 'cost': 'asc' }
+      description: The ordering to apply to the report. Default is ascending order for the data.
     ReportResolution:
       type: string
       enum:
@@ -1067,10 +1105,13 @@ components:
     Report:
       required:
         - group_by
+        - order_by
         - filter
       properties:
         group_by:
           $ref: '#/components/schemas/ReportGrouping'
+        order_by:
+          $ref: '#/components/schemas/ReportOrdering'
         filter:
           $ref: '#/components/schemas/ReportFilter'
     ReportCost:
