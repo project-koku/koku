@@ -73,7 +73,7 @@ class CustomerManager:
     def _get_tenant_query(self):
         """Get the tenant model query for the customer."""
         customer_schema_name = self.get_model().schema_name
-        query = Tenant.objects.all().filter(schema_name=customer_schema_name)
+        query = Tenant.objects.filter(schema_name=customer_schema_name)
         return query
 
     def get_tenant(self):
