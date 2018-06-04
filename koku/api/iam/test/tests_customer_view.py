@@ -358,9 +358,9 @@ class CustomerViewTest(IamTestCase):
         self.assertIsNotNone(owner)
 
         # Verify that the tenant data exists.
-        customer_obj = Customer.objects.all().filter(name=customer_name).get()
+        customer_obj = Customer.objects.filter(name=customer_name).get()
         customer_schema_name = customer_obj.schema_name
-        tenant_obj = Tenant.objects.all().filter(schema_name=customer_schema_name).get()
+        tenant_obj = Tenant.objects.filter(schema_name=customer_schema_name).get()
         self.assertIsNotNone(tenant_obj)
 
         # Remove customer
@@ -374,5 +374,5 @@ class CustomerViewTest(IamTestCase):
         self.assertFalse(customer_obj in Customer.objects.all())
 
         # Verify that the tenant data has been removed
-        deleted_tenant_query = Tenant.objects.all().filter(schema_name=customer_schema_name)
+        deleted_tenant_query = Tenant.objects.filter(schema_name=customer_schema_name)
         self.assertEquals(len(deleted_tenant_query), 0)
