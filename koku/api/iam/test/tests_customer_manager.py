@@ -150,7 +150,7 @@ class CustomerManagerTest(IamTestCase):
         customer_uuid = customer.uuid
 
         # Create tenant
-        customer_obj = Customer.objects.all().filter(name=customer_name).get()
+        customer_obj = Customer.objects.filter(name=customer_name).get()
         tenant = Tenant(schema_name=customer_obj.schema_name)
         tenant.save()
 
@@ -196,7 +196,7 @@ class CustomerManagerTest(IamTestCase):
         customer_uuid = customer.uuid
 
         # Create tenant
-        customer_obj = Customer.objects.all().filter(name=customer_name).get()
+        customer_obj = Customer.objects.filter(name=customer_name).get()
         tenant = Tenant(schema_name=customer_obj.schema_name)
         tenant.save()
 
@@ -206,7 +206,7 @@ class CustomerManagerTest(IamTestCase):
         customer_schema_name = customer_obj.schema_name
 
         # Verify tenant is returned from manager
-        tenant_obj = Tenant.objects.all().filter(schema_name=customer_schema_name).get()
+        tenant_obj = Tenant.objects.filter(schema_name=customer_schema_name).get()
 
         self.assertEqual(manager.get_tenant(), tenant_obj)
 
