@@ -31,7 +31,7 @@ from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.serializers import _get_sts_access
 from .iam_test_case import IamTestCase
-from ..models import Customer, User
+from ..models import Customer, Tenant, User
 from ..serializers import CustomerSerializer
 
 
@@ -341,3 +341,38 @@ class CustomerViewTest(IamTestCase):
         with patch.object(CustomerSerializer, 'get_users_for_group', return_value=None):
             response = client.delete(url)
         self.assertEqual(response.status_code, 204)
+
+    def test_delete_customer_with_tenant(self):
+        """Test customer deletion with associated tenant data."""
+        # Create a customer with tenant data.
+        customer_name = 'test_customer_tenant'
+        customer_json = {'name': customer_name,
+                         'owner': self.gen_user_data()}
+
+        response = self.create_customer_with_tenant(customer_json)
+        customer_json = response.json()
+        self.assertEqual(response.status_code, 201)
+        customer_uuid = customer_json.get('uuid')
+        owner = customer_json.get('owner')
+        self.assertIsNotNone(customer_uuid)
+        self.assertIsNotNone(owner)
+
+        # Verify that the tenant data exists.
+        customer_obj = Customer.objects.filter(name=customer_name).get()
+        customer_schema_name = customer_obj.schema_name
+        tenant_obj = Tenant.objects.filter(schema_name=customer_schema_name).get()
+        self.assertIsNotNone(tenant_obj)
+
+        # Remove customer
+        url = reverse('customer-detail', args=[customer_obj.uuid])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        response = client.delete(url)
+        self.assertEqual(response.status_code, 204)
+
+        # Verify customer was deleted
+        self.assertFalse(customer_obj in Customer.objects.all())
+
+        # Verify that the tenant data has been removed
+        deleted_tenant_query = Tenant.objects.filter(schema_name=customer_schema_name)
+        self.assertEquals(len(deleted_tenant_query), 0)
