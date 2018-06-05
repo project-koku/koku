@@ -74,6 +74,14 @@ class IamTestCase(TestCase):
         response = client.post(url, data=customer_data, format='json')
         return response
 
+    def create_customer_with_tenant(self, customer_data):
+        """Create a customer with a tenant."""
+        url = reverse('customer-list')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        response = client.post(url, data=customer_data, format='json')
+        return response
+
     def get_customer_owner_token(self, customer):
         """Get the token for the customer owner."""
         token = None

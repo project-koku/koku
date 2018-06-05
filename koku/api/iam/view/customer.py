@@ -226,9 +226,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
             try:
                 customer_manager.remove_users(request.user)
+                customer_manager.remove_tenant(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
-                LOG.error('Failed to remove users for customer {}.'.format(customer_manager.get_name()))
+                LOG.error('Failed to remove assets for customer {}.'.format(customer_manager.get_name()))
                 raise UserDeleteException
 
             try:

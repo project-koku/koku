@@ -96,3 +96,6 @@ class Tenant(TenantMixin):
 
     # Override the mixin domain url to make it nullable, non-unique
     domain_url = None
+
+    # Delete all schemas when a tenant is removed
+    auto_drop_schema = True
