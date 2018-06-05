@@ -30,7 +30,7 @@ from api.iam import models
 from api.iam import serializers
 from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
-
+from api.provider.view import ProviderDeleteException
 
 LOG = logging.getLogger(__name__)
 
@@ -39,17 +39,6 @@ class UserDeleteException(APIException):
     """User deletion custom internal error exception."""
 
     default_detail = 'Error removing user'
-
-    def __init__(self):
-        """Initialize with status code 500."""
-        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(self.default_detail)}
-
-
-class ProviderDeleteException(APIException):
-    """Provider deletion custom internal error exception."""
-
-    default_detail = 'Error removing provider'
 
     def __init__(self):
         """Initialize with status code 500."""
