@@ -16,6 +16,7 @@
 #
 
 """App factory for Masu application."""
+import errno
 import logging
 import os
 
@@ -24,6 +25,7 @@ from flask.logging import default_handler
 from flask_sqlalchemy import SQLAlchemy
 
 from masu.api.status import StatusView
+from masu.celery import create_celery
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 logger.addHandler(default_handler)
@@ -55,11 +57,17 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     # pylint: disable=invalid-name
     except OSError as e:
-        logger.warning(e)
+        # ignore "File exists"
+        if e.errno != errno.EEXIST:
+            logger.warning(e)
 
     # Establish database
     # pylint: disable=invalid-name, unused-variable
     db = SQLAlchemy(app)  # noqa: F841
+
+    # Celery task queue
+    queue = create_celery(app)
+    queue.autodiscover_tasks()
 
     # Routes
     app.add_url_rule('/api/v1/status/', view_func=StatusView.as_view('show_status'))
