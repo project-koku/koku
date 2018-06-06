@@ -100,7 +100,7 @@ class Tenant(TenantMixin):
 
 class CostEntryStatus(models.Model):
     """Information on the state of the cost usage report."""
-    customer = models.ForeignKey('Customer', null=True,
+    provider = models.ForeignKey('Provider', null=True,
                                  on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False, unique=True)
     cursor_position = models.PositiveIntegerField()
