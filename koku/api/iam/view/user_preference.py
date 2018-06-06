@@ -76,11 +76,15 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
 
         @apiParam {String} user_uuid User unique ID.
 
-        @apiParam (Request Body) {String} preference a stringified JSON object
+        @apiParam (Request Body) {String} name User preference name.
+                                               No requirement to match the key in preference
+        @apiParam (Request Body) {Object} preference Preference value
+        @apiParam (Request Body) {String} [description] The description of the user preference.
         @apiParamExample {json} Request Body:
             {
                 "name": "my-preference-name",
-                'preference': {'currency': 'USD'},
+                "preference": {"currency": "USD"},
+                "description": "description of my-preference-name"
             }
 
         @apiSuccess {String} uuid The identifier of the preference.
