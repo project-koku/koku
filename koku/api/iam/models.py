@@ -96,3 +96,13 @@ class Tenant(TenantMixin):
 
     # Override the mixin domain url to make it nullable, non-unique
     domain_url = None
+
+
+class CostEntryStatus(models.Model):
+    """Information on the state of the cost usage report."""
+    customer = models.ForeignKey('Customer', null=True,
+                                 on_delete=models.CASCADE)
+    report_name = models.CharField(max_length=128, null=False, unique=True)
+    cursor_position = models.PositiveIntegerField()
+    last_completed_datetime = models.DateTimeField(null=False)
+    last_started_datetime = models.DateTimeField(null=False)

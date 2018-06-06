@@ -24,7 +24,8 @@ from api.models import (Customer,
                         ResetToken,
                         Status,
                         User,
-                        UserPreference)
+                        UserPreference,
+                        CostEntryStatus)
 
 admin.site.register(Customer)
 admin.site.register(Provider)
@@ -34,3 +35,4 @@ admin.site.register(ResetToken)
 admin.site.register(Status)
 admin.site.register(User)
 admin.site.register(UserPreference)
+admin.site.register(CostEntryStatus)
