@@ -18,11 +18,13 @@
 """View for Providers."""
 import logging
 
-from rest_framework import mixins, viewsets
+from django.utils.encoding import force_text
+from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from api.iam.models import Customer
 from api.provider import serializers
@@ -31,6 +33,17 @@ from .provider_manager import ProviderManager
 
 
 LOG = logging.getLogger(__name__)
+
+
+class ProviderDeleteException(APIException):
+    """Provider deletion custom internal error exception."""
+
+    default_detail = 'Error removing provider'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
 
 
 class ProviderViewSet(mixins.CreateModelMixin,
@@ -281,5 +294,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
                                                                                             kwargs['uuid'])
                 LOG.error(err_msg)
                 raise PermissionDenied()
+            try:
+                manager.remove(request.user)
+            except Exception:
+                LOG.error('{} failed to remove provider uuid: {}.'.format(request.user.username, kwargs['uuid']))
+                raise ProviderDeleteException
 
-            return super().destroy(request=request, args=args, kwargs=kwargs)
+            return Response(status=status.HTTP_204_NO_CONTENT)
