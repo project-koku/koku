@@ -106,3 +106,4 @@ class CostEntryStatus(models.Model):
     cursor_position = models.PositiveIntegerField()
     last_completed_datetime = models.DateTimeField(null=False)
     last_started_datetime = models.DateTimeField(null=False)
+    etag = JSONField(null=True)
