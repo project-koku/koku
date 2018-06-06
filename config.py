@@ -45,6 +45,10 @@ class Config(object):
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # AMQP Message Broker
+    RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+    RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
+
     SECRET_KEY = os.getenv('MASU_SECRET_KEY')
     if SECRET_KEY is None:
         raise ValueError('No secret key set for Masu application')
@@ -54,3 +58,7 @@ class Config(object):
 
     # Data directory for processing incoming data
     TMP_DIR = '/var/tmp/masu'
+
+    # Celery settings
+    CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
+    CELERY_RESULT_BACKEND = f'db+postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
