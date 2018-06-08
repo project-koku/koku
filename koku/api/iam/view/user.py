@@ -80,10 +80,10 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a user.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam (Request Body) {String} username The username for access
@@ -118,10 +118,10 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Obtain the list of users.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiSuccess {Number} count The number of users.
@@ -154,10 +154,10 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get a user.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} uuid User unique ID.
@@ -184,10 +184,10 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Delete a user.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} uuid User unique ID.
@@ -277,10 +277,10 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get the current user.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiSuccess {String} uuid The identifier of the user.
