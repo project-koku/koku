@@ -63,6 +63,8 @@ class GroupBySerializer(serializers.Serializer):
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
+    storage_type = StringOrListField(child=serializers.CharField(),
+                                     required=False)
 
     def validate(self, data):
         """Validate incoming data."""
@@ -76,6 +78,8 @@ class OrderBySerializer(serializers.Serializer):
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
     cost = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                        required=False)
 
     def validate(self, data):
         """Validate incoming data."""
