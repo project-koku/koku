@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'django_filters',
+    'querystring_parser',
 
     # local apps
     'api',
@@ -92,6 +93,8 @@ SHARED_APPS = (
 TENANT_APPS = (
     'reporting',
 )
+
+DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
     'koku.middleware.KokuTenantMiddleware',
