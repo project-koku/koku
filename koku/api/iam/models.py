@@ -98,12 +98,13 @@ class Tenant(TenantMixin):
     domain_url = None
 
 
-class CostEntryStatus(models.Model):
+class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
+
     provider = models.ForeignKey('Provider', null=True,
                                  on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False, unique=True)
     cursor_position = models.PositiveIntegerField()
-    last_completed_datetime = models.DateTimeField(null=False)
-    last_started_datetime = models.DateTimeField(null=False)
-    etag = JSONField(null=True)
+    last_completed_datetime = models.DateTimeField(null=True)
+    last_started_datetime = models.DateTimeField(null=True)
+    etag = models.CharField(max_length=64, null=True)

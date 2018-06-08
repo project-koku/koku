@@ -17,16 +17,17 @@
 """Admin module for Django server application."""
 from django.contrib import admin
 
-from api.models import (Customer,
+from api.models import (CostUsageReportStatus,
+                        Customer,
                         Provider,
                         ProviderAuthentication,
                         ProviderBillingSource,
                         ResetToken,
                         Status,
                         User,
-                        UserPreference,
-                        CostEntryStatus)
+                        UserPreference)
 
+admin.site.register(CostUsageReportStatus)
 admin.site.register(Customer)
 admin.site.register(Provider)
 admin.site.register(ProviderAuthentication)
@@ -35,4 +36,3 @@ admin.site.register(ResetToken)
 admin.site.register(Status)
 admin.site.register(User)
 admin.site.register(UserPreference)
-admin.site.register(CostEntryStatus)
