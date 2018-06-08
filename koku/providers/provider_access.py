@@ -27,7 +27,7 @@ from api.provider.models import Provider
 LOG = logging.getLogger(__name__)
 
 
-class ProviderAccess:
+class ProviderAccessor:
     """Provider interface for koku to use."""
 
     def __init__(self, service_name):
@@ -39,14 +39,58 @@ class ProviderAccess:
         self.service = self._create_service(service_name)
 
     def _create_service(self, service_name):
-        """Create the service object."""
+        """
+        Create the provider service object.
+
+        This will establish what service (AWS, etc) ProviderAccessor should use
+        when interacting with Koku core.
+
+        Args:
+            service_name (String): Provider Type
+
+        Returns:
+            (Object) : Some object that is a child of ProviderInterface
+
+        """
         if service_name == 'AWS':
             return AWSProvider()
 
     def service_name(self):
-        """Return service name."""
+        """
+        Return the name of the provider service.
+
+        This will establish what service (AWS, etc) ProviderAccessor should use
+        when interacting with Koku core.
+
+        Args:
+            None
+
+        Returns:
+            (String) : Name of Service
+                       example: "AWS"
+
+        """
         return self.service.name()
 
     def cost_usage_source_ready(self, credential, source_name):
-        """Return cost usage source status."""
+        """
+        Return the state of the cost usage source.
+
+        Connectivity and account validation checks are performed to
+        ensure that Koku can access a cost usage report from the provider.
+
+        Args:
+            credential (String): Provider Resource Name
+                                 example: AWS - RoleARN
+                                          arn:aws:iam::589175555555:role/CostManagement
+            source_name (String): Identifier of the cost usage report source
+                                  example: AWS - S3 Bucket
+
+        Returns:
+            None
+
+        Raises:
+            ValidationError: Error string
+
+        """
         return self.service.cost_usage_source_is_reachable(credential, source_name)

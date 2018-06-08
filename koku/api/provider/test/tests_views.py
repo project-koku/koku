@@ -18,7 +18,7 @@
 from unittest.mock import patch
 
 from django.urls import reverse
-from providers.provider_access import ProviderAccess
+from providers.provider_access import ProviderAccessor
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
@@ -56,7 +56,7 @@ class ProviderViewTest(IamTestCase):
                         'bucket': bucket_name
                     }}
         url = reverse('provider-list')
-        with patch.object(ProviderAccess, 'cost_usage_source_ready', returns=True):
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             client = APIClient()
             client.credentials(HTTP_AUTHORIZATION=token)
             return client.post(url, data=provider, format='json')

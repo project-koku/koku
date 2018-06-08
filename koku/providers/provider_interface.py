@@ -24,10 +24,41 @@ class ProviderInterface(ABC):
 
     @abstractmethod
     def name(self):
-        """Get the provider's name."""
+        """
+        Return the provider service's name.
+
+        Implemented by provider specific class to return it's name.
+
+        Args:
+            None
+
+        Returns:
+            (String) : Name of Service
+                       example: "AWS"
+
+        """
         pass
 
     @abstractmethod
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
-        """Verify that a backend usage source is configured and reachable."""
+        """
+        Verify that the cost usage report source is reachable by Koku.
+
+        Implemented by provider specific class.  An account validation and
+        connectivity check is to be done.
+
+        Args:
+            credential (String): Provider Resource Name
+                                 example: AWS - RoleARN
+                                          arn:aws:iam::589175555555:role/CostManagement
+            source_name (String): Identifier of the cost usage report source
+                                  example: AWS - S3 Bucket
+
+        Returns:
+            None
+
+        Raises:
+            ValidationError: Error string
+
+        """
         pass

@@ -14,17 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Tests the ProviderAccess implementation for the Koku consumption."""
+"""Tests the ProviderAccessor implementation for the Koku consumption."""
 
 from unittest.mock import patch
 
 from django.test import TestCase
 from providers.aws.aws_provider import AWSProvider
-from providers.provider_access import ProviderAccess
+from providers.provider_access import ProviderAccessor
 
 
-class ProviderAccessTestCase(TestCase):
-    """Parent Class for ProviderAccess test cases."""
+class ProviderAccessorTestCase(TestCase):
+    """Parent Class for ProviderAccessor test cases."""
 
     def setup(self):
         """Create test case objects."""
@@ -37,25 +37,25 @@ class ProviderAccessTestCase(TestCase):
     def test_establish_valid_provider(self):
         """Verify that a valid service is created."""
         provider_name = 'AWS'
-        interface = ProviderAccess(provider_name)
+        interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
 
     def test_establish_invalid_provider(self):
         """Verify that an invalid service is created."""
         provider_name = 'BAD'
-        interface = ProviderAccess(provider_name)
+        interface = ProviderAccessor(provider_name)
         self.assertIsNone(interface.service)
 
     def test_get_name(self):
         """Get name of service provider."""
         provider = AWSProvider()
-        interface = ProviderAccess(provider.name())
+        interface = ProviderAccessor(provider.name())
         self.assertEqual(provider.name(), interface.service_name())
 
     def test_usage_source_ready(self):
         """Get status of cost usage source."""
         provider = 'AWS'
-        interface = ProviderAccess(provider)
+        interface = ProviderAccessor(provider)
 
         credential = 'arn:aws:s3:::my_s3_bucket'
         source_name = 'my_s3_bucket'

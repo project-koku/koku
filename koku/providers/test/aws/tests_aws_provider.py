@@ -23,7 +23,7 @@ from botocore.auth import SigV4Auth
 from botocore.exceptions import NoCredentialsError
 from django.test import TestCase
 from moto import mock_s3, mock_sts
-from providers.aws.aws_provider import AWSProvider, _get_sts_access
+from providers.aws.aws_provider import AWSProvider, _check_org_access, _get_sts_access
 from rest_framework.exceptions import ValidationError
 
 
@@ -152,3 +152,13 @@ class AWSProviderTestCase(TestCase):
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
+
+    @mock_sts
+    def test_check_org_access_fail(self):
+        """Test _check_org_access with boto exception."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        access_exists = _check_org_access(access_key_id, secret_access_key,
+                                          session_token)
+        self.assertFalse(access_exists)

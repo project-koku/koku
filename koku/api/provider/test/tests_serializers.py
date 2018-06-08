@@ -18,7 +18,7 @@
 import uuid
 from unittest.mock import Mock, patch
 
-from providers.provider_access import ProviderAccess
+from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 
 from api.iam.serializers import CustomerSerializer, UserSerializer
@@ -110,7 +110,7 @@ class ProviderSerializerTest(IamTestCase):
         context = {'request': request}
         instance = None
 
-        with patch.object(ProviderAccess, 'cost_usage_source_ready', returns=True):
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             serializer = ProviderSerializer(data=provider, context=context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
@@ -137,5 +137,5 @@ class ProviderSerializerTest(IamTestCase):
         request.user = new_cust.owner
         context = {'request': request}
 
-        with patch.object(ProviderAccess, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
             ProviderSerializer(data=provider, context=context)

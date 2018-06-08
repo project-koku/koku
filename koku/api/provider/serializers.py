@@ -19,7 +19,7 @@ import logging
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from providers.provider_access import ProviderAccess
+from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -117,7 +117,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         bucket = billing_source.get('bucket')
 
         provider_type = validated_data['type']
-        interface = ProviderAccess(provider_type)
+        interface = ProviderAccessor(provider_type)
         interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         auth = ProviderAuthentication.objects.create(**authentication)
