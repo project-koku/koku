@@ -91,13 +91,6 @@ class UserPreference(models.Model):
                                                                      self.preference)
 
 
-class Tenant(TenantMixin):
-    """The model used to create a tenant schema."""
-
-    # Override the mixin domain url to make it nullable, non-unique
-    domain_url = None
-
-
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
@@ -108,3 +101,13 @@ class CostUsageReportStatus(models.Model):
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
+
+
+class Tenant(TenantMixin):
+    """The model used to create a tenant schema."""
+
+    # Override the mixin domain url to make it nullable, non-unique
+    domain_url = None
+
+    # Delete all schemas when a tenant is removed
+    auto_drop_schema = True

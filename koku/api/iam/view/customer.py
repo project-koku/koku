@@ -30,7 +30,7 @@ from api.iam import models
 from api.iam import serializers
 from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
-
+from api.provider.view import ProviderDeleteException
 
 LOG = logging.getLogger(__name__)
 
@@ -39,17 +39,6 @@ class UserDeleteException(APIException):
     """User deletion custom internal error exception."""
 
     default_detail = 'Error removing user'
-
-    def __init__(self):
-        """Initialize with status code 500."""
-        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(self.default_detail)}
-
-
-class ProviderDeleteException(APIException):
-    """Provider deletion custom internal error exception."""
-
-    default_detail = 'Error removing provider'
 
     def __init__(self):
         """Initialize with status code 500."""
@@ -90,10 +79,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a customer.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam (Request Body) {String} name Customer Name
@@ -136,10 +125,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Obtain the list of customers.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiSuccess {Number} count The number of customers.
@@ -177,10 +166,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get a customer.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} uuid Customer unique ID.
@@ -214,10 +203,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
             @apiVersion 1.0.0
             @apiDescription Delete a customer.
 
-            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeader {String} token Service Admin authorization token.
             @apiHeaderExample {json} Header-Example:
                 {
-                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                    "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
                 }
 
             @apiParam {String} uuid Customer unique ID.
@@ -237,9 +226,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
             try:
                 customer_manager.remove_users(request.user)
+                customer_manager.remove_tenant(request.user)
             except DatabaseError:
                 transaction.savepoint_rollback(user_savepoint)
-                LOG.error('Failed to remove users for customer {}.'.format(customer_manager.get_name()))
+                LOG.error('Failed to remove assets for customer {}.'.format(customer_manager.get_name()))
                 raise UserDeleteException
 
             try:
