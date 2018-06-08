@@ -29,12 +29,12 @@ class Config(object):
         DEBUG = False
 
     # Database
-    DB_ENGINE = os.getenv('DATABASE_ENGINE', 'sqlite')
-    DB_NAME = os.getenv('DATABASE_NAME', 'masu')
-    DB_USER = os.getenv('DATABASE_USER', 'masu')
-    DB_PASSWORD = os.getenv('DATABASE_PASSWORD', 'masu')
+    DB_ENGINE = os.getenv('DATABASE_ENGINE', 'postgresql')
+    DB_NAME = os.getenv('DATABASE_NAME', 'postgres')
+    DB_USER = os.getenv('DATABASE_USER', 'postgres')
+    DB_PASSWORD = os.getenv('DATABASE_PASSWORD', 'postgres')
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
-    DB_PORT = os.getenv('DATABASE_PORT', 5432)
+    DB_PORT = os.getenv('DATABASE_PORT', 15432)
 
     SQLALCHEMY_DATABASE_URI = \
         f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
