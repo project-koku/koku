@@ -80,7 +80,7 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a user.
 
-        @apiHeader {String} token User authorization token.
+        @apiHeader {String} token Customer owner authorization token.
         @apiHeaderExample {json} Header-Example:
             {
                 "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
@@ -184,7 +184,7 @@ class UserViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Delete a user.
 
-        @apiHeader {String} token User authorization token.
+        @apiHeader {String} token Customer owner authorization token.
         @apiHeaderExample {json} Header-Example:
             {
                 "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
