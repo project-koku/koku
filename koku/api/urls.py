@@ -23,6 +23,8 @@ from api.views import (CustomerViewSet,
                        ProviderViewSet,
                        UserPreferenceViewSet,
                        UserViewSet,
+                       costs,
+                       inventory,
                        status)
 
 ROUTER = DefaultRouter()
@@ -38,6 +40,8 @@ USER_ROUTER.register(r'preferences', UserPreferenceViewSet,
 urlpatterns = [
     url(r'^token-auth/', views.obtain_auth_token, name='token-auth'),
     url(r'^status/$', status, name='server-status'),
+    url(r'^reports/costs/$', costs, name='reports-costs'),
+    url(r'^reports/inventory/$', inventory, name='reports-inventory'),
     url(r'^', include(ROUTER.urls)),
     url(r'^', include(USER_ROUTER.urls))
 ]
