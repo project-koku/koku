@@ -86,10 +86,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a provider.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam (Request Body) {String} name The name for the provider.
@@ -158,10 +158,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Obtain the list of providers.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiSuccess {Number} count The number of users.
@@ -216,10 +216,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get a provider.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} uuid Provider unique ID.
@@ -271,10 +271,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
             @apiVersion 1.0.0
             @apiDescription Delete a provider.
 
-            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeader {String} token Service Admin authorization token.
             @apiHeaderExample {json} Header-Example:
                 {
-                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                    "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
                 }
 
             @apiParam {String} uuid Provider unique ID.
