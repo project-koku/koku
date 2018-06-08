@@ -25,6 +25,7 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, User
 from api.provider.models import Provider
+from api.provider.provider_manager import ProviderManager
 
 
 class ProviderViewTest(IamTestCase):
@@ -368,3 +369,31 @@ class ProviderViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=other_user_token)
         response = client.delete(url)
         self.assertEqual(response.status_code, 403)
+
+    def test_remove_provider_with_remove_exception(self):
+        """Test removing a provider with a database error."""
+        # Create Provider with customer owner token
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        customer_owner_token = self.get_token(self.customer_data[0]['owner']['username'],
+                                              self.customer_data[0]['owner']['password'])
+        response = self.create_provider(bucket_name, iam_arn, customer_owner_token)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify that the Provider creation was successful
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('name'),
+                         self.customer_data[0].get('name'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.customer_data[0].get('owner').get('username'))
+
+        # Remove Provider with customer token
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=customer_owner_token)
+        with patch.object(ProviderManager, 'remove', side_effect=Exception):
+            response = client.delete(url)
+            self.assertEqual(response.status_code, 500)

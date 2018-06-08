@@ -68,10 +68,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a user preference.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} user_uuid User unique ID.
@@ -115,10 +115,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Obtain the list of preferences for the user.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam (Path) {String} user_uuid User unique ID.
@@ -175,10 +175,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get a user preference.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} user_uuid User unique ID.
@@ -214,10 +214,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Delete a user preference.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} user_uuid User unique ID.
@@ -241,10 +241,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Udpate a user preference.
 
-        @apiHeader {String} token User authorizaton token.
+        @apiHeader {String} token User authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} user_uuid User unique ID.

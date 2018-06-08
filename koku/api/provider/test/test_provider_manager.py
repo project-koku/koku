@@ -20,7 +20,7 @@ from django.contrib.auth.models import Group
 from api.iam.models import Customer, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from api.iam.test.iam_test_case import IamTestCase
-from api.provider.models import Provider
+from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 
 
@@ -136,7 +136,13 @@ class ProviderManagerTest(IamTestCase):
             customer = serializer.save()
 
         # Create Provider
-        provider = Provider.objects.create(name='providername', created_by=customer.owner, customer=customer)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
+        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
+        provider = Provider.objects.create(name='providername',
+                                           created_by=customer.owner,
+                                           customer=customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
         provider_uuid = provider.uuid
 
         # Create another user for negative tests
