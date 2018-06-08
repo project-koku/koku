@@ -79,10 +79,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Create a customer.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam (Request Body) {String} name Customer Name
@@ -125,10 +125,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Obtain the list of customers.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiSuccess {Number} count The number of customers.
@@ -166,10 +166,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
         @apiVersion 1.0.0
         @apiDescription Get a customer.
 
-        @apiHeader {String} token Service Admin authorizaton token.
+        @apiHeader {String} token Service Admin authorization token.
         @apiHeaderExample {json} Header-Example:
             {
-                "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             }
 
         @apiParam {String} uuid Customer unique ID.
@@ -203,10 +203,10 @@ class CustomerViewSet(mixins.CreateModelMixin,
             @apiVersion 1.0.0
             @apiDescription Delete a customer.
 
-            @apiHeader {String} token Service Admin authorizaton token.
+            @apiHeader {String} token Service Admin authorization token.
             @apiHeaderExample {json} Header-Example:
                 {
-                    "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+                    "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
                 }
 
             @apiParam {String} uuid Customer unique ID.
