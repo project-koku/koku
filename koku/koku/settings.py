@@ -53,7 +53,7 @@ DEBUG = os.getenv('DJANGO_DEBUG', True)
 
 if DEBUG == 'True':
     DEBUG = True
-elif DEBUG == 'False':
+else:
     DEBUG = False
 
 ALLOWED_HOSTS = ['*']
