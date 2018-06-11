@@ -26,8 +26,8 @@ from api.iam.serializers import CustomerSerializer
 LOG = logging.getLogger(__name__)
 
 
-class CustomerManagerError(Exception):
-    """General Exception class for CustomerManager errors."""
+class CustomerManagerValidationError(Exception):
+    """CustomerManager validation error."""
 
     pass
 
@@ -58,7 +58,9 @@ class CustomerManager:
             msg = 'Could not find customer with uuid: {}'.format(uuid)
             raise CustomerManagerDoesNotExist(msg)
         except ValidationError as e:
-            raise(CustomerManagerError(str(e)))
+            msg = 'Parameter could not be validated: {}'.format(uuid)
+            LOG.error(msg)
+            raise(CustomerManagerValidationError(str(e)))
 
         try:
             self.tenant = self._get_tenant_query().get()
