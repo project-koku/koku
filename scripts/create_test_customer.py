@@ -18,7 +18,7 @@ class TestCustomer:
 
 
 class KokuCustomerOnboarder:
-    """Uses the Koku API to create an onboarded customer."""
+    """Uses the Koku API and SQL to create an onboarded customer."""
 
     def __init__(self, conn, host, port):
         self.conn = conn
