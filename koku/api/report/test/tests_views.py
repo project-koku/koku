@@ -16,7 +16,6 @@
 #
 """Test the Report views."""
 from django.urls import reverse
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -80,13 +79,33 @@ class ReportViewTest(IamTestCase):
     def test_process_query_parameters(self):
         """Test processing of valid parameters."""
         qs = 'group_by%5Baccount%5D=account1&filter%5Bresolution%5D=daily'
-        query_dict = process_query_parameters(qs)
+        valid, query_dict = process_query_parameters(qs)
+        self.assertTrue(valid)
         self.assertEqual(query_dict.get('group_by'), {'account': ['account1']})
         self.assertEqual(query_dict.get('filter'), {'resolution': 'daily'})
 
     def test_process_query_parameters_invalid(self):
         """Test processing of invalid parameters."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        response = process_query_parameters(qs)
-        self.assertIsInstance(response, Response)
+        valid, _ = process_query_parameters(qs)
+        self.assertFalse(valid)
+
+    def test_get_costs_invalid_query_param(self):
+        """Test costs reports runs with an invalid query param."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
+        url = reverse('reports-costs') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+    def test_get_inventory_invalid_query_param(self):
+        """Test inventory reports runs with an invalid query param."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
+        url = reverse('reports-inventory') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
         self.assertEqual(response.status_code, 400)
