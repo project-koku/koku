@@ -99,8 +99,6 @@ class ReportViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
         self.assertEqual(response.status_code, 400)
-        json_result = response.json()
-        self.assertEqual(json_result.get('data'), [])
 
     def test_get_inventory_invalid_query_param(self):
         """Test inventory reports runs with an invalid query param."""
@@ -111,5 +109,3 @@ class ReportViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
         self.assertEqual(response.status_code, 400)
-        json_result = response.json()
-        self.assertEqual(json_result.get('data'), [])
