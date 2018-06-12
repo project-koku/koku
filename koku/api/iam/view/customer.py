@@ -28,7 +28,7 @@ from rest_framework.permissions import IsAdminUser
 
 from api.iam import models
 from api.iam import serializers
-from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist
+from api.iam.customer_manager import CustomerManager, CustomerManagerDoesNotExist, CustomerManagerValidationError
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.provider.view import ProviderDeleteException
 
@@ -218,7 +218,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
             customer_manager = None
             try:
                 customer_manager = CustomerManager(kwargs['uuid'])
-            except CustomerManagerDoesNotExist:
+            except (CustomerManagerDoesNotExist, CustomerManagerValidationError):
                 LOG.error('Unable to find provider for uuid {}.'.format(kwargs['uuid']))
                 raise NotFound
 
