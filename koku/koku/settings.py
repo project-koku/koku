@@ -75,12 +75,14 @@ INSTALLED_APPS = [
 
     # local apps
     'api',
-    'reporting'
+    'reporting',
+    'reporting_common',
 ]
 
 SHARED_APPS = (
     'tenant_schemas',
     'api',
+    'reporting_common',
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',

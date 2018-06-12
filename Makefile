@@ -61,7 +61,7 @@ remove-db:
 
 make-migrations:
 	sleep 1
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common
 
 run-migrations:
 	sleep 1
@@ -141,7 +141,7 @@ oc-stop-forwarding-ports:
 
 oc-make-migrations: oc-forward-ports
 	sleep 3
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common
 	make oc-stop-forwarding-ports
 
 oc-run-migrations: oc-forward-ports
