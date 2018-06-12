@@ -18,7 +18,7 @@
 
 from django.contrib.auth.models import Group
 
-from api.iam.customer_manager import (CustomerManager, CustomerManagerError, CustomerManagerPermissionError)
+from api.iam.customer_manager import (CustomerManager, CustomerManagerPermissionError, CustomerManagerValidationError)
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import (CustomerSerializer, UserSerializer)
 from .iam_test_case import IamTestCase
@@ -132,7 +132,7 @@ class CustomerManagerTest(IamTestCase):
 
     def test_invalid_uuid(self):
         """Exception test for invalid uuid."""
-        with self.assertRaises(CustomerManagerError):
+        with self.assertRaises(CustomerManagerValidationError):
             uuid = 'invalidid'
             CustomerManager(uuid)
 
