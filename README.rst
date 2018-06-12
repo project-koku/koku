@@ -121,11 +121,6 @@ To lint the code base ::
 
     tox -e lint
 
-Running in OpenShift
----------------------
-
-Please refer to `Working with Openshift`_.
-
 Contributing
 =============
 
