@@ -89,3 +89,27 @@ class ReportViewTest(IamTestCase):
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
         valid, _ = process_query_parameters(qs)
         self.assertFalse(valid)
+
+    def test_get_costs_invalid_query_param(self):
+        """Test costs reports runs with an invalid query param."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
+        url = reverse('reports-costs') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 400)
+        json_result = response.json()
+        self.assertEqual(json_result.get('data'), [])
+
+    def test_get_inventory_invalid_query_param(self):
+        """Test inventory reports runs with an invalid query param."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
+        url = reverse('reports-inventory') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 400)
+        json_result = response.json()
+        self.assertEqual(json_result.get('data'), [])
