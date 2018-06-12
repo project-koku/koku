@@ -33,15 +33,15 @@ from api.report.serializers import QueryParamSerializer
 
 def process_query_parameters(url_data):
     """Process query parameters and raise any validation errors."""
+    output = None
     query_params = parser.parse(url_data)
     qps = QueryParamSerializer(data=query_params)
-    if not qps.is_valid():
-        return Response(
-            data=qps.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    query_data = copy.deepcopy(qps.data)
-    return query_data
+    validation = qps.is_valid()
+    if not validation:
+        output = qps.errors
+    else:
+        output = qps.data
+    return (validation, output)
 
 
 @api_view(http_method_names=['GET'])
@@ -56,10 +56,10 @@ def costs(request):
     @apiVersion 1.0.0
     @apiDescription Get cost data.
 
-    @apiHeader {String} token User authorizaton token.
+    @apiHeader {String} token User authorization token.
     @apiHeaderExample {json} Header-Example:
         {
-            "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -103,7 +103,13 @@ def costs(request):
             ]
         }
     """
-    output = process_query_parameters(request.GET.urlencode())
+    validation, value = process_query_parameters(request.GET.urlencode())
+    if not validation:
+        return Response(
+            data=value,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    output = copy.deepcopy(value)
     output['data'] = []
     return Response(output)
 
@@ -120,10 +126,10 @@ def inventory(request):
     @apiVersion 1.0.0
     @apiDescription Get inventory data.
 
-    @apiHeader {String} token User authorizaton token.
+    @apiHeader {String} token User authorization token.
     @apiHeaderExample {json} Header-Example:
         {
-            "Authorizaton": "Token 45138a913da44ab89532bab0352ef84b"
+            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -166,6 +172,12 @@ def inventory(request):
             ]
         }
     """
-    output = process_query_parameters(request.GET.urlencode())
+    validation, value = process_query_parameters(request.GET.urlencode())
+    if not validation:
+        return Response(
+            data=value,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    output = copy.deepcopy(value)
     output['data'] = []
     return Response(output)
