@@ -57,7 +57,7 @@ lint:
 reinitdb: stop-compose remove-db start-db run-migrations
 
 remove-db:
-	rm -rf $(TOPDIR)/pg_data
+	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
 make-migrations:
 	sleep 1
