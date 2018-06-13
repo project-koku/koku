@@ -38,6 +38,7 @@ help:
 	@echo "  oc-init                  to start app in initialized openshift cluster"
 	@echo "  oc-reinit                to remove existing app and restart app in initialized openshift cluster"
 	@echo "  oc-create-db             to create a Postgres DB in an initialized openshift cluster"
+	@echo "  oc-create-test-db-file   to create a Postgres DB dump file for Masu"
 	@echo "  oc-forward-ports         to port forward the DB to localhost"
 	@echo "  oc-stop-forwarding-ports to stop port forwarding the DB to localhost"
 	@echo "  oc-run-migrations  	  to run Django migrations in the Openshift DB"
@@ -152,6 +153,17 @@ oc-run-migrations: oc-forward-ports
 oc-serve: oc-forward-ports
 	sleep 3
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver
+	make oc-stop-forwarding-ports
+
+oc-create-test-db-file: oc-run-migrations
+	sleep 1
+	make oc-forward-ports
+	sleep 1
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver > /dev/null 2>&1 &
+	sleep 5
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py localhost 8000
+	pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
+	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 	make oc-stop-forwarding-ports
 
 .PHONY: docs
