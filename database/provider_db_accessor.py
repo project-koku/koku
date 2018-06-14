@@ -98,7 +98,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             (String): "Provider Resource Name.  i.e. AWS: RoleARN",
-                    example: "arn:aws:iam::589173575777:role/CostManagement"
+                    example: "arn:aws:iam::111111111111:role/CostManagement"
         """
         obj = self._get_db_obj_query().first()
         authentication_id = obj.authentication_id
