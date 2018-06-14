@@ -14,22 +14,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Masu Processor Exceptions."""
+"""Report Downloader."""
+from tempfile import mkdtemp
 
 
-class MasuProcessingError(Exception):
-    """Masu Processing Error."""
+# pylint: disable=too-few-public-methods
+class ReportDownloader():
+    """
+    Download cost reports from a provider.
 
-    pass
+    Base object class for downloading cost reports from a cloud provider.
+    """
 
+    def __init__(self, download_path=None):
+        """
+        Create a downloader.
 
-class MasuProviderError(Exception):
-    """Masu Provider Error."""
-
-    pass
-
-
-class MasuConfigurationError(Exception):
-    """Masu Configuration Error."""
-
-    pass
+        Args:
+            download_path (String) filesystem path to store downloaded files
+        """
+        if download_path:
+            self.download_path = download_path
+        else:
+            self.download_path = mkdtemp(prefix='masu')
