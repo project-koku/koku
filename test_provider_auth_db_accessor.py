@@ -43,4 +43,4 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         """Test provider name getter."""
         auth_id = '1'
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual('arn:aws:iam::589173575777:role/CostManagement', accessor.get_provider_resource_name())
+        self.assertEqual('arn:aws:iam::111111111111:role/CostManagement', accessor.get_provider_resource_name())

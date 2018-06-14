@@ -38,7 +38,7 @@ class CustomerDBAccessorTest(MasuTestCase):
         """Test uuid getter."""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
-        self.assertEqual('edf94475-235e-4b64-ba18-0b81f2de9c9e', accessor.get_uuid())
+        self.assertIsNotNone(accessor.get_uuid())
 
     def test_get_schema_name(self):
         """Test provider name getter."""

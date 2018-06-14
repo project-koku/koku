@@ -18,6 +18,7 @@
 """Test the ProviderDBAccessor utility object."""
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.customer_db_accessor import CustomerDBAccessor
 from tests import MasuTestCase
 
 
@@ -55,7 +56,7 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_authentication(self):
         """Test provider authentication getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
-        expected_auth_string = 'arn:aws:iam::589173575777:role/CostManagement'
+        expected_auth_string = 'arn:aws:iam::111111111111:role/CostManagement'
         accessor = ProviderDBAccessor(uuid)
         self.assertEqual(expected_auth_string, accessor.get_authentication())
 
@@ -69,9 +70,10 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_customer_uuid(self):
         """Test provider billing_source getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
-        expected_customer_uuid = 'edf94475-235e-4b64-ba18-0b81f2de9c9e'
         accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_customer_uuid, accessor.get_customer_uuid())
+        customer = CustomerDBAccessor(1)
+        expected_uuid = customer.get_uuid()
+        self.assertEqual(expected_uuid, accessor.get_customer_uuid())
 
     def test_get_customer(self):
         """Test provider customer getter."""
