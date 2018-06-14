@@ -21,6 +21,7 @@ from django.db import models
 
 from api.provider.models import Provider
 
+
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
