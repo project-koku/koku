@@ -17,11 +17,9 @@
 """Provider Model Serializers."""
 import logging
 
-import boto3
-from botocore.exceptions import ClientError, NoCredentialsError, ParamValidationError
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from requests.exceptions import ConnectionError as BotoConnectionError
+from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -73,67 +71,6 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
         fields = ('uuid', 'bucket')
 
 
-def _get_sts_access(provider_resource_name):
-    """Get for sts access."""
-    access_key_id = None
-    secret_access_key = None
-    session_token = None
-    # create an STS client
-    sts_client = boto3.client('sts')
-
-    try:
-        # Call the assume_role method of the STSConnection object and pass the role
-        # ARN and a role session name.
-        assumed_role = sts_client.assume_role(
-            RoleArn=provider_resource_name,
-            RoleSessionName='AccountCreationSession'
-        )
-        credentials = assumed_role.get('Credentials')
-        if credentials:
-            access_key_id = credentials.get('AccessKeyId')
-            secret_access_key = credentials.get('SecretAccessKey')
-            session_token = credentials.get('SessionToken')
-    except (ClientError, BotoConnectionError, NoCredentialsError, ParamValidationError) as boto_error:
-        LOG.exception(boto_error)
-
-    return (access_key_id, secret_access_key, session_token)
-
-
-def _check_s3_access(access_key_id, secret_access_key,
-                     session_token, bucket):
-    """Check for access to s3 bucket."""
-    s3_exists = True
-    s3_resource = boto3.resource(
-        's3',
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        aws_session_token=session_token,
-    )
-    try:
-        s3_resource.meta.client.head_bucket(Bucket=bucket)
-    except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
-        s3_exists = False
-    return s3_exists
-
-
-def _check_org_access(access_key_id, secret_access_key, session_token):
-    """Check for provider organization access."""
-    access_ok = True
-    org_client = boto3.client(
-        'organizations',
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        aws_session_token=session_token,
-    )
-    try:
-        org_client.describe_organization()
-    except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
-        access_ok = False
-    return access_ok
-
-
 class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider  model."""
 
@@ -155,7 +92,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        """Create a user from validated data."""
+        """Create a provider from validated data."""
         authentication = validated_data.pop('authentication')
         billing_source = validated_data.pop('billing_source')
 
@@ -178,30 +115,10 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         provider_resource_name = authentication.get('provider_resource_name')
         bucket = billing_source.get('bucket')
-        access_key_id, secret_access_key, session_token = _get_sts_access(
-            provider_resource_name)
-        if (access_key_id is None or access_key_id is None or
-                session_token is None):
-            key = 'provider_resource_name'
-            message = 'Unable to obtain credentials with using {}.'.format(
-                provider_resource_name)
-            raise serializers.ValidationError(error_obj(key, message))
 
-        s3_exists = _check_s3_access(access_key_id, secret_access_key,
-                                     session_token, bucket)
-        if not s3_exists:
-            key = 'bucket'
-            message = 'Bucket {} could not be found with {}.'.format(
-                bucket, provider_resource_name)
-            raise serializers.ValidationError(error_obj(key, message))
-
-        org_access = _check_org_access(access_key_id, secret_access_key,
-                                       session_token)
-        if not org_access:
-            key = 'provider_resource_name'
-            message = 'Unable to obtain organization data with {}.'.format(
-                provider_resource_name)
-            LOG.info(message)
+        provider_type = validated_data['type']
+        interface = ProviderAccessor(provider_type)
+        interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         auth = ProviderAuthentication.objects.create(**authentication)
         bill = ProviderBillingSource.objects.create(**billing_source)
