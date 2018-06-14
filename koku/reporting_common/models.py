@@ -22,6 +22,18 @@ from django.db import models
 from api.provider.models import Provider
 
 
+class CostUsageReportStatus(models.Model):
+    """Information on the state of the cost usage report."""
+
+    provider = models.ForeignKey('api.Provider', null=True,
+                                 on_delete=models.CASCADE)
+    report_name = models.CharField(max_length=128, null=False, unique=True)
+    cursor_position = models.PositiveIntegerField()
+    last_completed_datetime = models.DateTimeField(null=True)
+    last_started_datetime = models.DateTimeField(null=True)
+    etag = models.CharField(max_length=64, null=True)
+
+
 class ReportColumnMap(models.Model):
     """A mapping table for Cost Usage Reports.
 
