@@ -18,18 +18,16 @@
 
 from unittest.mock import patch
 
-import boto3
 from django.contrib.auth.models import User as UserAuth
 from django.db import DatabaseError
 from django.http import HttpResponse
 from django.urls import reverse
-from moto import mock_s3, mock_sts
+from providers.provider_access import ProviderAccessor
 from rest_framework import mixins
 from rest_framework.test import APIClient
 
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
-from api.provider.serializers import _get_sts_access
 from .iam_test_case import IamTestCase
 from ..models import Customer, Tenant, User
 from ..serializers import CustomerSerializer
@@ -57,21 +55,8 @@ class CustomerViewTest(IamTestCase):
             a_user['token'] = user_token
             customer_json['users'].append(a_user)
 
-    @mock_sts
-    @mock_s3
-    @patch('api.provider.view.serializers._check_org_access')
-    def _create_provider(self, bucket_name, iam_arn, token, check_org_access):
+    def _create_provider(self, bucket_name, iam_arn, token):
         """Create a provider and return response."""
-        check_org_access.return_value = True
-        access_key_id, secret_access_key, session_token = _get_sts_access(
-            iam_arn)
-        s3_resource = boto3.resource(
-            's3',
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-            aws_session_token=session_token,
-        )
-        s3_resource.create_bucket(Bucket=bucket_name)
         provider = {'name': 'test_provider',
                     'type': Provider.PROVIDER_AWS,
                     'authentication': {
@@ -81,9 +66,10 @@ class CustomerViewTest(IamTestCase):
                         'bucket': bucket_name
                     }}
         url = reverse('provider-list')
-        client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        return client.post(url, data=provider, format='json')
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            client = APIClient()
+            client.credentials(HTTP_AUTHORIZATION=token)
+            return client.post(url, data=provider, format='json')
 
     def setUp(self):
         """Set up the customer view tests."""
