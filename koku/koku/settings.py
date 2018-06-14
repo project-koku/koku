@@ -50,6 +50,7 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', True)
+DEBUG = (DEBUG == 'True' or DEBUG is True)
 
 ALLOWED_HOSTS = ['*']
 
@@ -70,15 +71,18 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'django_filters',
+    'querystring_parser',
 
     # local apps
     'api',
-    'reporting'
+    'reporting',
+    'reporting_common',
 ]
 
 SHARED_APPS = (
     'tenant_schemas',
     'api',
+    'reporting_common',
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -92,6 +96,8 @@ SHARED_APPS = (
 TENANT_APPS = (
     'reporting',
 )
+
+DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
     'koku.middleware.KokuTenantMiddleware',

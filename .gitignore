@@ -115,3 +115,5 @@ apidoc/*
 koku/staticfiles/
 scripts/aws_cost_usage/
 scripts/aws_pricing/
+
+.vscode/
