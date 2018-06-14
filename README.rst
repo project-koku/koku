@@ -37,8 +37,17 @@ To activate the virtual environment run ::
 
     pipenv shell
 
+Preferred Environment
+---------------------
+
+Please refer to `Working with Openshift`_.
+
+Alternative Environment
+-----------------------
+If deploying with Openshift seems overly complex you can try an alternate local environment where you will need to install and setup some of the dependencies and configuration.
+
 Configuration
--------------
+^^^^^^^^^^^^^
 
 This project is developed using the Django web framework. Many configuration settings can be read in from a `.env` file. An example file `.env.example` is provided in the repository. To use the defaults simply ::
 
@@ -48,7 +57,7 @@ This project is developed using the Django web framework. Many configuration set
 Modify as you see fit.
 
 Database
---------
+^^^^^^^^
 
 PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
 
@@ -65,12 +74,16 @@ Assuming the default .env file values are used, to access the database directly 
 
     psql koku -U koku -h localhost -p 15432
 
-There is a known limitation with docker-compose and Linux environments with SELinux enabled. If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
+There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
+
+    "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
+
+If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
 
     make run-migrations
 
 Server
-------
+^^^^^^
 
 To run a local dev Django server you can use ::
 
@@ -94,7 +107,7 @@ Now start the server with as described above and point your browser to **http://
 Testing and Linting
 -------------------
 
-Koku uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environement run ::
+Koku uses tox to standardize the environment used when running tests. Essentially, tox manages its own virtual environment and a copy of required dependencies to run tests. To ensure a clean tox environment run ::
 
     tox -r
 
@@ -107,11 +120,6 @@ To run unit tests specifically::
 To lint the code base ::
 
     tox -e lint
-
-Running in OpenShift
----------------------
-
-Please refer to `Working with Openshift`_.
 
 Contributing
 =============
