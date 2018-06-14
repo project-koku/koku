@@ -25,7 +25,7 @@ from api.provider.models import Provider
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
-    provider = models.ForeignKey('Provider', null=True,
+    provider = models.ForeignKey('api.Provider', null=True,
                                  on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False, unique=True)
     cursor_position = models.PositiveIntegerField()
