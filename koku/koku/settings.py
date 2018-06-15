@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'django_filters',
+    'corsheaders',
     'querystring_parser',
 
     # local apps
@@ -100,6 +101,7 @@ TENANT_APPS = (
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.KokuTenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -262,3 +264,10 @@ LOGGING = {
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value('KOKU_DEFAULT_CURRENCY', default='USD')
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value('KOKU_DEFAULT_TIMEZONE', default='UTC')
 KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_US.UTF-8')
+
+
+# Cors Setup
+# See https://github.com/ottoyiu/django-cors-headers
+
+# SECURITY WARNING: Replace this with proper origins once UI is deployed in insights
+CORS_ORIGIN_ALLOW_ALL = DEBUG
