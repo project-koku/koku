@@ -210,6 +210,12 @@
         "provider_type":"AWS"
     },
     {
+        "database_column":"memory_unit",
+        "database_table":"reporting_awscostentryproduct",
+        "provider_column_name":"product/memory_unit",
+        "provider_type":"AWS"
+    },
+    {
         "database_column":"vcpu",
         "database_table":"reporting_awscostentryproduct",
         "provider_column_name":"product/vcpu",
