@@ -29,7 +29,7 @@ class ProviderDBAccessorTest(MasuTestCase):
         pass
 
     def test_initializer(self):
-        '''Test Initializer'''
+        """Test Initializer"""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         accessor = ProviderDBAccessor(uuid)
         self.assertIsNotNone(accessor._session)

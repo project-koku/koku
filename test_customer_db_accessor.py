@@ -28,7 +28,7 @@ class CustomerDBAccessorTest(MasuTestCase):
         pass
 
     def test_initializer(self):
-        '''Test Initializer'''
+        """Test Initializer"""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
         self.assertIsNotNone(accessor._session)

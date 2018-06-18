@@ -15,27 +15,29 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the AuthDBAccessor utility object."""
+"""Test the ProviderDBAccessor utility object."""
 
-from masu.database.auth_db_accessor import AuthDBAccessor
+from masu.database.provider_collector import ProviderCollector
 from tests import MasuTestCase
 
 
-class AuthDBAccessorTest(MasuTestCase):
-    """Test Cases for the AuthDBAccessor object."""
+class ProviderQueryTest(MasuTestCase):
+    """Test Cases for the ProviderDBAccessor object."""
 
     def setUp(self):
         pass
 
     def test_initializer(self):
         """Test Initializer"""
-        auth_id = '1'
-        accessor = AuthDBAccessor(auth_id)
-        self.assertIsNotNone(accessor._session)
-        self.assertTrue(accessor.does_db_entry_exist())
+        collector = ProviderCollector()
+        self.assertIsNotNone(collector._session)
 
-    def test_get_name(self):
-        """Test name getter."""
-        auth_id = '1'
-        accessor = AuthDBAccessor(auth_id)
-        self.assertEqual('Test Customer', accessor.get_name())
+    def test_get_uuids(self):
+        """Test getting all uuids."""
+        collector = ProviderCollector()
+        providers = collector.get_providers()
+        test_provider_found = False
+        for provider in providers:
+            if '6e212746-484a-40cd-bba0-09a19d132d64' in provider.uuid:
+                test_provider_found = True
+        self.assertTrue(test_provider_found)

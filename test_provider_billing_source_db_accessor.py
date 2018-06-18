@@ -28,7 +28,7 @@ class ProviderBillingSourceDBAccessorTest(MasuTestCase):
         pass
 
     def test_initializer(self):
-        '''Test Initializer'''
+        """Test Initializer"""
         billing_source_id = '1'
         accessor = ProviderBillingSourceDBAccessor(billing_source_id)
         self.assertIsNotNone(accessor._session)

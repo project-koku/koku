@@ -27,7 +27,7 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         pass
 
     def test_initializer(self):
-        '''Test Initializer'''
+        """Test Initializer"""
         auth_id = '1'
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertIsNotNone(accessor._session)
