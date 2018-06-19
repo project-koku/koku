@@ -86,29 +86,31 @@ class AWSCostEntryLineItem(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.PositiveIntegerField(null=True)
-    normalization_factor = models.PositiveIntegerField(null=True)
-    normalized_usage_amount = models.PositiveIntegerField(null=True)
+    usage_amount = models.FloatField(null=True)
+    normalization_factor = models.FloatField(null=True)
+    normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.FloatField(null=True)
-    unblended_cost = models.FloatField(null=True)
-    blended_rate = models.FloatField(null=True)
-    blended_cost = models.FloatField(null=True)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
     tax_type = models.TextField(null=True)
 
 
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
-
-    public_on_demand_cost = models.FloatField()
-    public_on_demand_rate = models.FloatField()
+    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9)
+    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9)
     term = models.CharField(max_length=63, null=True)
     unit = models.CharField(max_length=63, null=True)
 
 
 class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
-
     # AWS unique identifier for the product
     sku = models.CharField(max_length=128, null=True, unique=True)
     product_name = models.CharField(max_length=63, null=True)
@@ -124,14 +126,23 @@ class AWSCostEntryProduct(models.Model):
 
 class AWSCostEntryReservation(models.Model):
     """Information on a particular reservation in the AWS account."""
-
     reservation_arn = models.TextField(unique=True)
     availability_zone = models.CharField(max_length=50, null=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
     units_per_reservation = models.PositiveIntegerField(null=True)
-    amortized_upfront_fee = models.FloatField(null=True)
-    amortized_upfront_cost_for_usage = models.FloatField(null=True)
-    recurring_fee_for_usage = models.FloatField(null=True)
+    amortized_upfront_fee = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    amortized_upfront_cost_for_usage = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
+    recurring_fee_for_usage = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
     # Unused fields more useful for later predictions.
     unused_quantity = models.PositiveIntegerField(null=True)
-    unused_recurring_fee = models.FloatField(null=True)
+    unused_recurring_fee = models.DecimalField(max_digits=17, decimal_places=9,
+                                               null=True)
