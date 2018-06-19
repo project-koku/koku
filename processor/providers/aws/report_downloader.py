@@ -24,6 +24,7 @@ from datetime import datetime
 import boto3
 from dateutil.relativedelta import relativedelta
 
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.exceptions import MasuConfigurationError
 from masu.processor.report_downloader import ReportDownloader
 from masu.providers import DATA_DIR
@@ -40,42 +41,41 @@ class AWSReportDownloader(ReportDownloader):
     https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-costusage.html
     """
 
-    def __init__(self, customer, provider, report_stats, **kwargs):
+    def __init__(self, provider, report_name, **kwargs):
         """
         Constructor.
 
         Args:
-            customer     (CustomerDBAccessor) the customer accessor
-            provider     (ProviderAuthDBAccessor) the provider accessor
-            report_stats (ReportStatsDBAccessor) the report stats accessor
+            provider     (ProviderDBAccessor) the provider accessor
+            report_name  (String) Name of the Cost Usage Report to download
 
         """
         super().__init__(**kwargs)
 
         self.provider = provider
-        self.customer = customer
-        self.report_stats = report_stats
 
-        self.customer_schema = self.customer.get_schema_name()
+        customer_name = self.provider.get_customer()
+        self.customer_name = customer_name.replace(' ', '_')
 
         LOG.debug('Connecting to AWS...')
         session = get_assume_role_session(
-            arn=self.provider.get_provider_resource_name(),
+            arn=self.provider.get_authentication(),
             session='MasuDownloaderSession')
         self.cur = session.client('cur')
 
         defs = self.cur.describe_report_definitions()
-        self.report_name = self.provider.get_report_name()
+        self.report_name = report_name
         report_defs = defs.get('ReportDefinitions', [])
         report = [rep for rep in report_defs
-                  if rep['ReportName'] == self.report_name].pop()
+                  if rep['ReportName'] == self.report_name]
 
         if not report:
             raise MasuConfigurationError('Cost and Usage Report definition not found.')
 
-        self.region = report['S3Region']
-        self.bucket = report['S3Bucket']
-        self.bucket_prefix = report['S3Prefix']
+        report_to_download = report.pop()
+        self.region = report_to_download['S3Region']
+        self.bucket = self.provider.get_billing_source()
+        self.bucket_prefix = report_to_download['S3Prefix']
 
         self.s3 = session.client('s3')
 
@@ -92,7 +92,8 @@ class AWSReportDownloader(ReportDownloader):
         """
         manifest = '{}/{}-Manifest.json'.format(self._get_report_path(dt),
                                                 self.report_name)
-        manifest_file = self.download_file(manifest)
+
+        manifest_file, _ = self.download_file(manifest)
 
         manifest_json = None
         with open(manifest_file, 'r') as f:
@@ -146,7 +147,8 @@ class AWSReportDownloader(ReportDownloader):
         bucket = s3_resource.Bucket(self.bucket)
         files = []
         for s3obj in bucket.objects.all():
-            files.append(self.download_file(s3obj.key))
+            file_name, _ = self.download_file(s3obj.key)
+            files.append(file_name)
         return files
 
     def download_current_report(self):
@@ -159,7 +161,7 @@ class AWSReportDownloader(ReportDownloader):
         """
         return self.download_report(datetime.today())
 
-    def download_file(self, key):
+    def download_file(self, key, stored_etag=None):
         """
         Download an S3 object to file.
 
@@ -171,20 +173,17 @@ class AWSReportDownloader(ReportDownloader):
 
         """
         s3_filename = key.split('/')[-1]
-        file_path = f'{DATA_DIR}/{self.customer_schema}/aws'
+        file_path = f'{DATA_DIR}/{self.customer_name}/aws'
         file_name = f'{file_path}/{s3_filename}'
         # Make sure the data directory exists
         os.makedirs(file_path, exist_ok=True)
 
-        etag = self.report_stats.get_etag(key)
         s3_file = self.s3.get_object(Bucket=self.bucket, Key=key)
-        if s3_file.get('etag') != etag:
+        s3_etag = s3_file.get('ETag')
+        if s3_etag != stored_etag:
             LOG.info('Downloading %s to %s', s3_filename, file_name)
             self.s3.download_file(self.bucket, key, file_name)
-            self.report_stats.update(report_name=key,
-                                     etag=s3_file.get('etag'),
-                                     last_completed_datetime=datetime.now())
-        return file_name
+        return file_name, s3_etag
 
     def download_report(self, dt):
         """
@@ -202,5 +201,13 @@ class AWSReportDownloader(ReportDownloader):
 
         files = []
         for report in reports:
-            files.append(self.download_file(report))
+            s3_filename = report.split('/')[-1]
+            stats_recorder = ReportStatsDBAccessor(s3_filename)
+            stored_etag = stats_recorder.get_etag()
+
+            file_name, etag = self.download_file(report, stored_etag)
+            stats_recorder.update(etag=etag)
+            stats_recorder.commit()
+
+            files.append(file_name)
         return files
