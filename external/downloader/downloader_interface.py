@@ -14,5 +14,28 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Downloader interface to be used by Masu."""
 
-"""AWS Provider functions."""
+from abc import ABC, abstractmethod
+
+
+# pylint: disable=too-few-public-methods
+class DownloaderInterface(ABC):
+    """Masu interface definition to download cost usage reports."""
+
+    @abstractmethod
+    def download_current_report(self):
+        """
+        Download the current cost usage report.
+
+        Implemented by a downloader class.  Must return a list of
+        full path of CUR files that are part of the cost usage report.
+
+        Args:
+            None
+
+        Returns:
+            (List) List of full local file paths to CUR files.
+
+        """
+        pass
