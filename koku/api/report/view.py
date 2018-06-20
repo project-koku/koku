@@ -159,7 +159,7 @@ def costs(request):
 def inventory(request):
     """Get inventory data.
 
-    @api {get} /api/v1/reports/inventory/ Get cost data
+    @api {get} /api/v1/reports/inventory/ Get inventory data
     @apiName getInventoryData
     @apiGroup Report
     @apiVersion 1.0.0
