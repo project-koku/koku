@@ -16,6 +16,7 @@
 #
 """Test the Report Queries."""
 import datetime
+from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
@@ -324,7 +325,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), 4.776)
+        self.assertEqual(total.get('value'), Decimal('4.776000000'))
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -337,4 +338,4 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), 4.776)
+        self.assertEqual(total.get('value'), Decimal('4.776000000'))
