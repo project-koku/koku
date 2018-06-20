@@ -22,18 +22,18 @@ import os
 from datetime import datetime
 
 import boto3
-from dateutil.relativedelta import relativedelta
 
+import masu.external.downloader.aws.aws_utils as utils
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.external.downloader.downloader_interface import DownloaderInterface
+from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor.exceptions import MasuConfigurationError
-from masu.processor.report_downloader import ReportDownloader
 from masu.providers import DATA_DIR
-from masu.providers.aws.sts import get_assume_role_session
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportDownloader(ReportDownloader):
+class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
     AWS Cost and Usage Report Downloader.
 
@@ -41,31 +41,33 @@ class AWSReportDownloader(ReportDownloader):
     https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-costusage.html
     """
 
-    def __init__(self, provider, report_name, **kwargs):
+    def __init__(self, customer_name, auth_credential, cur_source, report_name=None, **kwargs):
         """
         Constructor.
 
         Args:
-            provider     (ProviderDBAccessor) the provider accessor
-            report_name  (String) Name of the Cost Usage Report to download
+            customer_name    (String) Name of the customer
+            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            report_name      (String) Name of the Cost Usage Report to download (optional)
+            cur_source       (String) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
 
-        self.provider = provider
-
-        customer_name = self.provider.get_customer()
         self.customer_name = customer_name.replace(' ', '_')
 
         LOG.debug('Connecting to AWS...')
-        session = get_assume_role_session(
-            arn=self.provider.get_authentication(),
-            session='MasuDownloaderSession')
+        session = utils.establish_aws_session(auth_credential, 'MasuDownloaderSession')
         self.cur = session.client('cur')
 
-        defs = self.cur.describe_report_definitions()
+        if not report_name:
+            available_reports = utils.get_cur_report_names_in_bucket(auth_credential, cur_source)
+            # Get the first report in the bucket until Koku can specify which CUR the user wants
+            if available_reports:
+                report_name = available_reports[0]
         self.report_name = report_name
-        report_defs = defs.get('ReportDefinitions', [])
+
+        report_defs = utils.get_cur_report_definitions(auth_credential, session)
         report = [rep for rep in report_defs
                   if rep['ReportName'] == self.report_name]
 
@@ -74,66 +76,49 @@ class AWSReportDownloader(ReportDownloader):
 
         report_to_download = report.pop()
         self.region = report_to_download['S3Region']
-        self.bucket = self.provider.get_billing_source()
+        self.bucket = cur_source
         self.bucket_prefix = report_to_download['S3Prefix']
 
-        self.s3 = session.client('s3')
+        self.s3_client = session.client('s3')
 
-    def _get_manifest(self, dt):
+    def _get_manifest(self, date_time):
         """
         Download and return the CUR manifest for the given date.
 
         Args:
-            dt (DateTime): The starting datetime object
+            date_time (DateTime): The starting datetime object
 
         Returns:
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        manifest = '{}/{}-Manifest.json'.format(self._get_report_path(dt),
+        manifest = '{}/{}-Manifest.json'.format(self._get_report_path(date_time),
                                                 self.report_name)
 
         manifest_file, _ = self.download_file(manifest)
 
         manifest_json = None
-        with open(manifest_file, 'r') as f:
-            manifest_json = json.load(f)
+        with open(manifest_file, 'r') as manifest_file_handle:
+            manifest_json = json.load(manifest_file_handle)
 
         return manifest_json
 
-    def _get_report_path(self, dt):
+    def _get_report_path(self, date_time):
         """
         Return path of report files.
 
         Args:
-            dt (DateTime): The starting datetime object
+            date_time (DateTime): The starting datetime object
 
         Returns:
             (String): "/prefix/report_name/YYYYMMDD-YYYYMMDD",
                     example: "/my-prefix/my-report/19701101-19701201"
 
         """
-        report_date_range = self._get_manifest_date_range(dt)
+        report_date_range = utils.month_date_range(date_time)
         return '{}/{}/{}'.format(self.bucket_prefix,
                                  self.report_name,
                                  report_date_range)
-
-    def _get_manifest_date_range(self, dt):
-        """
-        Get a formatted date range string.
-
-        Args:
-            dt (DateTime): The starting datetime object
-
-        Returns:
-            (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
-
-        """
-        start_month = dt.replace(day=1, second=1, microsecond=1)
-        end_month = start_month + relativedelta(months=+1)
-        timeformat = '%Y%m%d'
-        return '{}-{}'.format(start_month.strftime(timeformat),
-                              end_month.strftime(timeformat))
 
     def download_bucket(self):
         """
@@ -178,25 +163,25 @@ class AWSReportDownloader(ReportDownloader):
         # Make sure the data directory exists
         os.makedirs(file_path, exist_ok=True)
 
-        s3_file = self.s3.get_object(Bucket=self.bucket, Key=key)
+        s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
         s3_etag = s3_file.get('ETag')
         if s3_etag != stored_etag:
             LOG.info('Downloading %s to %s', s3_filename, file_name)
-            self.s3.download_file(self.bucket, key, file_name)
+            self.s3_client.download_file(self.bucket, key, file_name)
         return file_name, s3_etag
 
-    def download_report(self, dt):
+    def download_report(self, date_time):
         """
         Download CUR for a given date.
 
         Args:
-            dt (DateTime): The starting datetime object
+            date_time (DateTime): The starting datetime object
 
         Returns:
             (List) List of filenames downloaded.
 
         """
-        manifest = self._get_manifest(dt)
+        manifest = self._get_manifest(date_time)
         reports = manifest.get('reportKeys')
 
         files = []

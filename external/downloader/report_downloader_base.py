@@ -19,7 +19,7 @@ from tempfile import mkdtemp
 
 
 # pylint: disable=too-few-public-methods
-class ReportDownloader():
+class ReportDownloaderBase():
     """
     Download cost reports from a provider.
 
