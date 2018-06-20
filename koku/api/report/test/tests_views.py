@@ -15,24 +15,32 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
+from unittest.mock import Mock
+
 from django.urls import reverse
+from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
-from api.report.view import process_query_parameters
+from api.models import Customer, Tenant, User
+from api.report.view import get_tenant, process_query_parameters
 
 
 class ReportViewTest(IamTestCase):
-    """Tests the provider view."""
+    """Tests the report view."""
 
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
         self.create_service_admin()
-        for customer in self.customer_data:
-            response = self.create_customer(customer)
-            self.assertEqual(response.status_code, 201)
+        customer = self.customer_data[0]
+        response = self.create_customer(customer)
+        self.assertEqual(response.status_code, 201)
+        customer_json = response.json()
+        customer_uuid = customer_json.get('uuid')
+        customer_obj = Customer.objects.filter(uuid=customer_uuid).get()
+        self.tenant = Tenant(schema_name=customer_obj.schema_name)
+        self.tenant.save()
 
     def tearDown(self):
         """Tear down user tests."""
@@ -63,7 +71,9 @@ class ReportViewTest(IamTestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
-        self.assertEqual(json_result.get('data'), [])
+        self.assertIsNotNone(json_result.get('data'))
+        self.assertIsInstance(json_result.get('data'), list)
+        self.assertTrue(len(json_result.get('data')) > 0)
 
     def test_get_inventory_customer_owner(self):
         """Test inventory reports runs with a customer owner."""
@@ -109,3 +119,13 @@ class ReportViewTest(IamTestCase):
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
         self.assertEqual(response.status_code, 400)
+
+    def test_get_tenant_no_group(self):
+        """Test get_tenant with a user with no group."""
+        user = Mock()
+        group = Mock()
+        group.id = 909090
+        user.groups.first.return_value = group
+
+        with self.assertRaises(ValidationError):
+            get_tenant(user)

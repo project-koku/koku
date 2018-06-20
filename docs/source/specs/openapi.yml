@@ -885,8 +885,10 @@ definitions:
     properties:
       resolution:
         $ref: '#/definitions/ReportResolution'
-      time_scope:
-        $ref: '#/definitions/ReportTimeScope'
+      time_scope_value:
+        $ref: '#/definitions/ReportTimeScopeValue'
+      time_scope_units:
+        $ref: '#/definitions/ReportTimeScopeUnits'
       resource_scope:
         type: array
         items:
@@ -934,7 +936,13 @@ definitions:
       - daily
       - monthly
     description: The resolution to apply to the report. Default resolution is daily.
-  ReportTimeScope:
+  ReportTimeScopeUnits:
+    type: string
+    enum:
+      - day
+      - month
+    description: The units to apply to the report. Default time_scope_units is day.
+  ReportTimeScopeValue:
     type: integer
     enum:
       - -1
@@ -942,7 +950,7 @@ definitions:
       - -10
       - -30
     example: -10
-    description: The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'daily' resolution.'-1' is used for current month, '-2' is used for last month when resolution is 'monthly' otherwise invalid.
+    description: The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'day' time_scope_units.'-1' is used for current month, '-2' is used for last month when time_scope_units is 'month' otherwise invalid.
   ReportResourceScope:
     type: string
     enum:
@@ -973,7 +981,7 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'2018-05-28': [{'accountA': 52.80, 'accountB': 29.47, 'accountC': 1.39}]}]
+          example: [{'date': '2018-05-28', 'accounts': [{'name': 'accountA', 'value': 52.80, 'units': 'USD'},{'name': 'accountB', 'value': 29.47, 'units': 'USD'}, {'name': 'accountC', 'value': 1.39, 'units': 'USD'}]}]
   ReportInventory:
     allOf:
       - $ref: '#/definitions/Report'
@@ -984,7 +992,7 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'2018-05-28': [{'t2.medium': 5, 'm5.2xlarge': 290}]}]
+          example: [{'date': '2018-05-28', 'instance_type': [{'name': 't2.medium', 'value': 5},{'name': 'm5.2xlarge', 'value': 290}]}]
   Status:
     required:
       - api_version
