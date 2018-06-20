@@ -51,9 +51,7 @@ class ReportQueryHandler(object):
         Returns:
             (DateTime): First of the next month
         """
-        dt_first = in_date.replace(day=1)
-        dt_up_month = dt_first + datetime.timedelta(days=32)
-        dt_next_month = dt_up_month.replace(day=1)
+        dt_next_month = in_date.replace(month=(in_date.month + 1), day=1)
         return dt_next_month
 
     @staticmethod
@@ -65,9 +63,7 @@ class ReportQueryHandler(object):
         Returns:
             (DateTime): First of the previous month
         """
-        dt_first = in_date.replace(day=1)
-        dt_down_month = dt_first - datetime.timedelta(days=1)
-        dt_prev_month = dt_down_month.replace(day=1)
+        dt_prev_month = in_date.replace(month=(in_date.month - 1), day=1)
         return dt_prev_month
 
     @staticmethod
@@ -94,15 +90,12 @@ class ReportQueryHandler(object):
         Returns:
             (List[DateTime]): A list of days from the start date to end date
         """
-        days = []
-        start_midnight = start_date.replace(hour=0)
+        day_list = []
         end_midnight = end_date.replace(hour=0)
-        current = start_midnight
-        while current < end_midnight:
-            days.append(current)
-            next_day = current + datetime.timedelta(days=1)
-            current = next_day
-        return days
+        start_midnight = start_date.replace(hour=0)
+        days = (end_midnight - start_midnight).days
+        day_list = [start_midnight + datetime.timedelta(i) for i in range(days)]
+        return day_list
 
     @staticmethod
     def list_months(start_date, end_date):
@@ -251,6 +244,7 @@ class ReportQueryHandler(object):
             interval = ReportQueryHandler.list_days(start, end)
         if start and end and resolution == 'monthly':
             interval = ReportQueryHandler.list_months(start, end)
+        interval = sorted(interval, reverse=True)
         return (start, end, interval)
 
     def _add_interval_data(self, interval, query_data):
@@ -268,8 +262,8 @@ class ReportQueryHandler(object):
         resolution = self.get_resolution()
         if query_data:
             current = query_data.pop()
-        while interval:
-            interval_item = interval.pop().date()
+        for item in interval:
+            interval_item = item.date()
             if resolution == 'daily':
                 interval_str = interval_item.strftime('%Y-%m-%d')
             else:
@@ -316,16 +310,15 @@ class ReportQueryHandler(object):
             trunc_func = TruncMonth
 
         with tenant_context(self.tenant):
-            start, end, days = self._get_time_frame_filter()
+            start, end, interval = self._get_time_frame_filter()
             time_frame_query = AWSCostEntryLineItem.objects.filter(
                 usage_start__gte=start,
                 usage_end__lte=end)
-
             query_sum = time_frame_query.aggregate(value=Sum('unblended_cost'))
             query_sum['units'] = 'USD'
             query_data = list(time_frame_query.annotate(date=trunc_func('usage_start')).values(
-                'date').annotate(total_cost=Sum('unblended_cost')).order_by())
-            data = self._add_interval_data(days, query_data)
+                'date').annotate(total_cost=Sum('unblended_cost')).order_by('-date', 'total_cost'))
+            data = self._add_interval_data(interval, query_data)
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
