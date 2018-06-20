@@ -17,7 +17,7 @@
 """Provider external interface for koku to consume."""
 
 
-from masu.external.db.cur_accounts_db import CURAccountsDB
+from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 
 
 class AccountsAccessorError(Exception):

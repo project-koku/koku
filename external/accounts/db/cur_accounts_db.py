@@ -18,8 +18,8 @@
 
 from masu.database.provider_collector import ProviderCollector
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.cost_usage_report_account import CostUsageReportAccount
-from masu.external.cur_accounts_interface import CURAccountsInterface
+from masu.external.accounts.cost_usage_report_account import CostUsageReportAccount
+from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 
 
 # pylint: disable=too-few-public-methods
@@ -49,8 +49,10 @@ class CURAccountsDB(CURAccountsInterface):
             auth_credential = provider_accessor.get_authentication()
             billing_source = provider_accessor.get_billing_source()
             customer_name = provider_accessor.get_customer()
+            provider = provider_accessor.get_provider_name()
             cur_account = CostUsageReportAccount(auth_credential,
                                                  billing_source,
-                                                 customer_name)
+                                                 customer_name,
+                                                 provider)
             cur_accounts.append(cur_account)
         return cur_accounts
