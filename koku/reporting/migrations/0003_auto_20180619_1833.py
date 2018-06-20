@@ -75,4 +75,9 @@ class Migration(migrations.Migration):
             name='unused_recurring_fee',
             field=models.DecimalField(decimal_places=9, max_digits=17, null=True),
         ),
+        migrations.AlterField(
+            model_name='awscostentryproduct',
+            name='memory',
+            field=models.FloatField(null=True),
+        ),
     ]
