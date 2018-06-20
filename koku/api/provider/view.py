@@ -271,7 +271,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             @apiVersion 1.0.0
             @apiDescription Delete a provider.
 
-            @apiHeader {String} token Service Admin authorization token.
+            @apiHeader {String} token Authorization token of the created_by user or customer owner
             @apiHeaderExample {json} Header-Example:
                 {
                     "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
