@@ -95,7 +95,7 @@ class AWSCostEntryLineItem(models.Model):
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
     blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                      null=True)
+                                       null=True)
     blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                        null=True)
     tax_type = models.TextField(null=True)
@@ -103,6 +103,7 @@ class AWSCostEntryLineItem(models.Model):
 
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
+
     public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9)
     public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9)
     term = models.CharField(max_length=63, null=True)
@@ -111,6 +112,7 @@ class AWSCostEntryPricing(models.Model):
 
 class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
+
     # AWS unique identifier for the product
     sku = models.CharField(max_length=128, null=True, unique=True)
     product_name = models.CharField(max_length=63, null=True)
@@ -126,6 +128,7 @@ class AWSCostEntryProduct(models.Model):
 
 class AWSCostEntryReservation(models.Model):
     """Information on a particular reservation in the AWS account."""
+
     reservation_arn = models.TextField(unique=True)
     availability_zone = models.CharField(max_length=50, null=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
