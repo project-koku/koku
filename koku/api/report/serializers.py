@@ -20,7 +20,15 @@ from rest_framework import serializers
 
 
 def handle_invalid_fields(this, data):
-    """Validate incoming data."""
+    """Validate incoming data.
+
+    Args:
+        data    (Dict): data to be validated
+    Returns:
+        (Dict): Validated data
+    Raises:
+        (ValidationError): if field inputs are invalid
+    """
     unknown_keys = None
     if hasattr(this, 'initial_data'):
         unknown_keys = set(this.initial_data.keys()) - set(this.fields.keys())
@@ -33,7 +41,17 @@ def handle_invalid_fields(this, data):
 
 
 def validate_field(this, field, serializer_cls, value):
-    """Validate the provided fields."""
+    """Validate the provided fields.
+
+    Args:
+        field    (String): the field to be validated
+        serializer_cls (Class): a serialice class for validation
+        value    (Object): the field value
+    Returns:
+        (Dict): Validated value
+    Raises:
+        (ValidationError): if field inputs are invalid
+    """
     field_param = this.initial_data.get(field)
     serializer = serializer_cls(data=field_param)
     serializer.is_valid(raise_exception=True)
@@ -47,7 +65,13 @@ class StringOrListField(serializers.ListField):
     """
 
     def to_internal_value(self, data):
-        """Handle string data then call super."""
+        """Handle string data then call super.
+
+        Args:
+            data    (String or List): data to be converted
+        Returns:
+            (List): Transformed data
+        """
         list_data = data
         if isinstance(data, str):
             list_data = [data]
@@ -67,7 +91,15 @@ class GroupBySerializer(serializers.Serializer):
                                      required=False)
 
     def validate(self, data):
-        """Validate incoming data."""
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
         handle_invalid_fields(self, data)
         return data
 
@@ -100,33 +132,54 @@ class FilterSerializer(serializers.Serializer):
         ('-1', '1'),
         ('-2', '-2'),
     )
+    TIME_UNIT_CHOICES = (
+        ('day', 'day'),
+        ('month', 'month'),
+    )
+
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
                                          required=False)
-    time_scope = serializers.ChoiceField(choices=TIME_CHOICES,
-                                         required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
+                                               required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
+                                               required=False)
     resource_scope = StringOrListField(child=serializers.CharField(),
                                        required=False)
 
     def validate(self, data):
-        """Validate incoming data."""
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+        """
         handle_invalid_fields(self, data)
 
         resolution = data.get('resolution')
-        time_scope = data.get('time_scope')
+        time_scope_value = data.get('time_scope_value')
+        time_scope_units = data.get('time_scope_units')
 
-        if resolution and time_scope:
-            msg = 'Valid values are {} when resolution is {}'
-            if (resolution == 'daily' and
-                    (time_scope == '-1' or time_scope == '-2')):
+        if time_scope_units and time_scope_value:
+            msg = 'Valid values are {} when time_scope_units is {}'
+            if (time_scope_units == 'day' and
+                    (time_scope_value == '-1' or time_scope_value == '-2')):
                 valid_values = ['-10', '-30']
                 valid_vals = ', '.join(valid_values)
-                error = {'time_scope': msg.format(valid_vals, 'daily')}
+                error = {'time_scope_value': msg.format(valid_vals, 'day')}
                 raise serializers.ValidationError(error)
-            if (resolution == 'monthly' and
-                    (time_scope == '-10' or time_scope == '-30')):
+            if (time_scope_units == 'day' and resolution == 'monthly'):
+                valid_values = ['daily']
+                valid_vals = ', '.join(valid_values)
+                error = {'resolution': msg.format(valid_vals, 'day')}
+                raise serializers.ValidationError(error)
+            if (time_scope_units == 'month' and
+                    (time_scope_value == '-10' or time_scope_value == '-30')):
                 valid_values = ['-1', '-2']
                 valid_vals = ', '.join(valid_values)
-                error = {'time_scope': msg.format(valid_vals, 'monthly')}
+                error = {'time_scope_value': msg.format(valid_vals, 'month')}
                 raise serializers.ValidationError(error)
         return data
 
@@ -139,21 +192,53 @@ class QueryParamSerializer(serializers.Serializer):
     filter = FilterSerializer(required=False)
 
     def validate(self, data):
-        """Validate incoming data."""
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
         handle_invalid_fields(self, data)
         return data
 
     def validate_group_by(self, value):
-        """Validate incoming group_by data."""
+        """Validate incoming group_by data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if group_by field inputs are invalid
+        """
         validate_field(self, 'group_by', GroupBySerializer, value)
         return value
 
     def validate_order_by(self, value):
-        """Validate incoming order_by data."""
+        """Validate incoming order_by data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+        """
         validate_field(self, 'order_by', OrderBySerializer, value)
         return value
 
     def validate_filter(self, value):
-        """Validate incoming filter data."""
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+        """
         validate_field(self, 'filter', FilterSerializer, value)
         return value

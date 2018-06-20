@@ -18,6 +18,7 @@
 """View for Reports."""
 import copy
 
+from django.utils.translation import ugettext as _
 from querystring_parser import parser
 from rest_framework import status
 from rest_framework.authentication import (SessionAuthentication,
@@ -27,12 +28,23 @@ from rest_framework.decorators import (api_view,
                                        permission_classes)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
+from api.iam.customer_manager import CustomerManager
+from api.models import Customer
+from api.report.queries import ReportQueryHandler
 from api.report.serializers import QueryParamSerializer
 
 
 def process_query_parameters(url_data):
-    """Process query parameters and raise any validation errors."""
+    """Process query parameters and raise any validation errors.
+
+    Args:
+        url_data    (String): the url string
+    Returns:
+        (Boolean): True if query params are valid, False otherwise
+        (Dict): Dictionary parsed from query params string
+    """
     output = None
     query_params = parser.parse(url_data)
     qps = QueryParamSerializer(data=query_params)
@@ -42,6 +54,31 @@ def process_query_parameters(url_data):
     else:
         output = qps.data
     return (validation, output)
+
+
+def get_tenant(user):
+    """Get the tenant for the given user.
+
+    Args:
+        user    (DjangoUser): user to get the associated tenant
+    Returns:
+        (Tenant): Object used to get tenant specific data tables
+    Raises:
+        (ValidationError): If no tenant could be found for the user
+    """
+    tenant = None
+    group = user.groups.first()
+    if group:
+        try:
+            customer = Customer.objects.get(pk=group.id)
+            manager = CustomerManager(customer.uuid)
+            tenant = manager.get_tenant()
+        except Customer.DoesNotExist:
+            pass
+    if tenant is None:
+        error = {'details': _('Invalid user definition')}
+        raise ValidationError(error)
+    return tenant
 
 
 @api_view(http_method_names=['GET'])
@@ -85,7 +122,8 @@ def costs(request):
             },
             "filter": {
                 "resolution": "daily",
-                "time_scope": -10,
+                "time_scope_value": -10,
+                "time_scope_units": "day",
                 "resource_scope": []
             },
             "data": [
@@ -109,8 +147,9 @@ def costs(request):
             data=value,
             status=status.HTTP_400_BAD_REQUEST
         )
-    output = copy.deepcopy(value)
-    output['data'] = []
+    tenant = get_tenant(request.user)
+    handler = ReportQueryHandler(value, tenant)
+    output = handler.execute_query()
     return Response(output)
 
 
@@ -155,7 +194,8 @@ def inventory(request):
             },
             "filter": {
                 "resolution": "daily",
-                "time_scope": -10,
+                "time_scope_value": -10,
+                "time_scope_units": "day",
                 "resource_scope": []
             },
             "data": [

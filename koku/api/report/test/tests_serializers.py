@@ -31,7 +31,8 @@ class FilterSerializerTest(TestCase):
     def test_parse_filter_params_success(self):
         """Test parse of a filter param successfully."""
         filter_params = {'resolution': 'daily',
-                         'time_scope': '-10',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
                          'resource_scope': []}
         serializer = FilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
@@ -45,7 +46,8 @@ class FilterSerializerTest(TestCase):
     def test_filter_params_invalid_fields(self):
         """Test parse of filter params for invalid fields."""
         filter_params = {'resolution': 'daily',
-                         'time_scope': '-10',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
                          'resource_scope': [],
                          'invalid': 'param'}
         serializer = FilterSerializer(data=filter_params)
@@ -53,17 +55,19 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_filter_params_invalid_time_scope_daily(self):
-        """Test parse of filter params for invalid daily time_scope."""
+        """Test parse of filter params for invalid daily time_scope_units."""
         filter_params = {'resolution': 'daily',
-                         'time_scope': '-1'}
+                         'time_scope_value': '-1',
+                         'time_scope_units': 'day'}
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_filter_params_invalid_time_scope_monthly(self):
-        """Test parse of filter params for invalid monthly time_scope."""
+        """Test parse of filter params for invalid month time_scope_units."""
         filter_params = {'resolution': 'monthly',
-                         'time_scope': '-10'}
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'month'}
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -123,7 +127,8 @@ class QueryParamSerializerTest(TestCase):
         query_params = {'group_by': {'account': ['account1']},
                         'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
-                                   'time_scope': '-10',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
                                    'resource_scope': []}
                         }
         serializer = QueryParamSerializer(data=query_params)
@@ -134,7 +139,8 @@ class QueryParamSerializerTest(TestCase):
         query_params = {'group_by': {'account': ['account1']},
                         'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
-                                   'time_scope': '-10',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
                                    'resource_scope': []},
                         'invalid': 'param'
                         }
@@ -147,7 +153,8 @@ class QueryParamSerializerTest(TestCase):
         query_params = {'group_by': {'invalid': ['invalid']},
                         'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
-                                   'time_scope': '-10',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
                                    'resource_scope': []}
                         }
         serializer = QueryParamSerializer(data=query_params)
