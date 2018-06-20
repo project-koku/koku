@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from masu.config import Config
 
@@ -37,7 +37,9 @@ class KokuDBAccess(ABC):
         """
         self.schema = schema
         self._db, self._meta = self._connect_db()
-        self._session = Session(self._db)
+        self._session_factory = sessionmaker(bind=self._db)
+        self._session_registry = scoped_session(self._session_factory)
+        self._session = self._create_session()
 
         self._base = self._prepare_base()
 
@@ -54,6 +56,14 @@ class KokuDBAccess(ABC):
         engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI, client_encoding='utf8')
         meta = sqlalchemy.MetaData(bind=engine, schema=self.schema)
         return engine, meta
+
+    def _create_session(self):
+        """Use a sessionmaker factory to create a scoped session."""
+        return self._session_registry()
+
+    def close_session(self):
+        """Close the dtabase session."""
+        self._session.close()
 
     def _prepare_base(self):
         """
