@@ -16,6 +16,7 @@
 #
 """Provider external interface for koku to consume."""
 
+from masu.external import AMAZON_WEB_SERVICES
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 
 
@@ -55,7 +56,7 @@ class ReportDownloader:
             (Object) : Some object that is a child of CURAccountsInterface
 
         """
-        if self.provider_type == 'aws':
+        if self.provider_type == AMAZON_WEB_SERVICES:
             return AWSReportDownloader(customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        cur_source=self.cur_source,

@@ -49,10 +49,10 @@ class CURAccountsDB(CURAccountsInterface):
             auth_credential = provider_accessor.get_authentication()
             billing_source = provider_accessor.get_billing_source()
             customer_name = provider_accessor.get_customer()
-            provider = provider_accessor.get_provider_name()
+            provider_type = provider_accessor.get_type()
             cur_account = CostUsageReportAccount(auth_credential,
                                                  billing_source,
                                                  customer_name,
-                                                 provider)
+                                                 provider_type)
             cur_accounts.append(cur_account)
         return cur_accounts

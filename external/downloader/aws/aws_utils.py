@@ -91,7 +91,7 @@ def get_cur_report_definitions(role_arn, session=None):
         role_arn     (String) RoleARN for AWS session
 
     Returns:
-        ([String]): List of Cost Usage Report Names
+        ([String]): List of Cost Usage Report Definitions
 
     """
     if not session:
