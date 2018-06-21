@@ -22,18 +22,10 @@ from decimal import Decimal
 import psycopg2
 
 from masu.config import Config
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.koku_database_access import KokuDBAccess
 
 LOG = logging.getLogger(__name__)
-
-AWS_CUR_TABLE_MAP = {
-    'cost_entry': 'reporting_awscostentry',
-    'bill': 'reporting_awscostentrybill',
-    'line_item': 'reporting_awscostentrylineitem',
-    'product': 'reporting_awscostentryproduct',
-    'pricing': 'reporting_awscostentrypricing',
-    'reservation': 'reporting_awscostentryreservation',
-}
 
 
 # pylint: disable=too-few-public-methods

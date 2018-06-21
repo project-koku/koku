@@ -16,4 +16,9 @@
 #
 """Initializer for external module."""
 
+# Provider Types
 AMAZON_WEB_SERVICES = 'AWS'
+
+# Compression formats
+UNCOMPRESSED = ''
+GZIP_COMPRESSED = 'GZIP'
