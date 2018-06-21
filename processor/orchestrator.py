@@ -60,7 +60,7 @@ class Orchestrator():
             credentials = account.get_access_credential()
             source = account.get_billing_source()
             customer_name = account.get_customer()
-            provider = account.get_provider()
+            provider = account.get_provider_type()
 
             stmt = 'Download task queued for {}'.format(customer_name)
             LOG.info(stmt)
