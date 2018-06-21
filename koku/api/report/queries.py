@@ -244,7 +244,7 @@ class ReportQueryHandler(object):
             interval = ReportQueryHandler.list_days(start, end)
         if start and end and resolution == 'monthly':
             interval = ReportQueryHandler.list_months(start, end)
-        interval = sorted(interval, reverse=True)
+        interval = sorted(interval)
         return (start, end, interval)
 
     def _add_interval_data(self, interval, query_data):
@@ -268,9 +268,9 @@ class ReportQueryHandler(object):
                 interval_str = interval_item.strftime('%Y-%m-%d')
             else:
                 interval_str = interval_item.strftime('%Y-%m')
-            cur_date = current.get('date')
-            if isinstance(cur_date, datetime.datetime):
-                cur_date = cur_date.date()
+            cur_date = None
+            if current.get('date'):
+                cur_date = current.get('date').date()
             if cur_date == interval_item:
                 data.append({'date': interval_str,
                              'total_cost': current.get('total_cost'),
