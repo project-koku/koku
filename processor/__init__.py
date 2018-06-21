@@ -17,11 +17,8 @@
 """Masu Processor."""
 import logging
 
+from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+
 LOG = logging.getLogger(__name__)
 
-
-# pylint: disable=too-few-public-methods
-class Processor():
-    """Processor stub. This will handle processing cost and pricing data."""
-
-    pass
+ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
