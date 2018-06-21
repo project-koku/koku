@@ -24,6 +24,7 @@ from flask import Flask
 from flask.logging import default_handler
 from flask_sqlalchemy import SQLAlchemy
 
+from masu.api.download import DownloadView
 from masu.api.status import StatusView
 from masu.celery import create_celery
 
@@ -71,7 +72,7 @@ def create_app(test_config=None):
 
     # Routes
     app.add_url_rule('/api/v1/status/', view_func=StatusView.as_view('show_status'))
-
+    app.add_url_rule('/api/v1/download/', view_func=DownloadView.as_view('force_download'))
     StatusView().startup()
 
     return app
