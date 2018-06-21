@@ -24,22 +24,15 @@ import random
 import psycopg2
 from sqlalchemy.orm.query import Query
 
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor, ReportSchema
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 
-COST_ENTRY_TABLE = 'reporting_awscostentry'
-LINE_ITEM_TABLE = 'reporting_awscostentrylineitem'
-REPORT_TABLES = (
-    'reporting_awscostentrybill',
-    'reporting_awscostentryproduct',
-    'reporting_awscostentrypricing',
-    'reporting_awscostentryreservation',
-)
 
 class ReportSchemaTest(MasuTestCase):
-    """Test Cases for the ReportingCommonDBAccessor object."""
+    """Test Cases for the ReportSchema object."""
 
     @classmethod
     def setUpClass(cls):
@@ -50,16 +43,22 @@ class ReportSchemaTest(MasuTestCase):
             schema='testcustomer',
             column_map=cls.column_map
         )
+        cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
+        cls.foreign_key_tables = [
+            AWS_CUR_TABLE_MAP['bill'],
+            AWS_CUR_TABLE_MAP['product'],
+            AWS_CUR_TABLE_MAP['pricing'],
+            AWS_CUR_TABLE_MAP['reservation']
+        ]
 
     def test_init(self):
         """Test the initializer."""
         tables = self.accessor.get_base().classes
         report_schema = ReportSchema(tables, self.column_map)
 
-        for table_name in REPORT_TABLES:
+        for table_name in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table_name))
-        self.assertIsNotNone(getattr(report_schema, COST_ENTRY_TABLE))
-        self.assertIsNotNone(getattr(report_schema, LINE_ITEM_TABLE))
+
         self.assertNotEqual(report_schema.column_types, {})
 
     def test_get_reporting_tables(self):
@@ -72,17 +71,17 @@ class ReportSchemaTest(MasuTestCase):
             self.accessor.column_map
         )
 
-        for table in REPORT_TABLES:
+        for table in self.all_tables:
             self.assertIsNotNone(getattr(report_schema, table))
 
         self.assertTrue(hasattr(report_schema, 'column_types'))
 
         column_types = report_schema.column_types
 
-        for table in REPORT_TABLES:
+        for table in self.all_tables:
             self.assertIn(table, column_types)
 
-        table_types = column_types[random.choice(REPORT_TABLES)]
+        table_types = column_types[random.choice(self.all_tables)]
 
         python_types = list(types.__builtins__.values())
         python_types.extend([datetime.datetime, Decimal])
@@ -92,7 +91,7 @@ class ReportSchemaTest(MasuTestCase):
 
 
 class ReportDBAccessorTest(MasuTestCase):
-    """Test Cases for the ReportingCommonDBAccessor object."""
+    """Test Cases for the ReportDBAccessor object."""
 
     @classmethod
     def setUpClass(cls):
@@ -109,6 +108,13 @@ class ReportDBAccessorTest(MasuTestCase):
             cls.column_map,
             cls.report_schema.column_types
         )
+        cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
+        cls.foreign_key_tables = [
+            AWS_CUR_TABLE_MAP['bill'],
+            AWS_CUR_TABLE_MAP['product'],
+            AWS_CUR_TABLE_MAP['pricing'],
+            AWS_CUR_TABLE_MAP['reservation']
+        ]
 
     def setUp(self):
         """"Set up a test with database objects."""
@@ -129,7 +135,7 @@ class ReportDBAccessorTest(MasuTestCase):
         """Return the database to a pre-test state."""
         self.accessor._session.rollback()
 
-        for table_name in REPORT_TABLES:
+        for table_name in self.all_tables:
             tables = self.accessor._get_db_obj_query(table_name).all()
             for table in tables:
                 self.accessor._session.delete(table)
@@ -173,7 +179,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_get_db_obj_query_default(self):
         """Test that a query is returned."""
-        table_name = random.choice(REPORT_TABLES)
+        table_name = random.choice(self.all_tables)
 
         query = self.accessor._get_db_obj_query(table_name)
 
@@ -181,7 +187,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
-        table_name = random.choice(REPORT_TABLES)
+        table_name = random.choice(self.foreign_key_tables)
         columns = list(self.column_map[table_name].values())
 
         selected_columns = [random.choice(columns) for _ in range(2)]
@@ -207,7 +213,7 @@ class ReportDBAccessorTest(MasuTestCase):
         # Get data commited for foreign key relationships to work
         self.accessor.commit()
 
-        table_name = LINE_ITEM_TABLE
+        table_name = AWS_CUR_TABLE_MAP['line_item']
         table = getattr(self.report_schema, table_name)
         column_map = self.column_map[table_name]
         query = self.accessor._get_db_obj_query(table_name)
@@ -240,7 +246,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_create_db_object(self):
         """Test that a mapped database object is returned."""
-        table = random.choice(REPORT_TABLES)
+        table = random.choice(self.all_tables)
         data = self.creator.create_columns_for_table(table)
 
         row = self.accessor.create_db_object(table, data)
@@ -251,7 +257,7 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_commit_db_object(self):
         """Test that a database object is committed to the database."""
         self.accessor._session.rollback()
-        table = random.choice(REPORT_TABLES)
+        table = random.choice(self.foreign_key_tables)
         data = self.creator.create_columns_for_table(table)
 
         row = self.accessor.create_db_object(table, data)
@@ -271,7 +277,7 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_flush_db_object(self):
         """Test that the database flush moves the object to the database."""
         self.accessor._session.commit()
-        table = random.choice(REPORT_TABLES)
+        table = random.choice(self.foreign_key_tables)
         data = self.creator.create_columns_for_table(table)
         initial_row_count = self.accessor._get_db_obj_query(table).count()
         row = self.accessor.create_db_object(table, data)
@@ -287,7 +293,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_clean_data(self):
         """Test that data cleaning produces proper data types."""
-        table_name = random.choice(REPORT_TABLES)
+        table_name = random.choice(self.all_tables)
         table = getattr(self.report_schema, table_name)
         column_types = self.report_schema.column_types[table_name]
 

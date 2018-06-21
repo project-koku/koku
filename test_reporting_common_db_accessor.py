@@ -16,12 +16,13 @@
 #
 
 """Test the ReportingCommonDBAccessor utility object."""
+import copy
 
 from sqlalchemy.orm.session import Session
 
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
-from tests.database.test_report_db_accessor import REPORT_TABLES
 
 
 class ReportingCommonDBAccessorTest(MasuTestCase):
@@ -31,6 +32,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class with required objects."""
         cls.accessor = ReportingCommonDBAccessor()
+        cls.report_tables = list(AWS_CUR_TABLE_MAP.values())
 
     def test_initializer(self):
         """Test initializer."""
@@ -46,8 +48,8 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         column_map = self.accessor.generate_column_map()
         keys = column_map.keys()
 
-        tables = list(REPORT_TABLES)
-
+        tables = copy.deepcopy(self.report_tables)
+        tables.remove(AWS_CUR_TABLE_MAP['cost_entry'])
         for table in tables:
             self.assertIn(table, keys)
 
