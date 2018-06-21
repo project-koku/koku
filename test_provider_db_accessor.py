@@ -17,6 +17,7 @@
 
 """Test the ProviderDBAccessor utility object."""
 
+from masu.external import AMAZON_WEB_SERVICES
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from tests import MasuTestCase
@@ -51,7 +52,7 @@ class ProviderDBAccessorTest(MasuTestCase):
         """Test provider type getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         accessor = ProviderDBAccessor(uuid)
-        self.assertEqual('AWS', accessor.get_type())
+        self.assertEqual(AMAZON_WEB_SERVICES, accessor.get_type())
 
     def test_get_authentication(self):
         """Test provider authentication getter."""
