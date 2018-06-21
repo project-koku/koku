@@ -20,12 +20,12 @@
 class CostUsageReportAccount:
     """Object to hold attributes needed to download a CUR."""
 
-    def __init__(self, authentication, billing_source, customer_name, provider):
+    def __init__(self, authentication, billing_source, customer_name, provider_type):
         """Set account attributes."""
         self.authentication = authentication
         self.billing_source = billing_source
         self.customer_name = customer_name
-        self.provider = provider
+        self.provider_type = provider_type
 
     def get_access_credential(self):
         """
@@ -73,9 +73,9 @@ class CostUsageReportAccount:
         """
         return self.customer_name
 
-    def get_provider(self):
+    def get_provider_type(self):
         """
-        Return the name of the provider.
+        Return the provider type.
 
         Args:
             None
@@ -85,4 +85,4 @@ class CostUsageReportAccount:
                        example: AWS
 
         """
-        return self.provider
+        return self.provider_type
