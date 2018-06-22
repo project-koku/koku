@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Processing Orchestrator asynchronous tasks."""
+"""Downloading asynchronous tasks."""
 
 import logging
 
@@ -43,11 +43,11 @@ def get_report_files(customer_name,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    stmt = ('Downloading Report for: '
-            'credential: {}'
-            'source: {}'
-            'customer_name: {}'
-            'provider: {}')
+    stmt = ('Downloading report for'
+            ' credential: {},'
+            ' source: {},'
+            ' customer_name: {},'
+            ' provider: {}')
     log_statement = stmt.format(access_credential, report_source, customer_name, provider_type)
     LOG.info(log_statement)
 
@@ -57,5 +57,5 @@ def get_report_files(customer_name,
                                   provider_type=provider_type,
                                   report_name=report_name)
 
-    files = downloader.get_current_report()
-    return files
+    reports = downloader.get_current_report()
+    return reports

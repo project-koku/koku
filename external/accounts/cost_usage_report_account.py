@@ -17,15 +17,17 @@
 """Cost Of Usage Report (CUR) object to be used by Masu Orchestrator/Processor to download CURs."""
 
 
+# pylint: disable=too-many-arguments
 class CostUsageReportAccount:
     """Object to hold attributes needed to download a CUR."""
 
-    def __init__(self, authentication, billing_source, customer_name, provider_type):
+    def __init__(self, authentication, billing_source, customer_name, provider_type, schema_name):
         """Set account attributes."""
         self.authentication = authentication
         self.billing_source = billing_source
         self.customer_name = customer_name
         self.provider_type = provider_type
+        self.schema_name = schema_name
 
     def get_access_credential(self):
         """
@@ -86,3 +88,16 @@ class CostUsageReportAccount:
 
         """
         return self.provider_type
+
+    def get_schema_name(self):
+        """
+        Return the database schema name.
+
+        Args:
+            None
+
+        Returns:
+            (String) : Name of the database schema.
+
+        """
+        return self.schema_name
