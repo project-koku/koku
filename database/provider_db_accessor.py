@@ -135,7 +135,7 @@ class ProviderDBAccessor(KokuDBAccess):
         customer_accessor = CustomerDBAccessor(customer_id)
         return customer_accessor.get_uuid()
 
-    def get_customer(self):
+    def get_customer_name(self):
         """
         Return the provider's customer name.
 
@@ -151,3 +151,18 @@ class ProviderDBAccessor(KokuDBAccess):
         group_ptr_id = customer_accessor.get_group_ptr_id()
         auth_accessor = AuthDBAccessor(group_ptr_id)
         return auth_accessor.get_name()
+
+    def get_schema(self):
+        """
+        Return the schema for the customer.
+
+        Args:
+            None
+        Returns:
+            (String): "Name of the database schema",
+        """
+        obj = self._get_db_obj_query().first()
+        customer_id = obj.customer_id
+        customer_accessor = CustomerDBAccessor(customer_id)
+        schema_name = customer_accessor.get_schema_name()
+        return schema_name

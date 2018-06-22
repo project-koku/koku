@@ -19,7 +19,9 @@
 import logging
 
 import masu.processor.tasks.download as download_task
+import masu.processor.tasks.process as process_task
 from masu.external.accounts_accessor import AccountsAccessor
+from masu.processor.cur_process_request import CURProcessRequest
 
 LOG = logging.getLogger(__name__)
 
@@ -40,13 +42,14 @@ class Orchestrator():
         Orchestrator for CUR processing.
 
         Args:
-            download_path (String) filesystem path to store downloaded files
+            None
         """
         self._accounts = AccountsAccessor().get_accounts()
+        self._processing_requests = []
 
-    def download_curs(self):
+    def prepare_curs(self):
         """
-        Download CUR for each account.
+        Prepare a CUR processing request for each account.
 
         Args:
             None
@@ -69,5 +72,27 @@ class Orchestrator():
                                                      access_credential=credentials,
                                                      report_source=source,
                                                      provider_type=provider)
+            for report_dict in reports:
+                cur_request = CURProcessRequest()
+                cur_request.schema_name = account.get_schema_name()
+                cur_request.report_path = report_dict.get('file')
+                cur_request.compression = report_dict.get('compression')
+
+                self._processing_requests.append(cur_request)
 
         return reports
+
+    def process_curs(self):
+        """
+        Process downloaded cost usage reports.
+
+        Args:
+            None
+
+        Returns:
+            None.
+
+        """
+        for request in self._processing_requests:
+            LOG.info(str(request))
+            process_task.process_report_file(request)

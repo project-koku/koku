@@ -74,10 +74,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not report:
             raise MasuConfigurationError('Cost and Usage Report definition not found.')
 
-        report_to_download = report.pop()
-        self.region = report_to_download['S3Region']
+        self.report = report.pop() if report else None
         self.bucket = cur_source
-        self.bucket_prefix = report_to_download['S3Prefix']
 
         self.s3_client = session.client('s3')
 
@@ -116,7 +114,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_date_range = utils.month_date_range(date_time)
-        return '{}/{}/{}'.format(self.bucket_prefix,
+        return '{}/{}/{}'.format(self.report.get('S3Prefix'),
                                  self.report_name,
                                  report_date_range)
 
@@ -178,13 +176,14 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             date_time (DateTime): The starting datetime object
 
         Returns:
-            (List) List of filenames downloaded.
+            ([{}]) List of dictionaries containing file path and compression.
 
         """
         manifest = self._get_manifest(date_time)
         reports = manifest.get('reportKeys')
 
-        files = []
+        cur_reports = []
+        report_dictionary = {}
         for report in reports:
             s3_filename = report.split('/')[-1]
             stats_recorder = ReportStatsDBAccessor(s3_filename)
@@ -194,5 +193,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stats_recorder.update(etag=etag)
             stats_recorder.commit()
 
-            files.append(file_name)
-        return files
+            report_dictionary['file'] = file_name
+            report_dictionary['compression'] = self.report.get('Compression')
+
+            cur_reports.append(report_dictionary)
+        return cur_reports
