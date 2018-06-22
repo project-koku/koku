@@ -76,9 +76,16 @@ class ProviderDBAccessorTest(MasuTestCase):
         expected_uuid = customer.get_uuid()
         self.assertEqual(expected_uuid, accessor.get_customer_uuid())
 
-    def test_get_customer(self):
+    def test_get_customer_name(self):
         """Test provider customer getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         expected_customer_name = 'Test Customer'
         accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_customer_name, accessor.get_customer())
+        self.assertEqual(expected_customer_name, accessor.get_customer_name())
+
+    def test_get_schema(self):
+        """Test provider schema getter."""
+        uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
+        expected_schema = 'testcustomer'
+        accessor = ProviderDBAccessor(uuid)
+        self.assertEqual(expected_schema, accessor.get_schema())
