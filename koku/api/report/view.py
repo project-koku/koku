@@ -103,7 +103,7 @@ def costs(request):
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope]=-10&order_by[cost]=asc
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} order_by  The ordering to applied to the report
@@ -175,7 +175,7 @@ def inventory(request):
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope]=-10&order_by[cost]=asc
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} order_by  The ordering to applied to the report
