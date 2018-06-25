@@ -97,6 +97,23 @@ def _check_org_access(access_key_id, secret_access_key, session_token):
     return access_ok
 
 
+def _check_cost_report_access(access_key_id, secret_access_key, session_token):
+    """Check for provider cost and usage report access."""
+    access_ok = True
+    cur_client = boto3.client(
+        'cur',
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token,
+    )
+    try:
+        cur_client.describe_report_definitions()
+    except (ClientError, BotoConnectionError) as boto_error:
+        LOG.exception(boto_error)
+        access_ok = False
+    return access_ok
+
+
 class AWSProvider(ProviderInterface):
     """Provider interface defnition."""
 
@@ -123,10 +140,18 @@ class AWSProvider(ProviderInterface):
                 storage_resource_name, credential_name)
             raise serializers.ValidationError(error_obj(key, message))
 
+        cur_access = _check_cost_report_access(access_key_id, secret_access_key,
+                                               session_token)
+        if not cur_access:
+            key = 'provider_resource_name'
+            message = 'Unable to obtain cost and usage report ' \
+                'definition data with {}.'.format(
+                    credential_name)
+            raise serializers.ValidationError(error_obj(key, message))
+
         org_access = _check_org_access(access_key_id, secret_access_key,
                                        session_token)
         if not org_access:
-            key = 'provider_resource_name'
             message = 'Unable to obtain organization data with {}.'.format(
                 credential_name)
             LOG.info(message)
