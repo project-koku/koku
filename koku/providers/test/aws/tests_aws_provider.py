@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import boto3
 from botocore.auth import SigV4Auth
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError
 from django.test import TestCase
 from moto import mock_s3, mock_sts
 from providers.aws.aws_provider import (AWSProvider,
@@ -28,6 +28,11 @@ from providers.aws.aws_provider import (AWSProvider,
                                         _check_org_access,
                                         _get_sts_access)
 from rest_framework.exceptions import ValidationError
+
+
+def _mock_boto3_exception():
+    """Raise boto3 exception for testing."""
+    raise ClientError(operation_name='', error_response={})
 
 
 class AWSProviderTestCase(TestCase):
@@ -191,12 +196,16 @@ class AWSProviderTestCase(TestCase):
                                           session_token)
         self.assertFalse(access_exists)
 
-    @mock_sts
-    def test_check_cost_report_access_fail(self):
+    @patch('boto3.client')
+    def test_check_cost_report_access_fail(self, mock_boto3):
         """Test _check_cost_report_access with boto exception."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        access_key_id, secret_access_key, session_token = _get_sts_access(
-            iam_arn)
+        access_key_id = 'access_key_id'
+        secret_access_key = 'secret_access_key'
+        session_token = 'session_token'
+
+        client = Mock()
+        client.describe_report_definitions.side_effect = _mock_boto3_exception
+        mock_boto3.return_value = client
         access_exists = _check_cost_report_access(access_key_id, secret_access_key,
                                                   session_token)
         self.assertFalse(access_exists)
