@@ -39,7 +39,11 @@ class ReportDownloader:
         self.cur_source = report_source
         self.report_name = report_name
         self.provider_type = provider_type
-        self._downloader = self._set_downloader()
+        try:
+            self._downloader = self._set_downloader()
+        except Exception as err:
+            raise ReportDownloaderError(str(err))
+
         if not self._downloader:
             raise ReportDownloaderError('Invalid provider type specified.')
 
