@@ -27,10 +27,15 @@ import masu.external.downloader.aws.aws_utils as utils
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from masu.processor.exceptions import MasuConfigurationError
 from masu.providers import DATA_DIR
 
 LOG = logging.getLogger(__name__)
+
+
+class AWSReportDownloaderError(Exception):
+    """AWS Report Downloader error."""
+
+    pass
 
 
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -72,7 +77,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                   if rep['ReportName'] == self.report_name]
 
         if not report:
-            raise MasuConfigurationError('Cost and Usage Report definition not found.')
+            raise AWSReportDownloaderError('Cost and Usage Report definition not found.')
 
         self.report = report.pop() if report else None
         self.bucket = cur_source
