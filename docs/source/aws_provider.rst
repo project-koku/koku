@@ -55,7 +55,8 @@ Creating an IAM Policy
                   "organizations:List*",
                   "organizations:Describe*",
                   "s3:ListAllMyBuckets",
-                  "s3:HeadBucket"
+                  "s3:HeadBucket",
+                  "cur:DescribeReportDefinitions"
               ],
               "Resource": "*"
           }
