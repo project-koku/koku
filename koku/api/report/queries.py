@@ -17,30 +17,60 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+from itertools import groupby
 
-from django.db.models import Sum
-from django.db.models.functions import TruncDay, TruncMonth
+from django.db.models import Sum, Value
+from django.db.models.functions import Concat, TruncDay, TruncMonth
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
 
 from reporting.models import AWSCostEntryLineItem
 
 
+WILDCARD = '*'
+
+
+class TruncDayString(TruncDay):
+    """Class to handle string formated day truncation."""
+
+    def convert_value(self, value, expression, connection):
+        """Convert value to a string after super."""
+        value = super().convert_value(value, expression, connection)
+        return value.strftime('%Y-%m-%d')
+
+
+class TruncMonthString(TruncMonth):
+    """Class to handle string formated day truncation."""
+
+    def convert_value(self, value, expression, connection):
+        """Convert value to a string after super."""
+        value = super().convert_value(value, expression, connection)
+        return value.strftime('%Y-%m')
+
+
 class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters, tenant):
+    def __init__(self, query_parameters, tenant, aggregate_key, units_key):
         """Establish report query handler.
 
         Args:
-            query_parameters    (dictionary) parameters for query
-            tenant    (String) the tenant to use to access CUR data
+            query_parameters    (Dict): parameters for query
+            tenant    (String): the tenant to use to access CUR data
+            aggregate_key   (String): the key to aggregate on
+            units_key   (String): the key defining the units
         """
         self.query_parameters = query_parameters
         self.tenant = tenant
+        self.aggregate_key = aggregate_key
+        self.units_key = units_key
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
+        self.start_datetime = None
+        self.end_datetime = None
+        self.time_interval = []
+        self._get_timeframe()
 
     @staticmethod
     def next_month(in_date):
@@ -117,14 +147,32 @@ class ReportQueryHandler(object):
             current = next_month
         return months
 
-    def has_filter(self):
-        """Test if query parameters has a filter.
+    @staticmethod
+    def has_wildcard(in_list):
+        """Check if list has wildcard.
+
+        Args:
+            in_list (List[String]): List of strings to check for wildcard
+        Return:
+            (Boolean): if wildcard is present in list
+        """
+        if not in_list:
+            return False
+        return any(WILDCARD == item for item in in_list)
+
+    def check_query_params(self, key, in_key):
+        """Test if query parameters has a given key and key within it.
+
+        Args:
+        key     (String): key to check in query parameters
+        in_key  (String): key to check if key is found in query parameters
 
         Returns:
-            (Boolean): True if filter appears in given query parameters.
+            (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return self.query_parameters and 'filter' in self.query_parameters
+        return (self.query_parameters and key in self.query_parameters and
+                in_key in self.query_parameters.get(key))
 
     def get_filter_data(self, key):
         """Extract the value from filter parameter or return None.
@@ -135,8 +183,21 @@ class ReportQueryHandler(object):
             (Object): The value found with the given key or None
         """
         value = None
-        if self.has_filter() and key in self.query_parameters.get('filter'):
+        if self.check_query_params('filter', key):
             value = self.query_parameters.get('filter').get(key)
+        return value
+
+    def get_group_by_data(self, key):
+        """Extract the value from group_by parameter or return None.
+
+        Args:
+            key     (String): the key to obtain from the group_by data
+        Returns:
+            (Object): The value found with the given key or None
+        """
+        value = None
+        if self.check_query_params('group_by', key):
+            value = self.query_parameters.get('group_by').get(key)
         return value
 
     def get_resolution(self):
@@ -149,17 +210,25 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        resolution = self.get_filter_data('resolution')
+        self.resolution = self.get_filter_data('resolution')
         time_scope_value = self.get_filter_data('time_scope_value')
-        if not resolution:
+        if not self.resolution:
             if not time_scope_value:
-                resolution = 'daily'
+                self.resolution = 'daily'
             elif int(time_scope_value) == -1 or int(time_scope_value) == -2:
-                resolution = 'monthly'
+                self.resolution = 'monthly'
             else:
-                resolution = 'daily'
-        self.resolution = resolution
-        return resolution
+                self.resolution = 'daily'
+        if self.resolution == 'monthly':
+            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m')
+            self.date_trunc = TruncMonthString
+            self.gen_time_interval = ReportQueryHandler.list_months
+        else:
+            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m-%d')
+            self.date_trunc = TruncDayString
+            self.gen_time_interval = ReportQueryHandler.list_days
+
+        return self.resolution
 
     def get_time_scope_units(self):
         """Extract time scope units or provide default.
@@ -181,7 +250,7 @@ class ReportQueryHandler(object):
             else:
                 time_scope_units = 'day'
         self.time_scope_units = time_scope_units
-        return time_scope_units
+        return self.time_scope_units
 
     def get_time_scope_value(self):
         """Extract time scope value or provide default.
@@ -203,24 +272,34 @@ class ReportQueryHandler(object):
             else:
                 time_scope_value = -10
         self.time_scope_value = int(time_scope_value)
-        return time_scope_value
+        return self.time_scope_value
 
-    def _get_time_frame_filter(self):
-        """Obtain time frame filter.
+    def _create_time_interval(self):
+        """Create list of date times in interval.
+
+        Returns:
+            (List[DateTime]): List of all interval slices by resolution
+
+        """
+        self.time_interval = sorted(self.gen_time_interval(
+            self.start_datetime,
+            self.end_datetime))
+        return self.time_interval
+
+    def _get_timeframe(self):
+        """Obtain timeframe start and end dates.
 
         Returns:
             (DateTime): start datetime for query filter
             (DateTime): end datetime for query filter
-            (List[DateTime]): List of all interval slices by resolution
 
         """
+        self.get_resolution()
         time_scope_value = self.get_time_scope_value()
         time_scope_units = self.get_time_scope_units()
-        resolution = self.get_resolution()
         this_hour = timezone.now().replace(microsecond=0, second=0, minute=0)
         start = None
         end = None
-        interval = []
         if time_scope_units == 'month':
             if time_scope_value == -1:
                 # get current month
@@ -239,49 +318,103 @@ class ReportQueryHandler(object):
                 # get last 30 days
                 end = this_hour
                 start = ReportQueryHandler.n_days_ago(this_hour, 30)
+        self.start_datetime = start
+        self.end_datetime = end
+        self._create_time_interval()
+        return (self.start_datetime, self.end_datetime, self.time_interval)
 
-        if start and end and resolution == 'daily':
-            interval = ReportQueryHandler.list_days(start, end)
-        if start and end and resolution == 'monthly':
-            interval = ReportQueryHandler.list_months(start, end)
-        interval = sorted(interval)
-        return (start, end, interval)
+    def _get_filter(self):
+        """Create dictionary for filter parameters.
 
-    def _add_interval_data(self, interval, query_data):
-        """Add the interval data if not present in cost usage data.
-
-        Args:
-            interval    (List[DateTime]): Valid interval list sliced by resolution
-            query_data  (List(Dict)): Queried data
         Returns:
-            (List[Dict]): List of data for all intervals sliced by resolution
+            (Dict): query filter dictionary
 
         """
-        current = {}
-        data = []
-        resolution = self.get_resolution()
-        if query_data:
-            current = query_data.pop()
-        for item in interval:
-            interval_item = item.date()
-            if resolution == 'daily':
-                interval_str = interval_item.strftime('%Y-%m-%d')
-            else:
-                interval_str = interval_item.strftime('%Y-%m')
-            cur_date = None
-            if current.get('date'):
-                cur_date = current.get('date').date()
-            if cur_date == interval_item:
-                data.append({'date': interval_str,
-                             'total_cost': current.get('total_cost'),
-                             'units': 'USD'})
-                if query_data:
-                    current = query_data.pop()
-            else:
-                data.append({'date': interval_str,
-                             'total_cost': None,
-                             'units': None})
-        return data
+        filter_dict = {
+            'usage_start__gte': self.start_datetime,
+            'usage_end__lte': self.end_datetime,
+        }
+        service = self.get_group_by_data('service')
+        if not ReportQueryHandler.has_wildcard(service) and service:
+            filter_dict['cost_entry_product__product_family__in'] = service
+
+        return filter_dict
+
+    def _get_group_by(self):
+        """Create list for group_by parameters."""
+        group_by = []
+        service = self.get_group_by_data('service')
+        if service:
+            group_by.append('service')
+        return group_by
+
+    def _get_annotations(self):
+        """Create dictionary for query annotations.
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {
+            'date': self.date_trunc('usage_start'),
+            'units': Concat(self.units_key, Value(''))
+        }
+        service = self.get_group_by_data('service')
+        if service:
+            annotations['service'] = Concat(
+                'cost_entry_product__product_family', Value(''))
+
+        return annotations
+
+    @staticmethod
+    def _group_data_by_list(group_by_list, data):
+        """Group data by list.
+
+        Args:
+            group_by_list (List): list of strings to group data by
+            data    (List): list of query results
+        Returns:
+            (Dict): dictionary of grouped query results or the original data
+        """
+        if not group_by_list:
+            return data
+
+        out_data = {}
+        curr_group = group_by_list.pop()
+        for key, group in groupby(data, lambda by: by.get(curr_group)):
+            grouped = list(group)
+            grouped = ReportQueryHandler._group_data_by_list(group_by_list,
+                                                             grouped)
+            out_data[key] = grouped
+        return out_data
+
+    def _apply_group_by(self, query_data):
+        """Group data by date for given time interval then group by list.
+
+        Args:
+            query_data  (List(Dict)): Queried data
+        Returns:
+            (Dict): Dictionary of grouped dictionaries
+
+        """
+        bucket_by_date = {}
+        for item in self.time_interval:
+            date_string = self.date_to_string(item)
+            bucket_by_date[date_string] = []
+
+        for result in query_data:
+            date_string = result.get('date')
+            date_bucket = bucket_by_date.get(date_string)
+            if date_bucket is not None:
+                date_bucket.append(result)
+
+        for date, data_list in bucket_by_date.items():
+            group_by = self._get_group_by()
+            grouped = ReportQueryHandler._group_data_by_list(group_by,
+                                                             data_list)
+            bucket_by_date[date] = grouped
+
+        return bucket_by_date
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -295,6 +428,20 @@ class ReportQueryHandler(object):
         output['total'] = self.query_sum
         return output
 
+    def _transform_data(self, groups, data):
+        """Transform dictionary data points to lists."""
+        if not groups:
+            return data
+
+        out_data = []
+        groups.pop()
+        for group, group_value in data.items():
+            cur = {group: self._transform_data(groups,
+                                               group_value)}
+
+            out_data.append(cur)
+        return out_data
+
     def execute_query(self):
         """Execute query and return provided data.
 
@@ -304,21 +451,27 @@ class ReportQueryHandler(object):
         """
         query_sum = None
         data = []
-        if self.get_resolution() == 'daily':
-            trunc_func = TruncDay
-        else:
-            trunc_func = TruncMonth
 
         with tenant_context(self.tenant):
-            start, end, interval = self._get_time_frame_filter()
-            time_frame_query = AWSCostEntryLineItem.objects.filter(
-                usage_start__gte=start,
-                usage_end__lte=end)
-            query_sum = time_frame_query.aggregate(value=Sum('unblended_cost'))
-            query_sum['units'] = 'USD'
-            query_data = list(time_frame_query.annotate(date=trunc_func('usage_start')).values(
-                'date').annotate(total_cost=Sum('unblended_cost')).order_by('-date', 'total_cost'))
-            data = self._add_interval_data(interval, query_data)
+            query_filter = self._get_filter()
+            query_group_by = self._get_group_by()
+            query_annotations = self._get_annotations()
+            query = AWSCostEntryLineItem.objects.filter(**query_filter)
+            query_data = query.annotate(**query_annotations)
+
+            query_group_by = ['date'] + query_group_by
+            query_group_by_with_units = query_group_by + ['units']
+            query_data = query_data.values(*query_group_by_with_units).annotate(
+                total=Sum(self.aggregate_key)).order_by('-date', '-total')
+
+            data = self._apply_group_by(list(query_data))
+            data = self._transform_data(query_group_by, data)
+
+            if query.exists():
+                units_value = query.values(self.units_key).first().get(self.units_key)
+                query_sum = query.aggregate(value=Sum(self.aggregate_key))
+                query_sum['units'] = units_value
+
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
