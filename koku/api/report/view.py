@@ -148,7 +148,10 @@ def costs(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     tenant = get_tenant(request.user)
-    handler = ReportQueryHandler(value, tenant)
+    handler = ReportQueryHandler(value,
+                                 tenant,
+                                 'unblended_cost',
+                                 'currency_code')
     output = handler.execute_query()
     return Response(output)
 
