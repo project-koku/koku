@@ -981,7 +981,7 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'date': '2018-05-28', 'accounts': [{'name': 'accountA', 'value': 52.80, 'units': 'USD'},{'name': 'accountB', 'value': 29.47, 'units': 'USD'}, {'name': 'accountC', 'value': 1.39, 'units': 'USD'}]}]
+          example: [{'date': '2018-05-28', 'accounts': [{'account': 'accountA', 'values': [ {'date': '2018-05-28', 'account': 'accountA', 'units': 'USD', 'total': 33.79}]},{'account': 'accountB', 'values': [ {'date': '2018-05-28', 'account': 'accountB', 'units': 'USD', 'total': 28.44}]}]}]
   ReportInventory:
     allOf:
       - $ref: '#/definitions/Report'
@@ -992,7 +992,7 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'date': '2018-05-28', 'instance_type': [{'name': 't2.medium', 'value': 5},{'name': 'm5.2xlarge', 'value': 290}]}]
+          example: [{'date': '2018-05-28', 'instance_types': [{'instance_type': 't2.medium', 'values': [ {'date': '2018-05-28', 'instance_type': 't2.medium', 'units': 'hrs', 'total': 5}]},{'instance_type': 'm5.2xlarge', 'values': [ {'date': '2018-05-28', 'instance_type': 'm5.2xlarge', 'units': 'hrs', 'total': 29}]}]}]
   Status:
     required:
       - api_version

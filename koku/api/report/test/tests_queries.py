@@ -146,6 +146,7 @@ class ReportQueryTest(IamTestCase):
     def add_data_to_tenant(self):
         """Populate tenant with data."""
         payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+        self.payer_account_id = payer_account_id
         one_day = datetime.timedelta(days=1)
         one_hour = datetime.timedelta(minutes=60)
         this_hour = timezone.now().replace(microsecond=0, second=0, minute=0)
@@ -188,7 +189,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_has_filter_no_filter(self):
         """Test the has_filter method with no filter in the query params."""
-        handler = ReportQueryHandler({}, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler({}, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertFalse(handler.check_query_params('filter', 'time_scope_value'))
 
@@ -196,21 +197,23 @@ class ReportQueryTest(IamTestCase):
         """Test the has_filter method with filter in the query params."""
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertIsNotNone(handler.check_query_params('filter', 'time_scope_value'))
 
     def test_get_group_by_no_data(self):
         """Test the get_group_by_data method with no data in the query params."""
-        handler = ReportQueryHandler({}, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler({}, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertFalse(handler.get_group_by_data('service'))
 
     def test_get_group_by_with_service_list(self):
         """Test the get_group_by_data method with no data in the query params."""
-        expected = ['a', 'b', 'c']
+        expected = ['a', 'b']
+        query_string = '?group_by[service]=a&group_by[service]=b'
         handler = ReportQueryHandler({'group_by':
                                       {'service': expected}},
+                                     query_string,
                                      self.tenant,
                                      'unblended_cost',
                                      'currency_code')
@@ -220,7 +223,7 @@ class ReportQueryTest(IamTestCase):
     def test_get_resolution_empty_default(self):
         """Test get_resolution returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_resolution(), 'daily')
         self.assertEqual(handler.get_resolution(), 'daily')
@@ -228,21 +231,21 @@ class ReportQueryTest(IamTestCase):
     def test_get_resolution_empty_month_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_resolution(), 'monthly')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_units(), 'day')
         self.assertEqual(handler.get_time_scope_units(), 'day')
@@ -250,21 +253,21 @@ class ReportQueryTest(IamTestCase):
     def test_get_time_scope_units_empty_month_time_scope(self):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_units(), 'month')
 
     def test_get_time_scope_units_empty_day_time_scope(self):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_value(), -10)
         self.assertEqual(handler.get_time_scope_value(), -10)
@@ -272,14 +275,14 @@ class ReportQueryTest(IamTestCase):
     def test_get_time_scope_value_empty_month_time_scope(self):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_value(), -1)
 
     def test_get_time_scope_value_empty_day_time_scope(self):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         self.assertEqual(handler.get_time_scope_value(), -10)
 
@@ -289,7 +292,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -311,7 +314,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -2,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -333,7 +336,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -10,
                          'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         current_day = timezone.now().replace(microsecond=0,
                                              second=0,
@@ -353,7 +356,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -30,
                          'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         current_day = timezone.now().replace(microsecond=0,
                                              second=0,
@@ -372,7 +375,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
@@ -386,7 +389,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
@@ -401,7 +404,8 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'service': ['*']}}
-        handler = ReportQueryHandler(query_params, self.tenant, 'unblended_cost',
+        handler = ReportQueryHandler(query_params, '?group_by[service]=*',
+                                     self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -418,8 +422,44 @@ class ReportQueryTest(IamTestCase):
                                                day=1)
         cmonth_str = current_month.strftime('%Y-%m')
         for data_item in data:
-            month_data = data_item.get(cmonth_str)
+            month_val = data_item.get('date')
+            month_data = data_item.get('services')
+            self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
-                compute = month_item.get('Compute Instance')
-                self.assertIsInstance(compute, list)
+                compute = month_item.get('service')
+                self.assertEqual(compute, 'Compute Instance')
+                self.assertIsInstance(month_item.get('values'), list)
+
+    def test_execute_query_current_month_by_account(self):
+        """Test execute_query for current month on monthly breakdown by account."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'account': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('accounts')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                account = month_item.get('account')
+                self.assertEqual(account, self.payer_account_id)
+                self.assertIsInstance(month_item.get('values'), list)
