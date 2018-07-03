@@ -405,8 +405,11 @@ class ReportQueryHandler(object):
             grouped = ReportQueryHandler._group_data_by_list(group_by_list,
                                                              (group_index + 1),
                                                              grouped)
-            if out_data.get(key) and isinstance(out_data.get(key), list):
-                out_data[key] = out_data[key] + grouped
+            if out_data.get(key):
+                if isinstance(out_data.get(key), list):
+                    out_data[key] = out_data[key] + grouped
+                else:
+                    out_data[key].update(grouped)
             else:
                 out_data[key] = grouped
         return out_data
