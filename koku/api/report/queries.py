@@ -406,10 +406,7 @@ class ReportQueryHandler(object):
                                                              (group_index + 1),
                                                              grouped)
             if out_data.get(key):
-                if isinstance(out_data.get(key), list):
-                    out_data[key] = out_data[key] + grouped
-                else:
-                    out_data[key].update(grouped)
+                out_data[key].update(grouped)
             else:
                 out_data[key] = grouped
         return out_data

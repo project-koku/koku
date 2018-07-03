@@ -95,6 +95,25 @@ class ReportQueryUtilsTest(TestCase):
         result = ReportQueryHandler.has_wildcard([])
         self.assertFalse(result)
 
+    def test_group_data_by_list(self):
+        """Test the _group_data_by_list method."""
+        group_by = ['account', 'service']
+        data = [{'account': 'a1', 'service': 's1', 'units': 'USD', 'total': 4},
+                {'account': 'a1', 'service': 's2', 'units': 'USD', 'total': 5},
+                {'account': 'a2', 'service': 's1', 'units': 'USD', 'total': 6},
+                {'account': 'a2', 'service': 's2', 'units': 'USD', 'total': 5},
+                {'account': 'a1', 'service': 's3', 'units': 'USD', 'total': 5}]
+        out_data = ReportQueryHandler._group_data_by_list(group_by, 0, data)
+        expected = {'a1':
+                    {'s1': [{'account': 'a1', 'service': 's1', 'units': 'USD', 'total': 4}],
+                     's2': [{'account': 'a1', 'service': 's2', 'units': 'USD', 'total': 5}],
+                        's3': [
+                        {'account': 'a1', 'service': 's3', 'units': 'USD', 'total': 5}]},
+                    'a2':
+                    {'s1': [{'account': 'a2', 'service': 's1', 'units': 'USD', 'total': 6}],
+                        's2': [{'account': 'a2', 'service': 's2', 'units': 'USD', 'total': 5}]}}
+        self.assertEqual(expected, out_data)
+
 
 class ReportQueryTest(IamTestCase):
     """Tests the report queries."""
@@ -405,6 +424,39 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'service': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[service]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('services')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                compute = month_item.get('service')
+                self.assertEqual(compute, 'Compute Instance')
+                self.assertIsInstance(month_item.get('values'), list)
+
+    def test_execute_query_by_filtered_service(self):
+        """Test execute_query monthly breakdown by filtered service."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'service': ['Compute Instance']}}
+        handler = ReportQueryHandler(query_params, '?group_by[service]=Compute Instance',
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
