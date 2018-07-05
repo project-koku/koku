@@ -129,19 +129,38 @@ def costs(request):
             "data": [
                 [
                 {
-                    "2018-05-28": [
-                    {
-                        "accountA": 52.8,
-                        "accountB": 29.47,
-                        "accountC": 1.39
-                    }
+                    "date": "2018-05-28",
+                    "accounts": [
+                        {
+                            "account": "8577742690384",
+                            "values": [
+                                {
+                                    "date": "2018-05-28",
+                                    "units": "USD",
+                                    "account": "8577742690384",
+                                    "total": 1498.92962634
+                                }
+                            ]
+                        },
+                        {
+                            "account": "9420673783214",
+                            "values": [
+                                {
+                                    "date": "2018-05-28",
+                                    "units": "USD",
+                                    "account": "9420673783214",
+                                    "total": 1065.845524241
+                                }
+                            ]
+                        }
                     ]
                 }
                 ]
             ]
         }
     """
-    validation, value = process_query_parameters(request.GET.urlencode())
+    url_data = request.GET.urlencode()
+    validation, value = process_query_parameters(url_data)
     if not validation:
         return Response(
             data=value,
@@ -149,6 +168,7 @@ def costs(request):
         )
     tenant = get_tenant(request.user)
     handler = ReportQueryHandler(value,
+                                 url_data,
                                  tenant,
                                  'unblended_cost',
                                  'currency_code')
@@ -204,18 +224,38 @@ def inventory(request):
             "data": [
                 [
                 {
-                    "2018-05-28": [
-                    {
-                        "t2.medium": 5,
-                        "m5.2xlarge": 290
-                    }
+                    "date": "2018-05-28",
+                    "instance_types": [
+                        {
+                            "instance_type": "t2.medium",
+                            "values": [
+                                {
+                                    "date": "2018-05-28",
+                                    "units": "hrs",
+                                    "instance_type": "t2.medium",
+                                    "total": 5
+                                }
+                            ]
+                        },
+                        {
+                            "instance_type": "m5.2xlarge",
+                            "values": [
+                                {
+                                    "date": "2018-05-28",
+                                    "units": "hrs",
+                                    "instance_type": "m5.2xlarge",
+                                    "total": 29
+                                }
+                            ]
+                        }
                     ]
                 }
                 ]
             ]
         }
     """
-    validation, value = process_query_parameters(request.GET.urlencode())
+    url_data = request.GET.urlencode()
+    validation, value = process_query_parameters(url_data)
     if not validation:
         return Response(
             data=value,
