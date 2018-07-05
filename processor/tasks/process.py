@@ -16,20 +16,33 @@
 #
 """Processing asynchronous tasks."""
 
-import logging
+# pylint: disable=too-many-arguments
+# disabled module-wide due to current state of task signature.
+# we expect this situation to be temporary as we iterate on these details.
+
+from celery import shared_task
+from celery.utils.log import get_task_logger
 
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
 
-LOG = logging.getLogger(__name__)
+LOG = get_task_logger(__name__)
 
 
-def process_report_file(process_request):
+@shared_task(name='processor.tasks.process', queue_name='process')
+def process_report_file(schema_name, report_path, compression):
+    """Shared celery task to process report files asynchronously."""
+    _process_report_file(schema_name, report_path, compression)
+
+
+def _process_report_file(schema_name, report_path, compression):
     """
     Task to process a Cost Usage Report.
 
     Args:
-        process_request (CURProcessRequest): Attributes for report processing.
+        schema_name (String) db schema name
+        report_path (String) path to downloaded reports
+        compression (String) 'PLAIN' or 'GZIP'
 
     Returns:
         None
@@ -39,18 +52,18 @@ def process_report_file(process_request):
             ' schema_name: {},'
             ' report_path: {},'
             ' compression: {}')
-    log_statement = stmt.format(process_request.schema_name,
-                                process_request.report_path,
-                                process_request.compression)
+    log_statement = stmt.format(schema_name,
+                                report_path,
+                                compression)
     LOG.info(log_statement)
 
-    file_name = process_request.report_path.split('/')[-1]
+    file_name = report_path.split('/')[-1]
     stats_recorder = ReportStatsDBAccessor(file_name)
     cursor_position = stats_recorder.get_cursor_position()
 
-    processor = ReportProcessor(schema_name=process_request.schema_name,
-                                report_path=process_request.report_path,
-                                compression=process_request.compression,
+    processor = ReportProcessor(schema_name=schema_name,
+                                report_path=report_path,
+                                compression=compression,
                                 cursor_pos=cursor_position)
 
     stats_recorder.log_last_started_datetime()

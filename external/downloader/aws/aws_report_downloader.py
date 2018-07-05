@@ -14,7 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS CUR Downloader."""
+"""AWS Report Downloader."""
+
+# pylint: disable=fixme
+# disabled until we get travis to not fail on warnings, or the fixme is
+# resolved.
 
 import json
 import logging
@@ -23,12 +27,14 @@ from datetime import datetime
 
 import boto3
 
-import masu.external.downloader.aws.aws_utils as utils
+from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import MasuProviderError
+from masu.external.downloader.aws import utils
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from masu.providers import DATA_DIR
 
+DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
@@ -46,7 +52,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-reports-costusage.html
     """
 
-    def __init__(self, customer_name, auth_credential, cur_source, report_name=None, **kwargs):
+    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
         Constructor.
 
@@ -54,7 +60,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            cur_source       (String) Name of the S3 bucket containing the CUR
+            bucket           (String) Name of the S3 bucket containing the CUR
 
         """
         super().__init__(**kwargs)
@@ -62,25 +68,31 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(' ', '_')
 
         LOG.debug('Connecting to AWS...')
-        session = utils.establish_aws_session(auth_credential, 'MasuDownloaderSession')
+        session = utils.get_assume_role_session(auth_credential, 'MasuDownloaderSession')
         self.cur = session.client('cur')
 
+        # fetch details about the report from the cloud provider
+        defs = self.cur.describe_report_definitions()
         if not report_name:
-            available_reports = utils.get_cur_report_names_in_bucket(auth_credential, cur_source)
-            # Get the first report in the bucket until Koku can specify which CUR the user wants
-            if available_reports:
-                report_name = available_reports[0]
+            report_names = []
+            for report in defs.get('ReportDefinitions', []):
+                if bucket == report.get('S3Bucket'):
+                    report_names.append(report['ReportName'])
+
+            # FIXME: Get the first report in the bucket until Koku can specify
+            # which report the user wants
+            if report_names:
+                report_name = report_names[0]
         self.report_name = report_name
 
-        report_defs = utils.get_cur_report_definitions(auth_credential, session)
+        report_defs = defs.get('ReportDefinitions', [])
         report = [rep for rep in report_defs
                   if rep['ReportName'] == self.report_name]
 
         if not report:
-            raise AWSReportDownloaderError('Cost and Usage Report definition not found.')
+            raise MasuProviderError('Cost and Usage Report definition not found.')
 
-        self.report = report.pop() if report else None
-        self.bucket = cur_source
+        self.report = report.pop()
 
         self.s3_client = session.client('s3')
 
@@ -132,7 +144,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         s3_resource = boto3.resource('s3')
-        bucket = s3_resource.Bucket(self.bucket)
+        bucket = s3_resource.Bucket(self.report.get('S3Bucket'))
         files = []
         for s3obj in bucket.objects.all():
             file_name, _ = self.download_file(s3obj.key)
@@ -166,11 +178,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Make sure the data directory exists
         os.makedirs(file_path, exist_ok=True)
 
-        s3_file = self.s3_client.get_object(Bucket=self.bucket, Key=key)
+        s3_file = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'), Key=key)
         s3_etag = s3_file.get('ETag')
-        if s3_etag != stored_etag:
+        if s3_etag != stored_etag or not os.path.isfile(file_name):
             LOG.info('Downloading %s to %s', s3_filename, file_name)
-            self.s3_client.download_file(self.bucket, key, file_name)
+            self.s3_client.download_file(self.report.get('S3Bucket'), key, file_name)
         return file_name, s3_etag
 
     def download_report(self, date_time):
