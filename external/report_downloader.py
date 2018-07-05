@@ -63,7 +63,7 @@ class ReportDownloader:
         if self.provider_type == AMAZON_WEB_SERVICES:
             return AWSReportDownloader(customer_name=self.customer_name,
                                        auth_credential=self.credential,
-                                       cur_source=self.cur_source,
+                                       bucket=self.cur_source,
                                        report_name=self.report_name)
 
         return None

@@ -17,6 +17,7 @@
 
 """Configuration loader for Masu application."""
 
+import datetime
 import os
 
 
@@ -61,8 +62,12 @@ class Config(object):
 
     # Celery settings
     CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
-    CELERY_RESULT_BACKEND = f'db+postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
 
     REPORT_PROCESSING_BATCH_SIZE = 10000
 
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+
+    # The interval for scanning for new reports.
+    # This needs to be a timedelta object.
+    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=5)
