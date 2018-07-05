@@ -51,16 +51,19 @@ class TruncMonthString(TruncMonth):
 class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters, tenant, aggregate_key, units_key):
+    def __init__(self, query_parameters, url_data,
+                 tenant, aggregate_key, units_key):
         """Establish report query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
+            url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
             aggregate_key   (String): the key to aggregate on
             units_key   (String): the key defining the units
         """
         self.query_parameters = query_parameters
+        self.url_data = url_data
         self.tenant = tenant
         self.aggregate_key = aggregate_key
         self.units_key = units_key
@@ -335,17 +338,27 @@ class ReportQueryHandler(object):
             'usage_end__lte': self.end_datetime,
         }
         service = self.get_group_by_data('service')
+        account = self.get_group_by_data('account')
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
+
+        if not ReportQueryHandler.has_wildcard(account) and account:
+            filter_dict['usage_account_id__in'] = account
 
         return filter_dict
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
-        service = self.get_group_by_data('service')
-        if service:
-            group_by.append('service')
+        group_by_options = ['service', 'account']
+        for item in group_by_options:
+            group_data = self.get_group_by_data(item)
+            if group_data:
+                group_pos = self.url_data.index(item)
+                group_by.append((item, group_pos))
+
+        group_by = sorted(group_by, key=lambda g_item: g_item[1])
+        group_by = [item[0] for item in group_by]
         return group_by
 
     def _get_annotations(self):
@@ -360,14 +373,18 @@ class ReportQueryHandler(object):
             'units': Concat(self.units_key, Value(''))
         }
         service = self.get_group_by_data('service')
+        account = self.get_group_by_data('account')
         if service:
             annotations['service'] = Concat(
                 'cost_entry_product__product_family', Value(''))
+        if account:
+            annotations['account'] = Concat(
+                'usage_account_id', Value(''))
 
         return annotations
 
     @staticmethod
-    def _group_data_by_list(group_by_list, data):
+    def _group_data_by_list(group_by_list, group_index, data):
         """Group data by list.
 
         Args:
@@ -376,16 +393,22 @@ class ReportQueryHandler(object):
         Returns:
             (Dict): dictionary of grouped query results or the original data
         """
-        if not group_by_list:
+        group_by_list_len = len(group_by_list)
+        if group_index >= group_by_list_len:
             return data
 
         out_data = {}
-        curr_group = group_by_list.pop()
+        curr_group = group_by_list[group_index]
+
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list,
+                                                             (group_index + 1),
                                                              grouped)
-            out_data[key] = grouped
+            if out_data.get(key):
+                out_data[key].update(grouped)
+            else:
+                out_data[key] = grouped
         return out_data
 
     def _apply_group_by(self, query_data):
@@ -410,7 +433,7 @@ class ReportQueryHandler(object):
 
         for date, data_list in bucket_by_date.items():
             group_by = self._get_group_by()
-            grouped = ReportQueryHandler._group_data_by_list(group_by,
+            grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data_list)
             bucket_by_date[date] = grouped
 
@@ -428,18 +451,26 @@ class ReportQueryHandler(object):
         output['total'] = self.query_sum
         return output
 
-    def _transform_data(self, groups, data):
+    def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
-        if not groups:
+        groups_len = len(groups)
+        if not groups or group_index >= groups_len:
             return data
 
         out_data = []
-        groups.pop()
-        for group, group_value in data.items():
-            cur = {group: self._transform_data(groups,
-                                               group_value)}
+        label = 'values'
+        group_type = groups[group_index]
+        next_group_index = (group_index + 1)
 
+        if next_group_index < groups_len:
+            label = groups[next_group_index] + 's'
+
+        for group, group_value in data.items():
+            cur = {group_type: group,
+                   label: self._transform_data(groups, next_group_index,
+                                               group_value)}
             out_data.append(cur)
+
         return out_data
 
     def execute_query(self):
@@ -465,7 +496,7 @@ class ReportQueryHandler(object):
                 total=Sum(self.aggregate_key)).order_by('-date', '-total')
 
             data = self._apply_group_by(list(query_data))
-            data = self._transform_data(query_group_by, data)
+            data = self._transform_data(query_group_by, 0, data)
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
