@@ -42,7 +42,6 @@ def get_report_files(customer_name,
                                 access_credential,
                                 report_source,
                                 provider_type,
-                                schema_name,
                                 report_name)
 
     # initiate chained async task
@@ -83,7 +82,10 @@ def _get_report_files(customer_name,
             ' source: {},'
             ' customer_name: {},'
             ' provider: {}')
-    log_statement = stmt.format(access_credential, report_source, customer_name, provider_type)
+    log_statement = stmt.format(access_credential,
+                                report_source,
+                                customer_name,
+                                provider_type)
     LOG.info(log_statement)
 
     try:
