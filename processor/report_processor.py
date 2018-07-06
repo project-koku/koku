@@ -155,6 +155,8 @@ class ReportProcessor:
             self.report_db.close_psycopg2_connection()
             self.report_db.close_session()
 
+        LOG.info('Completed report processing for file: %s and schema: %s',
+                 self._report_name, self._schema_name)
         return self._cursor_pos + row_count
 
     # pylint: disable=inconsistent-return-statements, no-self-use

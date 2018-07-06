@@ -35,15 +35,39 @@ class Orchestrator():
 
     """
 
-    def __init__(self):
+    def __init__(self, billing_source=None):
         """
         Orchestrator for processing.
 
         Args:
-            None
+            billing_source (String): Individual account to retrieve.
         """
-        self._accounts = AccountsAccessor().get_accounts()
+        self._accounts = self.get_accounts(billing_source)
         self._processing_requests = []
+
+    @staticmethod
+    def get_accounts(billing_source=None):
+        """
+        Prepare a list of accounts for the orchestrator to get CUR from.
+
+        If billing_source is not provided all accounts will be returned, otherwise
+        only the account for the provided billing_source will be returned.
+
+        Still a work in progress, but works for now.
+
+        Args:
+            billing_source (String): Individual account to retrieve.
+
+        Returns:
+            [CostUsageReportAccount]
+
+        """
+        all_accounts = AccountsAccessor().get_accounts()
+        if billing_source:
+            for account in all_accounts:
+                if billing_source == account.get_billing_source():
+                    return [account]
+        return all_accounts
 
     def prepare(self):
         """
