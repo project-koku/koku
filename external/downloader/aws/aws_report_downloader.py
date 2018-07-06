@@ -26,6 +26,7 @@ import os
 from datetime import datetime
 
 import boto3
+from botocore.exceptions import ClientError
 
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -173,17 +174,28 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         s3_filename = key.split('/')[-1]
-        file_path = f'{DATA_DIR}/{self.customer_name}/aws'
-        file_name = f'{file_path}/{s3_filename}'
+        directory_path = f'{DATA_DIR}/{self.customer_name}/aws'
+        full_file_path = f'{directory_path}/{s3_filename}'
         # Make sure the data directory exists
-        os.makedirs(file_path, exist_ok=True)
+        os.makedirs(directory_path, exist_ok=True)
+        s3_etag = None
+        try:
+            s3_file = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'), Key=key)
+            s3_etag = s3_file.get('ETag')
+        except ClientError as ex:
+            if ex.response['Error']['Code'] == 'NoSuchKey':
+                log_msg = 'Unable to find {} in S3 Bucket: {}'.format(s3_filename,
+                                                                      self.report.get('S3Bucket'))
+                LOG.error(log_msg)
+                raise AWSReportDownloaderError(log_msg)
+            else:
+                LOG.error('Error downloading file: Error: %s', str(ex))
+                raise AWSReportDownloaderError(str(ex))
 
-        s3_file = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'), Key=key)
-        s3_etag = s3_file.get('ETag')
-        if s3_etag != stored_etag or not os.path.isfile(file_name):
-            LOG.info('Downloading %s to %s', s3_filename, file_name)
-            self.s3_client.download_file(self.report.get('S3Bucket'), key, file_name)
-        return file_name, s3_etag
+        if s3_etag != stored_etag or not os.path.isfile(full_file_path):
+            LOG.info('Downloading %s to %s', s3_filename, full_file_path)
+            self.s3_client.download_file(self.report.get('S3Bucket'), key, full_file_path)
+        return full_file_path, s3_etag
 
     def download_report(self, date_time):
         """
