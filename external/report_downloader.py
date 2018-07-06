@@ -79,4 +79,8 @@ class ReportDownloader:
             (List) List of filenames downloaded.
 
         """
-        return self._downloader.download_current_report()
+        try:
+            files = self._downloader.download_current_report()
+        except Exception as err:
+            raise ReportDownloaderError(str(err))
+        return files
