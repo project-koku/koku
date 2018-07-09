@@ -66,7 +66,7 @@ class ReportQueryUtilsTest(TestCase):
                                        day=1)
         second = first.replace(day=2)
         third = first.replace(day=3)
-        expected = [first, second]
+        expected = [first, second, third]
         self.assertEqual(expected, ReportQueryHandler.list_days(first, third))
 
     def test_n_days_ago(self):
@@ -367,7 +367,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(start, ten_days_ago)
         self.assertEqual(end, current_day)
         self.assertIsInstance(interval, list)
-        self.assertTrue(len(interval) == 10)
+        self.assertTrue(len(interval) == 11)
 
     def test_get_time_frame_filter_last_thirty(self):
         """Test _get_time_frame_filter for last thirty days."""
@@ -387,7 +387,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(start, ten_days_ago)
         self.assertEqual(end, current_day)
         self.assertIsInstance(interval, list)
-        self.assertTrue(len(interval) == 30)
+        self.assertTrue(len(interval) == 31)
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
