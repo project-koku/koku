@@ -19,7 +19,7 @@
 import logging
 
 from masu.external.accounts_accessor import AccountsAccessor
-from masu.processor.tasks.download import get_report_files
+from masu.processor.tasks import get_report_files
 
 LOG = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class Orchestrator():
             None
 
         Returns:
-            None.
+            (List) A list of processed report files.
 
         """
         reports = []

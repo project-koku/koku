@@ -30,9 +30,21 @@ def create_celery(app):
 
     # Define queues used for report processing
     celery.conf.task_routes = {
-        'processor.tasks.get_report_files': {'queue': 'download'},
-        'processor.tasks.process_report_file': {'queue': 'process'}
+        'masu.processor.tasks.get_report_files': {'queue': 'download'},
+        'masu.processor.tasks.process_report_file': {'queue': 'process'}
     }
+
+    celery.conf.imports = ('masu.processor.tasks', 'masu.celery.tasks')
+
+    # Celery Beat schedule
+    if app.config.get('SCHEDULE_REPORT_CHECKS'):
+        celery.conf.beat_schedule = {
+            'check-report-updates': {
+                'task': 'masu.celery.tasks.check_report_updates',
+                'schedule': app.config.get('REPORT_CHECK_INTERVAL'),
+                'args': []
+            }
+        }
 
     # pylint: disable=too-few-public-methods
     class ContextTask(celery.Task):
