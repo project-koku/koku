@@ -16,8 +16,8 @@
 #
 
 """View for Reports."""
-import copy
-
+from django.db.models import Value
+from django.db.models.functions import Concat
 from django.utils.translation import ugettext as _
 from querystring_parser import parser
 from rest_framework import status
@@ -179,14 +179,14 @@ def costs(request):
 @api_view(http_method_names=['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
-def inventory(request):
+def instance_type(request):
     """Get inventory data.
 
-    @api {get} /api/v1/reports/inventory/ Get inventory data
-    @apiName getInventoryData
+    @api {get} /api/v1/reports/inventory/instance-type/ Get inventory instance type data
+    @apiName getInventoryInstanceTypeData
     @apiGroup Report
     @apiVersion 1.0.0
-    @apiDescription Get inventory data.
+    @apiDescription Get inventory instance type data.
 
     @apiHeader {String} token User authorization token.
     @apiHeaderExample {json} Header-Example:
@@ -201,7 +201,6 @@ def inventory(request):
         ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
-    @apiSuccess {Object} order_by  The ordering to applied to the report
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
     @apiSuccessExample {json} Success-Response:
@@ -211,9 +210,6 @@ def inventory(request):
                 "account": [
                 "*"
                 ]
-            },
-            "order_by": {
-                "cost": "asc"
             },
             "filter": {
                 "resolution": "daily",
@@ -231,7 +227,7 @@ def inventory(request):
                             "values": [
                                 {
                                     "date": "2018-05-28",
-                                    "units": "hrs",
+                                    "units": "Hrs",
                                     "instance_type": "t2.medium",
                                     "total": 5
                                 }
@@ -242,7 +238,7 @@ def inventory(request):
                             "values": [
                                 {
                                     "date": "2018-05-28",
-                                    "units": "hrs",
+                                    "units": "Hrs",
                                     "instance_type": "m5.2xlarge",
                                     "total": 29
                                 }
@@ -261,6 +257,145 @@ def inventory(request):
             data=value,
             status=status.HTTP_400_BAD_REQUEST
         )
-    output = copy.deepcopy(value)
-    output['data'] = []
+    tenant = get_tenant(request.user)
+    filter_scope = {'cost_entry_product__instance_type__isnull': False}
+    annotations = {'instance_type':
+                   Concat('cost_entry_product__instance_type', Value(''))}
+    extras = {'filter': filter_scope,
+              'annotations': annotations,
+              'group_by': ['instance_type']}
+    handler = ReportQueryHandler(value,
+                                 url_data,
+                                 tenant,
+                                 'usage_amount',
+                                 'cost_entry_pricing__unit',
+                                 **extras)
+    output = handler.execute_query()
+    return Response(output)
+
+
+@api_view(http_method_names=['GET'])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def storage(request):
+    """Get inventory storage data.
+
+    @api {get} /api/v1/reports/inventory/storage Get inventory storage data
+    @apiName getInventoryStorageData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get inventory data.
+
+    @apiHeader {String} token User authorization token.
+    @apiHeaderExample {json} Header-Example:
+        {
+            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
+        }
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccessExample {json} Success-Response:
+        HTTP/1.1 200 OK
+        {
+            "group_by": {
+                "account": [
+                "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": -1,
+                "time_scope_units": "month",
+                "resource_scope": []
+            },
+            "data": [
+                [
+                {
+                    "date": "2018-07",
+                    "accounts": [
+                        {
+                            "account": "4418636104713",
+                            "values": [
+                                {
+                                    "date": "2018-07",
+                                    "units": "GB-Mo",
+                                    "account": "4418636104713",
+                                    "total": 1826.74238146924
+                                }
+                            ]
+                        },
+                        {
+                            "account": "8577742690384",
+                            "values": [
+                                {
+                                    "date": "2018-07",
+                                    "units": "GB-Mo",
+                                    "account": "8577742690384",
+                                    "total": 1137.74036198065
+                                }
+                            ]
+                        },
+                        {
+                            "account": "3474227945050",
+                            "values": [
+                                {
+                                    "date": "2018-07",
+                                    "units": "GB-Mo",
+                                    "account": "3474227945050",
+                                    "total": 1045.80659412797
+                                }
+                            ]
+                        },
+                        {
+                            "account": "7249815104968",
+                            "values": [
+                                {
+                                    "date": "2018-07",
+                                    "units": "GB-Mo",
+                                    "account": "7249815104968",
+                                    "total": 807.326470618818
+                                }
+                            ]
+                        },
+                        {
+                            "account": "9420673783214",
+                            "values": [
+                                {
+                                    "date": "2018-07",
+                                    "units": "GB-Mo",
+                                    "account": "9420673783214",
+                                    "total": 658.306642830709
+                                }
+                            ]
+                        }
+                    ]
+                }
+                ]
+            ]
+        }
+    """
+    url_data = request.GET.urlencode()
+    validation, value = process_query_parameters(url_data)
+    if not validation:
+        return Response(
+            data=value,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    tenant = get_tenant(request.user)
+    filter_scope = {'cost_entry_product__product_family': 'Storage'}
+    extras = {'filter': filter_scope}
+    handler = ReportQueryHandler(value,
+                                 url_data,
+                                 tenant,
+                                 'usage_amount',
+                                 'cost_entry_pricing__unit',
+                                 **extras)
+    output = handler.execute_query()
     return Response(output)
