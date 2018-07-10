@@ -138,7 +138,7 @@ class ReportQueryHandler(object):
         day_list = []
         end_midnight = end_date.replace(hour=0)
         start_midnight = start_date.replace(hour=0)
-        days = (end_midnight - start_midnight).days
+        days = (end_midnight - start_midnight).days + 1
         day_list = [start_midnight + datetime.timedelta(i) for i in range(days)]
         return day_list
 
