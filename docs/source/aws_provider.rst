@@ -1,7 +1,7 @@
 Adding an AWS Account
 #####################
 
-This section describes how to configure your AWS account to allow Koku access.  Configuring your account involves configuring three AWS services. Setting up the AWS account for cost and usage reporting to an S3 bucket to make the cost and usage data available. Creating an Identity Access Management (IAM) Policy and Role to be utilized by Koku to process the cost and usage data. AWS organization setup in order to control cost visibility.
+This section describes how to configure your AWS account to allow Koku access.  Configuring your account involves configuring four AWS services. Setting up the AWS account for cost and usage reporting to an S3 bucket to make the cost and usage data available. Creating an Identity Access Management (IAM) Policy and Role to be utilized by Koku to process the cost and usage data. AWS organization setup in order to control cost visibility (optional). AWS simple notification service (SNS) setup in order to trigger processing of cost and usage data when created or updated (optional).
 
 Configuring an Amazon Account for Cost & Usage Reporting
 ********************************************************
@@ -81,6 +81,70 @@ Utilizing AWS Organizations
 ***************************
 
 Visibility to cost data is controlled by leveraging the configuration of AWS organizations. Sign in to the AWS Management Console as an administrator of the account you wish to add, and open the Organizations console at `https://console.aws.amazon.com/organizations/ <https://console.aws.amazon.com/organizations/>`_. To learn more about AWS organizations read the article `Understand How IAM and Organizations Interact - Amazon AWS <https://aws.amazon.com/premiumsupport/knowledge-center/iam-policy-service-control-policy/>`_.
+
+Enabling AWS Notifications
+**************************
+In order to make data available as early possible AWS can send a notification to Koku when it writes or updates cost and usage data. In order to enable the notification capability you will need to create an SNS topic, alter the topic policy, and create a subscription then update the S3 bucket created above to generate events when changes occur.
+
+Creating an SNS Topic
+---------------------
+
+#. Sign in to the AWS Management Console as an administrator of the account you wish to add, and open the SNS console at `https://console.aws.amazon.com/sns/ <https://console.aws.amazon.com/sns/>`_.
+#. Select the region in the management console that matches where the S3 bucket was created.
+#. Choose the *Create topic* action.
+#. Provide a topic name and display name.
+
+    - **Topic name:** koku-cost
+    - **Display name:** koku-cost
+
+Alter SNS Topic Policy
+----------------------
+
+#. Select *Edit topic policy* from the *Other topic actions* drop down menu.
+#. Select the *Advanced view* tab.
+#. Change the *Condition* portion of the JSON policy to include a reference to the S3 bucket created above, replacing ``bucket_name``, and select the *Update policy* button.
+
+**Before:**
+::
+
+    "Condition": {
+        "StringEquals": {
+            "AWS:SourceOwner": "AccountID"
+        }
+    }
+
+**After:**
+::
+
+    "Condition": {
+      "ArnLike": {
+        "aws:SourceArn": "arn:aws:s3:*:*:bucket_name"
+      }
+    }
+
+
+Create SNS Topic Subscription
+-----------------------------
+
+#. Select the *Create subscription* button for the topic.
+#. Choose **HTTPS** from the *Protocol* drop down menu.
+#. Provide ``https:\\`` in the *Endpoint* field.
+#. Select the *Create subscription* button to save the configuration.
+
+Set S3 Bucket to Generate Events
+--------------------------------
+
+#. Sign in to the AWS Management Console as an administrator of the account you wish to add, and open the S3 console at `https://console.aws.amazon.com/s3/ <https://console.aws.amazon.com/s3/>`_.
+#. Select the S3 bucket created in the section above.
+#. Choose the *Properties* tab.
+#. From *Advanced Settings* select *Events*.
+#. Choose *Add notification*.
+#. Provide a name for the notification (e.g. koku)
+#. Select the *ObjectCreate (All)* checkbox.
+#. Leave *Prefix* blank.
+#. Leave *Suffix* blank.
+#. From the *Send to* drop down menu choose the SNS topic created earlier (i.e. koku-cost)
+#. Choose *Save* to enable event generation for the S3 bucket.
 
 Create an AWS Account Provider
 ******************************
