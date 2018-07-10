@@ -51,7 +51,8 @@ class Provider(models.Model):
     """
 
     PROVIDER_AWS = 'AWS'
-    PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
+    PROVIDER_LOCAL = 'Local'
+    PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_LOCAL, PROVIDER_LOCAL),)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     name = models.CharField(max_length=256, null=False)
