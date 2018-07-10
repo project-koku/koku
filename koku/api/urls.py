@@ -24,8 +24,9 @@ from api.views import (CustomerViewSet,
                        UserPreferenceViewSet,
                        UserViewSet,
                        costs,
-                       inventory,
-                       status)
+                       instance_type,
+                       status,
+                       storage)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'customers', CustomerViewSet)
@@ -41,7 +42,8 @@ urlpatterns = [
     url(r'^token-auth/', views.obtain_auth_token, name='token-auth'),
     url(r'^status/$', status, name='server-status'),
     url(r'^reports/costs/$', costs, name='reports-costs'),
-    url(r'^reports/inventory/$', inventory, name='reports-inventory'),
+    url(r'^reports/inventory/instance-type/$', instance_type, name='reports-instance-type'),
+    url(r'^reports/inventory/storage/$', storage, name='reports-storage'),
     url(r'^', include(ROUTER.urls)),
     url(r'^', include(USER_ROUTER.urls))
 ]
