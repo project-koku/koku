@@ -14,42 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Downloading asynchronous tasks."""
+"""Asynchronous tasks."""
 
-# pylint: disable=too-many-arguments, too-many-function-args
-# disabled module-wide due to current state of task signature.
-# we expect this situation to be temporary as we iterate on these details.
-
-from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from masu.exceptions import MasuProcessingError, MasuProviderError
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
-from masu.processor.tasks.process import process_report_file
 
 LOG = get_task_logger(__name__)
-
-
-@shared_task(name='processor.tasks.download', queue_name='download')
-def get_report_files(customer_name,
-                     access_credential,
-                     report_source,
-                     provider_type,
-                     schema_name=None,
-                     report_name=None):
-    """Shared celery task to download reports asynchronously."""
-    reports = _get_report_files(customer_name,
-                                access_credential,
-                                report_source,
-                                provider_type,
-                                report_name)
-
-    # initiate chained async task
-    for report_dict in reports:
-        request = {'schema_name': schema_name,
-                   'report_path': report_dict.get('file'),
-                   'compression': report_dict.get('compression')}
-        process_report_file.delay(**request)
 
 
 def _get_report_files(customer_name,
@@ -58,10 +30,10 @@ def _get_report_files(customer_name,
                       provider_type,
                       report_name=None):
     """
-    Task to download a Cost Usage Report.
+    Task to download a Report.
 
     Note that report_name will be not optional once Koku can specify
-    what report we should downlad.
+    what report we should download.
 
     Args:
         customer_name     (String): Name of the customer owning the cost usage report.
@@ -88,7 +60,6 @@ def _get_report_files(customer_name,
                                 provider_type)
     LOG.info(log_statement)
 
-    reports = []
     try:
         downloader = ReportDownloader(customer_name=customer_name,
                                       access_credential=access_credential,
@@ -99,5 +70,3 @@ def _get_report_files(customer_name,
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         LOG.error(str(err))
         return []
-
-    return reports

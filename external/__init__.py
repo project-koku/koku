@@ -20,7 +20,7 @@
 AMAZON_WEB_SERVICES = 'AWS'
 
 # Compression formats
-UNCOMPRESSED = ''
+UNCOMPRESSED = 'PLAIN'
 GZIP_COMPRESSED = 'GZIP'
 
 # Notificaton Definitions
