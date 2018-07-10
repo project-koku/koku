@@ -14,22 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Celery task definitions."""
+"""Asynchronous tasks."""
 
-# pylint: disable=unused-argument, fixme, unused-import
-# FIXME: temporary module-wide disable until tasks are fully implemented.
+# pylint: disable=too-many-arguments, too-many-function-args
+# disabled module-wide due to current state of task signature.
+# we expect this situation to be temporary as we iterate on these details.
 
-from celery.task import periodic_task
+from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
 
 LOG = get_task_logger(__name__)
 
 
-# TODO: Get periodic test to work
-@periodic_task(run_every=Config.REPORT_CHECK_INTERVAL)
+@shared_task(name='masu.celery.tasks.check_report_updates')
 def check_report_updates():
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator()
