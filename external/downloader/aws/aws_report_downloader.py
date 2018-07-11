@@ -69,7 +69,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(' ', '_')
 
         LOG.debug('Connecting to AWS...')
-        session = utils.get_assume_role_session(auth_credential, 'MasuDownloaderSession')
+        session = utils.get_assume_role_session(utils.AwsArn(auth_credential),
+                                                'MasuDownloaderSession')
         self.cur = session.client('cur')
 
         # fetch details about the report from the cloud provider

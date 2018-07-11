@@ -27,7 +27,7 @@ def get_assume_role_session(arn, session='MasuSession'):
     Assume a Role and obtain session credentials for the given role.
 
     Args:
-        arn (String): Amazon Resource Name
+        arn (AwsArn): Amazon Resource Name
         session (String): A session name
 
     Usage :
@@ -38,8 +38,7 @@ def get_assume_role_session(arn, session='MasuSession'):
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
     """
     client = boto3.client('sts')
-    parsed_arn = AwsArn(arn)   # validate the ARN
-    response = client.assume_role(RoleArn=str(parsed_arn), RoleSessionName=session)
+    response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
     return boto3.Session(
         aws_access_key_id=response['Credentials']['AccessKeyId'],
         aws_secret_access_key=response['Credentials']['SecretAccessKey'],
