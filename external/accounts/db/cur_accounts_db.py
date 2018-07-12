@@ -18,7 +18,6 @@
 
 from masu.database.provider_collector import ProviderCollector
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external.accounts.cost_usage_report_account import CostUsageReportAccount
 from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 
 
@@ -28,33 +27,29 @@ class CURAccountsDB(CURAccountsInterface):
 
     def get_accounts_from_source(self):
         """
-        Retrieve all CUR accounts from the database managed by Koku.
+        Retrieve all accounts from the Koku database.
 
-        This will return a list of CostUsageReportAccount objects for the
-        CUR Orchestrator to use to download CUR reports.
+        This will return a list of dicts for the Orchestrator to use to access reports.
 
         Args:
             None
 
         Returns:
-            ([CostUsageReportAcount]) : A list of Cost Usage Report Account objects
+            ([{}]) : A list of dicts
 
         """
         collector = ProviderCollector()
         all_providers = collector.get_providers()
 
-        cur_accounts = []
+        accounts = []
         for provider in all_providers:
             provider_accessor = ProviderDBAccessor(provider.uuid)
-            auth_credential = provider_accessor.get_authentication()
-            billing_source = provider_accessor.get_billing_source()
-            customer_name = provider_accessor.get_customer_name()
-            provider_type = provider_accessor.get_type()
-            schema_name = provider_accessor.get_schema()
-            cur_account = CostUsageReportAccount(auth_credential,
-                                                 billing_source,
-                                                 customer_name,
-                                                 provider_type,
-                                                 schema_name)
-            cur_accounts.append(cur_account)
-        return cur_accounts
+            accounts.append({
+                'authentication': provider_accessor.get_authentication(),
+                'billing_source': provider_accessor.get_billing_source(),
+                'customer_name': provider_accessor.get_customer_name(),
+                'provider_type': provider_accessor.get_type(),
+                'schema_name': provider_accessor.get_schema(),
+                'provider_id': provider.id
+            })
+        return accounts
