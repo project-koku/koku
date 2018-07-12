@@ -81,7 +81,7 @@ def _check_s3_access(access_key_id, secret_access_key,
 
 
 def _get_configured_sns_topics(bucket):
-    """Check for SNS setup on specified S3 bucket."""
+    """Get a list of configured SNS topics."""
     # create an SNS client
     s3_client = boto3.client('s3')
     topics = []

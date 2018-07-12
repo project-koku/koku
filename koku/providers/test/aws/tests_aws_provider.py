@@ -216,7 +216,7 @@ class AWSProviderTestCase(TestCase):
     @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
     def test_get_sns_topics(self, check_org_access, check_cost_report_access):
-        """Verify that the bucket is configured for notifications."""
+        """Verify when the bucket is configured for notifications."""
         check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
@@ -257,7 +257,7 @@ class AWSProviderTestCase(TestCase):
     @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
     def test_get_sns_topics_none_set(self, check_org_access, check_cost_report_access):
-        """Verify that the bucket is configured for notifications."""
+        """Verify when the bucket is not configured for notifications."""
         check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
