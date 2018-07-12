@@ -90,7 +90,7 @@ def _get_configured_sns_topics(bucket):
         configuration = notification_configuration.get('TopicConfigurations', None)
         if configuration:
             for event in configuration:
-                # FIXME: Once we complete Masu #75 user story we probably should verify that
+                # FIXME: Once we complete the Masu #75 userstory we should verify that
                 # the correct TopicArn is configured as well as the correct
                 # events (i.e. 's3:ObjectCreated:*'). For now lets just keep a list of all
                 # topics subscribed to and log it.
