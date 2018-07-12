@@ -77,10 +77,10 @@ class Orchestrator():
             None
 
         Returns:
-            (List) A list of processed report files.
+            (celery.result.AsyncResult) Async result for download request.
 
         """
-        reports = []
+        async_result = None
         for account in self._accounts:
             credentials = account.get_access_credential()
             source = account.get_billing_source()
@@ -88,12 +88,13 @@ class Orchestrator():
             provider = account.get_provider_type()
             schema_name = account.get_schema_name()
 
-            stmt = 'Download task queued for {}'.format(customer_name)
-            LOG.info(stmt)
+            LOG.info('Enqueuing download task for customer: %s', customer_name)
 
-            reports = get_report_files.delay(customer_name=customer_name,
-                                             access_credential=credentials,
-                                             report_source=source,
-                                             provider_type=provider,
-                                             schema_name=schema_name)
-        return reports
+            async_result = get_report_files.delay(customer_name=customer_name,
+                                                  access_credential=credentials,
+                                                  report_source=source,
+                                                  provider_type=provider,
+                                                  schema_name=schema_name)
+            LOG.info('Download task enqueued. Task ID: %s', str(async_result))
+
+        return async_result
