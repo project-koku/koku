@@ -45,9 +45,12 @@ def _process_report_file(schema_name, report_path, compression):
                                 report_path,
                                 compression)
     LOG.info(log_statement)
-
     file_name = report_path.split('/')[-1]
+
     stats_recorder = ReportStatsDBAccessor(file_name)
+    stats_recorder.log_last_started_datetime()
+    stats_recorder.commit()
+
     cursor_position = stats_recorder.get_cursor_position()
 
     processor = ReportProcessor(schema_name=schema_name,
@@ -55,7 +58,6 @@ def _process_report_file(schema_name, report_path, compression):
                                 compression=compression,
                                 cursor_pos=cursor_position)
 
-    stats_recorder.log_last_started_datetime()
     last_cursor_position = processor.process()
     stats_recorder.log_last_completed_datetime()
     stats_recorder.set_cursor_position(last_cursor_position)
