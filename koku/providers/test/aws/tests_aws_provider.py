@@ -22,7 +22,7 @@ import boto3
 from botocore.auth import SigV4Auth
 from botocore.exceptions import ClientError, NoCredentialsError
 from django.test import TestCase
-from moto import mock_s3, mock_sts
+from moto import mock_s3, mock_sns, mock_sts
 from providers.aws.aws_provider import (AWSProvider,
                                         _check_cost_report_access,
                                         _check_org_access,
@@ -209,3 +209,79 @@ class AWSProviderTestCase(TestCase):
         access_exists = _check_cost_report_access(access_key_id, secret_access_key,
                                                   session_token)
         self.assertFalse(access_exists)
+
+    @mock_sns
+    @mock_sts
+    @mock_s3
+    @patch('providers.aws.aws_provider._check_org_access')
+    @patch('providers.aws.aws_provider._check_cost_report_access')
+    def test_get_sns_topics(self, check_org_access, check_cost_report_access):
+        """Verify that the bucket is configured for notifications."""
+        check_org_access.return_value = True
+        check_cost_report_access.return_value = True
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        s3_resource = boto3.resource(
+            's3',
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
+        )
+
+        # Create bucket
+        s3_resource.create_bucket(Bucket=bucket_name)
+
+        # Create SNS Topic
+        conn = boto3.client('sns', region_name='us-east-1')
+        response = conn.create_topic(Name='CostUsageNotificationDemo')
+        topic = response['TopicArn']
+
+        # Setup Notification on bucket
+        config = {'TopicConfigurations': [{'TopicArn': topic, 'Events': ['s3:ObjectCreated:*']}]}
+        boto3.client('s3').put_bucket_notification_configuration(Bucket=bucket_name,
+                                                                 NotificationConfiguration=config)
+
+        provider_interface = AWSProvider()
+
+        try:
+            provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
+        except Exception:
+            self.fail('Unexpected Error')
+
+    @mock_sns
+    @mock_sts
+    @mock_s3
+    @patch('providers.aws.aws_provider._check_org_access')
+    @patch('providers.aws.aws_provider._check_cost_report_access')
+    def test_get_sns_topics_none_set(self, check_org_access, check_cost_report_access):
+        """Verify that the bucket is configured for notifications."""
+        check_org_access.return_value = True
+        check_cost_report_access.return_value = True
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        s3_resource = boto3.resource(
+            's3',
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
+        )
+
+        # Create bucket
+        s3_resource.create_bucket(Bucket=bucket_name)
+
+        # Create SNS Topic
+        conn = boto3.client('sns', region_name='us-east-1')
+        conn.create_topic(Name='CostUsageNotificationDemo')
+
+        provider_interface = AWSProvider()
+
+        try:
+            provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
+        except Exception:
+            self.fail('Unexpected Error')
