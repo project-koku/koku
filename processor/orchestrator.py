@@ -65,7 +65,7 @@ class Orchestrator():
         all_accounts = AccountsAccessor().get_accounts()
         if billing_source:
             for account in all_accounts:
-                if billing_source == account.get_billing_source():
+                if billing_source == account.get('billing_source'):
                     return [account]
         return all_accounts
 
@@ -82,19 +82,8 @@ class Orchestrator():
         """
         async_result = None
         for account in self._accounts:
-            credentials = account.get_access_credential()
-            source = account.get_billing_source()
-            customer_name = account.get_customer()
-            provider = account.get_provider_type()
-            schema_name = account.get_schema_name()
-
-            LOG.info('Enqueuing download task for customer: %s', customer_name)
-
-            async_result = get_report_files.delay(customer_name=customer_name,
-                                                  access_credential=credentials,
-                                                  report_source=source,
-                                                  provider_type=provider,
-                                                  schema_name=schema_name)
-            LOG.info('Download task enqueued. Task ID: %s', str(async_result))
-
+            async_result = get_report_files.delay(**account)
+            LOG.info('Download queued - customer: %s, Task ID: %s',
+                     account.get('customer_name'),
+                     str(async_result))
         return async_result
