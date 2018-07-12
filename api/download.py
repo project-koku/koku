@@ -34,5 +34,5 @@ class DownloadView(View):
     def dispatch_request(self):
         """Packages response for class-based view."""
         orchestrator = Orchestrator()
-        orchestrator.prepare()
-        return jsonify({'message': 'Report processing queued.'})
+        async_download_result = orchestrator.prepare()
+        return jsonify({'Download Request Task ID': str(async_download_result)})

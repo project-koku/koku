@@ -20,6 +20,7 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
@@ -67,7 +68,9 @@ def get_report_files(customer_name,
         request = {'schema_name': schema_name,
                    'report_path': report_dict.get('file'),
                    'compression': report_dict.get('compression')}
-        process_report_file.delay(**request)
+        LOG.info('Enqueuing processing task for file %s', report_dict.get('file'))
+        result = process_report_file.delay(**request)
+        LOG.info('Processing task enqueued. Task ID: %s', str(result))
 
 
 @shared_task(name='masu.processor.tasks.process_report_file', queue_name='process')
