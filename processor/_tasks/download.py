@@ -24,10 +24,13 @@ from masu.external.report_downloader import ReportDownloader, ReportDownloaderEr
 LOG = get_task_logger(__name__)
 
 
+# disabled until the program flow stabilizes a bit more
+# pylint: disable=too-many-arguments,unused-argument
 def _get_report_files(customer_name,
-                      access_credential,
-                      report_source,
+                      authentication,
+                      billing_source,
                       provider_type,
+                      provider_id,
                       report_name=None):
     """
     Task to download a Report.
@@ -54,16 +57,16 @@ def _get_report_files(customer_name,
             ' source: {},'
             ' customer_name: {},'
             ' provider: {}')
-    log_statement = stmt.format(access_credential,
-                                report_source,
+    log_statement = stmt.format(authentication,
+                                billing_source,
                                 customer_name,
                                 provider_type)
     LOG.info(log_statement)
 
     try:
         downloader = ReportDownloader(customer_name=customer_name,
-                                      access_credential=access_credential,
-                                      report_source=report_source,
+                                      access_credential=authentication,
+                                      report_source=billing_source,
                                       provider_type=provider_type,
                                       report_name=report_name)
         return downloader.get_current_report()
