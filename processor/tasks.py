@@ -32,10 +32,11 @@ LOG = get_task_logger(__name__)
 
 @shared_task(name='masu.processor.tasks.get_report_files', queue_name='download')
 def get_report_files(customer_name,
-                     access_credential,
-                     report_source,
+                     authentication,
+                     billing_source,
                      provider_type,
                      schema_name,
+                     provider_id,
                      report_name=None):
     """
     Task to download a Report.
@@ -45,22 +46,25 @@ def get_report_files(customer_name,
 
     Args:
         customer_name     (String): Name of the customer owning the cost usage report.
-        access_credential (String): Credential needed to access cost usage report
+        authentication    (String): Credential needed to access cost usage report
                                     in the backend provider.
-        report_source     (String): Location of the cost usage report in the backend provider.
+        billing_source    (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
+        schema_name       (String): Name of the DB schema
+        provider_id       (Int):    Reference id of the provider
         report_name       (String): Name of the cost usage report to download.
 
     Returns:
         files (List) List of filenames with full local path.
-               Example: ['/var/tmp/masu/region/aws/catch-clearly.csv',
-                         '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
+               Example: ['/var/tmp/masu/my-report-name/aws/my-report-file.csv',
+                         '/var/tmp/masu/other-report-name/aws/other-report-file.csv']
 
     """
     reports = _get_report_files(customer_name,
-                                access_credential,
-                                report_source,
+                                authentication,
+                                billing_source,
                                 provider_type,
+                                provider_id,
                                 report_name)
 
     # initiate chained async task
