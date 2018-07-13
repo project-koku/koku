@@ -80,10 +80,15 @@ def _check_s3_access(access_key_id, secret_access_key,
     return s3_exists
 
 
-def _get_configured_sns_topics(bucket):
+def _get_configured_sns_topics(access_key_id, secret_access_key, session_token, bucket):
     """Get a list of configured SNS topics."""
     # create an SNS client
-    s3_client = boto3.client('s3')
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
+        aws_session_token=session_token,
+    )
     topics = []
     try:
         notification_configuration = s3_client.get_bucket_notification_configuration(Bucket=bucket)
@@ -178,7 +183,8 @@ class AWSProvider(ProviderInterface):
                 credential_name)
             LOG.info(message)
 
-        sns_topics = _get_configured_sns_topics(storage_resource_name)
+        sns_topics = _get_configured_sns_topics(access_key_id, secret_access_key,
+                                                session_token, storage_resource_name)
         topics_string = ', '.join(sns_topics)
         if sns_topics:
             LOG.info('S3 Notification Topics: %s for S3 bucket: %s',
