@@ -20,15 +20,15 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 
-from celery import shared_task
 from celery.utils.log import get_task_logger
 
+from masu.celery import celery
 from masu.processor.orchestrator import Orchestrator
 
 LOG = get_task_logger(__name__)
 
 
-@shared_task(name='masu.celery.tasks.check_report_updates')
+@celery.task(name='masu.celery.tasks.check_report_updates')
 def check_report_updates():
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator()

@@ -27,7 +27,7 @@ from flask_sqlalchemy import SQLAlchemy
 from masu.api.download import DownloadView
 from masu.api.notification import NotificationView
 from masu.api.status import StatusView
-from masu.celery import create_celery
+from masu.celery import celery as celery_app, update_celery_config
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 logger.addHandler(default_handler)
@@ -67,9 +67,8 @@ def create_app(test_config=None):
     # pylint: disable=invalid-name, unused-variable
     db = SQLAlchemy(app)  # noqa: F841
 
-    # Celery task queue
-    # pylint: disable=unused-variable
-    celery = create_celery(app)   # noqa: F841
+    # Add application config to Celery
+    update_celery_config(celery_app, app)
 
     # Routes
     app.add_url_rule('/api/v1/status/', view_func=StatusView.as_view('show_status'))
