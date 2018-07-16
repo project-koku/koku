@@ -18,14 +18,15 @@
 
 from celery import Celery
 
+from masu.config import Config
 
-def create_celery(app):
+
+# pylint: disable=invalid-name, redefined-outer-name
+celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
+
+
+def update_celery_config(celery, app):
     """Create Celery app object using the Flask app's settings."""
-    celery = Celery(
-        app.import_name,
-        # backend=app.config.get('CELERY_RESULT_BACKEND'),
-        broker=app.config.get('CELERY_BROKER_URL')
-    )
     celery.conf.update(app.config)
 
     # Define queues used for report processing
@@ -56,4 +57,3 @@ def create_celery(app):
                 return self.run(*args, **kwargs)
 
     celery.Task = ContextTask
-    return celery
