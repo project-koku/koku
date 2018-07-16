@@ -16,8 +16,8 @@
 #
 """Celery worker entry-point."""
 from masu import create_app
-from masu.celery import create_celery
+from masu.celery import celery, update_celery_config
 
 MASU = create_app()
 MASU.app_context().push()
-CELERY = create_celery(MASU)
+update_celery_config(celery, MASU)
