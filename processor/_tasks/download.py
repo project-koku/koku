@@ -25,12 +25,11 @@ LOG = get_task_logger(__name__)
 
 
 # disabled until the program flow stabilizes a bit more
-# pylint: disable=too-many-arguments,unused-argument
+# pylint: disable=too-many-arguments
 def _get_report_files(customer_name,
                       authentication,
                       billing_source,
                       provider_type,
-                      provider_id,
                       report_name=None):
     """
     Task to download a Report.
