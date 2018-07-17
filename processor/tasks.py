@@ -20,9 +20,11 @@
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
 
+
 from celery.utils.log import get_task_logger
 
 from masu.celery import celery
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 
@@ -35,7 +37,6 @@ def get_report_files(customer_name,
                      billing_source,
                      provider_type,
                      schema_name,
-                     provider_id,
                      report_name=None):
     """
     Task to download a Report.
@@ -50,7 +51,6 @@ def get_report_files(customer_name,
         billing_source    (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
         schema_name       (String): Name of the DB schema
-        provider_id       (Int):    Reference id of the provider
         report_name       (String): Name of the cost usage report to download.
 
     Returns:
@@ -63,17 +63,26 @@ def get_report_files(customer_name,
                                 authentication,
                                 billing_source,
                                 provider_type,
-                                provider_id,
                                 report_name)
 
     # initiate chained async task
     for report_dict in reports:
-        request = {'schema_name': schema_name,
-                   'report_path': report_dict.get('file'),
-                   'compression': report_dict.get('compression')}
-        LOG.info('Enqueuing processing task for file %s', report_dict.get('file'))
-        result = process_report_file.delay(**request)
-        LOG.info('Processing task enqueued. Task ID: %s', str(result))
+        stats = ReportStatsDBAccessor(report_dict.get('file'))
+        last_start = stats.get_last_started_datetime()
+        last_end = stats.get_last_completed_datetime()
+
+        # only queue up a processing job if there's none currently in-progress.
+        if not last_start or not last_end or last_start < last_end:
+            request = {'schema_name': schema_name,
+                       'report_path': report_dict.get('file'),
+                       'compression': report_dict.get('compression')}
+            result = process_report_file.delay(**request)
+            LOG.info('Processing task queued - File: %s, Task ID: %s',
+                     report_dict.get('file'),
+                     str(result))
+        else:
+            LOG.info('Processing task NOT queued. Start time is later than end time! Detail: %s',
+                     str(report_dict))
 
 
 @celery.task(name='masu.processor.tasks.process_report_file', queue_name='process')
