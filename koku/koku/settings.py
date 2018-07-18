@@ -87,7 +87,6 @@ SHARED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
@@ -203,6 +202,11 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ],
     'DEFAULT_PAGINATION_CLASS': DEFAULT_PAGINATION_CLASS,
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'api.common.csv.PaginatedCSVRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    )
 }
 
 EMAIL_HOST = email.EMAIL_HOST
