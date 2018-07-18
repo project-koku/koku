@@ -208,7 +208,7 @@ def instance_type(request):
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
-    @apiSuccess {Obhect} total Aggregates statistics for the report range.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK
         {
@@ -321,7 +321,7 @@ def storage(request):
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
-    @apiSuccess {Obhect} total Aggregates statistics for the report range.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK
         {
