@@ -27,6 +27,9 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import os
 
+import sys
+import logging
+
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 from . import database, email
@@ -289,3 +292,7 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 CORS_ORIGIN_ALLOW_ALL = DEBUG
 
 APPEND_SLASH = False
+
+# disable log messages less than CRITICAL when running unit tests.
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    logging.disable(logging.CRITICAL)
