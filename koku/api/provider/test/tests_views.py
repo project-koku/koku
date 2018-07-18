@@ -122,6 +122,24 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
 
+    def test_list_provider_service_admin(self):
+        """Test list providers as admin."""
+        # Setup a provider
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        token = self.get_customer_owner_token(self.customer_data[0])
+        bucket_name = 'my_s3_bucket'
+        self.create_provider(bucket_name, iam_arn, token)
+
+        url = reverse('provider-list')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=self.service_admin_token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        json_result = response.json()
+        results = json_result.get('results')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 1)
+
     def test_list_provider_anon(self):
         """Test list providers with an anonymous user."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'

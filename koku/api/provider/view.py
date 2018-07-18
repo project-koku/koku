@@ -72,7 +72,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
         """
         queryset = Provider.objects.none()
         group = self.request.user.groups.first()
-        if group:
+        if self.request.user.is_superuser:
+            queryset = Provider.objects.all()
+        elif group:
             customer = Customer.objects.get(pk=group.id)
             queryset = Provider.objects.filter(customer=customer)
         return queryset
@@ -282,7 +284,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             @apiSuccessExample {json} Success-Response:
                 HTTP/1.1 204 NO CONTENT
             """
-            # Block any users not part of the orginization
+            # Block any users not part of the organization
             if not self.get_queryset():
                 raise PermissionDenied()
 
