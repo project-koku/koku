@@ -527,14 +527,14 @@ class ReportQueryHandler(object):
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = query.aggregate(value=Sum(self.aggregate_key))
-                query_sum['units'] = units_value
                 if self._count:
-                    query_sum.update(
-                        query.aggregate(
-                            count=Count(self._count, distinct=True)
-                        )
+                    query_sum = query.aggregate(
+                        value=Sum(self.aggregate_key),
+                        count=Count(self._count, distinct=True)
                     )
+                else:
+                    query_sum = query.aggregate(value=Sum(self.aggregate_key))
+                query_sum['units'] = units_value
 
         self.query_sum = query_sum
         self.query_data = data
