@@ -210,7 +210,6 @@ class ReportViewTest(IamTestCase):
         # kludge!  see test_get_costs_csv()
         client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
 
-
         response = client.get(url, content_type='text/csv')
         response.render()
 
