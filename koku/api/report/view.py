@@ -16,6 +16,8 @@
 #
 
 """View for Reports."""
+import logging
+
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.utils.translation import ugettext as _
@@ -34,6 +36,8 @@ from api.iam.customer_manager import CustomerManager
 from api.models import Customer
 from api.report.queries import ReportQueryHandler
 from api.report.serializers import QueryParamSerializer
+
+LOG = logging.getLogger(__name__)
 
 
 def process_query_parameters(url_data):
@@ -159,6 +163,7 @@ def costs(request):
             ]
         }
     """
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
     url_data = request.GET.urlencode()
     validation, value = process_query_parameters(url_data)
     if not validation:
@@ -198,11 +203,12 @@ def instance_type(request):
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&group_by[account]=*
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK
         {
@@ -219,37 +225,50 @@ def instance_type(request):
             },
             "data": [
                 [
-                {
-                    "date": "2018-05-28",
-                    "instance_types": [
-                        {
-                            "instance_type": "t2.medium",
-                            "values": [
-                                {
-                                    "date": "2018-05-28",
-                                    "units": "Hrs",
-                                    "instance_type": "t2.medium",
-                                    "total": 5
-                                }
-                            ]
-                        },
-                        {
-                            "instance_type": "m5.2xlarge",
-                            "values": [
-                                {
-                                    "date": "2018-05-28",
-                                    "units": "Hrs",
-                                    "instance_type": "m5.2xlarge",
-                                    "total": 29
-                                }
-                            ]
-                        }
-                    ]
-                }
+                    {
+                        "date": "2018-05-28",
+                        "accounts": [
+                            {
+                                "account": 111111111111 ,
+                                "instance_types": [
+                                        {
+                                            "instance_type": "t2.medium",
+                                            "values": [
+                                                {
+                                                    "date": "2018-05-28",
+                                                    "units": "Hrs",
+                                                    "instance_type": "t2.medium",
+                                                    "total": 5,
+                                                    "count": 1
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "instance_type": "m5.2xlarge",
+                                            "values": [
+                                                {
+                                                    "date": "2018-05-28",
+                                                    "units": "Hrs",
+                                                    "instance_type": "m5.2xlarge",
+                                                    "total": 29,
+                                                    "count": 3
+                                                }
+                                            ]
+                                        }
+                                    ]
+                            }
+                        ]
+                    }
                 ]
-            ]
+            ],
+            "total": {
+                "value": 34,
+                "units": "Hrs",
+                "count": 4
+            }
         }
     """
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
     url_data = request.GET.urlencode()
     validation, value = process_query_parameters(url_data)
     if not validation:
@@ -263,7 +282,8 @@ def instance_type(request):
                    Concat('cost_entry_product__instance_type', Value(''))}
     extras = {'filter': filter_scope,
               'annotations': annotations,
-              'group_by': ['instance_type']}
+              'group_by': ['instance_type'],
+              'count': 'resource_id'}
     handler = ReportQueryHandler(value,
                                  url_data,
                                  tenant,
@@ -301,6 +321,7 @@ def storage(request):
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK
         {
@@ -378,9 +399,14 @@ def storage(request):
                     ]
                 }
                 ]
-            ]
+            ],
+            "total": {
+                "value": 5475.922451027388,
+                "units": "GB-Mo"
+            }
         }
     """
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
     url_data = request.GET.urlencode()
     validation, value = process_query_parameters(url_data)
     if not validation:

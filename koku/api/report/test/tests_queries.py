@@ -18,6 +18,8 @@
 import datetime
 from decimal import Decimal
 
+from django.db.models import Count, Value
+from django.db.models.functions import Concat
 from django.test import TestCase
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
@@ -550,3 +552,52 @@ class ReportQueryTest(IamTestCase):
                 account = month_item.get('account')
                 self.assertEqual(account, self.payer_account_id)
                 self.assertIsInstance(month_item.get('services'), list)
+
+    def test_execute_query_with_counts(self):
+        """Test execute_query for with counts of unique resources."""
+        count_field = 'resource_id'
+        with tenant_context(self.tenant):
+            total_records = AWSCostEntryLineItem.objects.aggregate(
+                count=Count(count_field, distinct=True)
+            ).get('count')
+            instance_type = AWSCostEntryProduct.objects.first().instance_type
+
+        today = timezone.now()
+        yesterday = today - datetime.timedelta(days=1)
+        current_hour = timezone.now()
+        expected_today_count = current_hour.hour
+        expected_yesterday_count = total_records - expected_today_count
+
+        expected = {
+            today.strftime('%Y-%m-%d'): expected_today_count,
+            yesterday.strftime('%Y-%m-%d'): expected_yesterday_count
+        }
+
+        query_params = {'filter':
+                        {'resolution': 'daily', 'time_scope_value': -1,
+                         'time_scope_units': 'day'}}
+        query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
+        annotations = {'instance_type':
+                       Concat('cost_entry_product__instance_type', Value(''))}
+        extras = {'count': count_field,
+                  'group_by': ['instance_type'],
+                  'annotations': annotations,
+                  'filter': {'cost_entry_product__instance_type__isnull': False}}
+        handler = ReportQueryHandler(query_params, query_string,
+                                     self.tenant, 'usage_amount',
+                                     'cost_entry_pricing__unit',
+                                     **extras)
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('count'))
+        self.assertEqual(total.get('count'), total_records)
+
+        for data_item in data:
+            instance_types = data_item.get('instance_types')
+            for it in instance_types:
+                if it['instance_type'] == instance_type:
+                    actual_count = it['values'][0].get('count')
+                    self.assertEqual(expected.get(data_item['date']), actual_count)

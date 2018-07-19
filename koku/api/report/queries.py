@@ -19,7 +19,7 @@ import copy
 import datetime
 from itertools import groupby
 
-from django.db.models import Sum, Value
+from django.db.models import Count, Sum, Value
 from django.db.models.functions import Concat, TruncDay, TruncMonth
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
@@ -71,6 +71,7 @@ class ReportQueryHandler(object):
         self._filter = None
         self._group_by = None
         self._annotations = None
+        self._count = None
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -86,6 +87,8 @@ class ReportQueryHandler(object):
                 self._group_by = kwargs.get('group_by')
             if 'annotations' in kwargs:
                 self._annotations = kwargs.get('annotations')
+            if 'count' in kwargs:
+                self._count = kwargs.get('count')
 
     @staticmethod
     def next_month(in_date):
@@ -508,18 +511,29 @@ class ReportQueryHandler(object):
             query_annotations = self._get_annotations()
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
-
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
-            query_data = query_data.values(*query_group_by_with_units).annotate(
-                total=Sum(self.aggregate_key)).order_by('-date', '-total')
+            query_data = query_data.values(*query_group_by_with_units)\
+                .annotate(total=Sum(self.aggregate_key))
 
+            if self._count:
+                query_data = query_data.annotate(
+                    count=Count(self._count, distinct=True)
+                )
+
+            query_data = query_data.order_by('-date', '-total')
             data = self._apply_group_by(list(query_data))
             data = self._transform_data(query_group_by, 0, data)
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = query.aggregate(value=Sum(self.aggregate_key))
+                if self._count:
+                    query_sum = query.aggregate(
+                        value=Sum(self.aggregate_key),
+                        count=Count(self._count, distinct=True)
+                    )
+                else:
+                    query_sum = query.aggregate(value=Sum(self.aggregate_key))
                 query_sum['units'] = units_value
 
         self.query_sum = query_sum
