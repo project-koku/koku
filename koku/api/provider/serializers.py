@@ -24,7 +24,9 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from api.iam.models import Customer, User
-from api.iam.serializers import (CustomerSerializer, UserSerializer)
+from api.iam.serializers import (AdminCustomerSerializer,
+                                 CustomerSerializer,
+                                 UserSerializer)
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)
@@ -131,3 +133,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.billing_source = bill
         provider.save()
         return provider
+
+
+class AdminProviderSerializer(ProviderSerializer):
+    """Provider serializer specific to service admins."""
+
+    customer = AdminCustomerSerializer(read_only=True)

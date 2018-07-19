@@ -59,10 +59,16 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
     lookup_field = 'uuid'
     queryset = Provider.objects.all()
-    serializer_class = serializers.ProviderSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsAuthenticated,)
+
+    def get_serializer_class(self):
+        """Return the appropriate serializer depending on user."""
+        if self.request.user.is_superuser:
+            return serializers.AdminProviderSerializer
+        else:
+            return serializers.ProviderSerializer
 
     def get_queryset(self):
         """Get a queryset.
