@@ -88,7 +88,7 @@ def get_tenant(user):
 
 
 def _generic_report(request, aggregate_key, units_key, **kwargs):
-    """Generic report query function."""
+    """Generically query for reports."""
     LOG.info(f'API: {request.path} USER: {request.user.username}')
 
     url_data = request.GET.urlencode()
@@ -108,6 +108,7 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
                                  **kwargs)
     output = handler.execute_query()
     return Response(output)
+
 
 @api_view(http_method_names=['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
