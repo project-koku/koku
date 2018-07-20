@@ -21,10 +21,12 @@ from unittest.mock import Mock, patch
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 
-from api.iam.serializers import CustomerSerializer, UserSerializer
+from api.iam.serializers import (CustomerSerializer,
+                                 UserSerializer,
+                                 _create_schema_name)
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
-from api.provider.serializers import ProviderSerializer
+from api.provider.serializers import AdminProviderSerializer, ProviderSerializer
 
 
 class ProviderSerializerTest(IamTestCase):
@@ -115,7 +117,10 @@ class ProviderSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
+        schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
 
     def test_create_provider_with_exception(self):
         """Test creating a provider with a provider exception."""
@@ -139,3 +144,40 @@ class ProviderSerializerTest(IamTestCase):
 
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
             ProviderSerializer(data=provider, context=context)
+
+
+class AdminProviderSerializerTest(IamTestCase):
+    """Tests for the admin customer serializer."""
+
+    def test_schema_name_present_on_customer(self):
+        """Test that schema_name is returned on customer."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': iam_arn
+                    },
+                    'billing_source': {
+                        'bucket': bucket_name
+                    }}
+        new_cust = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            new_cust = serializer.save()
+        request = Mock()
+        request.user = new_cust.owner
+        context = {'request': request}
+        instance = None
+
+        with patch.object(ProviderAccessor,
+                          'cost_usage_source_ready',
+                          returns=True):
+            serializer = AdminProviderSerializer(data=provider, context=context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        expected_schema_name = _create_schema_name(instance.customer.name)
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsNotNone(schema_name)
+        self.assertEqual(schema_name, expected_schema_name)

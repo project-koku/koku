@@ -24,9 +24,11 @@ from rest_framework.exceptions import ValidationError
 
 from api.iam.email import SUBJECT
 from api.iam.models import ResetToken, UserPreference
-from api.iam.serializers import (CustomerSerializer,
+from api.iam.serializers import (AdminCustomerSerializer,
+                                 CustomerSerializer,
                                  UserPreferenceSerializer,
-                                 UserSerializer)
+                                 UserSerializer,
+                                 _create_schema_name)
 from .iam_test_case import IamTestCase
 
 
@@ -42,6 +44,10 @@ class CustomerSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
+            schema_name = serializer.data.get('schema_name')
+
+            self.assertIsNone(schema_name)
+            self.assertFalse('schema_name' in serializer.data)
             self.assertEqual(customer['name'], instance.name)
             self.assertTrue(ResetToken.objects.filter(
                 user=instance.owner).exists)
@@ -55,6 +61,20 @@ class CustomerSerializerTest(IamTestCase):
             instance = serializer.save()
 
         self.assertIsInstance(instance.uuid, uuid.UUID)
+
+
+class AdminCustomerSerializerTest(IamTestCase):
+    """Tests for the admin customer serializer."""
+
+    def test_schema_name_present(self):
+        """Test that the serializer contains schema_name."""
+        serializer = AdminCustomerSerializer(data=self.customer_data[0])
+        serializer.is_valid()
+        serializer.save()
+        expected_schema_name = _create_schema_name(serializer.data.get('name'))
+        schema_name = serializer.data.get('schema_name')
+        self.assertIsNotNone(schema_name)
+        self.assertEqual(schema_name, expected_schema_name)
 
 
 class UserSerializerTest(IamTestCase):

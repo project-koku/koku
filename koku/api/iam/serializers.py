@@ -80,6 +80,11 @@ def _create_user(username, email, password):
     return user
 
 
+def _create_schema_name(customer_name):
+    """Create a database schema name."""
+    return re.compile(r'[\W_]+').sub('', customer_name).lower()
+
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
 
@@ -130,8 +135,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         validated_data['owner_id'] = owner.id
         name = validated_data['name']
-        validated_data['schema_name'] = \
-            re.compile(r'[\W_]+').sub('', name).lower()
+        validated_data['schema_name'] = _create_schema_name(name)
         customer = Customer.objects.create(**validated_data)
         customer.user_set.add(owner)
         customer.save()
@@ -147,6 +151,16 @@ class CustomerSerializer(serializers.ModelSerializer):
     def get_users_for_group(group):
         """Get users that belong to a given authentication group."""
         return group.user_set.all()
+
+
+class AdminCustomerSerializer(CustomerSerializer):
+    """Serializer with admin specific fields."""
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = Customer
+        fields = ('uuid', 'name', 'owner', 'date_created', 'schema_name')
 
 
 class NestedUserSerializer(serializers.ModelSerializer):
