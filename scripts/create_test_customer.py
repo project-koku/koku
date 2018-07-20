@@ -20,13 +20,13 @@ class TestCustomer:
 class KokuCustomerOnboarder:
     """Uses the Koku API and SQL to create an onboarded customer."""
 
-    def __init__(self, conn, host, port):
+    def __init__(self, conn, host='localhost', port=80, admin='admin', password='pass'):
         self.conn = conn
         self.host = host
         self.port = port
         self.customer = TestCustomer()
         self.endpoint_base = f'http://{self.host}:{self.port}'
-        self.token = self.get_token('admin', 'pass')
+        self.token = self.get_token(admin, password)
         self.headers = {'Authorization': f'Token {self.token}'}
 
     def onboard(self):
@@ -36,9 +36,15 @@ class KokuCustomerOnboarder:
     def get_token(self, user_name, password):
         endpoint = self.endpoint_base + '/api/v1/token-auth/'
         data = {'username': user_name , 'password': password}
-        token = requests.post(endpoint, data=data).json().get('token')
-        print(f'Acquired token {token}')
-        return token
+
+        response = requests.post(endpoint, data=data)
+        if response.status_code == 200:
+            json_response = response.json()
+            token = json_response.get('token')
+            print(f'Acquired token {token}')
+            return token
+        else:
+            raise Exception(f'{response.status_code}: {response.reason}')
 
     def create_customer(self):
         endpoint = self.endpoint_base + '/api/v1/customers/'
@@ -92,20 +98,43 @@ class KokuCustomerOnboarder:
 
 
 if __name__ == '__main__':
+    default_api_host = os.getenv('KOKU_HOST', 'localhost')
+    default_api_port = os.getenv('KOKU_PORT', '80')
+    default_api_admin = os.getenv('KOKU_ADMIN', 'admin')
+    default_api_pass = os.getenv('KOKU_PASSWORD', 'pass')
+
+    default_db_host = os.getenv('POSTGRES_SQL_SERVICE_HOST', 'localhost')
+    default_db_port = os.getenv('POSTGRES_SQL_SERVICE_PORT', '15432')
+    default_db_name = os.getenv('DATABASE_NAME', 'koku')
+    default_db_user = os.getenv('DATABASE_USER', 'postgres')
+    default_db_pass = os.getenv('DATABASE_PASSWORD', '')
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('host')
-    parser.add_argument('port')
+
+    parser.add_argument('--api-host', dest='api_host', default=default_api_host)
+    parser.add_argument('--api-port', dest='api_port', default=default_api_port)
+    parser.add_argument('--api-admin', dest='api_admin', default=default_api_admin)
+    parser.add_argument('--api-password', dest='api_password', default=default_api_pass)
+
+    parser.add_argument('--db-host', dest='db_host', default=default_db_host)
+    parser.add_argument('--db-port', dest='db_port', default=default_db_port)
+    parser.add_argument('--db-database', dest='db_database', default=default_db_name)
+    parser.add_argument('--db-user', dest='db_user', default=default_db_user)
+    parser.add_argument('--db-password', dest='db_password', default=default_db_pass)
+
     args = vars(parser.parse_args())
+    print(f'ARGS: {args}')
 
-    db_name = os.getenv('DATABASE_NAME')
-    db_host = os.getenv('POSTGRES_SQL_SERVICE_HOST')
-    db_port = os.getenv('POSTGRES_SQL_SERVICE_PORT')
-    db_user = os.getenv('DATABASE_USER')
-    db_password = os.getenv('DATABASE_PASSWORD')
-    conn = psycopg2.connect(database=db_name, user=db_user,
-                            password=db_password, port=db_port, host=db_host)
+    db_args = {}
+    for key, value in args.items():
+        if key.startswith('db_'):
+            db_args[key[3:]] = value
 
-    onboarder = KokuCustomerOnboarder(conn, **args)
+    conn = psycopg2.connect(**db_args)
+    onboarder = KokuCustomerOnboarder(conn,
+                                      host=args.get('api_host'),
+                                      port=args.get('api_port'),
+                                      admin=args.get('api_admin'),
+                                      password=args.get('api_password'))
     onboarder.onboard()
-
     conn.close()
