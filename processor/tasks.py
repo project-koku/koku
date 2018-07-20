@@ -70,6 +70,7 @@ def get_report_files(customer_name,
         stats = ReportStatsDBAccessor(report_dict.get('file'))
         last_start = stats.get_last_started_datetime()
         last_end = stats.get_last_completed_datetime()
+        stats.close_session()
 
         # only queue up a processing job if there's none currently in-progress.
         if not last_start or not last_end or last_start < last_end:

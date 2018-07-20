@@ -222,6 +222,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             file_name, etag = self.download_file(report, stored_etag)
             stats_recorder.update(etag=etag)
             stats_recorder.commit()
+            stats_recorder.close_session()
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = self.report.get('Compression')
