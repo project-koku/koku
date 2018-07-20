@@ -62,3 +62,4 @@ def _process_report_file(schema_name, report_path, compression):
     stats_recorder.log_last_completed_datetime()
     stats_recorder.set_cursor_position(last_cursor_position)
     stats_recorder.commit()
+    stats_recorder.close_session()

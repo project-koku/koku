@@ -94,6 +94,7 @@ class ReportProcessor:
         # Gather database accessors
         self.report_common_db = ReportingCommonDBAccessor()
         self.column_map = self.report_common_db.column_map
+        self.report_common_db.close_session()
 
         self.report_db = ReportDBAccessor(schema=self._schema_name,
                                           column_map=self.column_map)

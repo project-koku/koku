@@ -51,4 +51,5 @@ class CURAccountsDB(CURAccountsInterface):
                 'provider_type': provider_accessor.get_type(),
                 'schema_name': provider_accessor.get_schema()
             })
+            provider_accessor.close_session()
         return accounts
