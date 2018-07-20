@@ -49,7 +49,6 @@ class CURAccountsDB(CURAccountsInterface):
                 'billing_source': provider_accessor.get_billing_source(),
                 'customer_name': provider_accessor.get_customer_name(),
                 'provider_type': provider_accessor.get_type(),
-                'schema_name': provider_accessor.get_schema(),
-                'provider_id': provider.id
+                'schema_name': provider_accessor.get_schema()
             })
         return accounts

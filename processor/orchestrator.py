@@ -82,6 +82,7 @@ class Orchestrator():
         """
         async_result = None
         for account in self._accounts:
+            LOG.info('Calling get_report_files with account: %s', account)
             async_result = get_report_files.delay(**account)
             LOG.info('Download queued - customer: %s, Task ID: %s',
                      account.get('customer_name'),
