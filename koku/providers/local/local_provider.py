@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Local services provider implementation to be used by Koku."""
+"""Local service provider implementation to be used by Koku."""
 import logging
 import os
 
 from django.utils.translation import ugettext as _
-from rest_framework import serializers   # meh
+from rest_framework import serializers
 
 from ..provider_interface import ProviderInterface
 
@@ -47,4 +47,5 @@ class LocalProvider(ProviderInterface):
             key = 'bucket'
             message = 'Bucket {} could not be found with {}.'.format(
                 storage_resource_name, credential_name)
+            LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))

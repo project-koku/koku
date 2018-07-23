@@ -42,7 +42,7 @@ class ProviderAccessorTestCase(TestCase):
         self.assertIsNotNone(interface.service)
 
     def test_establish_local_provider(self):
-        """Verify that a a local provider is created."""
+        """Verify that a local provider is created."""
         provider_name = 'Local'
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
