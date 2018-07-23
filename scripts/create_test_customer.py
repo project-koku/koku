@@ -7,14 +7,14 @@ import requests
 class TestCustomer:
     """Container for customer specific info."""
 
-    def __init__(self):
-        self.customer_name = 'Test Customer'
-        self.user_name = 'test_customer'
-        self.email = 'test@example.com'
-        self.password = 'str0ng!P@ss'
-        self.provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
-        self.bucket = 'test-bucket'
-        self.provider_name = 'Test Provider'
+     def __init__(self):
+         self.customer_name = 'Test Customer'
+         self.user_name = 'test_customer'
+         self.email = 'test@example.com'
+         self.password = 'str0ng!P@ss'
+         self.provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
+         self.bucket = 'test-bucket'
+         self.provider_name = 'Test Provider'
 
 
 class KokuCustomerOnboarder:

@@ -107,6 +107,7 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
                                  units_key,
                                  **kwargs)
     output = handler.execute_query()
+    LOG.debug(f'DATA: {output}')
     return Response(output)
 
 
@@ -124,9 +125,11 @@ def costs(request):
     @apiDescription Get cost data.
 
     @apiHeader {String} token User authorization token.
+    @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
             "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
+            "Accept": "text/csv;q=0.8, application/json"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -188,6 +191,15 @@ def costs(request):
                 ]
             ]
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,values.0.date,values.0.total,values.0.units
+        2018-07-16,2018-07-16,0.800000000,USD
+        2018-07-17,2018-07-17,0.768000000,USD
+        2018-07-18,2018-07-18,0.800000000,USD
+        2018-07-19,2018-07-19,0.768000000,USD
+        2018-07-20,2018-07-20,0.448000000,USD
+
     """
     return _generic_report(request, 'unblended_cost', 'currency_code')
 
@@ -206,9 +218,11 @@ def instance_type(request):
     @apiDescription Get inventory instance type data.
 
     @apiHeader {String} token User authorization token.
+    @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
             "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
+            "Accept": "text/csv;q=0.8, application/json"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -279,6 +293,14 @@ def instance_type(request):
                 "count": 4
             }
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,instance_types.0.instance_type,instance_types.0.values.0.count,instance_types.0.values.0.date,instance_types.0.values.0.instance_type,instance_types.0.values.0.total,instance_types.0.values.0.units,instance_types.1.instance_type,instance_types.1.values.0.count,instance_types.1.values.0.date,instance_types.1.values.0.instance_type,instance_types.1.values.0.total,instance_types.1.values.0.units
+        2018-07-15,t2.micro,0,2018-07-15,t2.micro,39.0,,t2.small,0,2018-07-15,t2.small,25.0,Hrs
+        2018-07-17,t2.micro,0,2018-07-17,t2.micro,25.0,,t2.small,0,2018-07-17,t2.small,24.0,Hrs
+        2018-07-18,t2.micro,0,2018-07-18,t2.micro,25.0,,t2.small,0,2018-07-18,t2.small,25.0,Hrs
+        2018-07-19,t2.micro,0,2018-07-19,t2.micro,25.0,,t2.small,0,2018-07-19,t2.small,24.0,Hrs
+
     """
     filter_scope = {'cost_entry_product__instance_type__isnull': False}
     annotations = {'instance_type':
@@ -405,6 +427,14 @@ def storage(request):
                 "units": "GB-Mo"
             }
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,values.0.date,values.0.total,values.0.units
+        2018-07-13,2018-07-13,1.6146062097,
+        2018-07-14,2018-07-14,1.3458355445,
+        2018-07-15,2018-07-15,1.7759989024,
+        2018-07-16,2018-07-16,1.6147669752,
+
     """
     filter_scope = {'cost_entry_product__product_family': 'Storage'}
     extras = {'filter': filter_scope}
