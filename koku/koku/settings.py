@@ -189,7 +189,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, '..', 'apidoc'),
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 INTERNAL_IPS = ['127.0.0.1']
 
