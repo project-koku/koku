@@ -7,14 +7,14 @@ import requests
 class TestCustomer:
     """Container for customer specific info."""
 
-     def __init__(self):
-         self.customer_name = 'Test Customer'
-         self.user_name = 'test_customer'
-         self.email = 'test@example.com'
-         self.password = 'str0ng!P@ss'
-         self.provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
-         self.bucket = 'test-bucket'
-         self.provider_name = 'Test Provider'
+    def __init__(self):
+        self.customer_name = 'Test Customer'
+        self.user_name = 'test_customer'
+        self.email = 'test@example.com'
+        self.password = 'str0ng!P@ss'
+        self.provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
+        self.bucket = 'test-bucket'
+        self.provider_name = 'Test Provider'
 
 
 class KokuCustomerOnboarder:
@@ -99,7 +99,7 @@ class KokuCustomerOnboarder:
 
 if __name__ == '__main__':
     default_api_host = os.getenv('KOKU_HOST', 'localhost')
-    default_api_port = os.getenv('KOKU_PORT', '80')
+    default_api_port = os.getenv('KOKU_PORT', '8000')
     default_api_admin = os.getenv('KOKU_ADMIN', 'admin')
     default_api_pass = os.getenv('KOKU_PASSWORD', 'pass')
 
