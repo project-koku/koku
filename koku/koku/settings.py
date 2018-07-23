@@ -258,6 +258,18 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'providers': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
+        'reporting': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
+        'reporting_common': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
     },
 }
 
@@ -271,3 +283,5 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 
 # SECURITY WARNING: Replace this with proper origins once UI is deployed in insights
 CORS_ORIGIN_ALLOW_ALL = DEBUG
+
+APPEND_SLASH = False

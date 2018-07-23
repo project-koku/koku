@@ -25,7 +25,7 @@ from api.status.models import Status
 from api.status.serializers import StatusSerializer
 
 
-@api_view(['GET'])
+@api_view(['GET', 'HEAD'])
 @permission_classes((permissions.AllowAny,))
 def status(request):
     """Provide the server status information.

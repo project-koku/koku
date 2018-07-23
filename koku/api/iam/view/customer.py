@@ -59,7 +59,7 @@ class CustomerViewSet(mixins.CreateModelMixin,
 
     lookup_field = 'uuid'
     queryset = models.Customer.objects.all()
-    serializer_class = serializers.CustomerSerializer
+    serializer_class = serializers.AdminCustomerSerializer
     authentication_classes = (TokenAuthentication,
                               SessionAuthentication)
     permission_classes = (IsAdminUser,)

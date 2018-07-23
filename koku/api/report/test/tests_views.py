@@ -55,9 +55,16 @@ class ReportViewTest(IamTestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, 403)
 
-    def test_get_inventory_anon(self):
-        """Test inventory reports fail with an anonymous user."""
-        url = reverse('reports-inventory')
+    def test_get_storage_anon(self):
+        """Test inventory storage reports fail with an anonymous user."""
+        url = reverse('reports-storage')
+        client = APIClient()
+        response = client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_get_instance_anon(self):
+        """Test inventory instance reports fail with an anonymous user."""
+        url = reverse('reports-instance-type')
         client = APIClient()
         response = client.get(url)
         self.assertEqual(response.status_code, 403)
@@ -75,16 +82,31 @@ class ReportViewTest(IamTestCase):
         self.assertIsInstance(json_result.get('data'), list)
         self.assertTrue(len(json_result.get('data')) > 0)
 
-    def test_get_inventory_customer_owner(self):
-        """Test inventory reports runs with a customer owner."""
+    def test_get_instance_customer_owner(self):
+        """Test inventory instance reports runs with a customer owner."""
         token = self.get_customer_owner_token(self.customer_data[0])
-        url = reverse('reports-inventory')
+        url = reverse('reports-instance-type')
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
-        self.assertEqual(json_result.get('data'), [])
+        self.assertIsNotNone(json_result.get('data'))
+        self.assertIsInstance(json_result.get('data'), list)
+        self.assertTrue(len(json_result.get('data')) > 0)
+
+    def test_get_storage_customer_owner(self):
+        """Test inventory storage reports runs with a customer owner."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        url = reverse('reports-storage')
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('data'))
+        self.assertIsInstance(json_result.get('data'), list)
+        self.assertTrue(len(json_result.get('data')) > 0)
 
     def test_process_query_parameters(self):
         """Test processing of valid parameters."""
@@ -110,11 +132,21 @@ class ReportViewTest(IamTestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, 400)
 
-    def test_get_inventory_invalid_query_param(self):
-        """Test inventory reports runs with an invalid query param."""
+    def test_get_instance_usage_invalid_query_param(self):
+        """Test instance usage reports runs with an invalid query param."""
         token = self.get_customer_owner_token(self.customer_data[0])
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-inventory') + '?' + qs
+        url = reverse('reports-instance-type') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+    def test_get_storage_usage_invalid_query_param(self):
+        """Test storage usage reports runs with an invalid query param."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
+        url = reverse('reports-storage') + '?' + qs
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=token)
         response = client.get(url)

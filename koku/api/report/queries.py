@@ -19,7 +19,7 @@ import copy
 import datetime
 from itertools import groupby
 
-from django.db.models import Sum, Value
+from django.db.models import Count, Sum, Value
 from django.db.models.functions import Concat, TruncDay, TruncMonth
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
@@ -52,7 +52,7 @@ class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
     def __init__(self, query_parameters, url_data,
-                 tenant, aggregate_key, units_key):
+                 tenant, aggregate_key, units_key, **kwargs):
         """Establish report query handler.
 
         Args:
@@ -61,12 +61,17 @@ class ReportQueryHandler(object):
             tenant    (String): the tenant to use to access CUR data
             aggregate_key   (String): the key to aggregate on
             units_key   (String): the key defining the units
+            kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         self.query_parameters = query_parameters
         self.url_data = url_data
         self.tenant = tenant
         self.aggregate_key = aggregate_key
         self.units_key = units_key
+        self._filter = None
+        self._group_by = None
+        self._annotations = None
+        self._count = None
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -74,6 +79,16 @@ class ReportQueryHandler(object):
         self.end_datetime = None
         self.time_interval = []
         self._get_timeframe()
+
+        if kwargs:
+            if 'filter' in kwargs:
+                self._filter = kwargs.get('filter')
+            if 'group_by' in kwargs:
+                self._group_by = kwargs.get('group_by')
+            if 'annotations' in kwargs:
+                self._annotations = kwargs.get('annotations')
+            if 'count' in kwargs:
+                self._count = kwargs.get('count')
 
     @staticmethod
     def next_month(in_date):
@@ -337,6 +352,9 @@ class ReportQueryHandler(object):
             'usage_start__gte': self.start_datetime,
             'usage_end__lte': self.end_datetime,
         }
+        if self._filter:
+            filter_dict.update(self._filter)
+
         service = self.get_group_by_data('service')
         account = self.get_group_by_data('account')
         if not ReportQueryHandler.has_wildcard(service) and service:
@@ -359,6 +377,8 @@ class ReportQueryHandler(object):
 
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
+        if self._group_by:
+            group_by += self._group_by
         return group_by
 
     def _get_annotations(self):
@@ -372,6 +392,8 @@ class ReportQueryHandler(object):
             'date': self.date_trunc('usage_start'),
             'units': Concat(self.units_key, Value(''))
         }
+        if self._annotations:
+            annotations.update(self._annotations)
         service = self.get_group_by_data('service')
         account = self.get_group_by_data('account')
         if service:
@@ -489,18 +511,29 @@ class ReportQueryHandler(object):
             query_annotations = self._get_annotations()
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
-
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
-            query_data = query_data.values(*query_group_by_with_units).annotate(
-                total=Sum(self.aggregate_key)).order_by('-date', '-total')
+            query_data = query_data.values(*query_group_by_with_units)\
+                .annotate(total=Sum(self.aggregate_key))
 
+            if self._count:
+                query_data = query_data.annotate(
+                    count=Count(self._count, distinct=True)
+                )
+
+            query_data = query_data.order_by('-date', '-total')
             data = self._apply_group_by(list(query_data))
             data = self._transform_data(query_group_by, 0, data)
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = query.aggregate(value=Sum(self.aggregate_key))
+                if self._count:
+                    query_sum = query.aggregate(
+                        value=Sum(self.aggregate_key),
+                        count=Count(self._count, distinct=True)
+                    )
+                else:
+                    query_sum = query.aggregate(value=Sum(self.aggregate_key))
                 query_sum['units'] = units_value
 
         self.query_sum = query_sum

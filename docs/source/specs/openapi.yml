@@ -25,7 +25,7 @@ tags:
 schemes:
 - 'http'
 paths:
-  /status:
+  /status/:
     get:
       tags:
         - Status
@@ -72,7 +72,7 @@ paths:
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
-  /customers:
+  /customers/:
     post:
       tags:
         - Customer
@@ -122,7 +122,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /customers/{uuid}:
+  /customers/{uuid}/:
     get:
       tags:
         - Customer
@@ -183,7 +183,7 @@ paths:
       - api_key: []
 
 
-  /users:
+  /users/:
     post:
       tags:
         - User
@@ -233,7 +233,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /users/{uuid}:
+  /users/{uuid}/:
     get:
       tags:
         - User
@@ -292,7 +292,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /users/{uuid}/preferences:
+  /users/{uuid}/preferences/:
     post:
       tags:
         - UserPreference
@@ -355,7 +355,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /users/{user_uuid}/preferences/{pref_uuid}:
+  /users/{user_uuid}/preferences/{pref_uuid}/:
     get:
       tags:
         - UserPreference
@@ -471,7 +471,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /users/{uuid}/reset-password:
+  /users/{uuid}/reset-password/:
     put:
       tags:
         - User
@@ -609,7 +609,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /providers/{uuid}:
+  /providers/{uuid}/:
     get:
       tags:
         - Provider
@@ -641,7 +641,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/costs:
+  /reports/costs/:
     get:
       tags:
         - Report
@@ -675,12 +675,12 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/inventory:
+  /reports/inventory/instance-type/:
     get:
       tags:
         - Report
-      summary: Query to obtain inventory reports
-      operationId: getInventoryReports
+      summary: Query to obtain inventory instance type data
+      operationId: getInventoryInstanceReports
       produces:
       - 'application/json'
       parameters:
@@ -700,7 +700,41 @@ paths:
         200:
           description: A report object
           schema:
-            $ref: '#/definitions/ReportInventory'
+            $ref: '#/definitions/ReportInstanceInventory'
+        401:
+          description: Unauthorized
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+  /reports/inventory/storage/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain inventory storage data
+      operationId: getInventoryStorageReports
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      responses:
+        200:
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportStorageInventory'
         401:
           description: Unauthorized
         500:
@@ -981,8 +1015,38 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'date': '2018-05-28', 'accounts': [{'account': 'accountA', 'values': [ {'date': '2018-05-28', 'account': 'accountA', 'units': 'USD', 'total': 33.79}]},{'account': 'accountB', 'values': [ {'date': '2018-05-28', 'account': 'accountB', 'units': 'USD', 'total': 28.44}]}]}]
-  ReportInventory:
+          example: [
+                [
+                {
+                    'date': '2018-05-28',
+                    'accounts': [
+                        {
+                            'account': '8577742690384',
+                            'values': [
+                                {
+                                    'date': '2018-05-28',
+                                    'units': 'USD',
+                                    'account': '8577742690384',
+                                    'total': 1498.92962634
+                                }
+                            ]
+                        },
+                        {
+                            'account': '9420673783214',
+                            'values': [
+                                {
+                                    'date': '2018-05-28',
+                                    'units': 'USD',
+                                    'account': '9420673783214',
+                                    'total': 1065.845524241
+                                }
+                            ]
+                        }
+                    ]
+                }
+                ]
+            ]
+  ReportInstanceInventory:
     allOf:
       - $ref: '#/definitions/Report'
       - required:
@@ -992,7 +1056,111 @@ definitions:
         type: array
         items:
           type: object
-          example: [{'date': '2018-05-28', 'instance_types': [{'instance_type': 't2.medium', 'values': [ {'date': '2018-05-28', 'instance_type': 't2.medium', 'units': 'hrs', 'total': 5}]},{'instance_type': 'm5.2xlarge', 'values': [ {'date': '2018-05-28', 'instance_type': 'm5.2xlarge', 'units': 'hrs', 'total': 29}]}]}]
+          example: [
+                [
+                {
+                    'date': '2018-05-28',
+                    'instance_types': [
+                        {
+                            'instance_type': 't2.medium',
+                            'values': [
+                                {
+                                    'date': '2018-05-28',
+                                    'units': 'Hrs',
+                                    'instance_type': 't2.medium',
+                                    'total': 5
+                                }
+                            ]
+                        },
+                        {
+                            'instance_type': 'm5.2xlarge',
+                            'values': [
+                                {
+                                    'date': '2018-05-28',
+                                    'units': 'Hrs',
+                                    'instance_type': 'm5.2xlarge',
+                                    'total': 29
+                                }
+                            ]
+                        }
+                    ]
+                }
+                ]
+            ]
+  ReportStorageInventory:
+    allOf:
+      - $ref: '#/definitions/Report'
+      - required:
+          - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                [
+                {
+                    'date': '2018-07',
+                    'accounts': [
+                        {
+                            'account': '4418636104713',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '4418636104713',
+                                    'total': 1826.74238146924
+                                }
+                            ]
+                        },
+                        {
+                            'account': '8577742690384',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '8577742690384',
+                                    'total': 1137.74036198065
+                                }
+                            ]
+                        },
+                        {
+                            'account': '3474227945050',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '3474227945050',
+                                    'total': 1045.80659412797
+                                }
+                            ]
+                        },
+                        {
+                            'account': '7249815104968',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '7249815104968',
+                                    'total': 807.326470618818
+                                }
+                            ]
+                        },
+                        {
+                            'account': '9420673783214',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '9420673783214',
+                                    'total': 658.306642830709
+                                }
+                            ]
+                        }
+                    ]
+                }
+                ]
+            ]
   Status:
     required:
       - api_version
@@ -1078,7 +1246,7 @@ definitions:
       preference:
         type: object
         format: json
-        example: '{''timezone'': ''UTC''}'
+        example: {'timezone': 'UTC'}
       description:
         type: string
         example: my long preference description
@@ -1124,7 +1292,7 @@ definitions:
       preference:
         type: object
         format: json
-        example: '{"currency": "USD"}'
+        example: {'currency': 'USD'}
       description:
         type: string
         example: my long preference description
