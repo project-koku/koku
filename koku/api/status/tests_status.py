@@ -16,6 +16,7 @@
 #
 """Test the status API."""
 
+import logging
 from collections import namedtuple
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
@@ -28,6 +29,18 @@ from api.status.models import Status
 
 class StatusModelTest(TestCase):
     """Tests against the status functions."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Test Class setup."""
+        # remove filters on logging
+        logging.disable(logging.NOTSET)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Test Class teardown."""
+        # restore filters on logging
+        logging.disable(logging.CRITICAL)
 
     def setUp(self):
         """Create test case setup."""
