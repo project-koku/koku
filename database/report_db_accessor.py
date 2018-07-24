@@ -20,6 +20,7 @@ import logging
 from decimal import Decimal
 
 import psycopg2
+from sqlalchemy.dialects.postgresql import insert
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -82,7 +83,8 @@ class ReportDBAccessor(KokuDBAccess):
         self.report_schema = ReportSchema(self.get_base().classes,
                                           self.column_map)
         self.session = self.get_session()
-        self._conn = self._get_psycopg2_connection()
+        self._conn = self._db.connect()
+        self._pg2_conn = self._get_psycopg2_connection()
         self._cursor = self._get_psycopg2_cursor()
 
     # pylint: disable=no-self-use
@@ -92,7 +94,7 @@ class ReportDBAccessor(KokuDBAccess):
 
     def _get_psycopg2_cursor(self):
         """Get a cursor for the low level database connection."""
-        cursor = self._conn.cursor()
+        cursor = self._pg2_conn.cursor()
         cursor.execute(f'SET search_path TO {self.schema}')
         return cursor
 
@@ -115,19 +117,20 @@ class ReportDBAccessor(KokuDBAccess):
             columns=columns,
             null=null
         )
-        self._conn.commit()
+        self._pg2_conn.commit()
 
-    def close_psycopg2_connection(self, conn=None):
+    def close_connections(self, conn=None):
         """Close the low level database connection.
 
         Args:
             conn (psycopg2.extensions.connection) An optional connection.
-                If none is supplied the class's connection is used.
+                If none is supplied the class's connections are used.
 
         """
         if conn:
             conn.close()
         else:
+            self._pg2_conn.close()
             self._conn.close()
 
     # pylint: disable=arguments-differ
@@ -167,6 +170,42 @@ class ReportDBAccessor(KokuDBAccess):
         data = self.clean_data(data, table_name)
 
         return Table(**data)
+
+    def insert_on_conflict_do_nothing(self,
+                                      table_name,
+                                      data,
+                                      columns=None):
+        """Write an INSERT statement with an ON CONFLICT clause.
+
+        This is useful to avoid duplicate row inserts. Intended for
+        singl row inserts.
+
+        Args:
+            table_name (str): The name of the table to create
+            data (dict): A dictionary of data to insert into the object
+            columns (list): A list of columns to check conflict on
+
+        Returns:
+            (str): The insert statement to be executed
+
+        """
+        data = self.clean_data(data, table_name)
+        table = getattr(self.report_schema, table_name)
+        statement = insert(table).values(**data)
+
+        result = self._conn.execute(
+            statement.on_conflict_do_nothing(index_elements=columns)
+        )
+        if result.inserted_primary_key:
+            return result.inserted_primary_key[0]
+
+        return self._get_primary_key(table_name, data)
+
+    def _get_primary_key(self, table_name, data):
+        """Return the row id for a specific object."""
+        query = self._get_db_obj_query(table_name)
+        query = query.filter_by(**data)
+        return query.first().id
 
     def commit_db_object(self, table):
         """Commit a table row to the database.
@@ -235,13 +274,16 @@ class ReportDBAccessor(KokuDBAccess):
             value = None
         return value
 
-    def get_current_cost_entry_bill(self):
+    def get_current_cost_entry_bill(self, bill_id=None):
         """Get the most recent cost entry bill object."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         billing_start = getattr(
             getattr(self.report_schema, table_name),
             'billing_period_start'
         )
+        if bill_id is not None:
+            return self._get_db_obj_query(table_name).filter(id=bill_id).first()
+
         return self._get_db_obj_query(table_name)\
             .order_by(billing_start.desc())\
             .first()

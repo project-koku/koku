@@ -26,6 +26,7 @@ from itertools import islice
 from os import path
 
 from masu.config import Config
+from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
@@ -44,7 +45,7 @@ class ProcessedReport:
 
     def __init__(self):
         """Initialize new cost entry containers."""
-        self.bill = None
+        self.bill_id = None
         self.cost_entries = {}
         self.line_items = []
         self.products = {}
@@ -153,8 +154,7 @@ class ReportProcessor:
             if self.processed_report.line_items:
                 self._save_to_db()
                 row_count += len(self.processed_report.line_items)
-            self.report_db.close_psycopg2_connection()
-            self.report_db.close_session()
+            self.report_db.close_connections()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
@@ -188,7 +188,7 @@ class ReportProcessor:
 
         self.report_db.bulk_insert_rows(
             csv_file,
-            self.report_schema.reporting_awscostentrylineitem.__name__,
+            AWS_CUR_TABLE_MAP['line_item'],
             columns)
 
     def _update_mappings(self):
@@ -287,6 +287,7 @@ class ReportProcessor:
             (str): A cost entry bill object id
 
         """
+        table_name = AWS_CUR_TABLE_MAP['bill']
         start_date = row.get('bill/BillingPeriodStartDate')
 
         current_start = None
@@ -296,18 +297,18 @@ class ReportProcessor:
             )
 
         if current_start is not None and start_date == current_start:
-            self.processed_report.bill = self.current_bill
+            self.processed_report.bill_id = self.current_bill.id
             return self.current_bill.id
 
-        data = self._get_data_for_table(row, 'reporting_awscostentrybill')
-        bill = self.report_db.create_db_object(
-            'reporting_awscostentrybill',
+        data = self._get_data_for_table(row, table_name)
+
+        bill_id = self.report_db.insert_on_conflict_do_nothing(
+            table_name,
             data
         )
-        self.processed_report.bill = bill
-        self.report_db.commit_db_object(bill)
+        self.processed_report.bill_id = bill_id
 
-        return bill.id
+        return bill_id
 
     def _create_cost_entry(self, row, bill_id):
         """Create a cost entry object.
@@ -320,6 +321,7 @@ class ReportProcessor:
             (str): The DB id of the cost entry object
 
         """
+        table_name = AWS_CUR_TABLE_MAP['cost_entry']
         interval = row.get('identity/TimeInterval')
         start, end = self._get_cost_entry_time_interval(interval)
 
@@ -328,18 +330,19 @@ class ReportProcessor:
         elif start in self.existing_cost_entry_map:
             return self.existing_cost_entry_map[start]
 
-        cost_entry = self.report_db.create_db_object(
-            'reporting_awscostentry',
-            {}
+        data = {
+            'bill_id': bill_id,
+            'interval_start': start,
+            'interval_end': end
+        }
+
+        cost_entry_id = self.report_db.insert_on_conflict_do_nothing(
+            table_name,
+            data
         )
-        cost_entry.bill_id = bill_id
-        cost_entry.interval_start = start
-        cost_entry.interval_end = end
+        self.processed_report.cost_entries[start] = cost_entry_id
 
-        self.report_db.flush_db_object(cost_entry)
-        self.processed_report.cost_entries[start] = cost_entry.id
-
-        return cost_entry.id
+        return cost_entry_id
 
     # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(self,
@@ -363,10 +366,11 @@ class ReportProcessor:
             (None)
 
         """
-        data = self._get_data_for_table(row, 'reporting_awscostentrylineitem')
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        data = self._get_data_for_table(row, table_name)
         data = self.report_db.clean_data(
             data,
-            'reporting_awscostentrylineitem'
+            table_name
         )
 
         data['tags'] = self._process_tags(row)
@@ -388,6 +392,7 @@ class ReportProcessor:
             (str): The DB id of the pricing object
 
         """
+        table_name = AWS_CUR_TABLE_MAP['pricing']
         key = '{cost}-{rate}-{term}-{unit}'.format(
             cost=row['pricing/publicOnDemandCost'],
             rate=row['pricing/publicOnDemandRate'],
@@ -402,19 +407,19 @@ class ReportProcessor:
 
         data = self._get_data_for_table(
             row,
-            'reporting_awscostentrypricing'
+            table_name
         )
         value_set = set(data.values())
         if value_set == {''}:
             return
-        pricing = self.report_db.create_db_object(
-            'reporting_awscostentrypricing',
+
+        pricing_id = self.report_db.insert_on_conflict_do_nothing(
+            table_name,
             data
         )
-        self.report_db.flush_db_object(pricing)
-        self.processed_report.pricing[key] = pricing.id
+        self.processed_report.pricing[key] = pricing_id
 
-        return pricing.id
+        return pricing_id
 
     def _create_cost_entry_product(self, row):
         """Create a cost entry product object.
@@ -426,6 +431,7 @@ class ReportProcessor:
             (str): The DB id of the product object
 
         """
+        table_name = AWS_CUR_TABLE_MAP['product']
         sku = row.get('product/sku')
 
         if sku in self.processed_report.products:
@@ -435,19 +441,20 @@ class ReportProcessor:
 
         data = self._get_data_for_table(
             row,
-            'reporting_awscostentryproduct'
+            table_name
         )
         value_set = set(data.values())
         if value_set == {''}:
             return
-        product = self.report_db.create_db_object(
-            'reporting_awscostentryproduct',
-            data
-        )
-        self.report_db.flush_db_object(product)
-        self.processed_report.products[sku] = product.id
 
-        return product.id
+        product_id = self.report_db.insert_on_conflict_do_nothing(
+            table_name,
+            data,
+            columns=['sku']
+        )
+        self.processed_report.products[sku] = product_id
+
+        return product_id
 
     def _create_cost_entry_reservation(self, row):
         """Create a cost entry reservation object.
@@ -459,6 +466,7 @@ class ReportProcessor:
             (str): The DB id of the reservation object
 
         """
+        table_name = AWS_CUR_TABLE_MAP['reservation']
         arn = row.get('reservation/ReservationARN')
 
         if arn in self.processed_report.reservations:
@@ -468,17 +476,16 @@ class ReportProcessor:
 
         data = self._get_data_for_table(
             row,
-            'reporting_awscostentryreservation'
+            table_name
         )
         value_set = set(data.values())
         if value_set == {''}:
             return
 
-        reservation = self.report_db.create_db_object(
-            'reporting_awscostentryreservation',
+        reservation_id = self.report_db.insert_on_conflict_do_nothing(
+            table_name,
             data
         )
-        self.report_db.flush_db_object(reservation)
-        self.processed_report.reservations[arn] = reservation.id
+        self.processed_report.reservations[arn] = reservation_id
 
-        return reservation.id
+        return reservation_id
