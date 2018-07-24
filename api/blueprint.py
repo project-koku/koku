@@ -15,23 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for temporary force download endpoint."""
+"""Blueprint register for APIs."""
 
-import logging
+from flask import Blueprint
 
-from flask import jsonify
+from masu.api.download import API_V1_ROUTES as download_routes_v1
+from masu.api.notification import API_V1_ROUTES as notification_routes_v1
+from masu.api.status import API_V1_ROUTES as status_routes_v1
+from masu.util.blueprint import add_routes_to_blueprint
 
-from masu.processor.orchestrator import Orchestrator
-from masu.util.blueprint import application_route
+# pylint: disable=invalid-name
+api_v1 = Blueprint('api', __name__, url_prefix='/api/v1')
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-API_V1_ROUTES = {}
-
-
-@application_route('/download/', API_V1_ROUTES, methods=('GET',))
-def download_report():
-    """Return download file async task ID."""
-    orchestrator = Orchestrator()
-    async_download_result = orchestrator.prepare()
-    return jsonify({'Download Request Task ID': str(async_download_result)})
+add_routes_to_blueprint(api_v1, status_routes_v1)
+add_routes_to_blueprint(api_v1, download_routes_v1)
+add_routes_to_blueprint(api_v1, notification_routes_v1)
