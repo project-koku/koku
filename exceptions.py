@@ -33,3 +33,9 @@ class MasuConfigurationError(Exception):
     """Masu Configuration Error."""
 
     pass
+
+
+class CURAccountsInterfaceError(Exception):
+    """CURAccountsInterface error."""
+
+    pass

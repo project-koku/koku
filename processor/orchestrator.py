@@ -18,7 +18,7 @@
 
 import logging
 
-from masu.external.accounts_accessor import AccountsAccessor
+from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.processor.tasks import get_report_files
 
 LOG = logging.getLogger(__name__)
@@ -62,7 +62,12 @@ class Orchestrator():
             [CostUsageReportAccount]
 
         """
-        all_accounts = AccountsAccessor().get_accounts()
+        all_accounts = []
+        try:
+            all_accounts = AccountsAccessor().get_accounts()
+        except AccountsAccessorError as error:
+            LOG.error('Unable to get accounts. Error: %s', str(error))
+
         if billing_source:
             for account in all_accounts:
                 if billing_source == account.get('billing_source'):
