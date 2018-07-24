@@ -24,6 +24,7 @@ import io
 from faker import Faker
 
 from masu.config import Config
+from masu.database import AWS_CUR_TABLE_MAP
 
 
 class ReportObjectCreator:
@@ -38,8 +39,8 @@ class ReportObjectCreator:
 
     def create_cost_entry(self, bill_id):
         """Create a cost entry database object for test."""
-        table = 'reporting_awscostentry'
-        row = self.db_accessor.create_db_object(table, {})
+        table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        row = self.db_accessor.create_db_object(table_name, {})
         row.interval_start = self.stringify_datetime(self.fake.past_datetime())
         row.interval_end = self.stringify_datetime(self.fake.past_datetime())
         row.bill_id = bill_id
@@ -50,9 +51,9 @@ class ReportObjectCreator:
 
     def create_cost_entry_bill(self):
         """Create a cost entry bill database object for test."""
-        table = 'reporting_awscostentrybill'
-        data = self.create_columns_for_table(table)
-        row = self.db_accessor.create_db_object(table, data)
+        table_name = AWS_CUR_TABLE_MAP['bill']
+        data = self.create_columns_for_table(table_name)
+        row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor.flush_db_object(row)
 
@@ -61,9 +62,9 @@ class ReportObjectCreator:
 
     def create_cost_entry_pricing(self):
         """Create a cost entry pricing database object for test."""
-        table = 'reporting_awscostentrypricing'
-        data = self.create_columns_for_table(table)
-        row = self.db_accessor.create_db_object(table, data)
+        table_name = AWS_CUR_TABLE_MAP['pricing']
+        data = self.create_columns_for_table(table_name)
+        row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor.flush_db_object(row)
 
@@ -71,9 +72,9 @@ class ReportObjectCreator:
 
     def create_cost_entry_product(self):
         """Create a cost entry product database object for test."""
-        table = 'reporting_awscostentryproduct'
-        data = self.create_columns_for_table(table)
-        row = self.db_accessor.create_db_object(table, data)
+        table_name = AWS_CUR_TABLE_MAP['product']
+        data = self.create_columns_for_table(table_name)
+        row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor.flush_db_object(row)
 
@@ -81,9 +82,9 @@ class ReportObjectCreator:
 
     def create_cost_entry_reservation(self):
         """Create a cost entry reservation database object for test."""
-        table = 'reporting_awscostentryreservation'
-        data = self.create_columns_for_table(table)
-        row = self.db_accessor.create_db_object(table, data)
+        table_name = AWS_CUR_TABLE_MAP['reservation']
+        data = self.create_columns_for_table(table_name)
+        row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor.flush_db_object(row)
 
@@ -96,10 +97,10 @@ class ReportObjectCreator:
                                     pricing_id,
                                     reservation_id):
         """Create a cost entry line item database object for test."""
-        table = 'reporting_awscostentrylineitem'
-        data = self.create_columns_for_table(table)
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        data = self.create_columns_for_table(table_name)
 
-        row = self.db_accessor.create_db_object(table, data)
+        row = self.db_accessor.create_db_object(table_name, data)
         row.cost_entry_bill_id = bill_id
         row.cost_entry_id = cost_entry_id
         row.cost_entry_product_id = product_id

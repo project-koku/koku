@@ -161,21 +161,23 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertIsInstance(cursor, psycopg2.extensions.cursor)
 
 
-    def test_close_psycopg2_connection_with_arg(self):
+    def test_close_connections_with_arg(self):
         """Test that the passed in psycopg2 connection is closed."""
         conn = self.accessor._get_psycopg2_connection()
 
-        self.accessor.close_psycopg2_connection(conn)
+        self.accessor.close_connections(conn)
 
         self.assertTrue(conn.closed)
 
-    def test_close_psycopg2_connection_default(self):
+    def test_close_connections_default(self):
         """Test that the accessor's psycopg2 connection is closed."""
-        self.accessor.close_psycopg2_connection()
+        self.accessor.close_connections()
 
         self.assertTrue(self.accessor._conn.closed)
+        self.assertTrue(self.accessor._pg2_conn.closed)
         # Return the accessor's connection to its open state
-        self.accessor._conn = self.accessor._get_psycopg2_connection()
+        self.accessor._conn = self.accessor._db.connect()
+        self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
 
     def test_get_db_obj_query_default(self):
         """Test that a query is returned."""
@@ -253,6 +255,61 @@ class ReportDBAccessorTest(MasuTestCase):
 
         for column, value in data.items():
             self.assertEqual(getattr(row, column), value)
+
+    def test_insert_on_conflict_do_nothing_with_conflict(self):
+        """Test that an INSERT succeeds ignoring the conflicting row."""
+        table_name = AWS_CUR_TABLE_MAP['product']
+        data = self.creator.create_columns_for_table(table_name)
+        query = self.accessor._get_db_obj_query(table_name)
+
+        initial_count = query.count()
+
+        row_id = self.accessor.insert_on_conflict_do_nothing(table_name, data)
+
+        insert_count = query.count()
+
+        self.assertEqual(insert_count, initial_count + 1)
+
+        row_id_2 = self.accessor.insert_on_conflict_do_nothing(
+            table_name,
+            data
+        )
+
+        self.assertEqual(insert_count, query.count())
+        self.assertEqual(row_id, row_id_2)
+
+
+    def test_insert_on_conflict_do_nothing_without_conflict(self):
+        """Test that an INSERT succeeds inserting all non-conflicting rows."""
+        table_name = random.choice(self.foreign_key_tables)
+        data = [
+            self.creator.create_columns_for_table(table_name),
+            self.creator.create_columns_for_table(table_name)
+        ]
+        query = self.accessor._get_db_obj_query(table_name)
+
+        previous_count = query.count()
+        previous_row_id = None
+        for entry in data:
+            row_id = self.accessor.insert_on_conflict_do_nothing(table_name, entry)
+            count = query.count()
+
+            self.assertEqual(count, previous_count + 1)
+            self.assertNotEqual(row_id, previous_row_id)
+
+            previous_count = count
+            previous_row_id = row_id
+
+    def test_get_primary_key(self):
+        """Test that a primary key is returned."""
+        table_name = random.choice(self.foreign_key_tables)
+        data = self.creator.create_columns_for_table(table_name)
+        table = self.accessor.create_db_object(table_name, data)
+        self.accessor.commit_db_object(table)
+
+        p_key = self.accessor._get_primary_key(table_name, data)
+
+        self.assertIsNotNone(p_key)
 
     def test_commit_db_object(self):
         """Test that a database object is committed to the database."""
