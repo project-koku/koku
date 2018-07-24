@@ -20,38 +20,36 @@
 import logging
 
 from flask import request
-from flask.views import View
 
 from masu.external.notification_handler import (NotificationHandler,
                                                 NotificationHandlerError,
                                                 NotificationHandlerFilter)
 from masu.processor.orchestrator import Orchestrator
+from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+API_V1_ROUTES = {}
 
-class NotificationView(View):
-    """A view that handles report update notifications."""
 
-    methods = ['POST']
+@application_route('/notification/', API_V1_ROUTES, methods=('POST',))
+def post_notification():
+    """Packages response for class-based view."""
+    header_list = request.headers.to_wsgi_list()
+    body = request.data.decode('utf-8')
+    logger.debug('Received Header: %s', str(request.headers))
+    logger.debug('Received Body: %s', str(body))
+    notified_billing_source = None
+    try:
+        handler = NotificationHandler(header_list, body)
+        notified_billing_source = handler.billing_source()
+    except NotificationHandlerError as error:
+        logger.error(str(error))
+    except NotificationHandlerFilter as info:
+        logger.info(str(info))
 
-    def dispatch_request(self):
-        """Packages response for class-based view."""
-        header_list = request.headers.to_wsgi_list()
-        body = request.data.decode('utf-8')
-        logger.debug('Received Header: %s', str(request.headers))
-        logger.debug('Received Body: %s', str(body))
-        notified_billing_source = None
-        try:
-            handler = NotificationHandler(header_list, body)
-            notified_billing_source = handler.billing_source()
-        except NotificationHandlerError as error:
-            logger.error(str(error))
-        except NotificationHandlerFilter as info:
-            logger.info(str(info))
+    if notified_billing_source:
+        orchestrator = Orchestrator(notified_billing_source)
+        orchestrator.prepare()
 
-        if notified_billing_source:
-            orchestrator = Orchestrator(notified_billing_source)
-            orchestrator.prepare()
-
-        return ('', 204)
+    return ('', 204)
