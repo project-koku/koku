@@ -16,8 +16,10 @@
 #
 """Provider external interface for koku to consume."""
 
-
+from masu.config import Config
+from masu.exceptions import CURAccountsInterfaceError
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
+from masu.external.accounts.network.cur_accounts_network import CURAccountsNetwork
 
 
 class AccountsAccessorError(Exception):
@@ -30,9 +32,9 @@ class AccountsAccessorError(Exception):
 class AccountsAccessor:
     """Interface for masu to use to get CUR accounts."""
 
-    def __init__(self, source_type='db'):
+    def __init__(self, source_type=Config.ACCOUNT_ACCESS_TYPE):
         """Set the CUR accounts external source."""
-        self.source_type = source_type
+        self.source_type = source_type.lower()
         self.source = self._set_source()
         if not self.source:
             raise AccountsAccessorError('Invalid source type specified.')
@@ -52,6 +54,8 @@ class AccountsAccessor:
         """
         if self.source_type == 'db':
             return CURAccountsDB()
+        elif self.source_type == 'network':
+            return CURAccountsNetwork()
         return None
 
     def get_accounts(self):
@@ -64,7 +68,12 @@ class AccountsAccessor:
             None
 
         Returns:
-            ([CostUsageReportAcount]) : A list of Cost Usage Report Account objects
+            ([{}]) : A list of account access dictionaries
 
         """
-        return self.source.get_accounts_from_source()
+        try:
+            accounts = self.source.get_accounts_from_source()
+        except CURAccountsInterfaceError as error:
+            raise AccountsAccessorError(str(error))
+
+        return accounts
