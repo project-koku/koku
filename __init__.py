@@ -24,9 +24,8 @@ from flask import Flask
 from flask.logging import default_handler
 from flask_sqlalchemy import SQLAlchemy
 
-from masu.api.download import DownloadView
-from masu.api.notification import NotificationView
-from masu.api.status import StatusView
+from masu.api.blueprint import api_v1
+from masu.api.status import ApplicationStatus
 from masu.celery import celery as celery_app, update_celery_config
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -70,11 +69,9 @@ def create_app(test_config=None):
     # Add application config to Celery
     update_celery_config(celery_app, app)
 
-    # Routes
-    app.add_url_rule('/api/v1/status/', view_func=StatusView.as_view('show_status'))
-    app.add_url_rule('/api/v1/download/', view_func=DownloadView.as_view('force_download'))
-    app.add_url_rule('/api/v1/notification/', view_func=NotificationView.as_view('notifications'))
+    # Blueprints
+    app.register_blueprint(api_v1)
 
-    StatusView().startup()
+    ApplicationStatus().startup()
 
     return app

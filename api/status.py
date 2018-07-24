@@ -24,26 +24,32 @@ import subprocess
 import sys
 
 from flask import jsonify
-from flask.views import View
 
 from masu.api import API_VERSION
+from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
+API_V1_ROUTES = {}
 
-class StatusView(View):
+
+@application_route('/status/', API_V1_ROUTES, methods=('GET',))
+def get_status():
+    """Packages response for class-based view."""
+    status = ApplicationStatus()
+    response = {
+        'commit': status.commit,
+        'python_version': status.python_version,
+        'platform_info': status.platform_info,
+        'modules': status.modules,
+        'api_version': status.api_version
+    }
+    return jsonify(response)
+
+
+# pylint: disable=too-few-public-methods
+class ApplicationStatus():
     """A view that returns status JSON."""
-
-    def dispatch_request(self):
-        """Packages response for class-based view."""
-        response = {
-            'commit': self.commit,
-            'python_version': self.python_version,
-            'platform_info': self.platform_info,
-            'modules': self.modules,
-            'api_version': self.api_version
-        }
-        return jsonify(response)
 
     def _get_commit(self):  # pylint: disable=no-self-use
         """
