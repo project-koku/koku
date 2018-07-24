@@ -649,6 +649,7 @@ paths:
       operationId: getCostReports
       produces:
       - 'application/json'
+      - 'text/csv'
       parameters:
       - name: 'filter'
         in: 'query'
@@ -683,6 +684,7 @@ paths:
       operationId: getInventoryInstanceReports
       produces:
       - 'application/json'
+      - 'text/csv'
       parameters:
       - name: 'filter'
         in: 'query'
@@ -717,6 +719,7 @@ paths:
       operationId: getInventoryStorageReports
       produces:
       - 'application/json'
+      - 'text/csv'
       parameters:
       - name: 'filter'
         in: 'query'
