@@ -37,6 +37,19 @@ class Config(object):
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
     DB_PORT = os.getenv('DATABASE_PORT', 15432)
 
+    # Koku Connectivity
+    KOKU_HOST = os.getenv('KOKU_HOST_ADDRESS', 'localhost')
+    KOKU_PORT = os.getenv('KOKU_PORT', 8000)
+    KOKU_ADMIN_USER = os.getenv('SERVICE_ADMIN_USER', 'admin')
+    KOKU_ADMIN_PASS = os.getenv('SERVICE_ADMIN_PASSWORD', 'pass')
+    KOKU_ACCESS_PROTOCOL = os.getenv('KOKU_ACCESS_PROTOCOL', 'http')
+
+    KOKU_BASE_URL = \
+        f'{KOKU_ACCESS_PROTOCOL}://{KOKU_HOST}:{KOKU_PORT}'
+
+    # Set method for retreiving CUR accounts. 'db' or 'network'
+    ACCOUNT_ACCESS_TYPE = os.getenv('ACCOUNT_ACCESS_TYPE', 'db')
+
     SQLALCHEMY_DATABASE_URI = \
         f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
