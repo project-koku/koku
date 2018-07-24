@@ -52,8 +52,8 @@ class Provider(models.Model):
     """
 
     PROVIDER_AWS = 'AWS'
-    PROVIDER_LOCAL = 'Local'
     if settings.DEBUG:
+        PROVIDER_LOCAL = 'Local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_LOCAL, PROVIDER_LOCAL),)
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
