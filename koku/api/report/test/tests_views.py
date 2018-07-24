@@ -20,6 +20,7 @@ from unittest.mock import Mock
 from django.urls import reverse
 from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
+from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant, User
@@ -161,3 +162,57 @@ class ReportViewTest(IamTestCase):
 
         with self.assertRaises(ValidationError):
             get_tenant(user)
+
+    def test_get_costs_csv(self):
+        """Test CSV output of costs reports."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        url = reverse('reports-costs')
+        client = APIClient()
+
+        # kludge alert!
+        #
+        # APIClient.credentials() is just a dict of arbitrary headers that the
+        # client ensures are set with every request.
+        #
+        # APIClient doesn't provide a better facility to set headers, so we're
+        # abusing the interface that it does provide to get what we want.
+        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+
+        response = client.get(url)
+        response.render()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.accepted_media_type, 'text/csv')
+        self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+    def test_get_instance_csv(self):
+        """Test CSV output of inventory instance reports."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        url = reverse('reports-instance-type')
+        client = APIClient()
+
+        # kludge!  see test_get_costs_csv()
+        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+
+        response = client.get(url, content_type='text/csv')
+        response.render()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.accepted_media_type, 'text/csv')
+        self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+    def test_get_storage_csv(self):
+        """Test CSV output of inventory storage reports."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        url = reverse('reports-storage')
+        client = APIClient()
+
+        # kludge!  see test_get_costs_csv()
+        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+
+        response = client.get(url, content_type='text/csv')
+        response.render()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.accepted_media_type, 'text/csv')
+        self.assertIsInstance(response.accepted_renderer, CSVRenderer)
