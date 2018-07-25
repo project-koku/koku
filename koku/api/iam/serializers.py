@@ -156,6 +156,8 @@ class CustomerSerializer(serializers.ModelSerializer):
 class AdminCustomerSerializer(CustomerSerializer):
     """Serializer with admin specific fields."""
 
+    schema_name = serializers.CharField(read_only=True)
+
     class Meta:
         """Metadata for the serializer."""
 
