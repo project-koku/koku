@@ -27,10 +27,12 @@ from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.decorators import (api_view,
                                        authentication_classes,
-                                       permission_classes)
+                                       permission_classes,
+                                       renderer_classes)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.settings import api_settings
 
 from api.iam.customer_manager import CustomerManager
 from api.models import Customer
@@ -85,9 +87,34 @@ def get_tenant(user):
     return tenant
 
 
+def _generic_report(request, aggregate_key, units_key, **kwargs):
+    """Generically query for reports."""
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
+
+    url_data = request.GET.urlencode()
+    validation, value = process_query_parameters(url_data)
+    if not validation:
+        return Response(
+            data=value,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    tenant = get_tenant(request.user)
+    handler = ReportQueryHandler(value,
+                                 url_data,
+                                 tenant,
+                                 aggregate_key,
+                                 units_key,
+                                 **kwargs)
+    output = handler.execute_query()
+    LOG.debug(f'DATA: {output}')
+    return Response(output)
+
+
 @api_view(http_method_names=['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
     """Get cost data.
 
@@ -98,9 +125,11 @@ def costs(request):
     @apiDescription Get cost data.
 
     @apiHeader {String} token User authorization token.
+    @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
             "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
+            "Accept": "text/csv;q=0.8, application/json"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -162,28 +191,23 @@ def costs(request):
                 ]
             ]
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,values.0.date,values.0.total,values.0.units
+        2018-07-16,2018-07-16,0.800000000,USD
+        2018-07-17,2018-07-17,0.768000000,USD
+        2018-07-18,2018-07-18,0.800000000,USD
+        2018-07-19,2018-07-19,0.768000000,USD
+        2018-07-20,2018-07-20,0.448000000,USD
+
     """
-    LOG.info(f'API: {request.path} USER: {request.user.username}')
-    url_data = request.GET.urlencode()
-    validation, value = process_query_parameters(url_data)
-    if not validation:
-        return Response(
-            data=value,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    tenant = get_tenant(request.user)
-    handler = ReportQueryHandler(value,
-                                 url_data,
-                                 tenant,
-                                 'unblended_cost',
-                                 'currency_code')
-    output = handler.execute_query()
-    return Response(output)
+    return _generic_report(request, 'unblended_cost', 'currency_code')
 
 
 @api_view(http_method_names=['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def instance_type(request):
     """Get inventory data.
 
@@ -194,9 +218,11 @@ def instance_type(request):
     @apiDescription Get inventory instance type data.
 
     @apiHeader {String} token User authorization token.
+    @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
             "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
+            "Accept": "text/csv;q=0.8, application/json"
         }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
@@ -267,16 +293,15 @@ def instance_type(request):
                 "count": 4
             }
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,instance_types.0.instance_type,instance_types.0.values.0.count,instance_types.0.values.0.date,instance_types.0.values.0.instance_type,instance_types.0.values.0.total,instance_types.0.values.0.units,instance_types.1.instance_type,instance_types.1.values.0.count,instance_types.1.values.0.date,instance_types.1.values.0.instance_type,instance_types.1.values.0.total,instance_types.1.values.0.units
+        2018-07-15,t2.micro,0,2018-07-15,t2.micro,39.0,,t2.small,0,2018-07-15,t2.small,25.0,Hrs
+        2018-07-17,t2.micro,0,2018-07-17,t2.micro,25.0,,t2.small,0,2018-07-17,t2.small,24.0,Hrs
+        2018-07-18,t2.micro,0,2018-07-18,t2.micro,25.0,,t2.small,0,2018-07-18,t2.small,25.0,Hrs
+        2018-07-19,t2.micro,0,2018-07-19,t2.micro,25.0,,t2.small,0,2018-07-19,t2.small,24.0,Hrs
+
     """
-    LOG.info(f'API: {request.path} USER: {request.user.username}')
-    url_data = request.GET.urlencode()
-    validation, value = process_query_parameters(url_data)
-    if not validation:
-        return Response(
-            data=value,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    tenant = get_tenant(request.user)
     filter_scope = {'cost_entry_product__instance_type__isnull': False}
     annotations = {'instance_type':
                    Concat('cost_entry_product__instance_type', Value(''))}
@@ -284,19 +309,16 @@ def instance_type(request):
               'annotations': annotations,
               'group_by': ['instance_type'],
               'count': 'resource_id'}
-    handler = ReportQueryHandler(value,
-                                 url_data,
-                                 tenant,
-                                 'usage_amount',
-                                 'cost_entry_pricing__unit',
-                                 **extras)
-    output = handler.execute_query()
-    return Response(output)
+    return _generic_report(request,
+                           'usage_amount',
+                           'cost_entry_pricing__unit',
+                           **extras)
 
 
 @api_view(http_method_names=['GET'])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
     """Get inventory storage data.
 
@@ -405,23 +427,18 @@ def storage(request):
                 "units": "GB-Mo"
             }
         }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        date,values.0.date,values.0.total,values.0.units
+        2018-07-13,2018-07-13,1.6146062097,
+        2018-07-14,2018-07-14,1.3458355445,
+        2018-07-15,2018-07-15,1.7759989024,
+        2018-07-16,2018-07-16,1.6147669752,
+
     """
-    LOG.info(f'API: {request.path} USER: {request.user.username}')
-    url_data = request.GET.urlencode()
-    validation, value = process_query_parameters(url_data)
-    if not validation:
-        return Response(
-            data=value,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    tenant = get_tenant(request.user)
     filter_scope = {'cost_entry_product__product_family': 'Storage'}
     extras = {'filter': filter_scope}
-    handler = ReportQueryHandler(value,
-                                 url_data,
-                                 tenant,
-                                 'usage_amount',
-                                 'cost_entry_pricing__unit',
-                                 **extras)
-    output = handler.execute_query()
-    return Response(output)
+    return _generic_report(request,
+                           'usage_amount',
+                           'cost_entry_pricing__unit',
+                           **extras)

@@ -27,6 +27,9 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 import os
 
+import sys
+import logging
+
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 from . import database, email
@@ -87,7 +90,6 @@ SHARED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
@@ -203,6 +205,11 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ],
     'DEFAULT_PAGINATION_CLASS': DEFAULT_PAGINATION_CLASS,
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+        'api.common.csv.PaginatedCSVRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    )
 }
 
 EMAIL_HOST = email.EMAIL_HOST
@@ -285,3 +292,7 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 CORS_ORIGIN_ALLOW_ALL = DEBUG
 
 APPEND_SLASH = False
+
+# disable log messages less than CRITICAL when running unit tests.
+if len(sys.argv) > 1 and sys.argv[1] == 'test':
+    logging.disable(logging.CRITICAL)
