@@ -16,10 +16,10 @@
 #
 """Provider external interface for koku to consume."""
 
-
 import logging
 
 from providers.aws.aws_provider import AWSProvider
+from providers.local.local_provider import LocalProvider
 
 from api.provider.models import Provider
 
@@ -32,8 +32,8 @@ class ProviderAccessor:
 
     def __init__(self, service_name):
         """Set the backend serve."""
-        valid_services = Provider.PROVIDER_CHOICES[0]
-        if service_name not in valid_services:
+        valid_services = Provider.PROVIDER_CHOICES
+        if not [service for service in valid_services if service_name in service]:
             LOG.error('{} is not a valid provider'.format(service_name))
 
         self.service = self._create_service(service_name)
@@ -54,6 +54,8 @@ class ProviderAccessor:
         """
         if service_name == 'AWS':
             return AWSProvider()
+        elif service_name == 'Local':
+            return LocalProvider()
 
     def service_name(self):
         """
