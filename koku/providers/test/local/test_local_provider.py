@@ -50,8 +50,8 @@ class LocalProviderTestCase(TestCase):
 
         try:
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
-        except Exception:
-            self.fail('Unexpected Error')
+        except Exception as error:
+            self.fail('Unexpected Error: {}'.format(str(error)))
 
     def test_cost_usage_source_is_not_reachable(self):
         """Verify that the cost usage source is not reachable."""
