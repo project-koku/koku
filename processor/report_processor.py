@@ -123,6 +123,7 @@ class ReportProcessor:
 
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
+            LOG.info('File %s opened for processing', str(f))
             reader = csv.DictReader(f)
             for row in islice(reader, self._cursor_pos, None):
                 if bill_id is None:

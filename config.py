@@ -25,9 +25,8 @@ import os
 class Config(object):
     """Configuration for app."""
 
-    DEBUG = os.getenv('MASU_DEBUG', False)
-    if isinstance(DEBUG, str) and DEBUG.lower() in ('f', 'false'):
-        DEBUG = False
+    DEBUG_STRING = os.getenv('MASU_DEBUG', 'False')
+    DEBUG = True if (DEBUG_STRING.lower() in ('t', 'true')) else False
 
     # Database
     DB_ENGINE = os.getenv('DATABASE_ENGINE', 'postgresql')
@@ -87,3 +86,6 @@ class Config(object):
     # The interval to scan for new reports.
     REPORT_CHECK_INTERVAL = datetime.timedelta(
         minutes=int(os.getenv('SCHEDULE_CHECK_INTERVAL', 60)))
+
+    # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
+    MASU_DATE_OVERRIDE = os.getenv('MASU_DATE_OVERRIDE')

@@ -23,7 +23,6 @@
 import json
 import logging
 import os
-from datetime import datetime
 
 import boto3
 from botocore.exceptions import ClientError
@@ -31,6 +30,7 @@ from botocore.exceptions import ClientError
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProviderError
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws import utils
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -111,6 +111,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         manifest = '{}/{}-Manifest.json'.format(self._get_report_path(date_time),
                                                 self.report_name)
+        LOG.info('Will attempt to download manifest: %s', manifest)
 
         manifest_file, _ = self.download_file(manifest)
 
@@ -161,7 +162,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (List) List of filenames downloaded.
 
         """
-        return self.download_report(datetime.today())
+        return self.download_report(DateAccessor().today())
 
     def download_file(self, key, stored_etag=None):
         """
@@ -209,6 +210,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ([{}]) List of dictionaries containing file path and compression.
 
         """
+        LOG.info('Current date is %s.  Attempting to get manifest...', str(date_time))
         manifest = self._get_manifest(date_time)
         reports = manifest.get('reportKeys')
 
