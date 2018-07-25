@@ -26,6 +26,8 @@ import sys
 from flask import jsonify
 
 from masu.api import API_VERSION
+from masu.config import Config
+from masu.external.date_accessor import DateAccessor
 from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -42,7 +44,9 @@ def get_status():
         'python_version': status.python_version,
         'platform_info': status.platform_info,
         'modules': status.modules,
-        'api_version': status.api_version
+        'api_version': status.api_version,
+        'current_datetime': status.current_datetime,
+        'debug': status.debug
     }
     return jsonify(response)
 
@@ -93,11 +97,27 @@ class ApplicationStatus():
                 module_data[str(name)] = str(module.__version__)
         return module_data
 
+    def _get_datetime(self):  # pylint: disable=no-self-use
+        """Collect the service current datetime.
+
+        :returns: The datetime string.
+        """
+        return DateAccessor().today()
+
+    def _get_debug_status(self):  # pylint: disable=no-self-use
+        """Collect the debug state of the service.
+
+        :returns: Boolean indicating debug status.
+        """
+        return Config.DEBUG
+
     commit = property(_get_commit)
     platform_info = property(_get_platform_info)
     python_version = property(_get_python_version)
     modules = property(_get_modules)
     api_version = API_VERSION
+    current_datetime = property(_get_datetime)
+    debug = property(_get_debug_status)
 
     def startup(self):
         """Log startup information."""
@@ -116,3 +136,5 @@ class ApplicationStatus():
             logger.info('Modules: None')
         logger.info('Commit: %s', self.commit)
         logger.info('API Version: %s', self.api_version)
+        logger.info('Current Date: %s', self.current_datetime)
+        logger.info('DEBUG enabled: %s', str(self.debug))
