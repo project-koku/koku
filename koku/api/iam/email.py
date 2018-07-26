@@ -27,10 +27,8 @@ SENDER = ENVIRONMENT.get_value('EMAIL_SENDER',
 APP_DOMAIN = ENVIRONMENT.get_value('APP_DOMAIN',
                                    default='project-koku.com')
 APP_NAMESPACE = ENVIRONMENT.get_value('APP_NAMESPACE',
-                                      default='')
-if not APP_NAMESPACE == '':
-    APP_NAMESPACE = '-' + APP_NAMESPACE
-DEFAULT_LOGIN = f'http://koku-ui{APP_NAMESPACE}.{APP_DOMAIN}'
+                                      default='home')
+DEFAULT_LOGIN = f'http://koku-ui-{APP_NAMESPACE}.{APP_DOMAIN}'
 LOGIN_LINK = ENVIRONMENT.get_value('LOGIN_LINK',
                                    default=DEFAULT_LOGIN)
 
