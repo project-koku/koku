@@ -18,8 +18,8 @@
 
 import random
 
-from django.test import TestCase
 import pint
+from django.test import TestCase
 
 from api.utils import UnitConverter
 
@@ -41,10 +41,9 @@ class APIUtilsTest(TestCase):
 
     def test_unit_converter(self):
         """Test that unit conversion succeeds."""
-
         converter = UnitConverter()
 
-        value = random.randint(1,9)
+        value = random.randint(1, 9)
         from_unit = 'gigabyte'
         to_unit = 'byte'
 
