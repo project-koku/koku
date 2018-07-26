@@ -33,7 +33,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from .email import new_user_reset_email
+from .email import new_user_login_email
 from .models import Customer, ResetToken, User, UserPreference
 
 
@@ -75,7 +75,7 @@ def _create_user(username, email, password):
     _create_default_preferences(user=user)
     reset_token = ResetToken(user=user)
     reset_token.save()
-    new_user_reset_email(username, email, str(user.uuid),
+    new_user_login_email(username, email, str(user.uuid),
                          str(reset_token.token))
     return user
 

@@ -290,6 +290,11 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 
 # SECURITY WARNING: Replace this with proper origins once UI is deployed in insights
 CORS_ORIGIN_ALLOW_ALL = DEBUG
+APP_DOMAIN = ENVIRONMENT.get_value('APP_DOMAIN', default='project-koku.com')
+APP_DOMAIN_REGEX = APP_DOMAIN.replace('.', '\.')  # pylint: disable=W1401
+KOKU_UI_REGEX = r'^(http(s)?://)?koku-ui-([a-zA-Z0-9_-]*\.)?{0}$'.format(APP_DOMAIN_REGEX)
+if not DEBUG:
+    CORS_ORIGIN_REGEX_WHITELIST = (KOKU_UI_REGEX,)
 
 APPEND_SLASH = False
 
