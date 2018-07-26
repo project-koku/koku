@@ -1,6 +1,7 @@
-Welcome to Hybrid Cost Management.
+Welcome to Hybrid Cloud Cost Management.
 
 Start gaining insights on your costs today.
 
 You user has been created with username {{username}}.
-Point your browser to the following URL to reset your password and begin using the service. {{reset_link}}
+A separate email will follow with the associated password.
+Point your browser to the following URL to login to the service. {{login_link}}

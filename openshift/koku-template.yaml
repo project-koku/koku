@@ -97,6 +97,8 @@ objects:
     app-config: ${APP_CONFIG}
     app-home: ${APP_HOME}
     app-module: ${APP_MODULE}
+    app-namespace: ${NAMESPACE}
+    app-domain: ${APP_DOMAIN}
     email-service-host: ${EMAIL_HOST}
     email-service-port: ${EMAIL_PORT}
     email-service-host-user: ${EMAIL_HOST_USER}
@@ -172,6 +174,16 @@ objects:
               configMapKeyRef:
                 name: koku-env
                 key: app-module
+          - name: APP_NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                name: koku-env
+                key: app-namespace
+          - name: APP_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: koku-env
+                key: app-domain
         from:
           kind: ImageStreamTag
           name: python-36-centos7:latest
@@ -309,6 +321,18 @@ objects:
                   name: koku-env
                   key: email-service-host-user
                   optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: app-domain
+                  optional: true
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -590,3 +614,6 @@ parameters:
 - description: The custom PyPi index URL
   displayName: Custom PyPi Index URL
   name: PIP_INDEX_URL
+- displayName: User Interface Domain
+  value: 'project-koku.com'
+  name: APP_DOMAIN
