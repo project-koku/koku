@@ -177,7 +177,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         s3_filename = key.split('/')[-1]
         directory_path = f'{DATA_DIR}/{self.customer_name}/aws'
-        full_file_path = f'{directory_path}/{s3_filename}'
+
+        local_s3_filename = utils.get_local_file_name(key)
+        LOG.info('Local S3 filename: %s', local_s3_filename)
+        full_file_path = f'{directory_path}/{local_s3_filename}'
+
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         s3_etag = None
@@ -195,7 +199,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 raise AWSReportDownloaderError(str(ex))
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
-            LOG.info('Downloading %s to %s', s3_filename, full_file_path)
+            LOG.info('Downloading %s to %s', key, full_file_path)
             self.s3_client.download_file(self.report.get('S3Bucket'), key, full_file_path)
         return full_file_path, s3_etag
 
@@ -217,10 +221,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         cur_reports = []
         report_dictionary = {}
         for report in reports:
-            s3_filename = report.split('/')[-1]
-            stats_recorder = ReportStatsDBAccessor(s3_filename)
+            local_s3_filename = utils.get_local_file_name(report)
+            stats_recorder = ReportStatsDBAccessor(local_s3_filename)
             stored_etag = stats_recorder.get_etag()
-
             file_name, etag = self.download_file(report, stored_etag)
             stats_recorder.update(etag=etag)
             stats_recorder.commit()

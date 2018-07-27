@@ -18,13 +18,13 @@
 
 import json
 import logging
-import re
 
 import boto3
 
 from masu.external import (AWS_REGIONS, AWS_SNS_HEADER_MSG_TYPE, AWS_SNS_HEADER_TOPIC_ARN)
 from masu.external.notifications.notification_interface import (NotificationInterface,
                                                                 NotificationInterfaceFilter)
+from masu.util import common as utils
 
 LOG = logging.getLogger(__name__)
 
@@ -38,8 +38,6 @@ class AWSNotificationHandlerError(Exception):
 # pylint: disable=too-few-public-methods
 class AWSNotificationHandler(NotificationInterface):
     """AWS SNS notification handler."""
-
-    UUID_REGEX = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
 
     def __init__(self, header, body, validation=True):
         """
@@ -116,7 +114,7 @@ class AWSNotificationHandler(NotificationInterface):
                 raise AWSNotificationHandlerError('Unexpected \"Message\" element in body.')
 
             if object_key.endswith('Manifest.json'):
-                if re.findall(self.UUID_REGEX, object_key.lower()):
+                if utils.extract_uuids_from_string(object_key):
                     msg = 'Ignoring non-toplevel manifest file: {}'.format(object_key)
                     raise NotificationInterfaceFilter(msg)
 
