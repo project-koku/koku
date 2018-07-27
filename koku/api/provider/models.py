@@ -18,6 +18,7 @@
 
 from uuid import uuid4
 
+from django.conf import settings
 from django.db import models
 
 
@@ -51,7 +52,12 @@ class Provider(models.Model):
     """
 
     PROVIDER_AWS = 'AWS'
-    PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
+    if settings.DEBUG:
+        PROVIDER_LOCAL = 'Local'
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_LOCAL, PROVIDER_LOCAL),)
+    else:
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
+
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     name = models.CharField(max_length=256, null=False)
