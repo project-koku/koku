@@ -21,6 +21,8 @@ import re
 import boto3
 from dateutil.relativedelta import relativedelta
 
+from masu.util import common as utils
+
 
 def get_assume_role_session(arn, session='MasuSession'):
     """
@@ -100,6 +102,51 @@ def month_date_range(for_date_time):
     timeformat = '%Y%m%d'
     return '{}-{}'.format(start_month.strftime(timeformat),
                           end_month.strftime(timeformat))
+
+
+def get_assembly_id_from_cur_key(key):
+    """
+    Get the assembly ID from a cost and usage report key.
+
+    Args:
+        key (String): Full key for a cost and usage report location.
+        example: /koku/20180701-20180801/882083b7-ea62-4aab-aa6a-f0d08d65ee2b/koku-1.csv.gz
+
+    Returns:
+        (String): "Assembly ID UUID"
+        example: "882083b7-ea62-4aab-aa6a-f0d08d65ee2b"
+
+    """
+    assembly_id = utils.extract_uuids_from_string(key)
+    assembly_id = assembly_id.pop() if assembly_id else None
+
+    return assembly_id
+
+
+def get_local_file_name(cur_key):
+    """
+    Return the local file name for a given cost usage report key.
+
+    If an assemblyID is present in the key, it will prepend it to the filename.
+
+    Args:
+        cur_key (String): reportKey value from manifest file.
+        example:
+        With AssemblyID: /koku/20180701-20180801/882083b7-ea62-4aab-aa6a-f0d08d65ee2b/koku-1.csv.gz
+        Without AssemblyID: /koku/20180701-20180801/koku-Manifest.json
+
+    Returns:
+        (String): file name for the local file,
+                example:
+                With AssemblyID: "882083b7-ea62-4aab-aa6a-f0d08d65ee2b-koku-1.csv.gz"
+                Without AssemblyID: "koku-Manifest.json"
+
+    """
+    s3_filename = cur_key.split('/')[-1]
+    assembly_id = get_assembly_id_from_cur_key(cur_key)
+    local_file_name = f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
+
+    return local_file_name
 
 
 # pylint: disable=too-few-public-methods
