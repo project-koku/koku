@@ -51,9 +51,9 @@ if [[ ! -z "$ENABLE_PIPENV" ]]; then
   install_pipenv
   echo "---> Installing dependencies via pipenv ..."
   if [[ -f Pipfile ]]; then
-    pipenv install --deploy --ignore-pipfile
+    pipenv install --deploy --ignore-pipfile --verbose
   elif [[ -f requirements.txt ]]; then
-    pipenv install -r requirements.txt
+    pipenv install -r requirements.txt --verbose
   fi
   # pipenv check
 elif [[ -f requirements.txt ]]; then
