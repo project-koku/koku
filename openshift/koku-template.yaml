@@ -145,6 +145,9 @@ objects:
       to:
         kind: ImageStreamTag
         name: ${NAME}:latest
+    resources:
+      limits:
+        memory: ${BUILD_MEMORY_LIMIT}
     source:
       contextDir: ${CONTEXT_DIR}
       git:
@@ -499,6 +502,11 @@ parameters:
   name: NAMESPACE
   required: true
   value: project-koku
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
 - description: Maximum amount of memory the Django container can use.
   displayName: Memory Limit
   name: MEMORY_LIMIT
