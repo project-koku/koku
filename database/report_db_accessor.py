@@ -14,7 +14,7 @@
 #    You should have received a copy of the GNU Affero General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Downloader for cost usage reports."""
+"""Database accessor for report data."""
 
 import logging
 from decimal import Decimal
@@ -207,15 +207,6 @@ class ReportDBAccessor(KokuDBAccess):
         query = query.filter_by(**data)
         return query.first().id
 
-    def commit_db_object(self, table):
-        """Commit a table row to the database.
-
-        Args:
-            table (Table): A SQLAlchemy mapped table object
-        """
-        self._session.add(table)
-        self._session.commit()
-
     def flush_db_object(self, table):
         """Commit a table row to the database.
 
@@ -287,6 +278,40 @@ class ReportDBAccessor(KokuDBAccess):
         return self._get_db_obj_query(table_name)\
             .order_by(billing_start.desc())\
             .first()
+
+    def get_bill_query_before_date(self, date):
+        """Get the cost entry bill objects with billing period before provided date."""
+        table_name = AWS_CUR_TABLE_MAP['bill']
+        billing_start = getattr(
+            getattr(self.report_schema, table_name),
+            'billing_period_start'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        cost_entry_bill_query = base_query.filter(date <= billing_start)
+        return cost_entry_bill_query
+
+    def get_lineitem_query_for_billid(self, bill_id):
+        """Get the AWS cost entry line item for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cost_entry_bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        line_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return line_item_query
+
+    def get_cost_entry_query_for_billid(self, bill_id):
+        """Get the AWS cost entry data for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['cost_entry']
+
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        line_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return line_item_query
 
     def get_cost_entries(self):
         """Make a mapping of cost entries by start time."""
