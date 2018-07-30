@@ -395,10 +395,10 @@ class ReportProcessor:
         """
         table_name = AWS_CUR_TABLE_MAP['pricing']
         key = '{cost}-{rate}-{term}-{unit}'.format(
-            cost=row['pricing/publicOnDemandCost'],
-            rate=row['pricing/publicOnDemandRate'],
-            term=row['pricing/term'],
-            unit=row['pricing/unit']
+            cost=row.get('pricing/publicOnDemandCost'),
+            rate=row.get('pricing/publicOnDemandRate'),
+            term=row.get('pricing/term'),
+            unit=row.get('pricing/unit')
         )
 
         if key in self.processed_report.pricing:
