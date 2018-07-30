@@ -305,31 +305,13 @@ class ReportDBAccessorTest(MasuTestCase):
         table_name = random.choice(self.foreign_key_tables)
         data = self.creator.create_columns_for_table(table_name)
         table = self.accessor.create_db_object(table_name, data)
-        self.accessor.commit_db_object(table)
+        self.accessor.session.add(table)
+        self.accessor.session.commit()
+
 
         p_key = self.accessor._get_primary_key(table_name, data)
 
         self.assertIsNotNone(p_key)
-
-    def test_commit_db_object(self):
-        """Test that a database object is committed to the database."""
-        self.accessor._session.rollback()
-        table = random.choice(self.foreign_key_tables)
-        data = self.creator.create_columns_for_table(table)
-
-        row = self.accessor.create_db_object(table, data)
-
-        query = self.accessor._get_db_obj_query(table)
-
-        persisted_row = query.first()
-        self.assertIsNone(persisted_row)
-
-        self.accessor.commit_db_object(row)
-        self.accessor._session.rollback()
-
-        persisted_row = query.first()
-
-        self.assertIsNotNone(persisted_row.id)
 
     def test_flush_db_object(self):
         """Test that the database flush moves the object to the database."""
@@ -369,6 +351,60 @@ class ReportDBAccessorTest(MasuTestCase):
         bill = self.accessor.get_current_cost_entry_bill()
 
         self.assertEqual(bill_id, bill.id)
+
+    def test_get_bill_query_before_date(self):
+        """Test that gets a query for cost entry bills before a date."""
+        table_name = 'reporting_awscostentrybill'
+        query = self.accessor._get_db_obj_query(table_name)
+        first_entry = query.first()
+
+        # Verify that the result is returned for cutoff_date == billing_period_start
+        cutoff_date = first_entry.billing_period_start
+        cost_entries = self.accessor.get_bill_query_before_date(cutoff_date)
+        self.assertEqual(cost_entries.count(), 1)
+        self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
+
+        # Verify that the result is returned for a date earlier than cutoff_date
+        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1)
+        cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
+        self.assertEqual(cost_entries.count(), 1)
+        self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
+
+        # Verify that the result is returned for a date later than cutoff_date
+        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1)
+        cost_entries = self.accessor.get_bill_query_before_date(later_cutoff)
+        self.assertEqual(cost_entries.count(), 0)
+
+    def test_get_lineitem_query_for_billid(self):
+        """Test that gets a cost entry line item query given a bill id."""
+        table_name = 'reporting_awscostentrybill'
+
+        # Verify that the line items for the test bill_id are returned
+        bill_id = self.accessor._get_db_obj_query(table_name).first().id
+        line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+        self.assertEqual(line_item_query.count(), 1)
+        self.assertEqual(line_item_query.first().cost_entry_bill_id, bill_id)
+
+        # Verify that no line items are returned for a missing bill_id
+        wrong_bill_id = bill_id + 1
+        line_item_query = self.accessor.get_lineitem_query_for_billid(wrong_bill_id)
+        self.assertEqual(line_item_query.count(), 0)
+
+    def test_get_cost_entry_query_for_billid(self):
+        """Test that gets a cost entry query given a bill id."""
+        table_name = 'reporting_awscostentrybill'
+
+        # Verify that the line items for the test bill_id are returned
+        bill_id = self.accessor._get_db_obj_query(table_name).first().id
+
+        cost_entry_query = self.accessor.get_cost_entry_query_for_billid(bill_id)
+        self.assertEqual(cost_entry_query.count(), 1)
+        self.assertEqual(cost_entry_query.first().bill_id, bill_id)
+
+        # Verify that no line items are returned for a missing bill_id
+        wrong_bill_id = bill_id + 1
+        cost_entry_query = self.accessor.get_cost_entry_query_for_billid(wrong_bill_id)
+        self.assertEqual(cost_entry_query.count(), 0)
 
     def test_get_cost_entries(self):
         """Test that a dict of cost entries are returned."""

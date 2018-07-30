@@ -45,7 +45,8 @@ class ReportObjectCreator:
         row.interval_end = self.stringify_datetime(self.fake.past_datetime())
         row.bill_id = bill_id
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
@@ -55,7 +56,8 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
@@ -66,7 +68,8 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
@@ -76,7 +79,8 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
@@ -86,7 +90,8 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
@@ -107,7 +112,8 @@ class ReportObjectCreator:
         row.cost_entry_pricing_id = pricing_id
         row.cost_entry_reservation_id = reservation_id
 
-        self.db_accessor.flush_db_object(row)
+        self.db_accessor.session.add(row)
+        self.db_accessor.session.commit()
 
         return row.id
 
