@@ -46,10 +46,14 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
 
     # Load configs
-    if test_config is None:
-        app.config.from_object('masu.config.Config')
-    else:
+    if test_config:
         app.config.from_mapping(test_config)
+
+        # disable log messages less than CRITICAL when running unit tests.
+        logging.disable(logging.CRITICAL)
+    else:
+        app.config.from_object('masu.config.Config')
+        ApplicationStatus().startup()
 
     # Logging
     logger.setLevel(app.config.get('LOG_LEVEL', 'WARNING'))
@@ -71,7 +75,5 @@ def create_app(test_config=None):
 
     # Blueprints
     app.register_blueprint(api_v1)
-
-    ApplicationStatus().startup()
 
     return app
