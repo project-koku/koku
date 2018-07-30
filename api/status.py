@@ -20,17 +20,19 @@
 import logging
 import os
 import platform
+import socket
 import subprocess
 import sys
 
-from flask import jsonify
+from flask import jsonify, request
 
 from masu.api import API_VERSION
+from masu.celery import celery as celery_app
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.util.blueprint import application_route
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+LOG = logging.getLogger(__name__)
 
 API_V1_ROUTES = {}
 
@@ -38,24 +40,69 @@ API_V1_ROUTES = {}
 @application_route('/status/', API_V1_ROUTES, methods=('GET',))
 def get_status():
     """Packages response for class-based view."""
-    status = ApplicationStatus()
+    if 'liveness' in request.args:
+        return jsonify({'alive': True})
+
+    app_status = ApplicationStatus()
     response = {
-        'commit': status.commit,
-        'python_version': status.python_version,
-        'platform_info': status.platform_info,
-        'modules': status.modules,
-        'api_version': status.api_version,
-        'current_datetime': status.current_datetime,
-        'debug': status.debug
+        'celery_status': app_status.celery_status,
+        'commit': app_status.commit,
+        'python_version': app_status.python_version,
+        'platform_info': app_status.platform_info,
+        'modules': app_status.modules,
+        'api_version': app_status.api_version,
+        'current_datetime': app_status.current_datetime,
+        'debug': app_status.debug
     }
     return jsonify(response)
 
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods, no-self-use
 class ApplicationStatus():
     """A view that returns status JSON."""
 
-    def _get_commit(self):  # pylint: disable=no-self-use
+    api_version = API_VERSION
+
+    def __init__(self):
+        """Initialize an ApplicationStatus object."""
+        self._events = dict()
+
+    def _announce_worker_event(self, event):
+        """Announce worker events."""
+        state = celery_app.events.State()
+        state.event(event)
+        LOG.debug(f'EVENT: {event}')
+        self._events[event.pop('hostname')] = event
+
+    @property
+    def celery_status(self):
+        """Determine the status of our connection to Celery.
+
+        :returns: dict of celery status
+        """
+        with celery_app.connection() as connection:
+            recv = celery_app.events.Receiver(connection, handlers={
+                'worker-offline': self._announce_worker_event,
+                'worker-online': self._announce_worker_event,
+                'worker-heartbeat': self._announce_worker_event,
+            })
+            try:
+                recv.capture(limit=5, timeout=5, wakeup=True)
+            except socket.timeout:
+                LOG.warning('Timeout connecting to message broker.')
+                return {'ERROR': 'connection timeout'}
+            except ConnectionResetError:
+                LOG.warning('Connection reset by message broker.')
+                return {'ERROR': 'connection reset'}
+
+            if len(self._events) > 5:
+                # Receiver will run indefinitely unless we tell it to stop.
+                recv.should_stop = True
+
+        return self._events
+
+    @property
+    def commit(self):
         """
         Collect the build number for the server.
 
@@ -63,7 +110,7 @@ class ApplicationStatus():
 
         """
         commit_info = os.environ.get('OPENSHIFT_BUILD_COMMIT', None)
-        if commit_info is None:
+        if not commit_info:
             commit_info = subprocess.run(['git',
                                           'describe',
                                           '--always'],
@@ -72,21 +119,24 @@ class ApplicationStatus():
                 commit_info = commit_info.stdout.decode('utf-8').strip()
         return commit_info
 
-    def _get_platform_info(self):  # pylint: disable=no-self-use
+    @property
+    def platform_info(self):
         """Collect the platform information.
 
         :returns: A dictionary of platform data
         """
         return platform.uname()._asdict()
 
-    def _get_python_version(self):  # pylint: disable=no-self-use
+    @property
+    def python_version(self):
         """Collect the python version information.
 
         :returns: The python version string.
         """
         return sys.version.replace('\n', '')
 
-    def _get_modules(self):  # pylint: disable=no-self-use
+    @property
+    def modules(self):
         """Collect the installed modules.
 
         :returns: A dictonary of module names and versions.
@@ -97,44 +147,40 @@ class ApplicationStatus():
                 module_data[str(name)] = str(module.__version__)
         return module_data
 
-    def _get_datetime(self):  # pylint: disable=no-self-use
+    @property
+    def current_datetime(self):
         """Collect the service current datetime.
 
         :returns: The datetime string.
         """
         return DateAccessor().today()
 
-    def _get_debug_status(self):  # pylint: disable=no-self-use
+    @property
+    def debug(self):
         """Collect the debug state of the service.
 
         :returns: Boolean indicating debug status.
         """
         return Config.DEBUG
 
-    commit = property(_get_commit)
-    platform_info = property(_get_platform_info)
-    python_version = property(_get_python_version)
-    modules = property(_get_modules)
-    api_version = API_VERSION
-    current_datetime = property(_get_datetime)
-    debug = property(_get_debug_status)
-
     def startup(self):
         """Log startup information."""
-        logger.info('Platform:')
-        for name, value in self.platform_info.items():
-            logger.info('%s - %s ', name, value)
+        LOG.info(f'API Version: {self.api_version}')
+        LOG.info(f'Celery Status: {self.celery_status}')
+        LOG.info(f'Commit: {self.commit}')
+        LOG.info(f'Current Date: {self.current_datetime}')
+        LOG.info(f'DEBUG enabled: {str(self.debug)}')
 
-        logger.info('Python: %s', self.python_version)
+        LOG.info('Platform:')
+        for name, value in self.platform_info.items():
+            LOG.info(f'{name} - {value}')
+
+        LOG.info('Python: %s', self.python_version)
         module_list = []
         for mod, version in self.modules.items():
-            module_list.append('{mod} - {ver}'.format(mod=mod, ver=version))
+            module_list.append(f'{mod} - {version}')
 
         if module_list:
-            logger.info('Modules: %s', ', '.join(module_list))
+            LOG.info('Modules: %s', ', '.join(module_list))
         else:
-            logger.info('Modules: None')
-        logger.info('Commit: %s', self.commit)
-        logger.info('API Version: %s', self.api_version)
-        logger.info('Current Date: %s', self.current_datetime)
-        logger.info('DEBUG enabled: %s', str(self.debug))
+            LOG.info('Modules: None')
