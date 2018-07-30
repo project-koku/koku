@@ -26,7 +26,7 @@ pint = "*"
 
 [dev-packages]
 
-pylint = "==1.9.1"
+pylint = "==2.0.1"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"
 tox = ">=3.0.0"
