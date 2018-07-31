@@ -35,7 +35,7 @@ class DateAccessor():
 
     def __init__(self):
         """Initializer."""
-        if Config.MASU_DATE_OVERRIDE and DateAccessor.mock_date_time is None:
+        if Config.MASU_DATE_OVERRIDE and Config.DEBUG and DateAccessor.mock_date_time is None:
             DateAccessor.mock_date_time = datetime.strptime(Config.MASU_DATE_OVERRIDE,
                                                             '%Y-%m-%d %H:%M:%S')
             LOG.info('Initializing masu date/time to %s', str(DateAccessor.mock_date_time))
