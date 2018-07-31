@@ -17,6 +17,7 @@
 
 """View for Reports."""
 import logging
+from decimal import Decimal
 
 from django.db.models import Value
 from django.db.models.functions import Concat
@@ -38,6 +39,7 @@ from api.iam.customer_manager import CustomerManager
 from api.models import Customer
 from api.report.queries import ReportQueryHandler
 from api.report.serializers import QueryParamSerializer
+from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
@@ -87,26 +89,124 @@ def get_tenant(user):
     return tenant
 
 
+def _convert_units(converter, data, to_unit):
+    suffix = None
+    if isinstance(data, list):
+        for entry in data:
+            _convert_units(converter, entry, to_unit)
+    elif isinstance(data, dict):
+        total = data.get('total')
+        from_unit = data.get('units')
+        if total and not isinstance(total, dict):
+            if '-Mo' in from_unit:
+                from_unit, suffix = from_unit.split('-')
+            print(total, from_unit, to_unit)
+            new_value = converter.convert_quantity(total, from_unit, to_unit)
+            data['total'] = new_value.magnitude
+            to_unit = to_unit + '-' + suffix if suffix else to_unit
+            data['units'] = to_unit
+        else:
+            for key in data:
+                _convert_units(converter, data[key], to_unit)
+
+        # if 'values' in data:
+        #     for values in data.get('values'):
+        #         from_unit = values.get('units')
+        #         if '-Mo' in from_unit:
+        #             from_unit, suffix = from_unit.split('-')
+        #         new_value = converter.convert_quantity(values['total'], from_unit, to_unit)
+        #         values['total'] = new_value.magnitude
+        #         to_unit = to_unit + '-' + suffix if suffix else to_unit
+        #         values['units'] = to_unit
+        # elif 'total' in data and isinstance(data['total'], dict):
+        #     totals = data['total']
+        #     value = totals.get('value')
+        #     # values = data.get('total')
+        #     from_unit = totals.get('units')
+        #     if '-Mo' in from_unit:
+        #         from_unit, suffix = from_unit.split('-')
+        #     new_value = converter.convert_quantity(value, from_unit, to_unit)
+        #     totals['value'] = new_value.magnitude
+        #     to_unit = to_unit + '-' + suffix if suffix else to_unit
+        #     totals['units'] = to_unit
+        # else:
+        #     for key in data:
+        #         _convert_units(converter, data[key], to_unit)
+
+
+        # for key in data:
+        #     if key == value_key:
+        #         data[value_key] = converter.convert_quantity(
+        #             converter,
+        #             data[value_key],
+        #             value_key,
+        #             from_unit,
+        #             to_unit
+        #         )
+        #     else:
+        #         data[key] = _convert_units(
+        #             converter,
+        #             data[key],
+        #             value_key,
+        #             from_unit,
+        #             to_unit
+        #         )
+    # elif isinstance(data, list):
+    #     for i, entry in enumerate(data):
+    #         data[i] = _convert_units(
+    #             converter,
+    #             entry,
+    #             to_unit
+    #         )
+
+    return data
+
+
 def _generic_report(request, aggregate_key, units_key, **kwargs):
-    """Generically query for reports."""
+    """Generically query for reports.
+
+        Args:
+            request (Request): The HTTP request object
+            aggregate_key (str): The report metric to be aggregated
+                e.g. 'usage_amount' or 'unblended_cost'
+            units_key (str): The field used to establish the reporting unit
+
+        Returns:
+            (Response): The report in a Response object
+
+    """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
 
     url_data = request.GET.urlencode()
-    validation, value = process_query_parameters(url_data)
+    validation, params = process_query_parameters(url_data)
     if not validation:
         return Response(
-            data=value,
+            data=params,
             status=status.HTTP_400_BAD_REQUEST
         )
 
     tenant = get_tenant(request.user)
-    handler = ReportQueryHandler(value,
+    handler = ReportQueryHandler(params,
                                  url_data,
                                  tenant,
                                  aggregate_key,
                                  units_key,
                                  **kwargs)
     output = handler.execute_query()
+
+    if 'units' in params:
+        to_unit = params['units']['units']
+        unit_converter = UnitConverter()
+        output = _convert_units(unit_converter, output, to_unit)
+        # if output.get('data'):
+        #     output['data'] = _convert_units(unit_converter,
+        #                                     output.get('data'),
+        #                                     to_unit)
+        # if output.get('total'):
+        #     output['total'] = _convert_units(unit_converter,
+        #                                      output.get('total'),
+        #                                      to_unit)
+
     LOG.debug(f'DATA: {output}')
     return Response(output)
 
