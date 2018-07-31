@@ -287,7 +287,7 @@ class ReportDBAccessor(KokuDBAccess):
             'billing_period_start'
         )
         base_query = self._get_db_obj_query(table_name)
-        cost_entry_bill_query = base_query.filter(date <= billing_start)
+        cost_entry_bill_query = base_query.filter(billing_start <= date)
         return cost_entry_bill_query
 
     def get_lineitem_query_for_billid(self, bill_id):

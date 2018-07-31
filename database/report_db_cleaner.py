@@ -37,16 +37,17 @@ class ReportDBCleaner():
         self._accessor = ReportDBAccessor(schema,
                                           ReportingCommonDBAccessor().column_map)
 
-    def purge_expired_report_data(self, expired_date):
-        """Remove report data with a billing start period before specified dat.
+    def purge_expired_report_data(self, expired_date, simulate=False):
+        """Remove report data with a billing start period before specified date.
 
         Args:
             expired_date (datetime.datetime): The cutoff date for removing data.
 
         Returns:
-            (None)
+            ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
+        removed_items = []
         bill_objects = self._accessor.get_bill_query_before_date(expired_date)
         for bill in bill_objects.all():
             bill_id = bill.id
@@ -55,15 +56,23 @@ class ReportDBCleaner():
             for line_item in line_item_query.all():
                 LOG.debug('Attempting to remove cost item data for bill id: %s, usage_start: %s',
                           bill_id, line_item.usage_start)
-                self._accessor.session.delete(line_item)
+                if simulate is False:
+                    self._accessor.session.delete(line_item)
 
             cost_entry_query = self._accessor.get_cost_entry_query_for_billid(bill_id)
             for cost_entry in cost_entry_query.all():
                 LOG.debug('Attempting to remove cost entry for bill id: %s, interval_start: %s',
                           bill_id, cost_entry.interval_start)
-                self._accessor.session.delete(cost_entry)
+                if simulate is False:
+                    self._accessor.session.delete(cost_entry)
 
-            self._accessor.session.delete(bill)
-            self._accessor.session.commit()
+            removed_payer_account_id = bill.payer_account_id
+            removed_billing_period_start = bill.billing_period_start
+            if simulate is False:
+                self._accessor.session.delete(bill)
+                self._accessor.session.commit()
             LOG.info('Report data removed for Account Payer ID: %s with billing period: %s',
-                     bill.payer_account_id, bill.billing_period_start)
+                     removed_payer_account_id, removed_billing_period_start)
+            removed_items.append({'account_payer_id': removed_payer_account_id,
+                                  'billing_period_start': str(removed_billing_period_start)})
+        return removed_items
