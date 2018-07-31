@@ -529,11 +529,11 @@ class ReportQueryHandler(object):
                 units_value = query.values(self.units_key).first().get(self.units_key)
                 if self._count:
                     query_sum = query.aggregate(
-                        value=Sum(self.aggregate_key),
+                        total=Sum(self.aggregate_key),
                         count=Count(self._count, distinct=True)
                     )
                 else:
-                    query_sum = query.aggregate(value=Sum(self.aggregate_key))
+                    query_sum = query.aggregate(total=Sum(self.aggregate_key))
                 query_sum['units'] = units_value
 
         self.query_sum = query_sum
