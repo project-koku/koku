@@ -81,24 +81,20 @@ class ApplicationStatus():
         :returns: dict of celery status
         """
         with celery_app.connection() as connection:
-            recv = celery_app.events.Receiver(connection, handlers={
-                'worker-offline': self._announce_worker_event,
-                'worker-online': self._announce_worker_event,
-                'worker-heartbeat': self._announce_worker_event,
-            })
             try:
+                connection.connect()
+                recv = celery_app.events.Receiver(connection, handlers={
+                    'worker-offline': self._announce_worker_event,
+                    'worker-online': self._announce_worker_event,
+                    'worker-heartbeat': self._announce_worker_event,
+                })
                 recv.capture(limit=5, timeout=5, wakeup=True)
             except socket.timeout:
-                LOG.warning('Timeout connecting to message broker.')
-                return {'ERROR': 'connection timeout'}
+                LOG.info('Timeout connecting to message broker.')
             except ConnectionResetError:
-                LOG.warning('Connection reset by message broker.')
-                return {'ERROR': 'connection reset'}
-
-            if len(self._events) > 5:
-                # Receiver will run indefinitely unless we tell it to stop.
-                recv.should_stop = True
-
+                LOG.info('Connection reset by message broker.')
+            finally:
+                connection.release()
         return self._events
 
     @property
