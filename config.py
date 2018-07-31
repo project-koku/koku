@@ -89,3 +89,6 @@ class Config(object):
 
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
     MASU_DATE_OVERRIDE = os.getenv('MASU_DATE_OVERRIDE')
+
+    # Retention policy for the number of months of report data to keep.
+    MASU_RETAIN_NUM_MONTHS = int(os.getenv('MASU_RETAIN_NUM_MONTHS', 3))
