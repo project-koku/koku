@@ -100,7 +100,11 @@ class ReportDBCleanerTest(MasuTestCase):
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
-        cleaner.purge_expired_report_data(cutoff_date)
+        removed_data = cleaner.purge_expired_report_data(cutoff_date)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start))
 
         self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
@@ -114,7 +118,7 @@ class ReportDBCleanerTest(MasuTestCase):
 
         cleaner = ReportDBCleaner('testcustomer')
 
-        # Verify that data is cleared for a cutoff date < billing_period_start
+        # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
         earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1)
@@ -123,11 +127,13 @@ class ReportDBCleanerTest(MasuTestCase):
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
-        cleaner.purge_expired_report_data(earlier_cutoff)
+        removed_data = cleaner.purge_expired_report_data(earlier_cutoff)
 
-        self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-        self.assertIsNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
+        self.assertEqual(len(removed_data), 0)
+
+        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+        self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+        self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
     def test_purge_expired_report_data_after_date(self):
         """Test to remove report data after a provided date."""
@@ -137,7 +143,7 @@ class ReportDBCleanerTest(MasuTestCase):
 
         cleaner = ReportDBCleaner('testcustomer')
 
-        # Verify that data is not cleared for a cutoff date > billing_period_start
+        # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
         later_cutoff = cutoff_date.replace(month=cutoff_date.month+1)
@@ -146,7 +152,37 @@ class ReportDBCleanerTest(MasuTestCase):
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
 
-        cleaner.purge_expired_report_data(later_cutoff)
+        removed_data = cleaner.purge_expired_report_data(later_cutoff)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start))
+
+        self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
+        self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+        self.assertIsNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
+
+    def test_purge_expired_report_data_on_date_simulate(self):
+        """Test to simulate removing report data on a provided date."""
+        bill_table_name = AWS_CUR_TABLE_MAP['bill']
+        line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
+        cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+
+        cleaner = ReportDBCleaner('testcustomer')
+
+        # Verify that data is cleared for a cutoff date == billing_period_start
+        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+        cutoff_date = first_bill.billing_period_start
+
+        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+        self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+        self.assertIsNotNone(self.accessor._get_db_obj_query(cost_entry_table_name).first())
+
+        removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=True)
+
+        self.assertEqual(len(removed_data), 1)
+        self.assertEqual(removed_data[0].get('account_payer_id'), first_bill.payer_account_id)
+        self.assertEqual(removed_data[0].get('billing_period_start'), str(first_bill.billing_period_start))
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
