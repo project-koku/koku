@@ -18,6 +18,7 @@
 """Unit conversion util functions."""
 
 import pint
+from pint.errors import UndefinedUnitError
 
 
 class UnitConverter:
@@ -27,6 +28,28 @@ class UnitConverter:
         """Initialize the UnitConverter."""
         self.unit_registry = pint.UnitRegistry()
         self.Quantity = self.unit_registry.Quantity
+
+    def _validate_unit(self, unit):
+        """Validate that the unit type exists in the registry.
+
+        Args:
+            unit (str): The unit type being checked
+
+        Returns:
+            (str) The validated unit
+
+        """
+        try:
+            getattr(self.unit_registry, str(unit))
+        except (AttributeError, UndefinedUnitError) as err:
+            try:
+                getattr(self.unit_registry, str(unit.lower()))
+            except (AttributeError, UndefinedUnitError) as err:
+                raise err
+            else:
+                return unit.lower()
+
+        return unit
 
     def convert_quantity(self, value, from_unit, to_unit):
         """Convert a quantity between comparable units.
@@ -51,4 +74,6 @@ class UnitConverter:
             byte
 
         """
+        from_unit = self._validate_unit(from_unit)
+        to_unit = self._validate_unit(to_unit)
         return self.Quantity(value, from_unit).to(to_unit)
