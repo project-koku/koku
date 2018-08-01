@@ -15,16 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
+from django.http import HttpRequest, QueryDict
 from django.urls import reverse
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant, User
-from api.report.view import get_tenant, process_query_parameters
+from api.report.view import (_convert_units,
+                             _generic_report,
+                             get_tenant,
+                             process_query_parameters)
+from api.utils import UnitConverter
 
 
 class ReportViewTest(IamTestCase):
@@ -42,6 +49,84 @@ class ReportViewTest(IamTestCase):
         customer_obj = Customer.objects.filter(uuid=customer_uuid).get()
         self.tenant = Tenant(schema_name=customer_obj.schema_name)
         self.tenant.save()
+
+        self.report = {
+            'group_by': {
+                'account': ['*']
+            },
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                'resource_scope': []
+            },
+            'data': [
+                {
+                    'date': '2018-07',
+                    'accounts': [
+                        {
+                            'account': '4418636104713',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '4418636104713',
+                                    'total': 1826.74238146924
+                                }
+                            ]
+                        },
+                        {
+                            'account': '8577742690384',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '8577742690384',
+                                    'total': 1137.74036198065
+                                }
+                            ]
+                        },
+                        {
+                            'account': '3474227945050',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '3474227945050',
+                                    'total': 1045.80659412797
+                                }
+                            ]
+                        },
+                        {
+                            'account': '7249815104968',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '7249815104968',
+                                    'total': 807.326470618818
+                                }
+                            ]
+                        },
+                        {
+                            'account': '9420673783214',
+                            'values': [
+                                {
+                                    'date': '2018-07',
+                                    'units': 'GB-Mo',
+                                    'account': '9420673783214',
+                                    'total': 658.306642830709
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            'total': {
+                'total': 5475.922451027388,
+                'units': 'GB-Mo'
+            }
+        }
 
     def tearDown(self):
         """Tear down user tests."""
@@ -167,16 +252,9 @@ class ReportViewTest(IamTestCase):
         """Test CSV output of costs reports."""
         token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-costs')
-        client = APIClient()
+        client = APIClient(HTTP_ACCEPT='text/csv')
 
-        # kludge alert!
-        #
-        # APIClient.credentials() is just a dict of arbitrary headers that the
-        # client ensures are set with every request.
-        #
-        # APIClient doesn't provide a better facility to set headers, so we're
-        # abusing the interface that it does provide to get what we want.
-        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+        client.credentials(HTTP_AUTHORIZATION=token)
 
         response = client.get(url)
         response.render()
@@ -189,10 +267,9 @@ class ReportViewTest(IamTestCase):
         """Test CSV output of inventory instance reports."""
         token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-instance-type')
-        client = APIClient()
+        client = APIClient(HTTP_ACCEPT='text/csv')
 
-        # kludge!  see test_get_costs_csv()
-        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+        client.credentials(HTTP_AUTHORIZATION=token)
 
         response = client.get(url, content_type='text/csv')
         response.render()
@@ -205,10 +282,9 @@ class ReportViewTest(IamTestCase):
         """Test CSV output of inventory storage reports."""
         token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-storage')
-        client = APIClient()
+        client = APIClient(HTTP_ACCEPT='text/csv')
 
-        # kludge!  see test_get_costs_csv()
-        client.credentials(HTTP_AUTHORIZATION=token, HTTP_ACCEPT='text/csv')
+        client.credentials(HTTP_AUTHORIZATION=token)
 
         response = client.get(url, content_type='text/csv')
         response.render()
@@ -216,3 +292,71 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+    def test_convert_units_success(self):
+        """Test unit conversion succeeds."""
+        converter = UnitConverter()
+        to_unit = 'byte'
+        expected_unit = f'{to_unit}-Mo'
+        report_total = self.report.get('total', {}).get('total')
+
+        result = _convert_units(converter, self.report, to_unit)
+        result_unit = result.get('total', {}).get('units')
+        result_total = result.get('total', {}).get('total')
+
+        self.assertEqual(expected_unit, result_unit)
+        self.assertEqual(report_total * 1E9, result_total)
+
+    @patch('api.report.view.ReportQueryHandler')
+    def test_generic_report_with_units_success(self, mock_handler):
+        """Test unit conversion succeeds in generic report."""
+        mock_handler.return_value.execute_query.return_value = self.report
+        params = {
+            'group_by[account]': ['*'],
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'units': 'byte'
+        }
+        user = User.objects.filter(
+            username=self.customer_data[0]['owner']['username']
+        ).first()
+
+        django_request = HttpRequest()
+        qd = QueryDict(mutable=True)
+        qd.update(params)
+        django_request.GET = qd
+        request = Request(django_request)
+        request.user = user
+        response = _generic_report(
+            request,
+            'usage_amount',
+            'cost_entry_pricing__unit'
+        )
+        self.assertIsInstance(response, Response)
+
+    @patch('api.report.view.ReportQueryHandler')
+    def test_generic_report_with_units_fails_well(self, mock_handler):
+        """Test that validation error is thrown for bad unit conversion."""
+        mock_handler.return_value.execute_query.return_value = self.report
+        params = {
+            'group_by[account]': ['*'],
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'units': 'second'
+        }
+
+        user = User.objects.filter(
+            username=self.customer_data[0]['owner']['username']
+        ).first()
+
+        django_request = HttpRequest()
+        qd = QueryDict(mutable=True)
+        qd.update(params)
+        django_request.GET = qd
+        request = Request(django_request)
+        request.user = user
+
+        with self.assertRaises(ValidationError):
+            _generic_report(request, 'usage_amount', 'cost_entry_pricing__unit')

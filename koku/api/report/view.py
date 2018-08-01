@@ -17,11 +17,11 @@
 
 """View for Reports."""
 import logging
-from decimal import Decimal
 
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.utils.translation import ugettext as _
+from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
 from rest_framework.authentication import (SessionAuthentication,
@@ -73,6 +73,7 @@ def get_tenant(user):
         (Tenant): Object used to get tenant specific data tables
     Raises:
         (ValidationError): If no tenant could be found for the user
+
     """
     tenant = None
     group = user.groups.first()
@@ -90,6 +91,17 @@ def get_tenant(user):
 
 
 def _convert_units(converter, data, to_unit):
+    """Convert the units in a JSON structured report.
+
+    Args:
+        converter (api.utils.UnitConverter) Object doing unit conversion
+        data (list,dict): The current block of the report being converted
+        to_unit (str): The unit type to convert to
+
+    Returns:
+        (dict) The final return will be the unit converted report
+
+    """
     suffix = None
     if isinstance(data, list):
         for entry in data:
@@ -100,7 +112,6 @@ def _convert_units(converter, data, to_unit):
         if total and not isinstance(total, dict):
             if '-Mo' in from_unit:
                 from_unit, suffix = from_unit.split('-')
-            print(total, from_unit, to_unit)
             new_value = converter.convert_quantity(total, from_unit, to_unit)
             data['total'] = new_value.magnitude
             to_unit = to_unit + '-' + suffix if suffix else to_unit
@@ -109,70 +120,20 @@ def _convert_units(converter, data, to_unit):
             for key in data:
                 _convert_units(converter, data[key], to_unit)
 
-        # if 'values' in data:
-        #     for values in data.get('values'):
-        #         from_unit = values.get('units')
-        #         if '-Mo' in from_unit:
-        #             from_unit, suffix = from_unit.split('-')
-        #         new_value = converter.convert_quantity(values['total'], from_unit, to_unit)
-        #         values['total'] = new_value.magnitude
-        #         to_unit = to_unit + '-' + suffix if suffix else to_unit
-        #         values['units'] = to_unit
-        # elif 'total' in data and isinstance(data['total'], dict):
-        #     totals = data['total']
-        #     value = totals.get('value')
-        #     # values = data.get('total')
-        #     from_unit = totals.get('units')
-        #     if '-Mo' in from_unit:
-        #         from_unit, suffix = from_unit.split('-')
-        #     new_value = converter.convert_quantity(value, from_unit, to_unit)
-        #     totals['value'] = new_value.magnitude
-        #     to_unit = to_unit + '-' + suffix if suffix else to_unit
-        #     totals['units'] = to_unit
-        # else:
-        #     for key in data:
-        #         _convert_units(converter, data[key], to_unit)
-
-
-        # for key in data:
-        #     if key == value_key:
-        #         data[value_key] = converter.convert_quantity(
-        #             converter,
-        #             data[value_key],
-        #             value_key,
-        #             from_unit,
-        #             to_unit
-        #         )
-        #     else:
-        #         data[key] = _convert_units(
-        #             converter,
-        #             data[key],
-        #             value_key,
-        #             from_unit,
-        #             to_unit
-        #         )
-    # elif isinstance(data, list):
-    #     for i, entry in enumerate(data):
-    #         data[i] = _convert_units(
-    #             converter,
-    #             entry,
-    #             to_unit
-    #         )
-
     return data
 
 
 def _generic_report(request, aggregate_key, units_key, **kwargs):
     """Generically query for reports.
 
-        Args:
-            request (Request): The HTTP request object
-            aggregate_key (str): The report metric to be aggregated
-                e.g. 'usage_amount' or 'unblended_cost'
-            units_key (str): The field used to establish the reporting unit
+    Args:
+        request (Request): The HTTP request object
+        aggregate_key (str): The report metric to be aggregated
+            e.g. 'usage_amount' or 'unblended_cost'
+        units_key (str): The field used to establish the reporting unit
 
-        Returns:
-            (Response): The report in a Response object
+    Returns:
+        (Response): The report in a Response object
 
     """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
@@ -195,17 +156,13 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
     output = handler.execute_query()
 
     if 'units' in params:
-        to_unit = params['units']['units']
-        unit_converter = UnitConverter()
-        output = _convert_units(unit_converter, output, to_unit)
-        # if output.get('data'):
-        #     output['data'] = _convert_units(unit_converter,
-        #                                     output.get('data'),
-        #                                     to_unit)
-        # if output.get('total'):
-        #     output['total'] = _convert_units(unit_converter,
-        #                                      output.get('total'),
-        #                                      to_unit)
+        try:
+            to_unit = params['units']
+            unit_converter = UnitConverter()
+            output = _convert_units(unit_converter, output, to_unit)
+        except (DimensionalityError, UndefinedUnitError):
+            error = {'details': _('Unit conversion failed.')}
+            raise ValidationError(error)
 
     LOG.debug(f'DATA: {output}')
     return Response(output)
