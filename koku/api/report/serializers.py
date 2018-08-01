@@ -187,30 +187,12 @@ class FilterSerializer(serializers.Serializer):
         return data
 
 
-# class UnitConversionSerializer(serializers.Serializer):
-#     """Serializer for checking validity of unit conversion."""
-
-#     unit_converter = UnitConverter()
-
-#     units = serializers.CharField(required=False)
-
-#     def validate(self, data):
-#         units = data.get('units')
-#         try:
-#             getattr(self.unit_converter.unit_registry, str(units))
-#         except (AttributeError, UndefinedUnitError) as err:
-#             error = {'units': f'{units} is not a supported unit'}
-#             raise serializers.ValidationError(err)
-#         return data
-
-
 class QueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
-    # units = UnitConversionSerializer(required=False)
     units = serializers.CharField(required=False)
 
     def validate(self, data):
@@ -274,16 +256,13 @@ class QueryParamSerializer(serializers.Serializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if units field inputs are invalid
+
         """
-        # validate_field(self, 'units', UnitConversionSerializer, value)
-        # return value
         unit_converter = UnitConverter()
-        # def validate(self, data):
-        # units = data.get('units')
-        # import pdb; pdb.set_trace()
         try:
-            getattr(unit_converter.unit_registry, str(value))
+            unit_converter.validate_unit(value)
         except (AttributeError, UndefinedUnitError) as err:
             error = {'units': f'{value} is not a supported unit'}
             raise serializers.ValidationError(error)
+
         return value
