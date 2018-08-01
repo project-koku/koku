@@ -339,6 +339,8 @@ class ReportViewTest(IamTestCase):
     def test_generic_report_with_units_fails_well(self, mock_handler):
         """Test that validation error is thrown for bad unit conversion."""
         mock_handler.return_value.execute_query.return_value = self.report
+        # The 'bad' unit here is that the report is in GB-Mo, and can't
+        # convert to seconds
         params = {
             'group_by[account]': ['*'],
             'filter[resolution]': 'monthly',
