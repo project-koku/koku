@@ -120,6 +120,8 @@ class ReportQueryUtilsTest(TestCase):
 class ReportQueryTest(IamTestCase):
     """Tests the report queries."""
 
+    current_month_total = Decimal('0')
+
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
@@ -130,6 +132,7 @@ class ReportQueryTest(IamTestCase):
         customer_json = response.json()
         customer_uuid = customer_json.get('uuid')
         customer_obj = Customer.objects.filter(uuid=customer_uuid).get()
+        self.current_month_total = Decimal('0')
         self.tenant = Tenant(schema_name=customer_obj.schema_name)
         self.tenant.save()
         self.add_data_to_tenant()
@@ -172,6 +175,7 @@ class ReportQueryTest(IamTestCase):
         one_hour = datetime.timedelta(minutes=60)
         this_hour = timezone.now().replace(microsecond=0, second=0, minute=0)
         yesterday = this_hour - one_day
+        this_month = this_hour.month
         bill_start = this_hour.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
         bill_end = ReportQueryHandler.next_month(bill_start)
         with tenant_context(self.tenant):
@@ -180,7 +184,7 @@ class ReportQueryTest(IamTestCase):
                                     billing_period_start=bill_start,
                                     billing_period_end=bill_end)
             bill.save()
-            rate = 0.199
+            rate = Decimal('0.199')
             amount = 1
             cost = rate * amount
             # pylint: disable=no-member
@@ -202,6 +206,8 @@ class ReportQueryTest(IamTestCase):
             ce_pricing.save()
             current = yesterday
             while current < this_hour:
+                if current.month == this_month:
+                    self.current_month_total += cost
                 end_hour = current + one_hour
                 self.create_hourly_instance_usage(payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
@@ -403,7 +409,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -417,7 +423,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -434,7 +440,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -467,7 +473,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -500,7 +506,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -535,7 +541,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), Decimal('4.776000000'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
