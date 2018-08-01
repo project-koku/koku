@@ -502,7 +502,7 @@ class ReportQueryHandler(object):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        query_sum = None
+        query_sum = {'value': 0}
         data = []
 
         with tenant_context(self.tenant):

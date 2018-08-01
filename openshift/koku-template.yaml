@@ -210,6 +210,9 @@ objects:
     replicas: 1
     selector:
       name: ${NAME}
+    resources:
+      limits:
+        memory: ${MEMORY_LIMIT}
     strategy:
       type: Recreate
     template:
@@ -386,6 +389,9 @@ objects:
     replicas: 1
     selector:
       name: koku-pgsql
+    resources:
+      limits:
+        memory: ${MEMORY_LIMIT}
     strategy:
       type: Recreate
     template:
