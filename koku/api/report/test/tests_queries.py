@@ -167,7 +167,7 @@ class ReportQueryTest(IamTestCase):
                                          cost_entry_pricing=ce_pricing)
         line_item.save()
 
-    def add_data_to_tenant(self):
+    def add_data_to_tenant(self, rate=Decimal('0.199')):
         """Populate tenant with data."""
         payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
         self.payer_account_id = payer_account_id
@@ -184,7 +184,6 @@ class ReportQueryTest(IamTestCase):
                                     billing_period_start=bill_start,
                                     billing_period_end=bill_end)
             bill.save()
-            rate = Decimal('0.199')
             amount = 1
             cost = rate * amount
             # pylint: disable=no-member
@@ -607,3 +606,42 @@ class ReportQueryTest(IamTestCase):
                 if it['instance_type'] == instance_type:
                     actual_count = it['values'][0].get('count')
                     self.assertEqual(expected.get(data_item['date']), actual_count)
+
+    def test_execute_query_curr_month_by_account_w_limit(self):
+        """Test execute_query for current month on monthly breakdown by account with limit."""
+        self.add_data_to_tenant(rate=Decimal('0.299'))
+        self.add_data_to_tenant(rate=Decimal('0.399'))
+        self.add_data_to_tenant(rate=Decimal('0.099'))
+        self.add_data_to_tenant(rate=Decimal('0.999'))
+        self.add_data_to_tenant(rate=Decimal('0.699'))
+
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month', 'limit': 2},
+                        'group_by': {'account': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('accounts')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(3, len(month_data))
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('account'), str)
+                self.assertIsInstance(month_item.get('values'), list)
