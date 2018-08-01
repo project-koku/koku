@@ -312,7 +312,7 @@ class ReportViewTest(IamTestCase):
         """Test unit conversion succeeds in generic report."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
-            'group_by[account]': ['*'],
+            'group_by[account]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month',
@@ -342,7 +342,7 @@ class ReportViewTest(IamTestCase):
         # The 'bad' unit here is that the report is in GB-Mo, and can't
         # convert to seconds
         params = {
-            'group_by[account]': ['*'],
+            'group_by[account]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month',
