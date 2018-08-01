@@ -29,7 +29,7 @@ class UnitConverter:
         self.unit_registry = pint.UnitRegistry()
         self.Quantity = self.unit_registry.Quantity
 
-    def _validate_unit(self, unit):
+    def validate_unit(self, unit):
         """Validate that the unit type exists in the registry.
 
         Args:
@@ -49,7 +49,7 @@ class UnitConverter:
             else:
                 return unit.lower()
 
-        return unit
+        return str(unit)
 
     def convert_quantity(self, value, from_unit, to_unit):
         """Convert a quantity between comparable units.
@@ -74,6 +74,6 @@ class UnitConverter:
             byte
 
         """
-        from_unit = self._validate_unit(from_unit)
-        to_unit = self._validate_unit(to_unit)
+        from_unit = self.validate_unit(from_unit)
+        to_unit = self.validate_unit(to_unit)
         return self.Quantity(value, from_unit).to(to_unit)
