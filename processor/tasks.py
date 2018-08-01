@@ -27,6 +27,7 @@ from masu.celery import celery
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
+from masu.processor._tasks.remove_expired import _remove_expired_data
 
 LOG = get_task_logger(__name__)
 
@@ -101,3 +102,19 @@ def process_report_file(schema_name, report_path, compression):
 
     """
     _process_report_file(schema_name, report_path, compression)
+
+
+@celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
+def remove_expired_data(schema_name, simulate):
+    """
+    Remove expired report data.
+
+    Args:
+        schema_name (String) db schema name
+        simulate    (Boolean) Simulate report data removal
+
+    Returns:
+        None
+
+    """
+    _remove_expired_data(schema_name, simulate)
