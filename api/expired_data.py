@@ -22,8 +22,7 @@ import logging
 from flask import jsonify, request
 
 from masu.config import Config
-from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
-from masu.processor.expired_data_remover import ExpiredDataRemover
+from masu.processor.orchestrator import Orchestrator
 from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -41,14 +40,9 @@ def expired_data():
         simulate = False
     LOG.info('Simulate Flag: %s', simulate)
 
-    removed_data = []
-    try:
-        for account in AccountsAccessor().get_accounts():
-            LOG.info('Attempting to remove expired data for %s', account.get('customer_name'))
-            remover = ExpiredDataRemover(account.get('schema_name'))
-            removed_data = remover.remove(simulate=simulate)
-    except AccountsAccessorError as error:
-        LOG.error('Unable to get accounts. Error: %s', str(error))
-
-    status_msg = 'Expired Data' if simulate else 'Removed Data'
-    return jsonify({status_msg: str(removed_data)})
+    orchestrator = Orchestrator()
+    async_delete_results = orchestrator.remove_expired_report_data(simulate=simulate)
+    response_key = 'Async jobs for expired data removal'
+    if simulate:
+        response_key = response_key + ' (simulated)'
+    return jsonify({response_key: str(async_delete_results)})

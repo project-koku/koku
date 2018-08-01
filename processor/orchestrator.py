@@ -19,7 +19,7 @@
 import logging
 
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
-from masu.processor.tasks import get_report_files
+from masu.processor.tasks import (get_report_files, remove_expired_data)
 
 LOG = logging.getLogger(__name__)
 
@@ -93,3 +93,26 @@ class Orchestrator():
                      account.get('customer_name'),
                      str(async_result))
         return async_result
+
+    def remove_expired_report_data(self, simulate=False):
+        """
+        Remove expired report data for each account.
+
+        Args:
+            simulate (Boolean) Simulate report data removal
+
+        Returns:
+            (celery.result.AsyncResult) Async result for deletion request.
+
+        """
+        async_results = []
+        for account in self._accounts:
+            LOG.info('Calling remove_expired_data with account: %s', account)
+            async_result = remove_expired_data.delay(schema_name=account.get('schema_name'),
+                                                     simulate=simulate)
+            LOG.info('Expired data removal queued - customer: %s, Task ID: %s',
+                     account.get('customer_name'),
+                     str(async_result))
+            async_results.append({'customer': account.get('customer_name'),
+                                  'async_id': str(async_result)})
+        return async_results
