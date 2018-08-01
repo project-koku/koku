@@ -121,7 +121,7 @@ class ReportDBCleanerTest(MasuTestCase):
         # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
-        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1)
+        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1, day=15)
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
@@ -146,7 +146,7 @@ class ReportDBCleanerTest(MasuTestCase):
         # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
-        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1)
+        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1, day=15)
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())

@@ -365,13 +365,13 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
 
         # Verify that the result is returned for a date later than cutoff_date
-        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1)
+        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1, day=15)
         cost_entries = self.accessor.get_bill_query_before_date(later_cutoff)
         self.assertEqual(cost_entries.count(), 1)
         self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
 
         # Verify that no results are returned for a date earlier than cutoff_date
-        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1)
+        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1, day=15)
         cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
         self.assertEqual(cost_entries.count(), 0)
         # self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
