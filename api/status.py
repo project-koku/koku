@@ -24,6 +24,7 @@ import socket
 import subprocess
 import sys
 
+import psycopg2
 from flask import jsonify, request
 
 from masu.api import API_VERSION
@@ -45,14 +46,15 @@ def get_status():
 
     app_status = ApplicationStatus()
     response = {
+        'api_version': app_status.api_version,
         'celery_status': app_status.celery_status,
         'commit': app_status.commit,
-        'python_version': app_status.python_version,
-        'platform_info': app_status.platform_info,
-        'modules': app_status.modules,
-        'api_version': app_status.api_version,
         'current_datetime': app_status.current_datetime,
-        'debug': app_status.debug
+        'database_status': app_status.database_status,
+        'debug': app_status.debug,
+        'modules': app_status.modules,
+        'platform_info': app_status.platform_info,
+        'python_version': app_status.python_version
     }
     return jsonify(response)
 
@@ -116,6 +118,31 @@ class ApplicationStatus():
         return commit_info
 
     @property
+    def database_status(self):
+        """Collect database connection information.
+
+        :returns: A dict of db connection info.
+        """
+        try:
+            with psycopg2.connect(Config.SQLALCHEMY_DATABASE_URI) as conn:
+                curs = conn.cursor()
+                curs.execute('SELECT * FROM pg_stat_database')
+                raw = curs.fetchall()
+
+                # get pg_stat_database column names
+                names = [desc[0] for desc in curs.description]
+        except (psycopg2.InterfaceError,
+                psycopg2.NotSupportedError,
+                psycopg2.ProgrammingError) as exc:
+            LOG.warning('Unable to connect to DB: %s', str(exc))
+            return {'ERROR': str(exc)}
+
+        # transform list-of-lists into list-of-dicts including column names.
+        result = [dict(zip(names, row)) for row in raw]
+
+        return result
+
+    @property
     def platform_info(self):
         """Collect the platform information.
 
@@ -166,6 +193,7 @@ class ApplicationStatus():
         LOG.info(f'Commit: {self.commit}')
         LOG.info(f'Current Date: {self.current_datetime}')
         LOG.info(f'DEBUG enabled: {str(self.debug)}')
+        LOG.info(f'Database: {self.database_status}')
 
         LOG.info('Platform:')
         for name, value in self.platform_info.items():
