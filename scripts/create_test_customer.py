@@ -10,9 +10,9 @@ class TestCustomer:
     """Container for customer specific info."""
 
     def __init__(self):
-        self.customer_name = 'Test Customer'
-        self.user_name = 'test_customer'
-        self.email = 'test@example.com'
+        self.customer_name = 'Test Customer 3'
+        self.user_name = 'test_customer_3'
+        self.email = 'test-3@example.com'
         self.password = 'str0ng!P@ss'
         self.provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
         self.bucket = 'test-bucket'
@@ -71,6 +71,7 @@ class KokuCustomerOnboarder:
         # have the correct permissions to create a provider.
         self.customer.token = self.get_token(self.customer.user_name,
                                              self.customer.password)
+        self.headers = {'Authorization': f'Token {self.token}'}
 
         endpoint = self.endpoint_base + 'providers/'
         data = {
