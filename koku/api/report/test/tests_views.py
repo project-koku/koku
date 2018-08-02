@@ -123,7 +123,7 @@ class ReportViewTest(IamTestCase):
                 }
             ],
             'total': {
-                'total': 5475.922451027388,
+                'value': 5475.922451027388,
                 'units': 'GB-Mo'
             }
         }
@@ -298,11 +298,11 @@ class ReportViewTest(IamTestCase):
         converter = UnitConverter()
         to_unit = 'byte'
         expected_unit = f'{to_unit}-Mo'
-        report_total = self.report.get('total', {}).get('total')
+        report_total = self.report.get('total', {}).get('value')
 
         result = _convert_units(converter, self.report, to_unit)
         result_unit = result.get('total', {}).get('units')
-        result_total = result.get('total', {}).get('total')
+        result_total = result.get('total', {}).get('value')
 
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)

@@ -408,8 +408,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -422,8 +422,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -439,8 +439,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -472,8 +472,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -505,8 +505,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,
@@ -540,8 +540,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
-        self.assertEqual(total.get('total'), self.current_month_total)
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
 
         current_month = timezone.now().replace(microsecond=0,
                                                second=0,

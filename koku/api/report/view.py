@@ -109,7 +109,16 @@ def _convert_units(converter, data, to_unit):
     elif isinstance(data, dict):
         total = data.get('total')
         from_unit = data.get('units')
-        if total and not isinstance(total, dict):
+        if total and isinstance(total, dict):
+            value = total.get('value')
+            from_unit = total.get('units')
+            if '-Mo' in from_unit:
+                from_unit, suffix = from_unit.split('-')
+            new_value = converter.convert_quantity(value, from_unit, to_unit)
+            total['value'] = new_value.magnitude
+            to_unit = to_unit + '-' + suffix if suffix else to_unit
+            total['units'] = to_unit
+        elif total and not isinstance(total, dict):
             if '-Mo' in from_unit:
                 from_unit, suffix = from_unit.split('-')
             new_value = converter.convert_quantity(total, from_unit, to_unit)
@@ -285,8 +294,9 @@ def instance_type(request):
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParam (Query Param) {String} units The units used in the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&group_by[account]=*
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&group_by[account]=*&units=hours
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
@@ -394,8 +404,9 @@ def storage(request):
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParam (Query Param) {String} units The units used in the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&units=byte
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
