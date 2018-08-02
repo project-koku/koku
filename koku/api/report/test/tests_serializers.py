@@ -72,6 +72,16 @@ class FilterSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_filter_params_invalid_limit(self):
+        """Test parse of filter params for invalid month time_scope_units."""
+        filter_params = {'resolution': 'monthly',
+                         'time_scope_value': '-1',
+                         'time_scope_units': 'month',
+                         'limit': 'invalid'}
+        serializer = FilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class GroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""

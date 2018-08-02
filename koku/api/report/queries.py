@@ -19,8 +19,15 @@ import copy
 import datetime
 from itertools import groupby
 
-from django.db.models import Count, Sum, Value
-from django.db.models.functions import Concat, TruncDay, TruncMonth
+from django.db.models import (Count,
+                              F,
+                              Sum,
+                              Value,
+                              Window)
+from django.db.models.functions import (Concat,
+                                        DenseRank,
+                                        TruncDay,
+                                        TruncMonth)
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
 
@@ -72,6 +79,7 @@ class ReportQueryHandler(object):
         self._group_by = None
         self._annotations = None
         self._count = None
+        self._limit = self.get_filter_data('limit')
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -433,6 +441,41 @@ class ReportQueryHandler(object):
                 out_data[key] = grouped
         return out_data
 
+    def _ranked_list(self, data_list):
+        """Get list of ranked items less than top.
+
+        Args:
+            data_list (List(Dict)): List of ranked data points from the same bucket
+        Returns:
+            List(Dict): List of data points meeting the rank criteria
+        """
+        ranked_list = []
+        others_list = []
+        other = None
+        other_sum = 0
+        for data in data_list:
+            if other is None:
+                other = copy.deepcopy(data)
+            rank = data.get('rank')
+            if rank <= self._limit:
+                del data['rank']
+                ranked_list.append(data)
+            else:
+                others_list.append(data)
+                total = data.get('total')
+                if total:
+                    other_sum += total
+
+        if other is not None and others_list:
+            other['total'] = other_sum
+            del other['rank']
+            group_by = self._get_group_by()
+            for group in group_by:
+                other[group] = 'Other'
+            ranked_list.append(other)
+
+        return ranked_list
+
     def _apply_group_by(self, query_data):
         """Group data by date for given time interval then group by list.
 
@@ -454,9 +497,12 @@ class ReportQueryHandler(object):
                 date_bucket.append(result)
 
         for date, data_list in bucket_by_date.items():
+            data = data_list
+            if self._limit:
+                data = self._ranked_list(data_list)
             group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
-                                                             data_list)
+                                                             data)
             bucket_by_date[date] = grouped
 
         return bucket_by_date
@@ -509,6 +555,7 @@ class ReportQueryHandler(object):
             query_filter = self._get_filter()
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
+            query_order_by = ('-date', '-total')
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
@@ -521,7 +568,16 @@ class ReportQueryHandler(object):
                     count=Count(self._count, distinct=True)
                 )
 
-            query_data = query_data.order_by('-date', '-total')
+            if self._limit:
+                dense_rank_by_total = Window(
+                    expression=DenseRank(),
+                    partition_by=F('date'),
+                    order_by=F('total').desc()
+                )
+                query_data = query_data.annotate(rank=dense_rank_by_total)
+                query_order_by = query_order_by + ('rank',)
+
+            query_data = query_data.order_by(*query_order_by)
             data = self._apply_group_by(list(query_data))
             data = self._transform_data(query_group_by, 0, data)
 

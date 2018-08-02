@@ -148,6 +148,7 @@ class FilterSerializer(serializers.Serializer):
                                                required=False)
     resource_scope = StringOrListField(child=serializers.CharField(),
                                        required=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
 
     def validate(self, data):
         """Validate incoming data.

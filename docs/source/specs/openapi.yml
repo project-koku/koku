@@ -928,6 +928,10 @@ definitions:
   ReportFilter:
     type: object
     properties:
+      limit:
+        type: integer
+        description: Limits the data points returns and aggregates remaining data.
+        example: 5
       resolution:
         $ref: '#/definitions/ReportResolution'
       time_scope_value:
