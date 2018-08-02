@@ -111,7 +111,7 @@ def _convert_units(converter, data, to_unit):
             if key == 'total' and isinstance(data[key], dict):
                 total = data[key]
                 value = total.get('value')
-                from_unit = total.get('units')
+                from_unit = data.get('units')
                 if '-Mo' in from_unit:
                     from_unit, suffix = from_unit.split('-')
                 new_value = converter.convert_quantity(value, from_unit, to_unit)
