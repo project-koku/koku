@@ -307,6 +307,36 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
 
+    def test_convert_units_list(self):
+        """Test that the list check is hit."""
+        converter = UnitConverter()
+        to_unit = 'byte'
+        expected_unit = f'{to_unit}-Mo'
+        report_total = self.report.get('total', {}).get('value')
+
+        report = [self.report]
+        result = _convert_units(converter, report, to_unit)
+        result_unit = result[0].get('total', {}).get('units')
+        result_total = result[0].get('total', {}).get('value')
+
+        self.assertEqual(expected_unit, result_unit)
+        self.assertEqual(report_total * 1E9, result_total)
+
+    def test_convert_units_total_not_dict(self):
+        """Test that the total not dict block is hit."""
+        converter = UnitConverter()
+        to_unit = 'byte'
+        expected_unit = f'{to_unit}-Mo'
+
+        report = self.report['data'][0]['accounts'][0]['values'][0]
+        report_total = report.get('total')
+        result = _convert_units(converter, report, to_unit)
+        result_unit = result.get('units')
+        result_total = result.get('total')
+
+        self.assertEqual(expected_unit, result_unit)
+        self.assertEqual(report_total * 1E9, result_total)
+
     @patch('api.report.view.ReportQueryHandler')
     def test_generic_report_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in generic report."""

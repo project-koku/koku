@@ -107,26 +107,27 @@ def _convert_units(converter, data, to_unit):
         for entry in data:
             _convert_units(converter, entry, to_unit)
     elif isinstance(data, dict):
-        total = data.get('total')
-        from_unit = data.get('units')
-        if total and isinstance(total, dict):
-            value = total.get('value')
-            from_unit = total.get('units')
-            if '-Mo' in from_unit:
-                from_unit, suffix = from_unit.split('-')
-            new_value = converter.convert_quantity(value, from_unit, to_unit)
-            total['value'] = new_value.magnitude
-            to_unit = to_unit + '-' + suffix if suffix else to_unit
-            total['units'] = to_unit
-        elif total and not isinstance(total, dict):
-            if '-Mo' in from_unit:
-                from_unit, suffix = from_unit.split('-')
-            new_value = converter.convert_quantity(total, from_unit, to_unit)
-            data['total'] = new_value.magnitude
-            to_unit = to_unit + '-' + suffix if suffix else to_unit
-            data['units'] = to_unit
-        else:
-            for key in data:
+        for key in data:
+            if key == 'total' and isinstance(data[key], dict):
+                total = data[key]
+                value = total.get('value')
+                from_unit = total.get('units')
+                if '-Mo' in from_unit:
+                    from_unit, suffix = from_unit.split('-')
+                new_value = converter.convert_quantity(value, from_unit, to_unit)
+                total['value'] = new_value.magnitude
+                new_unit = to_unit + '-' + suffix if suffix else to_unit
+                total['units'] = new_unit
+            elif key == 'total' and not isinstance(data[key], dict):
+                total = data[key]
+                from_unit = data.get('units')
+                if '-Mo' in from_unit:
+                    from_unit, suffix = from_unit.split('-')
+                new_value = converter.convert_quantity(total, from_unit, to_unit)
+                data['total'] = new_value.magnitude
+                new_unit = to_unit + '-' + suffix if suffix else to_unit
+                data['units'] = new_unit
+            else:
                 _convert_units(converter, data[key], to_unit)
 
     return data
