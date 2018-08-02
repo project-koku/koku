@@ -124,7 +124,8 @@ def _check_org_access(access_key_id, secret_access_key, session_token):
     return access_ok
 
 
-def _check_cost_report_access(access_key_id, secret_access_key, session_token):
+def _check_cost_report_access(access_key_id, secret_access_key, session_token,
+                              region='us-east-1'):
     """Check for provider cost and usage report access."""
     access_ok = True
     cur_client = boto3.client(
@@ -132,6 +133,7 @@ def _check_cost_report_access(access_key_id, secret_access_key, session_token):
         aws_access_key_id=access_key_id,
         aws_secret_access_key=secret_access_key,
         aws_session_token=session_token,
+        region=region
     )
     try:
         cur_client.describe_report_definitions()
