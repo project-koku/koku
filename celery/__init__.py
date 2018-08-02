@@ -17,6 +17,7 @@
 """Celery module."""
 
 from celery import Celery
+from celery.schedules import crontab
 
 from masu.config import Config
 
@@ -33,20 +34,25 @@ def update_celery_config(celery, app):
     celery.conf.task_routes = {
         'masu.processor.tasks.get_report_files': {'queue': 'download'},
         'masu.processor.tasks.process_report_file': {'queue': 'process'},
-        'masu.processor.tasks.remove_expired_data': {'queue': 'remove_expired'}
+        'masu.processor.tasks.remove_expired_data': {'queue': 'remove_expired'},
+        'masu.celery.tasks.remove_expired_data': {'queue': 'remove_expired'}
     }
 
     celery.conf.imports = ('masu.processor.tasks', 'masu.celery.tasks')
 
     # Celery Beat schedule
     if app.config.get('SCHEDULE_REPORT_CHECKS'):
-        celery.conf.beat_schedule = {
-            'check-report-updates': {
-                'task': 'masu.celery.tasks.check_report_updates',
-                'schedule': app.config.get('REPORT_CHECK_INTERVAL'),
-                'args': []
-            }
-        }
+        check_report_updates_def = {'task': 'masu.celery.tasks.check_report_updates',
+                                    'schedule': app.config.get('REPORT_CHECK_INTERVAL'),
+                                    'args': []}
+        celery.conf.beat_schedule['check-report-updates'] = check_report_updates_def
+
+    if app.config.get('REMOVE_EXPIRED_REPORT_DATA_ON_DAY') != 0:
+        cleaning_day = app.config.get('REMOVE_EXPIRED_REPORT_DATA_ON_DAY')
+        remove_expired_data_def = {'task': 'masu.celery.tasks.remove_expired_data',
+                                   'schedule': crontab(day_of_month=cleaning_day),
+                                   'args': []}
+        celery.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
 
     # pylint: disable=too-few-public-methods
     class ContextTask(celery.Task):
