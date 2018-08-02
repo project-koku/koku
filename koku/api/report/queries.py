@@ -79,7 +79,8 @@ class ReportQueryHandler(object):
         self._group_by = None
         self._annotations = None
         self._count = None
-        self._limit = self.get_filter_data('limit')
+        self._limit = self.get_query_param_data('filter', 'limit')
+        self._order = self.get_order()
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -200,31 +201,32 @@ class ReportQueryHandler(object):
         return (self.query_parameters and key in self.query_parameters and
                 in_key in self.query_parameters.get(key))
 
-    def get_filter_data(self, key):
-        """Extract the value from filter parameter or return None.
+    def get_query_param_data(self, dictkey, key):
+        """Extract the value from a query parameter dictionary or return None.
 
         Args:
-            key     (String): the key to obtain from the filter data
+            dictkey (String): the key to access a query parameter dictionary
+            key     (String): the key to obtain from the dictionar data
         Returns:
             (Object): The value found with the given key or None
         """
         value = None
-        if self.check_query_params('filter', key):
-            value = self.query_parameters.get('filter').get(key)
+        if self.check_query_params(dictkey, key):
+            value = self.query_parameters.get(dictkey).get(key)
         return value
 
-    def get_group_by_data(self, key):
-        """Extract the value from group_by parameter or return None.
+    def get_order(self):
+        """Extract the order parameters and apply the associated ordering.
 
-        Args:
-            key     (String): the key to obtain from the group_by data
         Returns:
-            (Object): The value found with the given key or None
+            (String): Ordering value either `total` or `-total`; default is -total
+
         """
-        value = None
-        if self.check_query_params('group_by', key):
-            value = self.query_parameters.get('group_by').get(key)
-        return value
+        order = '-total'
+        cost = self.get_query_param_data('order_by', 'cost')
+        if cost and cost == 'asc':
+            order = 'total'
+        return order
 
     def get_resolution(self):
         """Extract resolution or provide default.
@@ -236,8 +238,8 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_filter_data('resolution')
-        time_scope_value = self.get_filter_data('time_scope_value')
+        self.resolution = self.get_query_param_data('filter', 'resolution')
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
         if not self.resolution:
             if not time_scope_value:
                 self.resolution = 'daily'
@@ -266,8 +268,8 @@ class ReportQueryHandler(object):
         if self.time_scope_units:
             return self.time_scope_units
 
-        time_scope_units = self.get_filter_data('time_scope_units')
-        time_scope_value = self.get_filter_data('time_scope_value')
+        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
         if not time_scope_units:
             if not time_scope_value:
                 time_scope_units = 'day'
@@ -288,8 +290,8 @@ class ReportQueryHandler(object):
         if self.time_scope_value:
             return self.time_scope_value
 
-        time_scope_units = self.get_filter_data('time_scope_units')
-        time_scope_value = self.get_filter_data('time_scope_value')
+        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
         if not time_scope_value:
             if not time_scope_units:
                 time_scope_value = -10
@@ -363,8 +365,8 @@ class ReportQueryHandler(object):
         if self._filter:
             filter_dict.update(self._filter)
 
-        service = self.get_group_by_data('service')
-        account = self.get_group_by_data('account')
+        service = self.get_query_param_data('group_by', 'service')
+        account = self.get_query_param_data('group_by', 'account')
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
 
@@ -378,7 +380,7 @@ class ReportQueryHandler(object):
         group_by = []
         group_by_options = ['service', 'account']
         for item in group_by_options:
-            group_data = self.get_group_by_data(item)
+            group_data = self.get_query_param_data('group_by', item)
             if group_data:
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))
@@ -402,8 +404,8 @@ class ReportQueryHandler(object):
         }
         if self._annotations:
             annotations.update(self._annotations)
-        service = self.get_group_by_data('service')
-        account = self.get_group_by_data('account')
+        service = self.get_query_param_data('group_by', 'service')
+        account = self.get_query_param_data('group_by', 'account')
         if service:
             annotations['service'] = Concat(
                 'cost_entry_product__product_family', Value(''))
@@ -555,7 +557,7 @@ class ReportQueryHandler(object):
             query_filter = self._get_filter()
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
-            query_order_by = ('-date', '-total')
+            query_order_by = ('-date', self._order)
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
@@ -569,10 +571,13 @@ class ReportQueryHandler(object):
                 )
 
             if self._limit:
+                rank_order = F('total').desc()
+                if self._order != '-total':
+                    rank_order = F('total').asc()
                 dense_rank_by_total = Window(
                     expression=DenseRank(),
                     partition_by=F('date'),
-                    order_by=F('total').desc()
+                    order_by=rank_order
                 )
                 query_data = query_data.annotate(rank=dense_rank_by_total)
                 query_order_by = query_order_by + ('rank',)
