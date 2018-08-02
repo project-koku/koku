@@ -92,3 +92,6 @@ class Config(object):
 
     # Retention policy for the number of months of report data to keep.
     MASU_RETAIN_NUM_MONTHS = int(os.getenv('MASU_RETAIN_NUM_MONTHS', 3))
+
+    # Specify the day of the month for removal of expired report data.
+    REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', 1))
