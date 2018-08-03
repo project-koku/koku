@@ -139,7 +139,8 @@ class QueryParamSerializerTest(TestCase):
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
-                                   'resource_scope': []}
+                                   'resource_scope': []},
+                        'units': 'byte'
                         }
         serializer = QueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
@@ -167,6 +168,13 @@ class QueryParamSerializerTest(TestCase):
                                    'time_scope_units': 'day',
                                    'resource_scope': []}
                         }
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_parse_units_failure(self):
+        """Test failure while parsing units query params."""
+        query_params = {'units': 'bites'}
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
