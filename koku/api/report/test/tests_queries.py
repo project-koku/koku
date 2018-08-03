@@ -231,7 +231,7 @@ class ReportQueryTest(IamTestCase):
         """Test the get_group_by_data method with no data in the query params."""
         handler = ReportQueryHandler({}, '', self.tenant, 'unblended_cost',
                                      'currency_code')
-        self.assertFalse(handler.get_group_by_data('service'))
+        self.assertFalse(handler.get_query_param_data('group_by', 'service'))
 
     def test_get_group_by_with_service_list(self):
         """Test the get_group_by_data method with no data in the query params."""
@@ -243,7 +243,7 @@ class ReportQueryTest(IamTestCase):
                                      self.tenant,
                                      'unblended_cost',
                                      'currency_code')
-        service = handler.get_group_by_data('service')
+        service = handler.get_query_param_data('group_by', 'service')
         self.assertEqual(expected, service)
 
     def test_get_resolution_empty_default(self):
@@ -645,3 +645,46 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
                 self.assertIsInstance(month_item.get('values'), list)
+
+    def test_execute_query_curr_month_by_account_w_order(self):
+        """Test execute_query for current month on monthly breakdown by account with asc order."""
+        self.add_data_to_tenant(rate=Decimal('0.299'))
+        self.add_data_to_tenant(rate=Decimal('0.099'))
+        self.add_data_to_tenant(rate=Decimal('0.999'))
+
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'account': ['*']},
+                        'order_by': {'cost': 'asc'}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('accounts')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(4, len(month_data))
+            current_total = 0
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('account'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+                data_point_total = month_item.get('values')[0].get('total')
+                self.assertLess(current_total, data_point_total)
+                current_total = data_point_total
