@@ -16,7 +16,10 @@
 #
 """Report Serializers."""
 from django.utils.translation import ugettext as _
+from pint.errors import UndefinedUnitError
 from rest_framework import serializers
+
+from api.utils import UnitConverter
 
 
 def handle_invalid_fields(this, data):
@@ -191,6 +194,7 @@ class QueryParamSerializer(serializers.Serializer):
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
+    units = serializers.CharField(required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -242,4 +246,24 @@ class QueryParamSerializer(serializers.Serializer):
             (ValidationError): if filter field inputs are invalid
         """
         validate_field(self, 'filter', FilterSerializer, value)
+        return value
+
+    def validate_units(self, value):
+        """Validate incoming units data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if units field inputs are invalid
+
+        """
+        unit_converter = UnitConverter()
+        try:
+            unit_converter.validate_unit(value)
+        except (AttributeError, UndefinedUnitError) as err:
+            error = {'units': f'{value} is not a supported unit'}
+            raise serializers.ValidationError(error)
+
         return value

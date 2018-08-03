@@ -20,36 +20,56 @@ import random
 
 import pint
 from django.test import TestCase
+from pint.errors import UndefinedUnitError
 
 from api.utils import UnitConverter
 
 
-class APIUtilsTest(TestCase):
+class APIUtilsUnitConverterTest(TestCase):
     """Tests against the API utils."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up for test class."""
+        super().setUpClass()
+        cls.converter = UnitConverter()
 
     def test_initializer(self):
         """Test that the UnitConverter starts properly."""
-        converter = UnitConverter()
-
         self.assertIsInstance(
-            converter.unit_registry,
+            self.converter.unit_registry,
             pint.registry.UnitRegistry
         )
 
-        self.assertTrue(hasattr(converter.Quantity, 'units'))
-        self.assertTrue(hasattr(converter.Quantity, 'magnitude'))
+        self.assertTrue(hasattr(self.converter.Quantity, 'units'))
+        self.assertTrue(hasattr(self.converter.Quantity, 'magnitude'))
+
+    def test_validate_unit_success(self):
+        """Test that unit validation succeeds with known units."""
+        unit = 'GB'
+        result = self.converter.validate_unit(unit)
+        self.assertEqual(unit, result)
+
+        unit = 'Hrs'
+        result = self.converter.validate_unit(unit)
+        self.assertEqual(unit.lower(), result)
+
+    def test_validate_unit_failure(self):
+        """Test that an exception is thrown with an invalid unit."""
+        unit = 'Gigglebots'
+
+        with self.assertRaises(UndefinedUnitError):
+            self.converter.validate_unit(unit)
 
     def test_unit_converter(self):
         """Test that unit conversion succeeds."""
-        converter = UnitConverter()
-
         value = random.randint(1, 9)
         from_unit = 'gigabyte'
         to_unit = 'byte'
 
         expected_value = value * 1E9
 
-        result = converter.convert_quantity(value, from_unit, to_unit)
+        result = self.converter.convert_quantity(value, from_unit, to_unit)
 
         self.assertEqual(result.units, to_unit)
         self.assertEqual(result.magnitude, expected_value)

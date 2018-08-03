@@ -557,7 +557,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
       security:
-      - api_key: []            
+      - api_key: []
     get:
       tags:
         - Provider
@@ -698,6 +698,10 @@ paths:
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
+      - name: 'units'
+        in: 'query'
+        description: 'The units used to report data.'
+        type: 'string'
       responses:
         200:
           description: A report object
@@ -732,6 +736,10 @@ paths:
       - name: 'order_by'
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'units'
+        in: 'query'
+        description: 'The units used to report data.'
         type: 'string'
       responses:
         200:
