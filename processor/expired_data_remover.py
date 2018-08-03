@@ -19,6 +19,8 @@
 import logging
 from datetime import (datetime, timedelta)
 
+import pytz
+
 from masu.config import Config
 from masu.database.report_db_cleaner import ReportDBCleaner
 from masu.external.date_accessor import DateAccessor
@@ -66,7 +68,8 @@ class ExpiredDataRemover():
         middle_of_expire_date_month = middle_of_current_month - num_of_days_to_expire_date
         expiration_date = datetime(year=middle_of_expire_date_month.year,
                                    month=middle_of_expire_date_month.month,
-                                   day=1)
+                                   day=1,
+                                   tzinfo=pytz.UTC)
         expiration_msg = 'Report data expiration is {} for a {} month retention policy'
         msg = expiration_msg.format(expiration_date, self._months_to_keep)
         LOG.info(msg)
