@@ -21,6 +21,7 @@ import logging
 from django.db.models import Value
 from django.db.models.functions import Concat
 from django.utils.translation import ugettext as _
+from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
 from rest_framework.authentication import (SessionAuthentication,
@@ -38,6 +39,7 @@ from api.iam.customer_manager import CustomerManager
 from api.models import Customer
 from api.report.queries import ReportQueryHandler
 from api.report.serializers import QueryParamSerializer
+from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +73,7 @@ def get_tenant(user):
         (Tenant): Object used to get tenant specific data tables
     Raises:
         (ValidationError): If no tenant could be found for the user
+
     """
     tenant = None
     group = user.groups.first()
@@ -87,26 +90,90 @@ def get_tenant(user):
     return tenant
 
 
+def _convert_units(converter, data, to_unit):
+    """Convert the units in a JSON structured report.
+
+    Args:
+        converter (api.utils.UnitConverter) Object doing unit conversion
+        data (list,dict): The current block of the report being converted
+        to_unit (str): The unit type to convert to
+
+    Returns:
+        (dict) The final return will be the unit converted report
+
+    """
+    suffix = None
+    if isinstance(data, list):
+        for entry in data:
+            _convert_units(converter, entry, to_unit)
+    elif isinstance(data, dict):
+        for key in data:
+            if key == 'total' and isinstance(data[key], dict):
+                total = data[key]
+                value = total.get('value')
+                from_unit = total.get('units', '')
+                if '-Mo' in from_unit:
+                    from_unit, suffix = from_unit.split('-')
+                new_value = converter.convert_quantity(value, from_unit, to_unit)
+                total['value'] = new_value.magnitude
+                new_unit = to_unit + '-' + suffix if suffix else to_unit
+                total['units'] = new_unit
+            elif key == 'total' and not isinstance(data[key], dict):
+                total = data[key]
+                from_unit = data.get('units', '')
+                if '-Mo' in from_unit:
+                    from_unit, suffix = from_unit.split('-')
+                new_value = converter.convert_quantity(total, from_unit, to_unit)
+                data['total'] = new_value.magnitude
+                new_unit = to_unit + '-' + suffix if suffix else to_unit
+                data['units'] = new_unit
+            else:
+                _convert_units(converter, data[key], to_unit)
+
+    return data
+
+
 def _generic_report(request, aggregate_key, units_key, **kwargs):
-    """Generically query for reports."""
+    """Generically query for reports.
+
+    Args:
+        request (Request): The HTTP request object
+        aggregate_key (str): The report metric to be aggregated
+            e.g. 'usage_amount' or 'unblended_cost'
+        units_key (str): The field used to establish the reporting unit
+
+    Returns:
+        (Response): The report in a Response object
+
+    """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
 
     url_data = request.GET.urlencode()
-    validation, value = process_query_parameters(url_data)
+    validation, params = process_query_parameters(url_data)
     if not validation:
         return Response(
-            data=value,
+            data=params,
             status=status.HTTP_400_BAD_REQUEST
         )
 
     tenant = get_tenant(request.user)
-    handler = ReportQueryHandler(value,
+    handler = ReportQueryHandler(params,
                                  url_data,
                                  tenant,
                                  aggregate_key,
                                  units_key,
                                  **kwargs)
     output = handler.execute_query()
+
+    if 'units' in params:
+        try:
+            to_unit = params['units']
+            unit_converter = UnitConverter()
+            output = _convert_units(unit_converter, output, to_unit)
+        except (DimensionalityError, UndefinedUnitError):
+            error = {'details': _('Unit conversion failed.')}
+            raise ValidationError(error)
+
     LOG.debug(f'DATA: {output}')
     return Response(output)
 
@@ -228,8 +295,9 @@ def instance_type(request):
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParam (Query Param) {String} units The units used in the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&group_by[account]=*
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&group_by[account]=*&units=hours
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
@@ -337,8 +405,9 @@ def storage(request):
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParam (Query Param) {String} units The units used in the report.
     @apiParamExample {json} Query Param:
-        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc
+        ?filter[resolution]=daily&filter[time_scope_value]=-10&order_by[cost]=asc&units=byte
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
