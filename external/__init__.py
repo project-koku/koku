@@ -18,6 +18,7 @@
 
 # Provider Types
 AMAZON_WEB_SERVICES = 'AWS'
+LOCAL_SERVICE_PROVIDER = 'Local'
 
 # Compression formats
 UNCOMPRESSED = 'PLAIN'
