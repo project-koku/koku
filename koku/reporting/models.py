@@ -56,6 +56,11 @@ class AWSCostEntryLineItem(models.Model):
 
     """
 
+    class Meta:
+        """Meta for AWSCostEntryLineItem."""
+
+        unique_together = ('hash', 'cost_entry')
+
     id = models.BigAutoField(primary_key=True)
 
     cost_entry = models.ForeignKey('AWSCostEntry',
@@ -69,6 +74,8 @@ class AWSCostEntryLineItem(models.Model):
     cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
                                                on_delete=models.PROTECT,
                                                null=True)
+
+    hash = models.TextField(null=True)
 
     # There is a many-to-many relationship between line-items and tags.
     # Want to try JSON to avoid having to check if tags exist in the database
@@ -103,6 +110,14 @@ class AWSCostEntryLineItem(models.Model):
 
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
+
+    class Meta:
+        """Meta for AWSCostEntryLineItem."""
+
+        unique_together = ('public_on_demand_cost',
+                           'public_on_demand_rate',
+                           'term',
+                           'unit')
 
     public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9)
     public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9)
