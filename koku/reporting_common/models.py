@@ -71,3 +71,20 @@ class SIUnitScale(models.Model):
     prefix = models.CharField(max_length=12, null=False, unique=True)
     prefix_symbol = models.CharField(max_length=1, null=False)
     multiplying_factor = models.DecimalField(max_digits=49, decimal_places=24)
+
+
+class RegionMapping(models.Model):
+    """Mapping table of AWS region names.
+
+    example:
+      "Region Name": "EU (London)"
+      "Region": "eu-west-2"
+    """
+
+    class Meta:
+        """Meta for RegionMapping."""
+
+        db_table = 'region_mapping'
+
+    region = models.CharField(max_length=32, null=False, unique=True)
+    region_name = models.CharField(max_length=64, null=False, unique=True)
