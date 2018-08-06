@@ -159,6 +159,8 @@ objects:
         env:
           - name: PIP_INDEX_URL
             value: ${PIP_INDEX_URL}
+          - name: PIPENV_PYPI_MIRROR
+            value: ${PIPENV_PYPI_MIRROR}
           - name: ENABLE_PIPENV
             value: "true"
           - name: APP_CONFIG
@@ -628,6 +630,9 @@ parameters:
 - description: The custom PyPi index URL
   displayName: Custom PyPi Index URL
   name: PIP_INDEX_URL
+- description: The custom PipEnv PyPi index URL
+  displayName: Custom PipEnv PyPi Index URL
+  name: PIPENV_PYPI_MIRROR
 - displayName: User Interface Domain
   value: 'project-koku.com'
   name: APP_DOMAIN
