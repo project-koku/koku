@@ -210,7 +210,7 @@ class ReportQueryHandler(object):
         Returns:
             (Object): The value found with the given key or None
         """
-        value = None
+        value = []
         if self.check_query_params(dictkey, key):
             value = self.query_parameters.get(dictkey).get(key)
         return value
@@ -366,9 +366,12 @@ class ReportQueryHandler(object):
             filter_dict.update(self._filter)
 
         service = self.get_query_param_data('group_by', 'service')
-        account = self.get_query_param_data('group_by', 'account')
+        gb_account = self.get_query_param_data('group_by', 'account')
         region = self.get_query_param_data('group_by', 'region')
         avail_zone = self.get_query_param_data('group_by', 'avail_zone')
+        f_account = self.get_query_param_data('filter', 'account')
+        account = list(set(gb_account + f_account))
+
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
 

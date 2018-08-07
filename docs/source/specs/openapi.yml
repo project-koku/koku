@@ -943,6 +943,10 @@ definitions:
         items:
           $ref: '#/definitions/ReportResourceScope'
         example: []
+      account:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
