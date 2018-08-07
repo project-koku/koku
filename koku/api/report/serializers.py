@@ -90,6 +90,10 @@ class GroupBySerializer(serializers.Serializer):
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
+    region = StringOrListField(child=serializers.CharField(),
+                               required=False)
+    avail_zone = StringOrListField(child=serializers.CharField(),
+                                   required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
 
