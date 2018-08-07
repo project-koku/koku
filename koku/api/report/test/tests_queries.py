@@ -97,31 +97,6 @@ class ReportQueryUtilsTest(TestCase):
         result = ReportQueryHandler.has_wildcard([])
         self.assertFalse(result)
 
-    def test_lists_to_set_both_none(self):
-        """Test an merging two None returns empty set."""
-        result = ReportQueryHandler.lists_to_set(None, None)
-        self.assertEqual(result, set())
-
-    def test_lists_to_set_one_none(self):
-        """Test an merging one None and a list returns a set of the list contents."""
-        list_b = ['a', 'b']
-        result = ReportQueryHandler.lists_to_set(None, list_b)
-        self.assertEqual(result, set(list_b))
-
-    def test_lists_to_set_independent(self):
-        """Test an merging two independent list returns a set of the merged contents."""
-        list_a = ['1', '2']
-        list_b = ['a', 'b']
-        result = ReportQueryHandler.lists_to_set(list_a, list_b)
-        self.assertEqual(result, set(list_a + list_b))
-
-    def test_lists_to_set_overlap(self):
-        """Test an merging two overlapping list returns a set of the merged contents."""
-        list_a = ['1', '*']
-        list_b = ['*', 'b']
-        result = ReportQueryHandler.lists_to_set(list_a, list_b)
-        self.assertEqual(result, set(['1', '*', 'b']))
-
     def test_group_data_by_list(self):
         """Test the _group_data_by_list method."""
         group_by = ['account', 'service']
