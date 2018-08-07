@@ -86,6 +86,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if report_names:
                 report_name = report_names[0]
         self.report_name = report_name
+        self.bucket = bucket
 
         report_defs = defs.get('ReportDefinitions', [])
         report = [rep for rep in report_defs
@@ -175,7 +176,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         s3_filename = key.split('/')[-1]
-        directory_path = f'{DATA_DIR}/{self.customer_name}/aws'
+        directory_path = f'{DATA_DIR}/{self.customer_name}/aws/{self.bucket}'
 
         local_s3_filename = utils.get_local_file_name(key)
         LOG.info('Local S3 filename: %s', local_s3_filename)
