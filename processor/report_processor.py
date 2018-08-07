@@ -17,12 +17,13 @@
 
 """Processor for Cost Usage Reports."""
 
+import copy
 import csv
 import gzip
 import io
 import json
 import logging
-from itertools import islice
+from decimal import Decimal
 from os import path
 
 from masu.config import Config
@@ -32,6 +33,8 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.processor import ALLOWED_COMPRESSIONS
+from masu.util.common import stringify_json_data
+from masu.util.hash import Hasher
 
 LOG = logging.getLogger(__name__)
 
@@ -65,7 +68,7 @@ class ProcessedReport:
 class ReportProcessor:
     """Cost Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression, cursor_pos=0):
+    def __init__(self, schema_name, report_path, compression):
         """Initialize the report processor.
 
         Args:
@@ -73,9 +76,6 @@ class ReportProcessor:
             report_path (str): Where the report file lives in the file system
             compression (CONST): How the report file is compressed.
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
-            cursor_pos (int): An integer cursor position in the file.
-                The line number to begin processing at.
-
 
         """
         if compression.upper() not in ALLOWED_COMPRESSIONS:
@@ -84,11 +84,11 @@ class ReportProcessor:
 
         self._schema_name = schema_name
         self._report_path = report_path
-        self._cursor_pos = cursor_pos
         self._compression = compression.upper()
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
+        self._decimal_precision = f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
 
         self.processed_report = ProcessedReport()
 
@@ -100,6 +100,15 @@ class ReportProcessor:
         self.report_db = ReportDBAccessor(schema=self._schema_name,
                                           column_map=self.column_map)
         self.report_schema = self.report_db.report_schema
+        self._decimal_format_str = self.report_db.decimal_format_str
+
+        self.temp_table = self.report_db.create_temp_table(
+            AWS_CUR_TABLE_MAP['line_item']
+        )
+        self.line_item_columns = None
+
+        self.hasher = Hasher(hash_function='md5')
+        self.hash_columns = self._get_line_item_hash_columns()
 
         self.current_bill = self.report_db.get_current_cost_entry_bill()
         self.existing_cost_entry_map = self.report_db.get_cost_entries()
@@ -114,7 +123,7 @@ class ReportProcessor:
         """Process CUR file.
 
         Returns:
-            (int): An updated cursor position.
+            (None)
 
         """
         row_count = 0
@@ -125,7 +134,7 @@ class ReportProcessor:
         with opener(self._report_path, mode) as f:
             LOG.info('File %s opened for processing', str(f))
             reader = csv.DictReader(f)
-            for row in islice(reader, self._cursor_pos, None):
+            for row in reader:
                 if bill_id is None:
                     bill_id = self._create_cost_entry_bill(row)
 
@@ -154,12 +163,23 @@ class ReportProcessor:
 
             if self.processed_report.line_items:
                 self._save_to_db()
+
+                LOG.info('Saving report rows %d to %d', row_count,
+                         row_count + len(self.processed_report.line_items))
+
                 row_count += len(self.processed_report.line_items)
+
+            self.report_db.merge_temp_table(
+                AWS_CUR_TABLE_MAP['line_item'],
+                self.temp_table,
+                self.line_item_columns
+            )
+
             self.report_db.close_connections()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
-        return self._cursor_pos + row_count
+        return
 
     # pylint: disable=inconsistent-return-statements, no-self-use
     def _get_file_opener(self, compression):
@@ -189,7 +209,8 @@ class ReportProcessor:
 
         self.report_db.bulk_insert_rows(
             csv_file,
-            AWS_CUR_TABLE_MAP['line_item'],
+            # AWS_CUR_TABLE_MAP['line_item'],
+            self.temp_table,
             columns)
 
     def _update_mappings(self):
@@ -381,7 +402,13 @@ class ReportProcessor:
         data['cost_entry_pricing_id'] = pricing_id
         data['cost_entry_reservation_id'] = reservation_id
 
+        data_str = self._create_line_item_hash_string(data)
+        data['hash'] = self.hasher.hash_string_to_hex(data_str)
+
         self.processed_report.line_items.append(data)
+
+        if self.line_item_columns is None:
+            self.line_item_columns = list(data.keys())
 
     def _create_cost_entry_pricing(self, row):
         """Create a cost entry pricing object.
@@ -394,13 +421,24 @@ class ReportProcessor:
 
         """
         table_name = AWS_CUR_TABLE_MAP['pricing']
-        key = '{cost}-{rate}-{term}-{unit}'.format(
-            cost=row.get('pricing/publicOnDemandCost'),
-            rate=row.get('pricing/publicOnDemandRate'),
-            term=row.get('pricing/term'),
-            unit=row.get('pricing/unit')
-        )
 
+        # Get the correct decimal precision to compare to stored
+        # values in the database
+        cost = Decimal(row.get('pricing/publicOnDemandCost')).quantize(
+            Decimal(self._decimal_precision)
+        )
+        rate = Decimal(row.get('pricing/publicOnDemandRate')).quantize(
+            Decimal(self._decimal_precision)
+        )
+        term = row.get('pricing/term') if row.get('pricing/term') else 'None'
+        unit = row.get('pricing/unit') if row.get('pricing/unit') else 'None'
+
+        key = '{cost}-{rate}-{term}-{unit}'.format(
+            cost=self._decimal_format_str.format(cost),
+            rate=self._decimal_format_str.format(rate),
+            term=term,
+            unit=unit
+        )
         if key in self.processed_report.pricing:
             return self.processed_report.pricing[key]
         elif key in self.existing_pricing_map:
@@ -413,6 +451,9 @@ class ReportProcessor:
         value_set = set(data.values())
         if value_set == {''}:
             return
+
+        data['public_on_demand_cost'] = cost
+        data['public_on_demand_rate'] = rate
 
         pricing_id = self.report_db.insert_on_conflict_do_nothing(
             table_name,
@@ -490,3 +531,24 @@ class ReportProcessor:
         self.processed_report.reservations[arn] = reservation_id
 
         return reservation_id
+
+    def _get_line_item_hash_columns(self):
+        """Get the column list used for creating a line item hash."""
+        all_columns = self.column_map[AWS_CUR_TABLE_MAP['line_item']].values()
+        # Invoice id is populated when a bill is finalized so we don't want to
+        # use it to determine row uniqueness
+        return [column for column in all_columns if column != 'invoice_id']
+
+    def _create_line_item_hash_string(self, data):
+        """Build the string to be hashed using line item data.
+
+        Args:
+            data (dict): The processed line item data dictionary
+
+        Returns:
+            (str): A string representation of the data
+
+        """
+        data = stringify_json_data(copy.deepcopy(data))
+        data = [data.get(column, 'None') for column in self.hash_columns]
+        return ':'.join(data)

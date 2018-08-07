@@ -17,6 +17,7 @@
 """Database accessor for report data."""
 
 import logging
+import uuid
 from decimal import Decimal
 
 import psycopg2
@@ -87,6 +88,11 @@ class ReportDBAccessor(KokuDBAccess):
         self._pg2_conn = self._get_psycopg2_connection()
         self._cursor = self._get_psycopg2_cursor()
 
+    @property
+    def decimal_format_str(self):
+        """Return precision format for decimal values."""
+        return '{' + f'0:.{Config.REPORTING_DECIMAL_PRECISION}' + 'f}'
+
     # pylint: disable=no-self-use
     def _get_psycopg2_connection(self):
         """Get a low level database connection."""
@@ -97,6 +103,41 @@ class ReportDBAccessor(KokuDBAccess):
         cursor = self._pg2_conn.cursor()
         cursor.execute(f'SET search_path TO {self.schema}')
         return cursor
+
+    def create_temp_table(self, table_name):
+        """Create a temporary table and return the table name."""
+        temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
+        self._cursor.execute(
+            f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
+        )
+        self._cursor.execute(
+            f'ALTER TABLE {temp_table_name} DROP COLUMN id'
+        )
+
+        return temp_table_name
+
+    def merge_temp_table(self, table_name, temp_table_name, columns):
+        """INSERT temp table rows into the primary table specified.
+
+        Args:
+            table_name (str): The main table to insert into
+            temp_table_name (str): The temp table to pull from
+            columsn (list): A list of columns to use in the insert logic
+
+        Returns:
+            (None)
+
+        """
+        columns = ','.join(columns)
+
+        statement = f"""
+            INSERT INTO {table_name} ({columns})
+                SELECT {columns}
+                FROM {temp_table_name}
+                ON CONFLICT DO NOTHING
+        """
+        self._cursor.execute(statement)
+        self._pg2_conn.commit()
 
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
@@ -235,7 +276,7 @@ class ReportDBAccessor(KokuDBAccess):
         column_types = self.report_schema.column_types[table_name]
 
         for key, value in data.items():
-            if not value:
+            if value is None or value == '':
                 data[key] = None
                 continue
             if column_types.get(key) == int:
@@ -340,8 +381,15 @@ class ReportDBAccessor(KokuDBAccess):
         table_name = AWS_CUR_TABLE_MAP['pricing']
         pricing = self._get_db_obj_query(table_name).all()
 
-        return {f'{p.public_on_demand_cost}-{p.public_on_demand_rate}-{p.term}-{p.unit}': p.id
-                for p in pricing}
+        return {
+            '{cost}-{rate}-{term}-{unit}'.format(
+                cost=self.decimal_format_str.format(p.public_on_demand_cost),
+                rate=self.decimal_format_str.format(p.public_on_demand_rate),
+                term=p.term,
+                unit=p.unit
+            ): p.id
+            for p in pricing
+        }
 
     def get_reservations(self):
         """Make a mapping of reservation ARN to reservation objects."""
