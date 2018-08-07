@@ -34,3 +34,17 @@ def extract_uuids_from_string(source_string):
     uuid_regex = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
     found_uuid = re.findall(uuid_regex, source_string, re.IGNORECASE)
     return found_uuid
+
+
+def stringify_json_data(data):
+    """Convert each leaf value of a JSON object to string."""
+    if isinstance(data, list):
+        for i, entry in enumerate(data):
+            data[i] = stringify_json_data(entry)
+    elif isinstance(data, dict):
+        for key in data:
+            data[key] = stringify_json_data(data[key])
+    elif not isinstance(data, str):
+        return str(data)
+
+    return data

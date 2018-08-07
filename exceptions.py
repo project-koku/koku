@@ -39,3 +39,9 @@ class CURAccountsInterfaceError(Exception):
     """CURAccountsInterface error."""
 
     pass
+
+
+class HasherError(Exception):
+    """Hasher Utility class error."""
+
+    pass
