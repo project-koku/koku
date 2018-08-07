@@ -367,18 +367,26 @@ class ReportQueryHandler(object):
 
         service = self.get_query_param_data('group_by', 'service')
         account = self.get_query_param_data('group_by', 'account')
+        region = self.get_query_param_data('group_by', 'region')
+        avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
 
         if not ReportQueryHandler.has_wildcard(account) and account:
             filter_dict['usage_account_id__in'] = account
 
+        if not ReportQueryHandler.has_wildcard(region) and region:
+            filter_dict['cost_entry_product__region__in'] = region
+
+        if not ReportQueryHandler.has_wildcard(avail_zone) and avail_zone:
+            filter_dict['cost_entry_product__avail_zone__in'] = avail_zone
+
         return filter_dict
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
-        group_by_options = ['service', 'account']
+        group_by_options = ['service', 'account', 'region', 'avail_zone']
         for item in group_by_options:
             group_data = self.get_query_param_data('group_by', item)
             if group_data:
@@ -406,12 +414,20 @@ class ReportQueryHandler(object):
             annotations.update(self._annotations)
         service = self.get_query_param_data('group_by', 'service')
         account = self.get_query_param_data('group_by', 'account')
+        region = self.get_query_param_data('group_by', 'region')
+        avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         if service:
             annotations['service'] = Concat(
                 'cost_entry_product__product_family', Value(''))
         if account:
             annotations['account'] = Concat(
                 'usage_account_id', Value(''))
+        if region:
+            annotations['region'] = Concat(
+                'cost_entry_product__region', Value(''))
+        if avail_zone:
+            annotations['avail_zone'] = Concat(
+                'availability_zone', Value(''))
 
         return annotations
 
