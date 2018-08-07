@@ -198,9 +198,7 @@ class ReportQueryTest(IamTestCase):
                                              memory=7.5,
                                              vcpu=4)
             ce_product.save()
-            ce_pricing = AWSCostEntryPricing(public_on_demand_cost=rate * 1,
-                                             public_on_demand_rate=rate,
-                                             term='OnDemand',
+            ce_pricing = AWSCostEntryPricing(term='OnDemand',
                                              unit='Hrs')
             ce_pricing.save()
             current = yesterday
