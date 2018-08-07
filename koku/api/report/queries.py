@@ -175,6 +175,25 @@ class ReportQueryHandler(object):
         return months
 
     @staticmethod
+    def lists_to_set(list_a, list_b):
+        """Merge two lists into a set.
+
+        Args:
+            list_a (List[String]): List of strings
+            list_b (List[String]): List of strings
+        Return:
+            (Set): unique set of strings
+        """
+        out = set()
+        if list_a:
+            for item in list_a:
+                out.add(item)
+        if list_b:
+            for item in list_b:
+                out.add(item)
+        return out
+
+    @staticmethod
     def has_wildcard(in_list):
         """Check if list has wildcard.
 
@@ -366,9 +385,12 @@ class ReportQueryHandler(object):
             filter_dict.update(self._filter)
 
         service = self.get_query_param_data('group_by', 'service')
-        account = self.get_query_param_data('group_by', 'account')
+        gb_account = self.get_query_param_data('group_by', 'account')
         region = self.get_query_param_data('group_by', 'region')
         avail_zone = self.get_query_param_data('group_by', 'avail_zone')
+        f_account = self.get_query_param_data('filter', 'account')
+        account = list(ReportQueryHandler.lists_to_set(gb_account, f_account))
+
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
 

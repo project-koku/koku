@@ -97,6 +97,31 @@ class ReportQueryUtilsTest(TestCase):
         result = ReportQueryHandler.has_wildcard([])
         self.assertFalse(result)
 
+    def test_lists_to_set_both_none(self):
+        """Test an merging two None returns empty set."""
+        result = ReportQueryHandler.lists_to_set(None, None)
+        self.assertEqual(result, set())
+
+    def test_lists_to_set_one_none(self):
+        """Test an merging one None and a list returns a set of the list contents."""
+        list_b = ['a', 'b']
+        result = ReportQueryHandler.lists_to_set(None, list_b)
+        self.assertEqual(result, set(list_b))
+
+    def test_lists_to_set_independent(self):
+        """Test an merging two independent list returns a set of the merged contents."""
+        list_a = ['1', '2']
+        list_b = ['a', 'b']
+        result = ReportQueryHandler.lists_to_set(list_a, list_b)
+        self.assertEqual(result, set(list_a + list_b))
+
+    def test_lists_to_set_overlap(self):
+        """Test an merging two overlapping list returns a set of the merged contents."""
+        list_a = ['1', '*']
+        list_b = ['*', 'b']
+        result = ReportQueryHandler.lists_to_set(list_a, list_b)
+        self.assertEqual(result, set(['1', '*', 'b']))
+
     def test_group_data_by_list(self):
         """Test the _group_data_by_list method."""
         group_by = ['account', 'service']
@@ -823,3 +848,32 @@ class ReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get('avail_zone'), str)
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_current_month_filter_account(self):
+        """Test execute_query for current month on monthly breakdown by account."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'account': [self.payer_account_id]}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
