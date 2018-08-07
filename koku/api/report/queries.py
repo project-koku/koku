@@ -379,7 +379,7 @@ class ReportQueryHandler(object):
             filter_dict['cost_entry_product__region__in'] = region
 
         if not ReportQueryHandler.has_wildcard(avail_zone) and avail_zone:
-            filter_dict['cost_entry_product__avail_zone__in'] = avail_zone
+            filter_dict['availability_zone__in'] = avail_zone
 
         return filter_dict
 
