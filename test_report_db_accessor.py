@@ -118,6 +118,13 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def setUp(self):
         """"Set up a test with database objects."""
+        super().setUp()
+        if self.accessor._conn.closed:
+            self.accessor._conn = self.accessor._db.connect()
+        if self.accessor._pg2_conn.closed:
+            self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
+        if self.accessor._cursor.closed:
+            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
         bill_id = self.creator.create_cost_entry_bill()
         cost_entry_id = self.creator.create_cost_entry(bill_id)
         product_id = self.creator.create_cost_entry_product()
@@ -160,6 +167,90 @@ class ReportDBAccessorTest(MasuTestCase):
 
         self.assertIsInstance(cursor, psycopg2.extensions.cursor)
 
+    def test_create_temp_table(self):
+        """Test that a temporary table is created."""
+        table_name = random.choice(self.all_tables)
+        cursor = self.accessor._cursor
+        temp_table_name = self.accessor.create_temp_table(table_name)
+
+        exists = """
+            SELECT exists(
+                SELECT 1
+                FROM pg_tables
+                WHERE tablename='{table_name}'
+            )
+        """.format(table_name=temp_table_name)
+
+        cursor.execute(exists)
+        result = cursor.fetchone()
+
+        self.assertTrue(result[0])
+
+    def test_merge_temp_table(self):
+        """Test that a temp table insert succeeds."""
+        table_name = 'test_table'
+        columns = ['test_column']
+        cursor = self.accessor._cursor
+
+        drop_table = f'DROP TABLE IF EXISTS {table_name}'
+        cursor.execute(drop_table)
+
+        create_table = f'CREATE TABLE {table_name} (id serial primary key, test_column varchar(8))'
+        cursor.execute(create_table)
+
+        count = f'SELECT count(*) FROM {table_name}'
+        cursor.execute(count)
+        initial_count = cursor.fetchone()[0]
+
+        temp_table_name = self.accessor.create_temp_table(table_name)
+
+        insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
+        cursor.execute(insert)
+
+        self.accessor.merge_temp_table(table_name, temp_table_name, columns)
+
+        cursor.execute(count)
+        final_count = cursor.fetchone()[0]
+
+        self.assertEqual(initial_count + 1, final_count)
+
+
+        cursor.execute(drop_table)
+        self.accessor._pg2_conn.commit()
+
+    def test_merge_temp_table_with_duplicate(self):
+        """Test that a temp table with duplicate row does not insert."""
+        table_name = 'test_table'
+        columns = ['test_column']
+        cursor = self.accessor._cursor
+
+        drop_table = f'DROP TABLE IF EXISTS {table_name}'
+        cursor.execute(drop_table)
+
+        create_table = f'CREATE TABLE {table_name} (id serial primary key, test_column varchar(8) unique)'
+        cursor.execute(create_table)
+
+        insert = f'INSERT INTO {table_name} (test_column) VALUES (\'123\')'
+        cursor.execute(insert)
+
+        count = f'SELECT count(*) FROM {table_name}'
+        cursor.execute(count)
+        initial_count = cursor.fetchone()[0]
+
+        temp_table_name = self.accessor.create_temp_table(table_name)
+
+        insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
+        cursor.execute(insert)
+
+        self.accessor.merge_temp_table(table_name, temp_table_name, columns)
+
+        cursor.execute(count)
+        final_count = cursor.fetchone()[0]
+
+        self.assertEqual(initial_count, final_count)
+
+        cursor.execute(drop_table)
+        self.accessor._pg2_conn.commit()
 
     def test_close_connections_with_arg(self):
         """Test that the passed in psycopg2 connection is closed."""
