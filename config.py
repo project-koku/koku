@@ -93,5 +93,10 @@ class Config(object):
     # Retention policy for the number of months of report data to keep.
     MASU_RETAIN_NUM_MONTHS = int(os.getenv('MASU_RETAIN_NUM_MONTHS', 3))
 
+    # pylint: disable=fixme
+    # TODO: Remove this if/when reporting model files are owned by masu
+    # The decimal precision of our database Numeric columns
+    REPORTING_DECIMAL_PRECISION = 9
+
     # Specify the day of the month for removal of expired report data.
     REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', 1))
