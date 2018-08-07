@@ -823,3 +823,32 @@ class ReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get('avail_zone'), str)
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_current_month_filter_account(self):
+        """Test execute_query for current month on monthly breakdown by account."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'account': [self.payer_account_id]}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
