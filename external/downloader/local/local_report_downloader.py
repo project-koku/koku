@@ -25,10 +25,10 @@ import json
 import logging
 import os
 import shutil
-from datetime import datetime
 
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws import utils
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -61,7 +61,8 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.report_name = report_name
         else:
             self.report_name = os.listdir(bucket)[0]
-        self.bucket = bucket
+        self.base_path = bucket
+        self.bucket = bucket.replace('/', '_')
         self.credential = auth_credential
 
     def _get_manifest(self, date_time):
@@ -99,7 +100,7 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_date_range = utils.month_date_range(date_time)
-        return '{}/{}/{}'.format(self.bucket,
+        return '{}/{}/{}'.format(self.base_path,
                                  self.report_name,
                                  report_date_range)
 
@@ -111,7 +112,7 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (List) List of filenames downloaded.
 
         """
-        return self.download_report(datetime.today())
+        return self.download_report(DateAccessor().today())
 
     def download_file(self, key, stored_etag=None):
         """
@@ -126,7 +127,7 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_s3_filename = utils.get_local_file_name(key)
 
-        directory_path = f'{DATA_DIR}/{self.customer_name}/local'
+        directory_path = f'{DATA_DIR}/{self.customer_name}/local/{self.bucket}'
         full_file_path = f'{directory_path}/{local_s3_filename}'
 
         # Make sure the data directory exists
@@ -160,7 +161,7 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             local_s3_filename = utils.get_local_file_name(report)
             stats_recorder = ReportStatsDBAccessor(local_s3_filename)
             stored_etag = stats_recorder.get_etag()
-            report_path = self.bucket + report
+            report_path = self.base_path + report
             LOG.info('Downloading %s with credential %s', report_path, self.credential)
             file_name, etag = self.download_file(report_path, stored_etag)
             stats_recorder.update(etag=etag)
