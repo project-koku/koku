@@ -367,12 +367,16 @@ class ReportQueryHandler(object):
 
         gb_service = self.get_query_param_data('group_by', 'service')
         gb_account = self.get_query_param_data('group_by', 'account')
-        region = self.get_query_param_data('group_by', 'region')
-        avail_zone = self.get_query_param_data('group_by', 'avail_zone')
+        gb_region = self.get_query_param_data('group_by', 'region')
+        gb_avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         f_account = self.get_query_param_data('filter', 'account')
         f_service = self.get_query_param_data('filter', 'service')
+        f_region = self.get_query_param_data('filter', 'region')
+        f_avail_zone = self.get_query_param_data('filter', 'avail_zone')
         account = list(set(gb_account + f_account))
         service = list(set(gb_service + f_service))
+        region = list(set(gb_region + f_region))
+        avail_zone = list(set(gb_avail_zone + f_avail_zone))
 
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service

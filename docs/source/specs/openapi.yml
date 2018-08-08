@@ -951,6 +951,14 @@ definitions:
         type: array
         items:
           type: string
+      region:
+        type: array
+        items:
+          type: string
+      avail_zone:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
