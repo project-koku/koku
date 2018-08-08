@@ -947,6 +947,10 @@ definitions:
         type: array
         items:
           type: string
+      service:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
