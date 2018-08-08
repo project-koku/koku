@@ -157,6 +157,10 @@ class FilterSerializer(serializers.Serializer):
                                 required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
+    region = StringOrListField(child=serializers.CharField(),
+                               required=False)
+    avail_zone = StringOrListField(child=serializers.CharField(),
+                                   required=False)
 
     def validate(self, data):
         """Validate incoming data.
