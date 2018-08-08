@@ -365,12 +365,14 @@ class ReportQueryHandler(object):
         if self._filter:
             filter_dict.update(self._filter)
 
-        service = self.get_query_param_data('group_by', 'service')
+        gb_service = self.get_query_param_data('group_by', 'service')
         gb_account = self.get_query_param_data('group_by', 'account')
         region = self.get_query_param_data('group_by', 'region')
         avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         f_account = self.get_query_param_data('filter', 'account')
+        f_service = self.get_query_param_data('filter', 'service')
         account = list(set(gb_account + f_account))
+        service = list(set(gb_service + f_service))
 
         if not ReportQueryHandler.has_wildcard(service) and service:
             filter_dict['cost_entry_product__product_family__in'] = service
