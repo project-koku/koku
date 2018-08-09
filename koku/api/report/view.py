@@ -378,7 +378,7 @@ def instance_type(request):
                 ]
             ],
             "total": {
-                "value": 34,
+                "value": 63,
                 "units": "Hrs",
                 "count": 5
             }
