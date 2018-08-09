@@ -352,13 +352,35 @@ def instance_type(request):
                                     ]
                             }
                         ]
+                    },
+                    {
+                        "date": "2018-05-29",
+                        "accounts": [
+                            {
+                                "account": 111111111111 ,
+                                "instance_types": [
+                                        {
+                                            "instance_type": "m5.2xlarge",
+                                            "values": [
+                                                {
+                                                    "date": "2018-05-28",
+                                                    "units": "Hrs",
+                                                    "instance_type": "m5.2xlarge",
+                                                    "total": 29,
+                                                    "count": 4
+                                                }
+                                            ]
+                                        }
+                                    ]
+                            }
+                        ]
                     }
                 ]
             ],
             "total": {
                 "value": 34,
                 "units": "Hrs",
-                "count": 4
+                "count": 5
             }
         }
     @apiSuccessExample {text} Success-Response:
