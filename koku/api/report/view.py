@@ -301,7 +301,7 @@ def instance_type(request):
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
-    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} data  The data including types, usage, and distinct number of instances for a time period.
     @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK

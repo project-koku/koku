@@ -1107,7 +1107,8 @@ definitions:
                                     'date': '2018-05-28',
                                     'units': 'Hrs',
                                     'instance_type': 't2.medium',
-                                    'total': 5
+                                    'total': 5,
+                                    'count': 1
                                 }
                             ]
                         },
@@ -1118,7 +1119,8 @@ definitions:
                                     'date': '2018-05-28',
                                     'units': 'Hrs',
                                     'instance_type': 'm5.2xlarge',
-                                    'total': 29
+                                    'total': 29,
+                                    'count': 3
                                 }
                             ]
                         }
