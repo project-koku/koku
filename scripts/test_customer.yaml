@@ -1,0 +1,20 @@
+---
+customer:
+  bucket: test-bucket
+  customer_name: Test Customer
+  email: test@example.com
+  user: test_customer
+  password: str0ng!P@ss
+  provider_name: Test Provider
+  provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
+database:
+  host: localhost
+  port: 15432
+  user: postgres
+  password: ''
+  dbname: koku
+koku:
+  host: localhost
+  port: 8000
+  user: admin
+  password: pass
