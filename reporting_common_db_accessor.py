@@ -43,6 +43,9 @@ class ReportingCommonDBAccessor(KokuDBAccess):
             if 'reporting_common' in table.__name__:
                 setattr(self.report_common_schema, table.__name__, table)
 
+            if 'region_mapping' in table.__name__:
+                setattr(self, f'_{table.__name__}', table)
+
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table_name):
         """Create a query for a database object.
@@ -69,3 +72,30 @@ class ReportingCommonDBAccessor(KokuDBAccess):
             column_map[row.database_table].update(entry)
 
         return column_map
+
+    def commit(self):
+        """
+        Commit pending database changes.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        self._session.commit()
+
+    def add(self, table, fields):
+        """
+        Add a new row to the database.
+
+        Args:
+            table (string): Table name
+            fields (dict): Fields containing attributes.
+                    Valid keys are the table's fields.
+
+        Returns:
+            None
+
+        """
+        new = getattr(self, f'_{table.lower()}')(**fields)
+        self._session.add(new)
