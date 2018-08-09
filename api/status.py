@@ -95,6 +95,8 @@ class ApplicationStatus():
                 LOG.info('Timeout connecting to message broker.')
             except ConnectionResetError:
                 LOG.info('Connection reset by message broker.')
+            except OSError as exc:
+                LOG.info(str(exc))
             finally:
                 connection.release()
         return self._events
@@ -133,6 +135,7 @@ class ApplicationStatus():
                 names = [desc[0] for desc in curs.description]
         except (psycopg2.InterfaceError,
                 psycopg2.NotSupportedError,
+                psycopg2.OperationalError,
                 psycopg2.ProgrammingError) as exc:
             LOG.warning('Unable to connect to DB: %s', str(exc))
             return {'ERROR': str(exc)}
