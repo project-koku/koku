@@ -17,6 +17,7 @@
 
 """Test the ReportingCommonDBAccessor utility object."""
 import copy
+from unittest.mock import Mock, patch
 
 from sqlalchemy.orm.session import Session
 
@@ -60,3 +61,20 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
 
         self.assertIsInstance(session, Session)
         self.assertIs(session, new_session)
+
+    def test_add(self):
+        """Test the add() function."""
+        mock_session = Mock(spec=Session)
+        accessor = copy.copy(self.accessor)
+        accessor._session = mock_session
+        accessor._test = Mock()
+        accessor.add('test', {'foo': 'bar'})
+        mock_session.add.assert_called()
+
+    def test_commit(self):
+        """Test the commit() function."""
+        mock_session = Mock(spec=Session)
+        accessor = copy.copy(self.accessor)
+        accessor._session = mock_session
+        accessor.commit()
+        mock_session.commit.assert_called()
