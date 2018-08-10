@@ -663,6 +663,13 @@ paths:
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -702,6 +709,13 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -741,6 +755,13 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -1037,6 +1058,7 @@ definitions:
       - group_by
       - order_by
       - filter
+      - operation
     properties:
       group_by:
         $ref: '#/definitions/ReportGrouping'
@@ -1044,6 +1066,16 @@ definitions:
         $ref: '#/definitions/ReportOrdering'
       filter:
         $ref: '#/definitions/ReportFilter'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
   ReportCost:
     allOf:
       - $ref: '#/definitions/Report'
