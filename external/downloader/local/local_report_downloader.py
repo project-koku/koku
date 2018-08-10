@@ -24,6 +24,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 
 from masu.config import Config
@@ -56,14 +57,50 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(' ', '_')
 
         LOG.debug('Connecting to local service provider...')
+        prefix, name = self._extract_names(bucket)
 
         if report_name:
             self.report_name = report_name
         else:
-            self.report_name = os.listdir(bucket)[0]
-        self.base_path = bucket
+            self.report_name = name
+        self.report_prefix = prefix
+
+        LOG.info('Found report name: %s, report prefix: %s', self.report_name, self.report_prefix)
+        if self.report_prefix:
+            self.base_path = '{}/{}/'.format(bucket, self.report_prefix)
+        else:
+            self.base_path = bucket
+        self.bucket_path = bucket
         self.bucket = bucket.replace('/', '_')
         self.credential = auth_credential
+
+    def _extract_names(self, bucket):
+        """
+        Find the report name and prefix given the bucket path.
+
+        Args:
+            bucket (String): Path to the local file
+
+        Returns:
+            (String, String) report_prefix, report_name
+
+        """
+        daterange = '\d{8}-\d{8}'
+        full_path = ''
+        for item in os.walk(bucket, followlinks=True):
+            if not item[2]:
+                if any(re.findall(daterange, date) for date in item[1]):
+                    full_path = item[0]
+                    break
+        directories = full_path[len(bucket):]
+
+        report_prefix = None
+        report_name = None
+        if directories:
+            parts = directories.strip('/').split('/')
+            report_name = parts.pop()
+            report_prefix = parts.pop() if parts else None
+        return report_prefix, report_name
 
     def _get_manifest(self, date_time):
         """
@@ -156,12 +193,12 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         reports = manifest.get('reportKeys')
 
         cur_reports = []
-        report_dictionary = {}
         for report in reports:
+            report_dictionary = {}
             local_s3_filename = utils.get_local_file_name(report)
             stats_recorder = ReportStatsDBAccessor(local_s3_filename)
             stored_etag = stats_recorder.get_etag()
-            report_path = self.base_path + report
+            report_path = self.bucket_path + '/' + report
             LOG.info('Downloading %s with credential %s', report_path, self.credential)
             file_name, etag = self.download_file(report_path, stored_etag)
             stats_recorder.update(etag=etag)
