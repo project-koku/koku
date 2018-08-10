@@ -454,7 +454,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 compute = month_item.get('service')
-                self.assertEqual(compute, 'Compute Instance')
+                self.assertEqual(compute, 'AmazonEC2')
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_by_filtered_service(self):
@@ -462,8 +462,8 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'service': ['Compute Instance']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=Compute Instance',
+                        'group_by': {'service': ['AmazonEC2']}}
+        handler = ReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
@@ -487,7 +487,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 compute = month_item.get('service')
-                self.assertEqual(compute, 'Compute Instance')
+                self.assertEqual(compute, 'AmazonEC2')
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_current_month_by_account(self):
@@ -530,7 +530,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*'],
                                      'service': ['*']}}
-        query_string = '?group_by[account]=*&group_by[service]=Compute Instance'
+        query_string = '?group_by[account]=*&group_by[service]=AmazonEC2'
         handler = ReportQueryHandler(query_params, query_string,
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
@@ -858,7 +858,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'service': ['Compute Instance']}}
+                         'service': ['AmazonEC2']}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
