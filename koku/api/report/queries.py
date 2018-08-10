@@ -379,7 +379,7 @@ class ReportQueryHandler(object):
         avail_zone = list(set(gb_avail_zone + f_avail_zone))
 
         if not ReportQueryHandler.has_wildcard(service) and service:
-            filter_dict['cost_entry_product__product_family__in'] = service
+            filter_dict['product_code__in'] = service
 
         if not ReportQueryHandler.has_wildcard(account) and account:
             filter_dict['usage_account_id__in'] = account
@@ -427,7 +427,7 @@ class ReportQueryHandler(object):
         avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         if service:
             annotations['service'] = Concat(
-                'cost_entry_product__product_family', Value(''))
+                'product_code', Value(''))
         if account:
             annotations['account'] = Concat(
                 'usage_account_id', Value(''))
