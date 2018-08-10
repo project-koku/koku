@@ -219,8 +219,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         reports = manifest.get('reportKeys')
 
         cur_reports = []
-        report_dictionary = {}
         for report in reports:
+            report_dictionary = {}
             local_s3_filename = utils.get_local_file_name(report)
             stats_recorder = ReportStatsDBAccessor(local_s3_filename)
             stored_etag = stats_recorder.get_etag()

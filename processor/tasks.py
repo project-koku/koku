@@ -67,6 +67,7 @@ def get_report_files(customer_name,
                                 report_name)
 
     # initiate chained async task
+    LOG.info('Reports to be processed: %s', str(reports))
     for report_dict in reports:
         stats = ReportStatsDBAccessor(report_dict.get('file'))
         last_start = stats.get_last_started_datetime()
