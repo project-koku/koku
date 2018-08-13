@@ -157,6 +157,11 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
         )
 
     tenant = get_tenant(request.user)
+    if kwargs:
+        kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
+    else:
+        kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
+
     handler = ReportQueryHandler(params,
                                  url_data,
                                  tenant,
@@ -260,12 +265,12 @@ def costs(request):
         }
     @apiSuccessExample {text} Success-Response:
         HTTP/1.1 200 OK
-        date,values.0.date,values.0.total,values.0.units
-        2018-07-16,2018-07-16,0.800000000,USD
-        2018-07-17,2018-07-17,0.768000000,USD
-        2018-07-18,2018-07-18,0.800000000,USD
-        2018-07-19,2018-07-19,0.768000000,USD
-        2018-07-20,2018-07-20,0.448000000,USD
+        account,date,total,units
+        6855812392331,2018-07,23008.281583543,USD
+        3028898336671,2018-07,20826.675630200,USD
+        7475489704610,2018-07,20305.483875161,USD
+        2882243055256,2018-07,19474.534357638,USD
+        6721340654404,2018-07,19356.197856632,USD
 
     """
     return _generic_report(request, 'unblended_cost', 'currency_code')
@@ -385,11 +390,15 @@ def instance_type(request):
         }
     @apiSuccessExample {text} Success-Response:
         HTTP/1.1 200 OK
-        date,instance_types.0.instance_type,instance_types.0.values.0.count,instance_types.0.values.0.date,instance_types.0.values.0.instance_type,instance_types.0.values.0.total,instance_types.0.values.0.units,instance_types.1.instance_type,instance_types.1.values.0.count,instance_types.1.values.0.date,instance_types.1.values.0.instance_type,instance_types.1.values.0.total,instance_types.1.values.0.units
-        2018-07-15,t2.micro,0,2018-07-15,t2.micro,39.0,,t2.small,0,2018-07-15,t2.small,25.0,Hrs
-        2018-07-17,t2.micro,0,2018-07-17,t2.micro,25.0,,t2.small,0,2018-07-17,t2.small,24.0,Hrs
-        2018-07-18,t2.micro,0,2018-07-18,t2.micro,25.0,,t2.small,0,2018-07-18,t2.small,25.0,Hrs
-        2018-07-19,t2.micro,0,2018-07-19,t2.micro,25.0,,t2.small,0,2018-07-19,t2.small,24.0,Hrs
+        account,date,instance_type,total,units
+        3082416796941,2018-08-05,r4.large,11.0,Hrs
+        0840549025238,2018-08-05,m5.large,11.0,Hrs
+        0840549025238,2018-08-05,c5d.2xlarge,9.0,Hrs
+        8133889256380,2018-08-05,c4.xlarge,8.0,Hrs
+        3082416796941,2018-08-04,c5d.2xlarge,12.0,Hrs
+        8133889256380,2018-08-04,c4.xlarge,12.0,Hrs
+        2415722664993,2018-08-04,r4.large,10.0,Hrs
+        8133889256380,2018-08-04,r4.large,10.0,Hrs
 
     """
     filter_scope = {'cost_entry_product__instance_type__isnull': False}
@@ -440,91 +449,89 @@ def storage(request):
         {
             "group_by": {
                 "account": [
-                "*"
+                    "*"
                 ]
             },
             "filter": {
                 "resolution": "monthly",
-                "time_scope_value": -1,
-                "time_scope_units": "month",
-                "resource_scope": []
+                "time_scope_value": "-1",
+                "time_scope_units": "month"
             },
             "data": [
-                [
                 {
-                    "date": "2018-07",
+                    "date": "2018-08",
                     "accounts": [
                         {
-                            "account": "4418636104713",
+                            "account": "0840549025238",
                             "values": [
                                 {
-                                    "date": "2018-07",
+                                    "date": "2018-08",
                                     "units": "GB-Mo",
-                                    "account": "4418636104713",
-                                    "total": 1826.74238146924
+                                    "account": "0840549025238",
+                                    "total": 4066.923135971
                                 }
                             ]
                         },
                         {
-                            "account": "8577742690384",
+                            "account": "3082416796941",
                             "values": [
                                 {
-                                    "date": "2018-07",
+                                    "date": "2018-08",
                                     "units": "GB-Mo",
-                                    "account": "8577742690384",
-                                    "total": 1137.74036198065
+                                    "account": "3082416796941",
+                                    "total": 3644.58070225345
                                 }
                             ]
                         },
                         {
-                            "account": "3474227945050",
+                            "account": "8133889256380",
                             "values": [
                                 {
-                                    "date": "2018-07",
+                                    "date": "2018-08",
                                     "units": "GB-Mo",
-                                    "account": "3474227945050",
-                                    "total": 1045.80659412797
+                                    "account": "8133889256380",
+                                    "total": 3584.67567749966
                                 }
                             ]
                         },
                         {
-                            "account": "7249815104968",
+                            "account": "4783090375826",
                             "values": [
                                 {
-                                    "date": "2018-07",
+                                    "date": "2018-08",
                                     "units": "GB-Mo",
-                                    "account": "7249815104968",
-                                    "total": 807.326470618818
+                                    "account": "4783090375826",
+                                    "total": 3096.66740996526
                                 }
                             ]
                         },
                         {
-                            "account": "9420673783214",
+                            "account": "2415722664993",
                             "values": [
                                 {
-                                    "date": "2018-07",
+                                    "date": "2018-08",
                                     "units": "GB-Mo",
-                                    "account": "9420673783214",
-                                    "total": 658.306642830709
+                                    "account": "2415722664993",
+                                    "total": 2599.75765963921
                                 }
                             ]
                         }
                     ]
                 }
-                ]
             ],
             "total": {
-                "value": 5475.922451027388,
+                "value": 16992.6045853286,
                 "units": "GB-Mo"
             }
         }
     @apiSuccessExample {text} Success-Response:
         HTTP/1.1 200 OK
-        date,values.0.date,values.0.total,values.0.units
-        2018-07-13,2018-07-13,1.6146062097,
-        2018-07-14,2018-07-14,1.3458355445,
-        2018-07-15,2018-07-15,1.7759989024,
-        2018-07-16,2018-07-16,1.6147669752,
+        account,date,total,units
+        0840549025238,2018-08,4066.923135971,GB-Mo
+        3082416796941,2018-08,3644.58070225345,GB-Mo
+        8133889256380,2018-08,3584.67567749966,GB-Mo
+        4783090375826,2018-08,3096.66740996526,GB-Mo
+        2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
     filter_scope = {'cost_entry_product__product_family': 'Storage'}
