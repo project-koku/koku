@@ -939,3 +939,89 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('values')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_filter_avail_zone_csv(self):
+        """Test execute_query for current month on monthly filtered by avail_zone for csv."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'avail_zone': ['us-east-1a']}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code',
+                                     **{'accept_type': 'text/csv'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 1)
+        for data_item in data:
+            month_val = data_item.get('date')
+            self.assertEqual(month_val, cmonth_str)
+
+    def test_execute_query_current_month_export_json(self):
+        """Test execute_query for current month on monthly export raw json data."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'operation': 'none'}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 24)
+        for data_item in data:
+            month = data_item.get('date')
+            self.assertEqual(month, cmonth_str)
+
+    def test_execute_query_current_month_export_csv(self):
+        """Test execute_query for current month on monthly export raw csv data."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'operation': 'none'}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code',
+                                     **{'accept_type': 'text/csv'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 24)
+        for data_item in data:
+            month = data_item.get('date')
+            self.assertEqual(month, cmonth_str)

@@ -203,10 +203,17 @@ class FilterSerializer(serializers.Serializer):
 class QueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
+    OPERATION_CHOICES = (
+        ('sum', 'sum'),
+        ('none', 'none'),
+    )
+
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
+    operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
+                                        required=False)
 
     def validate(self, data):
         """Validate incoming data.

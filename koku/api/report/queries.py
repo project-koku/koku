@@ -35,6 +35,18 @@ from reporting.models import AWSCostEntryLineItem
 
 
 WILDCARD = '*'
+OPERATION_SUM = 'sum'
+OPERATION_NONE = 'none'
+EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
+                  'cost_entry_product_id', 'cost_entry_pricing_id',
+                  'cost_entry_reservation_id', 'tags',
+                  'invoice_id', 'line_item_type', 'usage_account_id',
+                  'usage_start', 'usage_end', 'product_code',
+                  'usage_type', 'operation', 'availability_zone',
+                  'usage_amount', 'normalization_factor',
+                  'normalized_usage_amount', 'currency_code',
+                  'unblended_rate', 'unblended_cost', 'blended_rate',
+                  'blended_cost', 'tax_type']
 
 
 class TruncDayString(TruncDay):
@@ -75,12 +87,14 @@ class ReportQueryHandler(object):
         self.tenant = tenant
         self.aggregate_key = aggregate_key
         self.units_key = units_key
+        self._accept_type = None
         self._filter = None
         self._group_by = None
         self._annotations = None
         self._count = None
         self._limit = self.get_query_param_data('filter', 'limit')
         self._order = self.get_order()
+        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -98,6 +112,8 @@ class ReportQueryHandler(object):
                 self._annotations = kwargs.get('annotations')
             if 'count' in kwargs:
                 self._count = kwargs.get('count')
+            if 'accept_type' in kwargs:
+                self._accept_type = kwargs.get('accept_type')
 
     @staticmethod
     def next_month(in_date):
@@ -582,20 +598,24 @@ class ReportQueryHandler(object):
             query_filter = self._get_filter()
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
-            query_order_by = ('-date', self._order)
+            query_order_by = ('-date',)
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
-            query_data = query_data.values(*query_group_by_with_units)\
-                .annotate(total=Sum(self.aggregate_key))
+            is_sum = self.operation == OPERATION_SUM
 
-            if self._count:
+            if is_sum:
+                query_order_by += (self._order,)
+                query_data = query_data.values(*query_group_by_with_units)\
+                    .annotate(total=Sum(self.aggregate_key))
+
+            if self._count and is_sum:
                 query_data = query_data.annotate(
                     count=Count(self._count, distinct=True)
                 )
 
-            if self._limit:
+            if self._limit and is_sum:
                 rank_order = F('total').desc()
                 if self._order != '-total':
                     rank_order = F('total').asc()
@@ -608,8 +628,16 @@ class ReportQueryHandler(object):
                 query_order_by = query_order_by + ('rank',)
 
             query_data = query_data.order_by(*query_order_by)
-            data = self._apply_group_by(list(query_data))
-            data = self._transform_data(query_group_by, 0, data)
+            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            if is_sum and not is_csv_output:
+                data = self._apply_group_by(list(query_data))
+                data = self._transform_data(query_group_by, 0, data)
+            elif is_csv_output and is_sum:
+                values_out = query_group_by_with_units + ['total']
+                data = list(query_data.values(*values_out))
+            else:
+                values_out = query_group_by_with_units + EXPORT_COLUMNS
+                data = list(query_data.values(*values_out))
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
