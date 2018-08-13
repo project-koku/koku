@@ -45,9 +45,12 @@ koku:
 """
 
 import argparse
-import uuid
+import os
+import pkgutil
+import sys
 import yaml
 
+import psycopg2
 import requests
 
 
@@ -110,27 +113,27 @@ class KokuCustomerOnboarder:
         """Create a Koku Provider by inserting into the Koku DB."""
 
         with psycopg2.connect(**self.database) as conn:
-        cursor = conn.cursor()
+            cursor = conn.cursor()
 
-        auth_sql = """
-            INSERT INTO api_providerauthentication (uuid, provider_resource_name)
+            auth_sql = """
+                INSERT INTO api_providerauthentication (uuid, provider_resource_name)
                     VALUES ('7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6', '{resource}')
-            ;
+                ;
             """.format(resource=self.customer.get('provider_resource_name'))
 
-        cursor.execute(auth_sql)
+            cursor.execute(auth_sql)
             conn.commit()
-        print('Created provider authentication')
+            print('Created provider authentication')
 
-        billing_sql = """
-            INSERT INTO api_providerbillingsource (uuid, bucket)
+            billing_sql = """
+                INSERT INTO api_providerbillingsource (uuid, bucket)
                     VALUES ('75b17096-319a-45ec-92c1-18dbd5e78f94', '{bucket}')
-            ;
+                ;
             """.format(bucket=self.customer.get('bucket'))
 
-        cursor.execute(billing_sql)
+            cursor.execute(billing_sql)
             conn.commit()
-        print('Created provider billing source')
+            print('Created provider billing source')
 
             provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id)
@@ -141,6 +144,7 @@ class KokuCustomerOnboarder:
             cursor.execute(provider_sql)
             conn.commit()
             print('Created provider')
+
     def get_headers(self, token):
         """returns HTTP Token Auth header"""
         return {'Authorization': f'Token {token}'}
@@ -172,7 +176,8 @@ class KokuCustomerOnboarder:
 
 def load_yaml(filename):
     try:
-        yamlfile = yaml.load(open(filename, 'r+'))
+        with open(filename, 'r+') as f:
+            yamlfile = yaml.load(f)
     except TypeError:
         yamlfile = yaml.load(filename)
     except IOError:
@@ -184,14 +189,26 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-f', '--file', dest='config_file',
-                        default='test_customer.yaml',
                         help='YAML-formatted configuration file name')
 
     parser.add_argument('--bypass-api', dest='bypass_api', action='store_true',
                         help='Create Provider directly in DB, bypassing Koku API access checks')
 
     args = vars(parser.parse_args())
-    config = load_yaml(args.get('config_file'))
+
+    try:
+        sys.path.append(os.getcwd())
+        default_config = pkgutil.get_data('scripts', 'test_customer.yaml')
+        config = yaml.load(default_config)
+    except AttributeError:
+        config = None
+
+    if args.get('config_file'):
+        config = load_yaml(args.get('config_file'))
+
+    if config is None:
+        sys.exit('No configuration file provided')
+
     config.update(args)
     print(f'Config: {config}')
 
