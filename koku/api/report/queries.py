@@ -634,7 +634,10 @@ class ReportQueryHandler(object):
                 data = self._transform_data(query_group_by, 0, data)
             elif is_csv_output and is_sum:
                 values_out = query_group_by_with_units + ['total']
-                data = list(query_data.values(*values_out))
+                if self._limit:
+                    data = self._ranked_list(list(query_data))
+                else:
+                    data = list(query_data)
             else:
                 values_out = query_group_by_with_units + EXPORT_COLUMNS
                 data = list(query_data.values(*values_out))
