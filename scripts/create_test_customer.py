@@ -107,31 +107,40 @@ class KokuCustomerOnboarder:
         return response
 
     def create_provider_db(self):
-        """Create a Koku Provider by directly inserting values into the Koku DB."""
-        import psycopg2
-        conn = psycopg2.connect(**self.database)
+        """Create a Koku Provider by inserting into the Koku DB."""
+
+        with psycopg2.connect(**self.database) as conn:
         cursor = conn.cursor()
-        provider_uuid = uuid.uuid4()
 
         auth_sql = """
             INSERT INTO api_providerauthentication (uuid, provider_resource_name)
-                VALUES ('{uuid}', '{resource}')
+                    VALUES ('7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6', '{resource}')
             ;
-        """.format(resource=self.customer.get('provider_resource_name'),
-                   uuid=provider_uuid)
+            """.format(resource=self.customer.get('provider_resource_name'))
+
         cursor.execute(auth_sql)
+            conn.commit()
         print('Created provider authentication')
 
         billing_sql = """
             INSERT INTO api_providerbillingsource (uuid, bucket)
-                VALUES ('{uuid}', '{bucket}')
+                    VALUES ('75b17096-319a-45ec-92c1-18dbd5e78f94', '{bucket}')
             ;
-        """.format(bucket=self.customer.get('bucket'),
-                   uuid=provider_uuid)
+            """.format(bucket=self.customer.get('bucket'))
 
         cursor.execute(billing_sql)
+            conn.commit()
         print('Created provider billing source')
 
+            provider_sql = """
+            INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id)
+                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 2, 1)
+                ;
+            """.format(name=self.customer.get('provider_name'))
+
+            cursor.execute(provider_sql)
+            conn.commit()
+            print('Created provider')
     def get_headers(self, token):
         """returns HTTP Token Auth header"""
         return {'Authorization': f'Token {token}'}
