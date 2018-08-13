@@ -21,9 +21,4 @@ class Migration(migrations.Migration):
                 'db_table': 'region_mapping',
             },
         ),
-        migrations.AlterField(
-            model_name='reportcolumnmap',
-            name='provider_type',
-            field=models.CharField(choices=[('AWS', 'AWS')], default='AWS', max_length=50),
-        ),
     ]
