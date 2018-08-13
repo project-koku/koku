@@ -663,6 +663,13 @@ paths:
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -702,6 +709,13 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -741,6 +755,13 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
       responses:
         200:
           description: A report object
@@ -943,6 +964,22 @@ definitions:
         items:
           $ref: '#/definitions/ReportResourceScope'
         example: []
+      account:
+        type: array
+        items:
+          type: string
+      service:
+        type: array
+        items:
+          type: string
+      region:
+        type: array
+        items:
+          type: string
+      avail_zone:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
@@ -951,6 +988,14 @@ definitions:
         items:
           type: string
       service:
+        type: array
+        items:
+          type: string
+      region:
+        type: array
+        items:
+          type: string
+      avail_zone:
         type: array
         items:
           type: string
@@ -1013,6 +1058,7 @@ definitions:
       - group_by
       - order_by
       - filter
+      - operation
     properties:
       group_by:
         $ref: '#/definitions/ReportGrouping'
@@ -1020,6 +1066,16 @@ definitions:
         $ref: '#/definitions/ReportOrdering'
       filter:
         $ref: '#/definitions/ReportFilter'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
   ReportCost:
     allOf:
       - $ref: '#/definitions/Report'
@@ -1083,7 +1139,8 @@ definitions:
                                     'date': '2018-05-28',
                                     'units': 'Hrs',
                                     'instance_type': 't2.medium',
-                                    'total': 5
+                                    'total': 5,
+                                    'count': 1
                                 }
                             ]
                         },
@@ -1094,7 +1151,8 @@ definitions:
                                     'date': '2018-05-28',
                                     'units': 'Hrs',
                                     'instance_type': 'm5.2xlarge',
-                                    'total': 29
+                                    'total': 29,
+                                    'count': 3
                                 }
                             ]
                         }

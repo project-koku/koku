@@ -452,7 +452,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 compute = month_item.get('service')
-                self.assertEqual(compute, 'Compute Instance')
+                self.assertEqual(compute, 'AmazonEC2')
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_by_filtered_service(self):
@@ -460,8 +460,8 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'service': ['Compute Instance']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=Compute Instance',
+                        'group_by': {'service': ['AmazonEC2']}}
+        handler = ReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
@@ -485,7 +485,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 compute = month_item.get('service')
-                self.assertEqual(compute, 'Compute Instance')
+                self.assertEqual(compute, 'AmazonEC2')
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_current_month_by_account(self):
@@ -528,7 +528,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*'],
                                      'service': ['*']}}
-        query_string = '?group_by[account]=*&group_by[service]=Compute Instance'
+        query_string = '?group_by[account]=*&group_by[service]=AmazonEC2'
         handler = ReportQueryHandler(query_params, query_string,
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
@@ -686,3 +686,340 @@ class ReportQueryTest(IamTestCase):
                 data_point_total = month_item.get('values')[0].get('total')
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
+
+    def test_execute_query_curr_month_by_region(self):
+        """Test execute_query for current month on monthly breakdown by region."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'region': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[region]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('regions')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(1, len(month_data))
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('region'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_curr_month_by_filtered_region(self):
+        """Test execute_query for current month on monthly breakdown by filtered region."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'region': ['us-east-1']}}
+        handler = ReportQueryHandler(query_params, '?group_by[region]=us-east-1',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), 0)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('regions')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('region'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_curr_month_by_avail_zone(self):
+        """Test execute_query for current month on monthly breakdown by avail_zone."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'avail_zone': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('avail_zones')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(1, len(month_data))
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('avail_zone'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_curr_month_by_filtered_avail_zone(self):
+        """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'avail_zone': ['us-east-1a']}}
+        handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=us-east-1a',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('avail_zones')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(1, len(month_data))
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('avail_zone'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+
+    def test_execute_query_current_month_filter_account(self):
+        """Test execute_query for current month on monthly filtered by account."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'account': [self.payer_account_id]}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_filter_service(self):
+        """Test execute_query for current month on monthly filtered by service."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'service': ['AmazonEC2']}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_filter_region(self):
+        """Test execute_query for current month on monthly filtered by region."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'region': ['us-east-1']}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), 0)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_filter_avail_zone(self):
+        """Test execute_query for current month on monthly filtered by avail_zone."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'avail_zone': ['us-east-1a']}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('values')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_filter_avail_zone_csv(self):
+        """Test execute_query for current month on monthly filtered by avail_zone for csv."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'avail_zone': ['us-east-1a']}}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code',
+                                     **{'accept_type': 'text/csv'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 1)
+        for data_item in data:
+            month_val = data_item.get('date')
+            self.assertEqual(month_val, cmonth_str)
+
+    def test_execute_query_current_month_export_json(self):
+        """Test execute_query for current month on monthly export raw json data."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'operation': 'none'}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 24)
+        for data_item in data:
+            month = data_item.get('date')
+            self.assertEqual(month, cmonth_str)
+
+    def test_execute_query_current_month_export_csv(self):
+        """Test execute_query for current month on monthly export raw csv data."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'operation': 'none'}
+        handler = ReportQueryHandler(query_params, '',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code',
+                                     **{'accept_type': 'text/csv'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 24)
+        for data_item in data:
+            month = data_item.get('date')
+            self.assertEqual(month, cmonth_str)

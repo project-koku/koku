@@ -35,6 +35,18 @@ from reporting.models import AWSCostEntryLineItem
 
 
 WILDCARD = '*'
+OPERATION_SUM = 'sum'
+OPERATION_NONE = 'none'
+EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
+                  'cost_entry_product_id', 'cost_entry_pricing_id',
+                  'cost_entry_reservation_id', 'tags',
+                  'invoice_id', 'line_item_type', 'usage_account_id',
+                  'usage_start', 'usage_end', 'product_code',
+                  'usage_type', 'operation', 'availability_zone',
+                  'usage_amount', 'normalization_factor',
+                  'normalized_usage_amount', 'currency_code',
+                  'unblended_rate', 'unblended_cost', 'blended_rate',
+                  'blended_cost', 'tax_type']
 
 
 class TruncDayString(TruncDay):
@@ -75,12 +87,14 @@ class ReportQueryHandler(object):
         self.tenant = tenant
         self.aggregate_key = aggregate_key
         self.units_key = units_key
+        self._accept_type = None
         self._filter = None
         self._group_by = None
         self._annotations = None
         self._count = None
         self._limit = self.get_query_param_data('filter', 'limit')
         self._order = self.get_order()
+        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -98,6 +112,8 @@ class ReportQueryHandler(object):
                 self._annotations = kwargs.get('annotations')
             if 'count' in kwargs:
                 self._count = kwargs.get('count')
+            if 'accept_type' in kwargs:
+                self._accept_type = kwargs.get('accept_type')
 
     @staticmethod
     def next_month(in_date):
@@ -210,7 +226,7 @@ class ReportQueryHandler(object):
         Returns:
             (Object): The value found with the given key or None
         """
-        value = None
+        value = []
         if self.check_query_params(dictkey, key):
             value = self.query_parameters.get(dictkey).get(key)
         return value
@@ -365,20 +381,37 @@ class ReportQueryHandler(object):
         if self._filter:
             filter_dict.update(self._filter)
 
-        service = self.get_query_param_data('group_by', 'service')
-        account = self.get_query_param_data('group_by', 'account')
+        gb_service = self.get_query_param_data('group_by', 'service')
+        gb_account = self.get_query_param_data('group_by', 'account')
+        gb_region = self.get_query_param_data('group_by', 'region')
+        gb_avail_zone = self.get_query_param_data('group_by', 'avail_zone')
+        f_account = self.get_query_param_data('filter', 'account')
+        f_service = self.get_query_param_data('filter', 'service')
+        f_region = self.get_query_param_data('filter', 'region')
+        f_avail_zone = self.get_query_param_data('filter', 'avail_zone')
+        account = list(set(gb_account + f_account))
+        service = list(set(gb_service + f_service))
+        region = list(set(gb_region + f_region))
+        avail_zone = list(set(gb_avail_zone + f_avail_zone))
+
         if not ReportQueryHandler.has_wildcard(service) and service:
-            filter_dict['cost_entry_product__product_family__in'] = service
+            filter_dict['product_code__in'] = service
 
         if not ReportQueryHandler.has_wildcard(account) and account:
             filter_dict['usage_account_id__in'] = account
+
+        if not ReportQueryHandler.has_wildcard(region) and region:
+            filter_dict['cost_entry_product__region__in'] = region
+
+        if not ReportQueryHandler.has_wildcard(avail_zone) and avail_zone:
+            filter_dict['availability_zone__in'] = avail_zone
 
         return filter_dict
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
-        group_by_options = ['service', 'account']
+        group_by_options = ['service', 'account', 'region', 'avail_zone']
         for item in group_by_options:
             group_data = self.get_query_param_data('group_by', item)
             if group_data:
@@ -406,12 +439,20 @@ class ReportQueryHandler(object):
             annotations.update(self._annotations)
         service = self.get_query_param_data('group_by', 'service')
         account = self.get_query_param_data('group_by', 'account')
+        region = self.get_query_param_data('group_by', 'region')
+        avail_zone = self.get_query_param_data('group_by', 'avail_zone')
         if service:
             annotations['service'] = Concat(
-                'cost_entry_product__product_family', Value(''))
+                'product_code', Value(''))
         if account:
             annotations['account'] = Concat(
                 'usage_account_id', Value(''))
+        if region:
+            annotations['region'] = Concat(
+                'cost_entry_product__region', Value(''))
+        if avail_zone:
+            annotations['avail_zone'] = Concat(
+                'availability_zone', Value(''))
 
         return annotations
 
@@ -557,20 +598,24 @@ class ReportQueryHandler(object):
             query_filter = self._get_filter()
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
-            query_order_by = ('-date', self._order)
+            query_order_by = ('-date',)
             query = AWSCostEntryLineItem.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
-            query_data = query_data.values(*query_group_by_with_units)\
-                .annotate(total=Sum(self.aggregate_key))
+            is_sum = self.operation == OPERATION_SUM
 
-            if self._count:
+            if is_sum:
+                query_order_by += (self._order,)
+                query_data = query_data.values(*query_group_by_with_units)\
+                    .annotate(total=Sum(self.aggregate_key))
+
+            if self._count and is_sum:
                 query_data = query_data.annotate(
                     count=Count(self._count, distinct=True)
                 )
 
-            if self._limit:
+            if self._limit and is_sum:
                 rank_order = F('total').desc()
                 if self._order != '-total':
                     rank_order = F('total').asc()
@@ -583,8 +628,16 @@ class ReportQueryHandler(object):
                 query_order_by = query_order_by + ('rank',)
 
             query_data = query_data.order_by(*query_order_by)
-            data = self._apply_group_by(list(query_data))
-            data = self._transform_data(query_group_by, 0, data)
+            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            if is_sum and not is_csv_output:
+                data = self._apply_group_by(list(query_data))
+                data = self._transform_data(query_group_by, 0, data)
+            elif is_csv_output and is_sum:
+                values_out = query_group_by_with_units + ['total']
+                data = list(query_data.values(*values_out))
+            else:
+                values_out = query_group_by_with_units + EXPORT_COLUMNS
+                data = list(query_data.values(*values_out))
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)

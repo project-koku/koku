@@ -90,6 +90,10 @@ class GroupBySerializer(serializers.Serializer):
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
+    region = StringOrListField(child=serializers.CharField(),
+                               required=False)
+    avail_zone = StringOrListField(child=serializers.CharField(),
+                                   required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
 
@@ -149,6 +153,14 @@ class FilterSerializer(serializers.Serializer):
     resource_scope = StringOrListField(child=serializers.CharField(),
                                        required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
+    account = StringOrListField(child=serializers.CharField(),
+                                required=False)
+    service = StringOrListField(child=serializers.CharField(),
+                                required=False)
+    region = StringOrListField(child=serializers.CharField(),
+                               required=False)
+    avail_zone = StringOrListField(child=serializers.CharField(),
+                                   required=False)
 
     def validate(self, data):
         """Validate incoming data.
@@ -191,10 +203,17 @@ class FilterSerializer(serializers.Serializer):
 class QueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
+    OPERATION_CHOICES = (
+        ('sum', 'sum'),
+        ('none', 'none'),
+    )
+
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
+    operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
+                                        required=False)
 
     def validate(self, data):
         """Validate incoming data.
