@@ -27,6 +27,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant
 from api.report.queries import ReportQueryHandler
+from api.utils import DateHelper
 from reporting.models import (AWSCostEntry,
                               AWSCostEntryBill,
                               AWSCostEntryLineItem,
@@ -36,51 +37,6 @@ from reporting.models import (AWSCostEntry,
 
 class ReportQueryUtilsTest(TestCase):
     """Test the report query class functions."""
-
-    def test_next_month(self):
-        """Test the next_month method."""
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        last_month = current_month.replace(month=(current_month.month - 1))
-        self.assertEqual(current_month,
-                         ReportQueryHandler.next_month(last_month))
-
-    def test_previous_month(self):
-        """Test the previous_month method."""
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        last_month = current_month.replace(month=(current_month.month - 1))
-        self.assertEqual(last_month,
-                         ReportQueryHandler.previous_month(current_month))
-
-    def test_list_days(self):
-        """Test the list_days method."""
-        first = timezone.now().replace(microsecond=0,
-                                       second=0,
-                                       minute=0,
-                                       hour=0,
-                                       day=1)
-        second = first.replace(day=2)
-        third = first.replace(day=3)
-        expected = [first, second, third]
-        self.assertEqual(expected, ReportQueryHandler.list_days(first, third))
-
-    def test_n_days_ago(self):
-        """Test the n_days_ago method."""
-        delta_day = datetime.timedelta(days=1)
-        today = timezone.now().replace(microsecond=0,
-                                       second=0,
-                                       minute=0,
-                                       hour=0)
-        two_days_ago = (today - delta_day) - delta_day
-        self.assertEqual(two_days_ago,
-                         ReportQueryHandler.n_days_ago(today, 2))
 
     def test_has_wildcard_yes(self):
         """Test a list has a wildcard."""
@@ -154,17 +110,17 @@ class ReportQueryTest(IamTestCase):
 
     def create_hourly_instance_usage(self, payer_account_id, bill,
                                      ce_pricing, ce_product, rate,
-                                     cost, start_hour, end_hour):
-        """Create houlr instance usage."""
-        cost_entry = AWSCostEntry(interval_start=start_hour,
-                                  interval_end=end_hour,
+                                     cost, start, end):
+        """Create hourly instance usage."""
+        cost_entry = AWSCostEntry(interval_start=start,
+                                  interval_end=end,
                                   bill=bill)
         cost_entry.save()
         line_item = AWSCostEntryLineItem(invoice_id=self.fake.sha1(raw_output=False),
                                          line_item_type='Usage',
                                          usage_account_id=payer_account_id,
-                                         usage_start=start_hour,
-                                         usage_end=end_hour,
+                                         usage_start=start,
+                                         usage_end=end,
                                          product_code='AmazonEC2',
                                          usage_type='BoxUsage:c4.xlarge',
                                          operation='RunInstances',
@@ -182,17 +138,53 @@ class ReportQueryTest(IamTestCase):
                                          cost_entry_pricing=ce_pricing)
         line_item.save()
 
-    def add_data_to_tenant(self, rate=Decimal('0.199')):
+    def _create_product(self,
+                        name='Amazon Elastic Compute Cloud',
+                        family='Compute Instance',
+                        code='AmazonEC2',
+                        region='US East (N. Virginia)',
+                        instance_type='c4.xlarge',
+                        memory=7.5,
+                        vcpu=4):
+        """Create a AWSCostEntryProduct."""
+        # pylint: disable=no-member
+        sku = self.fake.pystr(min_chars=12, max_chars=12).upper()
+        ce_product = AWSCostEntryProduct(sku=sku,
+                                         product_name=name,
+                                         product_family=family,
+                                         service_code=code,
+                                         region=region,
+                                         instance_type=instance_type,
+                                         memory=memory,
+                                         vcpu=vcpu)
+        ce_product.save()
+        return ce_product
+
+    def _create_bill(self, account, bill_start, bill_end,
+                     bill_type='Anniversary'):
+        """Create an AWSCostEntryBill."""
+        bill = AWSCostEntryBill(bill_type='Anniversary',
+                                payer_account_id=account,
+                                billing_period_start=bill_start,
+                                billing_period_end=bill_end)
+        bill.save()
+        return bill
+
+    def _create_pricing(self, term='OnDemand', unit='Hrs'):
+        """Create an AWSCostEntryPricing."""
+        ce_pricing = AWSCostEntryPricing(term=term, unit=unit)
+        ce_pricing.save()
+        return ce_pricing
+
+    def add_data_to_tenant(self, rate=Decimal('0.199'), amount=1,
+                           bill_start=DateHelper().this_month_start,
+                           bill_end=DateHelper().this_month_end,
+                           data_start=DateHelper().yesterday,
+                           data_end=DateHelper().this_hour):
         """Populate tenant with data."""
         payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
         self.payer_account_id = payer_account_id
-        one_day = datetime.timedelta(days=1)
-        one_hour = datetime.timedelta(minutes=60)
-        this_hour = timezone.now().replace(microsecond=0, second=0, minute=0)
-        yesterday = this_hour - one_day
-        this_month = this_hour.month
-        bill_start = this_hour.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-        bill_end = ReportQueryHandler.next_month(bill_start)
+
         with tenant_context(self.tenant):
             bill = AWSCostEntryBill(bill_type='Anniversary',
                                     payer_account_id=payer_account_id,
@@ -201,27 +193,15 @@ class ReportQueryTest(IamTestCase):
             bill.save()
             amount = 1
             cost = rate * amount
-            # pylint: disable=no-member
-            sku = self.fake.pystr(min_chars=12, max_chars=12).upper()
-            prod_ec2 = 'Amazon Elastic Compute Cloud'
-            ce_product = AWSCostEntryProduct(sku=sku,
-                                             product_name=prod_ec2,
-                                             product_family='Compute Instance',
-                                             service_code='AmazonEC2',
-                                             region='US East (N. Virginia)',
-                                             instance_type='c4.xlarge',
-                                             memory=7.5,
-                                             vcpu=4)
-            ce_product.save()
-            ce_pricing, _ = AWSCostEntryPricing.objects.get_or_create(
-                term='OnDemand',
-                unit='Hrs'
-            )
-            current = yesterday
-            while current < this_hour:
-                if current.month == this_month:
+            bill = self._create_bill(payer_account_id, bill_start, bill_end)
+            ce_product = self._create_product()
+            ce_pricing = self._create_pricing(cost, rate)
+
+            current = data_start
+            while current < data_end:
+                if current.month == DateHelper().this_month_start.month:
                     self.current_month_total += cost
-                end_hour = current + one_hour
+                end_hour = current + DateHelper().one_hour
                 self.create_hourly_instance_usage(payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
                                                   cost, current, end_hour)
@@ -334,17 +314,11 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        next_month = ReportQueryHandler.next_month(current_month)
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
-        self.assertEqual(start, current_month)
-        self.assertEqual(end, next_month)
+        self.assertEqual(start, DateHelper().this_month_start)
+        self.assertEqual(end, DateHelper().this_month_end)
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) >= 28)
 
@@ -356,17 +330,11 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        prev_month = ReportQueryHandler.previous_month(current_month)
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
-        self.assertEqual(start, prev_month)
-        self.assertEqual(end, current_month)
+        self.assertEqual(start, DateHelper().last_month_start)
+        self.assertEqual(end, DateHelper().last_month_end)
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) >= 28)
 
@@ -378,15 +346,13 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'day'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
-        current_day = timezone.now().replace(microsecond=0,
-                                             second=0,
-                                             minute=0)
-        ten_days_ago = ReportQueryHandler.n_days_ago(current_day, 10)
-        start = handler.start_datetime
-        end = handler.end_datetime
+        dh = DateHelper()
+        ten_days_ago = dh.n_days_ago(dh.today, 10)
+        start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
         self.assertEqual(start, ten_days_ago)
-        self.assertEqual(end, current_day)
+        self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) == 11)
 
@@ -398,15 +364,13 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'day'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
                                      'currency_code')
-        current_day = timezone.now().replace(microsecond=0,
-                                             second=0,
-                                             minute=0)
-        ten_days_ago = ReportQueryHandler.n_days_ago(current_day, 30)
-        start = handler.start_datetime
-        end = handler.end_datetime
+        dh = DateHelper()
+        thirty_days_ago = dh.n_days_ago(dh.today, 30)
+        start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
-        self.assertEqual(start, ten_days_ago)
-        self.assertEqual(end, current_day)
+        self.assertEqual(start, thirty_days_ago)
+        self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) == 31)
 
@@ -455,12 +419,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('services')
@@ -488,12 +447,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('services')
@@ -521,12 +475,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('accounts')
@@ -556,12 +505,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('accounts')
@@ -644,12 +588,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('accounts')
@@ -682,12 +621,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('accounts')
@@ -720,12 +654,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('regions')
@@ -754,12 +683,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), 0)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('regions')
@@ -787,12 +711,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('avail_zones')
@@ -821,12 +740,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('avail_zones')
@@ -855,12 +769,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('values')
@@ -877,19 +786,16 @@ class ReportQueryTest(IamTestCase):
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
+
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
+
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('values')
@@ -913,12 +819,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), 0)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('values')
@@ -942,12 +843,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
             month_data = data_item.get('values')
@@ -972,12 +868,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 1)
         for data_item in data:
             month_val = data_item.get('date')
@@ -993,20 +884,17 @@ class ReportQueryTest(IamTestCase):
                                      self.tenant, 'unblended_cost',
                                      'currency_code')
         query_output = handler.execute_query()
+
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
+
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
-        self.assertEqual(len(data), 24)
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        self.assertEqual(len(data), 42)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1022,20 +910,17 @@ class ReportQueryTest(IamTestCase):
                                      'currency_code',
                                      **{'accept_type': 'text/csv'})
         query_output = handler.execute_query()
+
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
+
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
-        self.assertEqual(len(data), 24)
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        self.assertEqual(len(data), 42)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1063,13 +948,69 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(total.get('value'))
         self.assertEqual(total.get('value'), self.current_month_total)
 
-        current_month = timezone.now().replace(microsecond=0,
-                                               second=0,
-                                               minute=0,
-                                               hour=0,
-                                               day=1)
-        cmonth_str = current_month.strftime('%Y-%m')
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 3)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
+
+    def test_execute_query_w_delta_bad_choice(self):
+        """Test invalid delta value."""
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'limit': 2},
+                        'group_by': {'account': ['*']},
+                        'delta': 'Invalid'}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=*&filter[limit]=2&delta=Invalid',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code')
+        with self.assertRaises(NotImplementedError):
+            handler.execute_query()
+
+    def test_execute_query_w_delta_month(self):
+        """Test execute_query for current month on monthly breakdown by account with limit."""
+        dh = DateHelper()
+
+        # generate data for 5 days in last month
+        self.add_data_to_tenant(rate=Decimal('0.5'),
+                                bill_start=dh.last_month_start,
+                                bill_end=dh.last_month_end,
+                                data_start=dh.last_month_start,
+                                data_end=dh.last_month_start.replace(day=5))
+
+        # generate data for first 5 days in this month
+        self.add_data_to_tenant(rate=Decimal('1.0'),
+                                bill_start=dh.this_month_start,
+                                bill_end=dh.this_month_end,
+                                data_start=dh.this_month_start,
+                                data_end=dh.this_month_start.replace(day=5))
+
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'limit': 2},
+                        'group_by': {'account': ['*']},
+                        'delta': 'month'}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=*&filter[limit]=2&delta=month',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        delta = query_output.get('delta')
+        self.assertIsNotNone(delta.get('value'))
+        self.assertIsNotNone(delta.get('percent'))
+        self.assertEqual(delta.get('percent'), Decimal('117.412500'))
