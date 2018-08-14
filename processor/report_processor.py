@@ -23,7 +23,6 @@ import gzip
 import io
 import json
 import logging
-from decimal import Decimal
 from os import path
 
 from masu.config import Config
@@ -88,7 +87,6 @@ class ReportProcessor:
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-        self._decimal_precision = f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
 
         self.processed_report = ProcessedReport()
 
@@ -100,7 +98,6 @@ class ReportProcessor:
         self.report_db = ReportDBAccessor(schema=self._schema_name,
                                           column_map=self.column_map)
         self.report_schema = self.report_db.report_schema
-        self._decimal_format_str = self.report_db.decimal_format_str
 
         self.temp_table = self.report_db.create_temp_table(
             AWS_CUR_TABLE_MAP['line_item']
@@ -129,7 +126,6 @@ class ReportProcessor:
         row_count = 0
         bill_id = None
         opener, mode = self._get_file_opener(self._compression)
-
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             LOG.info('File %s opened for processing', str(f))
@@ -155,6 +151,12 @@ class ReportProcessor:
                 if len(self.processed_report.line_items) >= self._batch_size:
                     self._save_to_db()
 
+                    self.report_db.merge_temp_table(
+                        AWS_CUR_TABLE_MAP['line_item'],
+                        self.temp_table,
+                        self.line_item_columns
+                    )
+
                     LOG.info('Saving report rows %d to %d', row_count,
                              row_count + len(self.processed_report.line_items))
                     row_count += len(self.processed_report.line_items)
@@ -164,16 +166,16 @@ class ReportProcessor:
             if self.processed_report.line_items:
                 self._save_to_db()
 
+                self.report_db.merge_temp_table(
+                    AWS_CUR_TABLE_MAP['line_item'],
+                    self.temp_table,
+                    self.line_item_columns
+                )
+
                 LOG.info('Saving report rows %d to %d', row_count,
                          row_count + len(self.processed_report.line_items))
 
                 row_count += len(self.processed_report.line_items)
-
-            self.report_db.merge_temp_table(
-                AWS_CUR_TABLE_MAP['line_item'],
-                self.temp_table,
-                self.line_item_columns
-            )
 
             self.report_db.close_connections()
 
@@ -209,7 +211,6 @@ class ReportProcessor:
 
         self.report_db.bulk_insert_rows(
             csv_file,
-            # AWS_CUR_TABLE_MAP['line_item'],
             self.temp_table,
             columns)
 
@@ -422,23 +423,10 @@ class ReportProcessor:
         """
         table_name = AWS_CUR_TABLE_MAP['pricing']
 
-        # Get the correct decimal precision to compare to stored
-        # values in the database
-        cost = Decimal(row.get('pricing/publicOnDemandCost')).quantize(
-            Decimal(self._decimal_precision)
-        )
-        rate = Decimal(row.get('pricing/publicOnDemandRate')).quantize(
-            Decimal(self._decimal_precision)
-        )
         term = row.get('pricing/term') if row.get('pricing/term') else 'None'
         unit = row.get('pricing/unit') if row.get('pricing/unit') else 'None'
 
-        key = '{cost}-{rate}-{term}-{unit}'.format(
-            cost=self._decimal_format_str.format(cost),
-            rate=self._decimal_format_str.format(rate),
-            term=term,
-            unit=unit
-        )
+        key = '{term}-{unit}'.format(term=term, unit=unit)
         if key in self.processed_report.pricing:
             return self.processed_report.pricing[key]
         elif key in self.existing_pricing_map:
@@ -451,9 +439,6 @@ class ReportProcessor:
         value_set = set(data.values())
         if value_set == {''}:
             return
-
-        data['public_on_demand_cost'] = cost
-        data['public_on_demand_rate'] = rate
 
         pricing_id = self.report_db.insert_on_conflict_do_nothing(
             table_name,
