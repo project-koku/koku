@@ -116,6 +116,21 @@ class ReportQueryUtilsTest(TestCase):
                         's2': [{'account': 'a2', 'service': 's2', 'units': 'USD', 'total': 5}]}}
         self.assertEqual(expected, out_data)
 
+    def test_group_data_by_list_missing_units(self):
+        """Test the _group_data_by_list method when duplicates occur due to missing units."""
+        group_by = ['instance_type']
+        data = [{'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0},
+                {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.small', 'total': 17.0, 'count': 0},
+                {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.micro', 'total': 1.0, 'count': 0}]
+        out_data = ReportQueryHandler._group_data_by_list(group_by, 0, data)
+        print(out_data)
+        expected = {'t2.micro': [
+            {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.micro', 'total': 1.0, 'count': 0},
+            {'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0}],
+            't2.small': [
+                {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.small', 'total': 17.0, 'count': 0}]}
+        self.assertEqual(expected, out_data)
+
 
 class ReportQueryTest(IamTestCase):
     """Tests the report queries."""
