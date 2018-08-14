@@ -18,7 +18,7 @@
 
 import logging
 import uuid
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import psycopg2
 from sqlalchemy.dialects.postgresql import insert
@@ -89,9 +89,9 @@ class ReportDBAccessor(KokuDBAccess):
         self._cursor = self._get_psycopg2_cursor()
 
     @property
-    def decimal_format_str(self):
-        """Return precision format for decimal values."""
-        return '{' + f'0:.{Config.REPORTING_DECIMAL_PRECISION}' + 'f}'
+    def decimal_precision(self):
+        """Return database precision for decimal values."""
+        return f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
 
     # pylint: disable=no-self-use
     def _get_psycopg2_connection(self):
@@ -138,6 +138,21 @@ class ReportDBAccessor(KokuDBAccess):
         """
         self._cursor.execute(statement)
         self._pg2_conn.commit()
+
+        statement = f'DELETE FROM {temp_table_name}'
+        self._cursor.execute(statement)
+        self._pg2_conn.commit()
+        self._vacuum_table(temp_table_name)
+
+    def _vacuum_table(self, table_name):
+        """Vacuum a table outside of a transaction."""
+        isolation_level = self._pg2_conn.isolation_level
+        self._pg2_conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        )
+        vacuum = f'VACUUM {table_name}'
+        self._cursor.execute(vacuum)
+        self._pg2_conn.set_isolation_level(isolation_level)
 
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
@@ -299,11 +314,17 @@ class ReportDBAccessor(KokuDBAccess):
             (var): The variable converted to type or None if conversion fails.
 
         """
-        try:
-            value = column_type(value)
-        except ValueError as err:
-            LOG.warning(err)
-            value = None
+        if column_type == Decimal:
+            try:
+                value = Decimal(value).quantize(Decimal(self.decimal_precision))
+            except InvalidOperation:
+                value = None
+        else:
+            try:
+                value = column_type(value)
+            except ValueError as err:
+                LOG.warning(err)
+                value = None
         return value
 
     def get_current_cost_entry_bill(self, bill_id=None):
@@ -381,15 +402,8 @@ class ReportDBAccessor(KokuDBAccess):
         table_name = AWS_CUR_TABLE_MAP['pricing']
         pricing = self._get_db_obj_query(table_name).all()
 
-        return {
-            '{cost}-{rate}-{term}-{unit}'.format(
-                cost=self.decimal_format_str.format(p.public_on_demand_cost),
-                rate=self.decimal_format_str.format(p.public_on_demand_rate),
-                term=p.term,
-                unit=p.unit
-            ): p.id
-            for p in pricing
-        }
+        return {'{term}-{unit}'.format(term=p.term, unit=p.unit): p.id
+                for p in pricing}
 
     def get_reservations(self):
         """Make a mapping of reservation ARN to reservation objects."""
