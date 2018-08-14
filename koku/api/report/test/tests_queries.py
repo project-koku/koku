@@ -1024,3 +1024,37 @@ class ReportQueryTest(IamTestCase):
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
+
+    def test_execute_query_curr_month_by_account_w_limit_csv(self):
+        """Test execute_query for current month on monthly by account with limt as csv."""
+        self.add_data_to_tenant(rate=Decimal('0.299'))
+        self.add_data_to_tenant(rate=Decimal('0.399'))
+        self.add_data_to_tenant(rate=Decimal('0.099'))
+        self.add_data_to_tenant(rate=Decimal('0.999'))
+        self.add_data_to_tenant(rate=Decimal('0.699'))
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month', 'limit': 2},
+                        'group_by': {'account': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code',
+                                     **{'accept_type': 'text/csv'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        current_month = timezone.now().replace(microsecond=0,
+                                               second=0,
+                                               minute=0,
+                                               hour=0,
+                                               day=1)
+        cmonth_str = current_month.strftime('%Y-%m')
+        self.assertEqual(len(data), 3)
+        for data_item in data:
+            month = data_item.get('date')
+            self.assertEqual(month, cmonth_str)

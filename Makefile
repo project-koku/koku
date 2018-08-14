@@ -141,7 +141,7 @@ oc-create-test-db-file: oc-run-migrations
 	sleep 1
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver > /dev/null 2>&1 &
 	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --api-host=localhost --api-port=8000
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api
 	pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 	make oc-stop-forwarding-ports
