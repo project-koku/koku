@@ -17,7 +17,7 @@
 
 """Test the ReportDBAccessor utility object."""
 import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import types
 import random
 
@@ -434,6 +434,22 @@ class ReportDBAccessorTest(MasuTestCase):
             if column_types[key] == datetime.datetime:
                 value = self.creator.datetimeify_string(value)
             self.assertIsInstance(value, column_types[key])
+
+    def test_convert_value_decimal_invalid_operation(self):
+        """Test that an InvalidOperation is raised and None is returned."""
+        dec = Decimal('123342348239472398472309847230984723098427309')
+
+        result = self.accessor._convert_value(dec, Decimal)
+        self.assertIsNone(result)
+
+        result = self.accessor._convert_value('', Decimal)
+        self.assertIsNone(result)
+
+    def test_convert_value_value_error(self):
+        """Test that a value error results in a None value."""
+        value = 'Not a Number'
+        result = self.accessor._convert_value(value, float)
+        self.assertIsNone(result)
 
     def test_get_current_cost_entry_bill(self):
         """Test that the most recent cost entry bill is returned."""
