@@ -30,12 +30,6 @@ customer:
   password: Koku Customer Admin Password
   provider_name: Koku Provider Name
   provider_resource_name: AWS Role ARN
-database:
-  host: PostgreSQL Hostname
-  port: PostgreSQL Port
-  user: PostgreSQL Username
-  password: PostgreSQL Password
-  dbname: PostgreSQL DB Name
 koku:
   host: Koku API Hostname
   port: Koku API Port
@@ -61,7 +55,6 @@ class KokuCustomerOnboarder:
         """Constructor."""
         self._config = config
         self.customer = self._config.get('customer')
-        self.database = self._config.get('database')
         self.koku = self._config.get('koku')
 
         self.endpoint_base = f'http://{self.koku.get("host")}:{self.koku.get("port")}/api/v1/'
@@ -111,8 +104,15 @@ class KokuCustomerOnboarder:
 
     def create_provider_db(self):
         """Create a Koku Provider by inserting into the Koku DB."""
+        db_name = os.getenv('DATABASE_NAME')
+        db_host = os.getenv('POSTGRES_SQL_SERVICE_HOST')
+        db_port = os.getenv('POSTGRES_SQL_SERVICE_PORT')
+        db_user = os.getenv('DATABASE_USER')
+        db_password = os.getenv('DATABASE_PASSWORD')
 
-        with psycopg2.connect(**self.database) as conn:
+        with psycopg2.connect(database=db_name, user=db_user,
+                              password=db_password, port=db_port,
+                              host=db_host) as conn:
             cursor = conn.cursor()
 
             auth_sql = """
