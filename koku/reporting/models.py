@@ -105,6 +105,10 @@ class AWSCostEntryLineItem(models.Model):
                                        null=True)
     blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                        null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
     tax_type = models.TextField(null=True)
 
 
@@ -114,13 +118,8 @@ class AWSCostEntryPricing(models.Model):
     class Meta:
         """Meta for AWSCostEntryLineItem."""
 
-        unique_together = ('public_on_demand_cost',
-                           'public_on_demand_rate',
-                           'term',
-                           'unit')
+        unique_together = ('term', 'unit')
 
-    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9)
-    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9)
     term = models.CharField(max_length=63, null=True)
     unit = models.CharField(max_length=63, null=True)
 

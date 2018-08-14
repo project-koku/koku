@@ -19,8 +19,4 @@ class Migration(migrations.Migration):
             name='awscostentrylineitem',
             unique_together={('hash', 'cost_entry')},
         ),
-        migrations.AlterUniqueTogether(
-            name='awscostentrypricing',
-            unique_together={('public_on_demand_cost', 'public_on_demand_rate', 'term', 'unit')},
-        ),
     ]

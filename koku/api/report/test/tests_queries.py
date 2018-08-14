@@ -198,11 +198,10 @@ class ReportQueryTest(IamTestCase):
                                              memory=7.5,
                                              vcpu=4)
             ce_product.save()
-            ce_pricing = AWSCostEntryPricing(public_on_demand_cost=rate * 1,
-                                             public_on_demand_rate=rate,
-                                             term='OnDemand',
-                                             unit='Hrs')
-            ce_pricing.save()
+            ce_pricing, _ = AWSCostEntryPricing.objects.get_or_create(
+                term='OnDemand',
+                unit='Hrs'
+            )
             current = yesterday
             while current < this_hour:
                 if current.month == this_month:
