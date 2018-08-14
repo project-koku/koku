@@ -478,8 +478,11 @@ class ReportQueryHandler(object):
             grouped = ReportQueryHandler._group_data_by_list(group_by_list,
                                                              (group_index + 1),
                                                              grouped)
-            if out_data.get(key):
+            datapoint = out_data.get(key)
+            if datapoint and isinstance(datapoint, dict):
                 out_data[key].update(grouped)
+            elif datapoint and isinstance(datapoint, list):
+                out_data[key] = grouped + datapoint
             else:
                 out_data[key] = grouped
         return out_data
