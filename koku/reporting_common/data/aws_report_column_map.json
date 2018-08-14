@@ -145,13 +145,13 @@
     },
     {
         "database_column":"public_on_demand_cost",
-        "database_table":"reporting_awscostentrypricing",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"pricing/publicOnDemandCost",
         "provider_type":"AWS"
     },
     {
         "database_column":"public_on_demand_rate",
-        "database_table":"reporting_awscostentrypricing",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"pricing/publicOnDemandRate",
         "provider_type":"AWS"
     },
