@@ -20,6 +20,7 @@ import datetime
 from decimal import Decimal, InvalidOperation
 import types
 import random
+import uuid
 
 import psycopg2
 from sqlalchemy.orm.query import Query
@@ -190,12 +191,14 @@ class ReportDBAccessorTest(MasuTestCase):
         """Test that a temp table insert succeeds."""
         table_name = 'test_table'
         columns = ['test_column']
+        conflict_columns = columns
+        condition_column = columns[0]
         cursor = self.accessor._cursor
 
         drop_table = f'DROP TABLE IF EXISTS {table_name}'
         cursor.execute(drop_table)
 
-        create_table = f'CREATE TABLE {table_name} (id serial primary key, test_column varchar(8))'
+        create_table = f'CREATE TABLE {table_name} (id serial primary key, test_column varchar(8) unique)'
         cursor.execute(create_table)
 
         count = f'SELECT count(*) FROM {table_name}'
@@ -207,7 +210,8 @@ class ReportDBAccessorTest(MasuTestCase):
         insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
         cursor.execute(insert)
 
-        self.accessor.merge_temp_table(table_name, temp_table_name, columns)
+        self.accessor.merge_temp_table(table_name, temp_table_name, columns,
+                                       condition_column, conflict_columns)
 
         cursor.execute(count)
         final_count = cursor.fetchone()[0]
@@ -222,6 +226,8 @@ class ReportDBAccessorTest(MasuTestCase):
         """Test that a temp table with duplicate row does not insert."""
         table_name = 'test_table'
         columns = ['test_column']
+        conflict_columns = columns
+        condition_column = columns[0]
         cursor = self.accessor._cursor
 
         drop_table = f'DROP TABLE IF EXISTS {table_name}'
@@ -242,12 +248,57 @@ class ReportDBAccessorTest(MasuTestCase):
         insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
         cursor.execute(insert)
 
-        self.accessor.merge_temp_table(table_name, temp_table_name, columns)
+        self.accessor.merge_temp_table(table_name, temp_table_name, columns,
+                                       condition_column, conflict_columns)
 
         cursor.execute(count)
         final_count = cursor.fetchone()[0]
 
         self.assertEqual(initial_count, final_count)
+
+        cursor.execute(drop_table)
+        self.accessor._pg2_conn.commit()
+
+    def test_merge_temp_table_with_updates(self):
+        """Test that rows with invoice ids get updated."""
+        table_name = 'test_table'
+        columns = ['test_column', 'invoice_id']
+        condition_column = columns[1]
+        conflict_columns = ['test_column']
+        expected_invoice_id = str(uuid.uuid4())
+        cursor = self.accessor._cursor
+
+        drop_table = f'DROP TABLE IF EXISTS {table_name}'
+        cursor.execute(drop_table)
+
+        create_table = f'CREATE TABLE {table_name} (id serial primary key, test_column varchar(8) unique, invoice_id varchar(64))'
+        cursor.execute(create_table)
+
+        insert = f'INSERT INTO {table_name} (test_column) VALUES (\'123\')'
+        cursor.execute(insert)
+
+        count = f'SELECT count(*) FROM {table_name}'
+        cursor.execute(count)
+        initial_count = cursor.fetchone()[0]
+
+        temp_table_name = self.accessor.create_temp_table(table_name)
+
+        insert = f'INSERT INTO {temp_table_name} (test_column, invoice_id) VALUES (\'123\', \'{expected_invoice_id}\')'
+        cursor.execute(insert)
+
+        self.accessor.merge_temp_table(table_name, temp_table_name, columns,
+                                       condition_column, conflict_columns)
+
+        invoice_sql = f'SELECT invoice_id FROM {table_name}'
+        cursor.execute(invoice_sql)
+        invoice_id = cursor.fetchone()
+        invoice_id = invoice_id[0] if invoice_id else None
+
+        cursor.execute(count)
+        final_count = cursor.fetchone()[0]
+
+        self.assertEqual(initial_count, final_count)
+        self.assertEqual(invoice_id, expected_invoice_id)
 
         cursor.execute(drop_table)
         self.accessor._pg2_conn.commit()
