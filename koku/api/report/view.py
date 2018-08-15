@@ -208,15 +208,16 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
     output = handler.execute_query()
 
     if 'units' in params:
-        try:
-            from_unit = _find_unit()(output['data'])
-            to_unit = params['units']
-            unit_converter = UnitConverter()
-            output = _fill_in_missing_units(from_unit)(output)
-            output = _convert_units(unit_converter, output, to_unit)
-        except (DimensionalityError, UndefinedUnitError):
-            error = {'details': _('Unit conversion failed.')}
-            raise ValidationError(error)
+        from_unit = _find_unit()(output['data'])
+        if from_unit:
+            try:
+                to_unit = params['units']
+                unit_converter = UnitConverter()
+                output = _fill_in_missing_units(from_unit)(output)
+                output = _convert_units(unit_converter, output, to_unit)
+            except (DimensionalityError, UndefinedUnitError):
+                error = {'details': _('Unit conversion failed.')}
+                raise ValidationError(error)
 
     LOG.debug(f'DATA: {output}')
     return Response(output)
