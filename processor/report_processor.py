@@ -116,6 +116,16 @@ class ReportProcessor:
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_name, self._schema_name)
 
+    @property
+    def line_item_conflict_columns(self):
+        """Create a property to check conflict on line items."""
+        return ['hash', 'cost_entry_id']
+
+    @property
+    def line_item_condition_column(self):
+        """Create a property with condition to check for line item inserts."""
+        return 'invoice_id'
+
     def process(self):
         """Process CUR file.
 
@@ -154,7 +164,9 @@ class ReportProcessor:
                     self.report_db.merge_temp_table(
                         AWS_CUR_TABLE_MAP['line_item'],
                         self.temp_table,
-                        self.line_item_columns
+                        self.line_item_columns,
+                        self.line_item_condition_column,
+                        self.line_item_conflict_columns
                     )
 
                     LOG.info('Saving report rows %d to %d', row_count,
@@ -169,7 +181,9 @@ class ReportProcessor:
                 self.report_db.merge_temp_table(
                     AWS_CUR_TABLE_MAP['line_item'],
                     self.temp_table,
-                    self.line_item_columns
+                    self.line_item_columns,
+                    self.line_item_condition_column,
+                    self.line_item_conflict_columns
                 )
 
                 LOG.info('Saving report rows %d to %d', row_count,
