@@ -116,7 +116,9 @@ class ReportDBAccessor(KokuDBAccess):
 
         return temp_table_name
 
-    def merge_temp_table(self, table_name, temp_table_name, columns):
+    # pylint: disable=too-many-arguments
+    def merge_temp_table(self, table_name, temp_table_name, columns,
+                         condition_column, conflict_columns):
         """INSERT temp table rows into the primary table specified.
 
         Args:
@@ -128,19 +130,34 @@ class ReportDBAccessor(KokuDBAccess):
             (None)
 
         """
-        columns = ','.join(columns)
+        column_str = ','.join(columns)
+        conflict_col_str = ','.join(conflict_columns)
 
-        statement = f"""
-            INSERT INTO {table_name} ({columns})
-                SELECT {columns}
+        set_clause = ','.join([f'{column} = excluded.{column}'
+                               for column in columns])
+        update_sql = f"""
+            INSERT INTO {table_name} ({column_str})
+                SELECT {column_str}
                 FROM {temp_table_name}
-                ON CONFLICT DO NOTHING
-        """
-        self._cursor.execute(statement)
+                WHERE {condition_column} IS NOT NULL
+                ON CONFLICT ({conflict_col_str}) DO UPDATE
+                SET {set_clause}
+            """
+        self._cursor.execute(update_sql)
         self._pg2_conn.commit()
 
-        statement = f'DELETE FROM {temp_table_name}'
-        self._cursor.execute(statement)
+        insert_sql = f"""
+            INSERT INTO {table_name} ({column_str})
+                SELECT {column_str}
+                FROM {temp_table_name}
+                WHERE {condition_column} IS NULL
+                ON CONFLICT DO NOTHING
+        """
+        self._cursor.execute(insert_sql)
+        self._pg2_conn.commit()
+
+        delete_sql = f'DELETE FROM {temp_table_name}'
+        self._cursor.execute(delete_sql)
         self._pg2_conn.commit()
         self._vacuum_table(temp_table_name)
 
