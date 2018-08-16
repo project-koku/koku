@@ -19,7 +19,6 @@
 import uuid
 
 from django.core import mail
-from django.forms.models import model_to_dict
 from rest_framework.exceptions import ValidationError
 
 from api.iam.email import SUBJECT
@@ -199,10 +198,10 @@ class UserPreferenceSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
+        kwargs = {'context': {'user': user}}
         test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
-        data = {'user': model_to_dict(user), 'preference': test_pref}
-
-        serializer = UserPreferenceSerializer(data=data)
+        data = {'name': 'foo', 'description': 'foo', 'preference': test_pref}
+        serializer = UserPreferenceSerializer(data=data, **kwargs)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
 
@@ -210,3 +209,22 @@ class UserPreferenceSerializerTest(IamTestCase):
         self.assertEqual(len(query), len(self.preference_defaults) + 1)
         prefs = [q.preference for q in query]
         self.assertIn(test_pref, prefs)
+
+    def test_user_preference_duplicate(self):
+        """Test that we fail to create arbitrary preference if it already exits."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
+        data = {'name': 'foo', 'description': 'foo', 'preference': test_pref}
+        serializer = UserPreferenceSerializer(data=data, **kwargs)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
+        with self.assertRaises(ValidationError):
+            serializer = UserPreferenceSerializer(data=data, **kwargs)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()

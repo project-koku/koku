@@ -56,7 +56,7 @@ def _create_default_preferences(user):
                 'user': model_to_dict(user),
                 'name': list(pref.keys())[0],
                 'description': _('default preference')}
-        serializer = UserPreferenceSerializer(data=data)
+        serializer = UserPreferenceSerializer(data=data, context={'user': user})
         if serializer.is_valid(raise_exception=True):
             serializer.save()
 
@@ -190,13 +190,23 @@ class NestedUserSerializer(serializers.ModelSerializer):
 class UserPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for the UserPreference model."""
 
-    user = NestedUserSerializer(label='User')
+    user = NestedUserSerializer(label='User', read_only=True)
 
     class Meta:
         """Metadata for the serializer."""
 
         model = UserPreference
         fields = ('uuid', 'name', 'description', 'preference', 'user')
+
+    def validate(self, data):
+        """Check for uniqueness of user and name pairing."""
+        user = self.context.get('user')
+        data['user'] = model_to_dict(user)
+        pref_name = data.get('name')
+        query = UserPreference.objects.filter(user=user, name=pref_name)
+        if query.count():
+            raise serializers.ValidationError(f'User already has a preference {pref_name}.')
+        return data
 
     @transaction.atomic
     def create(self, validated_data):

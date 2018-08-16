@@ -53,6 +53,13 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         """Get a queryset that only displays the owner's preferences."""
         return self.queryset.filter(user=self.request.user)
 
+    def get_serializer_context(self):
+        """Pass user attribute to serializer."""
+        context = super().get_serializer_context()
+        if self.request.user:
+            context['user'] = self.request.user
+        return context
+
     def _validate_user(self, user_id, uuid):
         """Validate that the user object is assigned the given uuid."""
         user_a = models.User.objects.get(id=user_id)
