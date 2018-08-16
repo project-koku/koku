@@ -82,6 +82,9 @@ class UserPreference(models.Model):
     description = models.CharField(max_length=255, null=True)
 
     class Meta:
+        """Meta for UserPreference."""
+
+        unique_together = ('name', 'user')
         ordering = ('name',)
 
     def __str__(self):
