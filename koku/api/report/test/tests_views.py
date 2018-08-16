@@ -28,6 +28,8 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant, User
 from api.report.view import (_convert_units,
+                             _fill_in_missing_units,
+                             _find_unit,
                              _generic_report,
                              get_tenant,
                              process_query_parameters)
@@ -392,3 +394,47 @@ class ReportViewTest(IamTestCase):
 
         with self.assertRaises(ValidationError):
             _generic_report(request, 'usage_amount', 'cost_entry_pricing__unit')
+
+    def test_find_unit_list(self):
+        """Test that the correct unit is returned."""
+        expected_unit = 'Hrs'
+        data = [
+            {'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0},
+            {'date': '2018-07-22', 'units': expected_unit, 'instance_type': 't2.small', 'total': 17.0, 'count': 0},
+            {'date': '2018-07-22', 'units': expected_unit, 'instance_type': 't2.micro', 'total': 1.0, 'count': 0}
+        ]
+
+        result_unit = _find_unit()(data)
+        self.assertEqual(expected_unit, result_unit)
+
+    def test_find_unit_dict(self):
+        """Test that the correct unit is returned for a dictionary."""
+        data = {'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0},
+
+        result_unit = _find_unit()(data)
+        self.assertIsNone(result_unit)
+
+    def test_fill_in_missing_units_list(self):
+        """Test that missing units are filled in."""
+        expected_unit = 'Hrs'
+        data = [
+            {'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0},
+            {'date': '2018-07-22', 'units': expected_unit, 'instance_type': 't2.small', 'total': 17.0, 'count': 0},
+            {'date': '2018-07-22', 'units': expected_unit, 'instance_type': 't2.micro', 'total': 1.0, 'count': 0}
+        ]
+
+        unit = _find_unit()(data)
+
+        result = _fill_in_missing_units(unit)(data)
+
+        for entry in result:
+            self.assertEqual(entry.get('units'), expected_unit)
+
+    def test_fill_in_missing_units_dict(self):
+        """Test that missing units are filled in for a dictionary."""
+        expected_unit = 'Hrs'
+        data = {'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0}
+
+        result = _fill_in_missing_units(expected_unit)(data)
+
+        self.assertEqual(result.get('units'), expected_unit)
