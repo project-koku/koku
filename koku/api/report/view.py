@@ -90,6 +90,43 @@ def get_tenant(user):
     return tenant
 
 
+def _find_unit():
+    """Find the original unit for a report dataset."""
+    unit = None
+
+    def __unit_finder(data):
+        nonlocal unit
+        if isinstance(data, list):
+            for entry in data:
+                __unit_finder(entry)
+        elif isinstance(data, dict):
+            for key in data:
+                if key == 'units' and data[key] and unit is None:
+                    unit = data[key]
+                else:
+                    __unit_finder(data[key])
+        return unit
+
+    return __unit_finder
+
+
+def _fill_in_missing_units(unit):
+    """Fill in missing unit information."""
+    def __unit_filler(data):
+        if isinstance(data, list):
+            for entry in data:
+                __unit_filler(entry)
+        elif isinstance(data, dict):
+            for key in data:
+                if key == 'units':
+                    if not data[key]:
+                        data[key] = unit
+                else:
+                    __unit_filler(data[key])
+        return data
+    return __unit_filler
+
+
 def _convert_units(converter, data, to_unit):
     """Convert the units in a JSON structured report.
 
@@ -171,13 +208,16 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
     output = handler.execute_query()
 
     if 'units' in params:
-        try:
-            to_unit = params['units']
-            unit_converter = UnitConverter()
-            output = _convert_units(unit_converter, output, to_unit)
-        except (DimensionalityError, UndefinedUnitError):
-            error = {'details': _('Unit conversion failed.')}
-            raise ValidationError(error)
+        from_unit = _find_unit()(output['data'])
+        if from_unit:
+            try:
+                to_unit = params['units']
+                unit_converter = UnitConverter()
+                output = _fill_in_missing_units(from_unit)(output)
+                output = _convert_units(unit_converter, output, to_unit)
+            except (DimensionalityError, UndefinedUnitError):
+                error = {'details': _('Unit conversion failed.')}
+                raise ValidationError(error)
 
     LOG.debug(f'DATA: {output}')
     return Response(output)
