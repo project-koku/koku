@@ -127,8 +127,12 @@ class AWSCostEntryPricing(models.Model):
 class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
 
-    # AWS unique identifier for the product
-    sku = models.CharField(max_length=128, null=True, unique=True)
+    class Meta:
+        """Meta for AWSCostEntryReservation."""
+
+        unique_together = ('sku', 'product_name', 'region')
+
+    sku = models.CharField(max_length=128, null=True)
     product_name = models.CharField(max_length=63, null=True)
     product_family = models.CharField(max_length=150, null=True)
     service_code = models.CharField(max_length=50, null=True)
@@ -143,7 +147,12 @@ class AWSCostEntryProduct(models.Model):
 class AWSCostEntryReservation(models.Model):
     """Information on a particular reservation in the AWS account."""
 
-    reservation_arn = models.TextField(unique=True)
+    class Meta:
+        """Meta for AWSCostEntryReservation."""
+
+        unique_together = ('reservation_arn', 'cost_entry_bill')
+
+    reservation_arn = models.TextField()
     availability_zone = models.CharField(max_length=50, null=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
     units_per_reservation = models.PositiveIntegerField(null=True)
@@ -163,3 +172,7 @@ class AWSCostEntryReservation(models.Model):
     unused_quantity = models.PositiveIntegerField(null=True)
     unused_recurring_fee = models.DecimalField(max_digits=17, decimal_places=9,
                                                null=True)
+
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
+                                        on_delete=models.PROTECT,
+                                        null=True)
