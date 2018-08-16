@@ -17,6 +17,7 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+from decimal import Decimal, DivisionByZero
 from itertools import groupby
 
 from django.db.models import (Count,
@@ -28,9 +29,9 @@ from django.db.models.functions import (Concat,
                                         DenseRank,
                                         TruncDay,
                                         TruncMonth)
-from django.utils import timezone
 from tenant_schemas.utils import tenant_context
 
+from api.utils import DateHelper
 from reporting.models import AWSCostEntryLineItem
 
 
@@ -92,6 +93,7 @@ class ReportQueryHandler(object):
         self._group_by = None
         self._annotations = None
         self._count = None
+        self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
         self._order = self.get_order()
         self.operation = self.query_parameters.get('operation', OPERATION_SUM)
@@ -104,91 +106,10 @@ class ReportQueryHandler(object):
         self._get_timeframe()
 
         if kwargs:
-            if 'filter' in kwargs:
-                self._filter = kwargs.get('filter')
-            if 'group_by' in kwargs:
-                self._group_by = kwargs.get('group_by')
-            if 'annotations' in kwargs:
-                self._annotations = kwargs.get('annotations')
-            if 'count' in kwargs:
-                self._count = kwargs.get('count')
-            if 'accept_type' in kwargs:
-                self._accept_type = kwargs.get('accept_type')
-
-    @staticmethod
-    def next_month(in_date):
-        """Return the first of the next month from the in_date.
-
-        Args:
-            in_date    (DateTime) input datetime
-        Returns:
-            (DateTime): First of the next month
-        """
-        dt_next_month = in_date.replace(month=(in_date.month + 1), day=1)
-        return dt_next_month
-
-    @staticmethod
-    def previous_month(in_date):
-        """Return the first of the previous month from the in_date.
-
-        Args:
-            in_date    (DateTime) input datetime
-        Returns:
-            (DateTime): First of the previous month
-        """
-        dt_prev_month = in_date.replace(month=(in_date.month - 1), day=1)
-        return dt_prev_month
-
-    @staticmethod
-    def n_days_ago(in_date, n_days):
-        """Return midnight of the n days from the in_date in past.
-
-        Args:
-            in_date    (DateTime) input datetime
-            n_days     (integer) number of days in the past
-        Returns:
-            (DateTime): A day n days in the past
-        """
-        dt_midnight = in_date.replace(hour=0)
-        dt_n_days = dt_midnight - datetime.timedelta(days=n_days)
-        return dt_n_days
-
-    @staticmethod
-    def list_days(start_date, end_date):
-        """Return a list of days from the start date til the end date.
-
-        Args:
-            start_date    (DateTime) starting datetime
-            end_date      (DateTime) ending datetime
-        Returns:
-            (List[DateTime]): A list of days from the start date to end date
-        """
-        day_list = []
-        end_midnight = end_date.replace(hour=0)
-        start_midnight = start_date.replace(hour=0)
-        days = (end_midnight - start_midnight).days + 1
-        day_list = [start_midnight + datetime.timedelta(i) for i in range(days)]
-        return day_list
-
-    @staticmethod
-    def list_months(start_date, end_date):
-        """Return a list of months from the start date til the end date.
-
-        Args:
-            start_date    (DateTime) starting datetime
-            end_date      (DateTime) ending datetime
-        Returns:
-            (List[DateTime]): A list of months from the start date to end date
-        """
-        months = []
-        dt_first = start_date.replace(hour=0, day=1)
-        end_midnight = end_date.replace(hour=0)
-        current = dt_first
-        while current < end_midnight:
-            months.append(current)
-            next_month = ReportQueryHandler.next_month(current)
-            current = next_month
-        return months
+            elements = ['accept_type', 'annotations', 'count', 'delta', 'filter', 'group_by']
+            for key, value in kwargs.items():
+                if key in elements:
+                    setattr(self, f'_{key}', value)
 
     @staticmethod
     def has_wildcard(in_list):
@@ -266,11 +187,11 @@ class ReportQueryHandler(object):
         if self.resolution == 'monthly':
             self.date_to_string = lambda datetime: datetime.strftime('%Y-%m')
             self.date_trunc = TruncMonthString
-            self.gen_time_interval = ReportQueryHandler.list_months
+            self.gen_time_interval = DateHelper().list_months
         else:
             self.date_to_string = lambda datetime: datetime.strftime('%Y-%m-%d')
             self.date_trunc = TruncDayString
-            self.gen_time_interval = ReportQueryHandler.list_days
+            self.gen_time_interval = DateHelper().list_days
 
         return self.resolution
 
@@ -341,27 +262,28 @@ class ReportQueryHandler(object):
         self.get_resolution()
         time_scope_value = self.get_time_scope_value()
         time_scope_units = self.get_time_scope_units()
-        this_hour = timezone.now().replace(microsecond=0, second=0, minute=0)
         start = None
         end = None
+        dh = DateHelper()
         if time_scope_units == 'month':
             if time_scope_value == -1:
                 # get current month
-                start = this_hour.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-                end = ReportQueryHandler.next_month(start)
+                start = dh.this_month_start
+                end = dh.this_month_end
             else:
                 # get previous month
-                end = this_hour.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
-                start = ReportQueryHandler.previous_month(end)
+                start = dh.last_month_start
+                end = dh.last_month_end
         else:
             if time_scope_value == -10:
                 # get last 10 days
-                end = this_hour
-                start = ReportQueryHandler.n_days_ago(this_hour, 10)
+                start = dh.n_days_ago(dh.this_hour, 10)
+                end = dh.this_hour
             else:
                 # get last 30 days
-                end = this_hour
-                start = ReportQueryHandler.n_days_ago(this_hour, 30)
+                start = dh.n_days_ago(dh.this_hour, 30)
+                end = dh.this_hour
+
         self.start_datetime = start
         self.end_datetime = end
         self._create_time_interval()
@@ -563,6 +485,10 @@ class ReportQueryHandler(object):
         output = copy.deepcopy(self.query_parameters)
         output['data'] = self.query_data
         output['total'] = self.query_sum
+
+        if self._delta:
+            output['delta'] = self.query_delta
+
         return output
 
     def _transform_data(self, groups, group_index, data):
@@ -587,7 +513,7 @@ class ReportQueryHandler(object):
 
         return out_data
 
-    def execute_query(self):
+    def execute_query(self):    # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -656,6 +582,63 @@ class ReportQueryHandler(object):
                     query_sum = query.aggregate(value=Sum(self.aggregate_key))
                 query_sum['units'] = units_value
 
+            if self._delta:
+                self.query_delta = self.calculate_delta(self._delta,
+                                                        query,
+                                                        query_sum,
+                                                        **query_filter)
+
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
+
+    def calculate_delta(self, delta, query, query_sum, **kwargs):
+        """Calculate cost deltas.
+
+        Args:
+            delta (String) 'day', 'month', or 'year'
+            query (Query) the original query being compared
+
+        Returns:
+            (dict) with keys "value" and "percent"
+
+        """
+        delta_filter = copy.deepcopy(kwargs)
+
+        # get delta date range
+        _start = kwargs.get('usage_start__gte')
+        _end = kwargs.get('usage_end__lte')
+
+        if delta == 'day':
+            previous = datetime.timedelta(days=1)
+        elif delta == 'month':
+            dh = DateHelper()
+            last_month = dh.days_in_month(_start.replace(day=1) - dh.one_day)
+            previous = datetime.timedelta(days=last_month)
+        elif delta == 'year':
+            previous = datetime.timedelta(days=365)
+        else:
+            # paranoia.
+            raise NotImplementedError(f'invalid parameter: {delta}')
+
+        delta_filter['usage_start__gte'] = _start - previous
+        delta_filter['usage_end__lte'] = _end - previous
+
+        # construct new query
+        delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+
+        # get aggregate sum from query
+        delta_sum = delta_query.aggregate(value=Sum(self.aggregate_key))
+
+        # calculate percentage difference: ((total - delta_total) / delta_total * 100)
+        q_sum = Decimal(query_sum.get('value') or 0)
+        d_sum = Decimal(delta_sum.get('value') or 0)
+        d_value = q_sum - d_sum
+
+        try:
+            d_percent = (q_sum - d_sum) / d_sum * Decimal(100)
+        except DivisionByZero:
+            d_percent = Decimal(0)
+
+        query_delta = {'value': d_value, 'percent': d_percent}
+        return query_delta

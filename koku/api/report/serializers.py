@@ -48,7 +48,7 @@ def validate_field(this, field, serializer_cls, value):
 
     Args:
         field    (String): the field to be validated
-        serializer_cls (Class): a serialice class for validation
+        serializer_cls (Class): a serializer class for validation
         value    (Object): the field value
     Returns:
         (Dict): Validated value
@@ -203,11 +203,20 @@ class FilterSerializer(serializers.Serializer):
 class QueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
+    # Tuples are (key, display_name)
     OPERATION_CHOICES = (
         ('sum', 'sum'),
         ('none', 'none'),
     )
 
+    # Tuples are (key, display_name)
+    DELTA_CHOICES = (
+        ('day', 'day'),
+        ('month', 'month'),
+        ('year', 'year'),
+    )
+
+    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
