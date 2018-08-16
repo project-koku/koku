@@ -15,13 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-import datetime
 from decimal import Decimal
 
-from django.db.models import Count, Value
+from django.db.models import Value
 from django.db.models.functions import Concat
 from django.test import TestCase
-from django.utils import timezone
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -180,7 +178,7 @@ class ReportQueryTest(IamTestCase):
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
                            data_start=DateHelper().yesterday,
-                           data_end=DateHelper().this_hour):
+                           data_end=DateHelper().today):
         """Populate tenant with data."""
         payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
         self.payer_account_id = payer_account_id
@@ -191,7 +189,6 @@ class ReportQueryTest(IamTestCase):
                                     billing_period_start=bill_start,
                                     billing_period_end=bill_end)
             bill.save()
-            amount = 1
             cost = rate * amount
             bill = self._create_bill(payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
@@ -518,22 +515,17 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_counts(self):
         """Test execute_query for with counts of unique resources."""
-        count_field = 'resource_id'
+        dh = DateHelper()
+        self.add_data_to_tenant(rate=Decimal('0.299'),
+                                data_start=dh.today,
+                                data_end=dh.tomorrow)
+
         with tenant_context(self.tenant):
-            total_records = AWSCostEntryLineItem.objects.aggregate(
-                count=Count(count_field, distinct=True)
-            ).get('count')
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
-        today = timezone.now()
-        yesterday = today - datetime.timedelta(days=1)
-        current_hour = timezone.now()
-        expected_today_count = current_hour.hour
-        expected_yesterday_count = total_records - expected_today_count
-
         expected = {
-            today.strftime('%Y-%m-%d'): expected_today_count,
-            yesterday.strftime('%Y-%m-%d'): expected_yesterday_count
+            dh.today.strftime('%Y-%m-%d'): dh.this_hour.hour,
+            dh.yesterday.strftime('%Y-%m-%d'): 24
         }
 
         query_params = {'filter':
@@ -542,7 +534,7 @@ class ReportQueryTest(IamTestCase):
         query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
         annotations = {'instance_type':
                        Concat('cost_entry_product__instance_type', Value(''))}
-        extras = {'count': count_field,
+        extras = {'count': 'resource_id',
                   'group_by': ['instance_type'],
                   'annotations': annotations,
                   'filter': {'cost_entry_product__instance_type__isnull': False}}
@@ -551,12 +543,14 @@ class ReportQueryTest(IamTestCase):
                                      'cost_entry_pricing__unit',
                                      **extras)
         query_output = handler.execute_query()
+
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
+
         total = query_output.get('total')
         self.assertIsNotNone(total.get('count'))
-        self.assertEqual(total.get('count'), total_records)
+        self.assertEqual(total.get('count'), sum(expected.values()))
 
         for data_item in data:
             instance_types = data_item.get('instance_types')
@@ -894,7 +888,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(total.get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 42)
+        self.assertEqual(len(data), 24)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -920,7 +914,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(total.get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 42)
+        self.assertEqual(len(data), 24)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1013,4 +1007,4 @@ class ReportQueryTest(IamTestCase):
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNotNone(delta.get('percent'))
-        self.assertEqual(delta.get('percent'), Decimal('117.412500'))
+        self.assertTrue(delta.get('percent') > Decimal(100))
