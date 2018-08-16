@@ -651,6 +651,10 @@ paths:
       - 'application/json'
       - 'text/csv'
       parameters:
+      - name: 'delta'
+        in: 'query'
+        description: 'Toggle to include delta values in report.'
+        type: 'string'
       - name: 'filter'
         in: 'query'
         description: 'The filter to apply to the report as a URL encoded dictionary.'
@@ -1024,6 +1028,17 @@ definitions:
           - desc
     example: { 'cost': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
+  ReportDelta:
+    type: object
+    properties:
+      cost:
+        type: string
+        enum:
+          - day
+          - month
+          - year
+    example: { 'delta': 'month' }
+    description: 'Toggle to include delta values in report.'
   ReportResolution:
     type: string
     enum:
@@ -1055,11 +1070,14 @@ definitions:
     description: The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering.
   Report:
     required:
+      - delta
       - group_by
       - order_by
       - filter
       - operation
     properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
       group_by:
         $ref: '#/definitions/ReportGrouping'
       order_by:
@@ -1090,6 +1108,14 @@ definitions:
                 [
                 {
                     'date': '2018-05-28',
+                    'total': {
+                      'value': 2564.775150581,
+                      'units': 'USD'
+                    },
+                    'delta': {
+                      'value': 379.43980,
+                      'percent': -27.2853920
+                    },
                     'accounts': [
                         {
                             'account': '8577742690384',
