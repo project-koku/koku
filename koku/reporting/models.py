@@ -43,6 +43,16 @@ class AWSCostEntry(models.Model):
 
     """
 
+    class Meta:
+        """Meta for AWSCostEntry."""
+
+        indexes = [
+            models.Index(
+                fields=['interval_start'],
+                name='interval_start_idx',
+            ),
+        ]
+
     interval_start = models.DateTimeField(null=False)
     interval_end = models.DateTimeField(null=False)
 
@@ -111,6 +121,70 @@ class AWSCostEntryLineItem(models.Model):
                                                 null=True)
     tax_type = models.TextField(null=True)
 
+class AWSCostEntryLineItemDailySummary(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by service, and does not
+    have a breakdown by resource or tags.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostEntryLineItemDailySummary."""
+
+        db_table = 'reporting_awscostentrylineitem_daily_summary'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='usage_start_idx',
+            ),
+            models.Index(
+                fields=['product_code'],
+                name='product_code_idx',
+            ),
+            models.Index(
+                fields=['usage_account_id'],
+                name='usage_account_id_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
+                                           on_delete=models.PROTECT, null=True)
+    cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
+                                           on_delete=models.PROTECT, null=True)
+    cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
+                                               on_delete=models.PROTECT,
+                                               null=True)
+
+    line_item_type = models.CharField(max_length=50, null=False)
+    usage_account_id = models.CharField(max_length=50, null=False)
+    usage_start = models.DateTimeField(null=False)
+    product_code = models.CharField(max_length=50, null=False)
+    usage_type = models.CharField(max_length=50, null=True)
+    operation = models.CharField(max_length=50, null=True)
+    availability_zone = models.CharField(max_length=50, null=True)
+    resource_count = models.IntegerField(default=0)
+    usage_amount = models.FloatField(null=True)
+    normalization_factor = models.FloatField(null=True)
+    normalized_usage_amount = models.FloatField(null=True)
+    currency_code = models.CharField(max_length=10)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    tax_type = models.TextField(null=True)
+
 
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
@@ -126,6 +200,16 @@ class AWSCostEntryPricing(models.Model):
 
 class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
+
+    class Meta:
+        """Meta for AWSCostEntryProduct."""
+
+        indexes = [
+            models.Index(
+                fields=['region'],
+                name='region_idx',
+            ),
+        ]
 
     # AWS unique identifier for the product
     sku = models.CharField(max_length=128, null=True, unique=True)
