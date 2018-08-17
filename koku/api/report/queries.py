@@ -31,7 +31,7 @@ from django.db.models.functions import (Concat,
 from django.utils import timezone
 from tenant_schemas.utils import tenant_context
 
-from reporting.models import AWSCostEntryLineItem
+from reporting.models import AWSCostEntryLineItemDailySummary
 
 
 WILDCARD = '*'
@@ -376,7 +376,7 @@ class ReportQueryHandler(object):
         """
         filter_dict = {
             'usage_start__gte': self.start_datetime,
-            'usage_end__lte': self.end_datetime,
+            'usage_start__lt': self.end_datetime,
         }
         if self._filter:
             filter_dict.update(self._filter)
@@ -602,7 +602,7 @@ class ReportQueryHandler(object):
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
             query_order_by = ('-date',)
-            query = AWSCostEntryLineItem.objects.filter(**query_filter)
+            query = AWSCostEntryLineItemDailySummary.objects.filter(**query_filter)
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
@@ -614,8 +614,10 @@ class ReportQueryHandler(object):
                     .annotate(total=Sum(self.aggregate_key))
 
             if self._count and is_sum:
+                # This is a sum because the summary table already
+                # has already performed counts
                 query_data = query_data.annotate(
-                    count=Count(self._count, distinct=True)
+                    count=Sum(self._count)
                 )
 
             if self._limit and is_sum:
@@ -650,7 +652,9 @@ class ReportQueryHandler(object):
                 if self._count:
                     query_sum = query.aggregate(
                         value=Sum(self.aggregate_key),
-                        count=Count(self._count, distinct=True)
+                        # This is a sum because the summary table already
+                        # has already performed counts
+                        count=Sum(self._count)
                     )
                 else:
                     query_sum = query.aggregate(value=Sum(self.aggregate_key))

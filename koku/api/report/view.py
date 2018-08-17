@@ -447,7 +447,7 @@ def instance_type(request):
     extras = {'filter': filter_scope,
               'annotations': annotations,
               'group_by': ['instance_type'],
-              'count': 'resource_id'}
+              'count': 'resource_count'}
     return _generic_report(request,
                            'usage_amount',
                            'cost_entry_pricing__unit',
