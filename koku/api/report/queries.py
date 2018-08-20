@@ -138,16 +138,16 @@ class ReportQueryHandler(object):
         return (self.query_parameters and key in self.query_parameters and
                 in_key in self.query_parameters.get(key))
 
-    def get_query_param_data(self, dictkey, key):
+    def get_query_param_data(self, dictkey, key, default=None):
         """Extract the value from a query parameter dictionary or return None.
 
         Args:
             dictkey (String): the key to access a query parameter dictionary
             key     (String): the key to obtain from the dictionar data
         Returns:
-            (Object): The value found with the given key or None
+            (Object): The value found with the given key or the default value
         """
-        value = []
+        value = default
         if self.check_query_params(dictkey, key):
             value = self.query_parameters.get(dictkey).get(key)
         return value
@@ -175,8 +175,9 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter', 'resolution')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+        self.resolution = self.get_query_param_data('filter', 'resolution', 0)
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value', 0)
         if not self.resolution:
             if not time_scope_value:
                 self.resolution = 'daily'
@@ -206,7 +207,8 @@ class ReportQueryHandler(object):
             return self.time_scope_units
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value', 0)
         if not time_scope_units:
             if not time_scope_value:
                 time_scope_units = 'day'
@@ -228,7 +230,8 @@ class ReportQueryHandler(object):
             return self.time_scope_value
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value', 0)
         if not time_scope_value:
             if not time_scope_units:
                 time_scope_value = -10
@@ -303,14 +306,14 @@ class ReportQueryHandler(object):
         if self._filter:
             filter_dict.update(self._filter)
 
-        gb_service = self.get_query_param_data('group_by', 'service')
-        gb_account = self.get_query_param_data('group_by', 'account')
-        gb_region = self.get_query_param_data('group_by', 'region')
-        gb_avail_zone = self.get_query_param_data('group_by', 'avail_zone')
-        f_account = self.get_query_param_data('filter', 'account')
-        f_service = self.get_query_param_data('filter', 'service')
-        f_region = self.get_query_param_data('filter', 'region')
-        f_avail_zone = self.get_query_param_data('filter', 'avail_zone')
+        gb_service = self.get_query_param_data('group_by', 'service', [])
+        gb_account = self.get_query_param_data('group_by', 'account', [])
+        gb_region = self.get_query_param_data('group_by', 'region', [])
+        gb_avail_zone = self.get_query_param_data('group_by', 'avail_zone', [])
+        f_account = self.get_query_param_data('filter', 'account', [])
+        f_service = self.get_query_param_data('filter', 'service', [])
+        f_region = self.get_query_param_data('filter', 'region', [])
+        f_avail_zone = self.get_query_param_data('filter', 'avail_zone', [])
         account = list(set(gb_account + f_account))
         service = list(set(gb_service + f_service))
         region = list(set(gb_region + f_region))
