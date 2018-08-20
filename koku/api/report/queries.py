@@ -179,18 +179,16 @@ class ReportQueryHandler(object):
         time_scope_value = self.get_query_param_data('filter',
                                                      'time_scope_value', 0)
         if not self.resolution:
-            if not time_scope_value:
-                self.resolution = 'daily'
-            elif int(time_scope_value) == -1 or int(time_scope_value) == -2:
+            self.resolution = 'daily'
+            if time_scope_value in [-1, -2]:
                 self.resolution = 'monthly'
-            else:
-                self.resolution = 'daily'
+
         if self.resolution == 'monthly':
-            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m')
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
             self.date_trunc = TruncMonthString
             self.gen_time_interval = DateHelper().list_months
         else:
-            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m-%d')
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
             self.date_trunc = TruncDayString
             self.gen_time_interval = DateHelper().list_days
 
@@ -207,15 +205,13 @@ class ReportQueryHandler(object):
             return self.time_scope_units
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value', 0)
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+
         if not time_scope_units:
-            if not time_scope_value:
-                time_scope_units = 'day'
-            elif int(time_scope_value) == -1 or int(time_scope_value) == -2:
+            time_scope_units = 'day'
+            if time_scope_value in [-1, -2]:
                 time_scope_units = 'month'
-            else:
-                time_scope_units = 'day'
+
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
@@ -230,15 +226,13 @@ class ReportQueryHandler(object):
             return self.time_scope_value
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value', 0)
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+
         if not time_scope_value:
-            if not time_scope_units:
-                time_scope_value = -10
-            elif time_scope_units == 'month':
+            time_scope_value = -10
+            if time_scope_units == 'month':
                 time_scope_value = -1
-            else:
-                time_scope_value = -10
+
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
