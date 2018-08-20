@@ -353,7 +353,6 @@ class ReportQueryHandler(object):
                   'avail_zone': 'availability_zone'}
 
         for q_param, db_field in fields.items():
-            group_by = self.get_query_param_data('group_by', q_param)
             annotations[q_param] = Concat(db_field, Value(''))
 
         return annotations
