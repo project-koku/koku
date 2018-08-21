@@ -20,6 +20,7 @@ import datetime
 from decimal import Decimal, InvalidOperation
 import types
 import random
+import string
 import uuid
 
 import psycopg2
@@ -442,6 +443,66 @@ class ReportDBAccessorTest(MasuTestCase):
             previous_count = count
             previous_row_id = row_id
 
+    def test_insert_on_conflict_do_update_with_conflict(self):
+        """Test that an INSERT succeeds ignoring the conflicting row."""
+        table_name = AWS_CUR_TABLE_MAP['reservation']
+        data = self.creator.create_columns_for_table(table_name)
+        query = self.accessor._get_db_obj_query(table_name)
+        initial_res_count = 1
+        initial_count = query.count()
+        data['number_of_reservations'] = initial_res_count
+        row_id = self.accessor.insert_on_conflict_do_update(
+            table_name,
+            data,
+            conflict_columns=['reservation_arn'],
+            set_columns=list(data.keys())
+        )
+        insert_count = query.count()
+        row = query.all()[-1]
+        self.assertEqual(insert_count, initial_count + 1)
+        self.assertEqual(row.number_of_reservations, initial_res_count)
+
+        data['number_of_reservations'] = initial_res_count + 1
+        row_id_2 = self.accessor.insert_on_conflict_do_update(
+            table_name,
+            data,
+            conflict_columns=['reservation_arn'],
+            set_columns=list(data.keys())
+        )
+        self.accessor.commit()
+        row = query.filter_by(id=row_id_2).first()
+
+        self.assertEqual(insert_count, query.count())
+        self.assertEqual(row_id, row_id_2)
+        self.assertEqual(row.number_of_reservations, initial_res_count + 1)
+
+
+    def test_insert_on_conflict_do_update_without_conflict(self):
+        """Test that an INSERT succeeds inserting all non-conflicting rows."""
+        table_name = AWS_CUR_TABLE_MAP['reservation']
+        data = [
+            self.creator.create_columns_for_table(table_name),
+            self.creator.create_columns_for_table(table_name)
+        ]
+        query = self.accessor._get_db_obj_query(table_name)
+
+        previous_count = query.count()
+        previous_row_id = None
+        for entry in data:
+            row_id = self.accessor.insert_on_conflict_do_update(
+                table_name,
+                entry,
+                conflict_columns=['reservation_arn'],
+                set_columns=list(entry.keys())
+            )
+            count = query.count()
+
+            self.assertEqual(count, previous_count + 1)
+            self.assertNotEqual(row_id, previous_row_id)
+
+            previous_count = count
+            previous_row_id = row_id
+
     def test_get_primary_key(self):
         """Test that a primary key is returned."""
         table_name = random.choice(self.foreign_key_tables)
@@ -454,6 +515,19 @@ class ReportDBAccessorTest(MasuTestCase):
         p_key = self.accessor._get_primary_key(table_name, data)
 
         self.assertIsNotNone(p_key)
+
+    def test_get_primary_key_attribute_error(self):
+        """Test that a primary key is returned."""
+        table_name = random.choice(self.foreign_key_tables)
+        data = self.creator.create_columns_for_table(table_name)
+        table = self.accessor.create_db_object(table_name, data)
+        self.accessor.session.add(table)
+        self.accessor.session.commit()
+
+        data = {key: ''.join([random.choice(string.digits) for _ in range(5)])
+                for key in data}
+        with self.assertRaises(AttributeError):
+            self.accessor._get_primary_key(table_name, data)
 
     def test_flush_db_object(self):
         """Test that the database flush moves the object to the database."""
@@ -588,7 +662,10 @@ class ReportDBAccessorTest(MasuTestCase):
 
         self.assertIsInstance(products, dict)
         self.assertEqual(len(products.keys()), count)
-        self.assertIn(first_entry.sku, products)
+        expected_key = (first_entry.sku,
+                        first_entry.product_name,
+                        first_entry.region)
+        self.assertIn(expected_key, products)
 
     def test_get_pricing(self):
         """Test that a dict of pricing is returned."""
