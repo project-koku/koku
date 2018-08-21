@@ -138,16 +138,16 @@ class ReportQueryHandler(object):
         return (self.query_parameters and key in self.query_parameters and
                 in_key in self.query_parameters.get(key))
 
-    def get_query_param_data(self, dictkey, key):
+    def get_query_param_data(self, dictkey, key, default=None):
         """Extract the value from a query parameter dictionary or return None.
 
         Args:
             dictkey (String): the key to access a query parameter dictionary
             key     (String): the key to obtain from the dictionar data
         Returns:
-            (Object): The value found with the given key or None
+            (Object): The value found with the given key or the default value
         """
-        value = []
+        value = default
         if self.check_query_params(dictkey, key):
             value = self.query_parameters.get(dictkey).get(key)
         return value
@@ -175,21 +175,20 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter', 'resolution')
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+        self.resolution = self.get_query_param_data('filter', 'resolution', 0)
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value', 0)
         if not self.resolution:
-            if not time_scope_value:
-                self.resolution = 'daily'
-            elif int(time_scope_value) == -1 or int(time_scope_value) == -2:
+            self.resolution = 'daily'
+            if time_scope_value in [-1, -2]:
                 self.resolution = 'monthly'
-            else:
-                self.resolution = 'daily'
+
         if self.resolution == 'monthly':
-            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m')
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
             self.date_trunc = TruncMonthString
             self.gen_time_interval = DateHelper().list_months
         else:
-            self.date_to_string = lambda datetime: datetime.strftime('%Y-%m-%d')
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
             self.date_trunc = TruncDayString
             self.gen_time_interval = DateHelper().list_days
 
@@ -207,13 +206,12 @@ class ReportQueryHandler(object):
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
         time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+
         if not time_scope_units:
-            if not time_scope_value:
-                time_scope_units = 'day'
-            elif int(time_scope_value) == -1 or int(time_scope_value) == -2:
+            time_scope_units = 'day'
+            if time_scope_value in [-1, -2]:
                 time_scope_units = 'month'
-            else:
-                time_scope_units = 'day'
+
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
@@ -229,13 +227,12 @@ class ReportQueryHandler(object):
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
         time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+
         if not time_scope_value:
-            if not time_scope_units:
-                time_scope_value = -10
-            elif time_scope_units == 'month':
+            time_scope_value = -10
+            if time_scope_units == 'month':
                 time_scope_value = -1
-            else:
-                time_scope_value = -10
+
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
@@ -303,30 +300,19 @@ class ReportQueryHandler(object):
         if self._filter:
             filter_dict.update(self._filter)
 
-        gb_service = self.get_query_param_data('group_by', 'service')
-        gb_account = self.get_query_param_data('group_by', 'account')
-        gb_region = self.get_query_param_data('group_by', 'region')
-        gb_avail_zone = self.get_query_param_data('group_by', 'avail_zone')
-        f_account = self.get_query_param_data('filter', 'account')
-        f_service = self.get_query_param_data('filter', 'service')
-        f_region = self.get_query_param_data('filter', 'region')
-        f_avail_zone = self.get_query_param_data('filter', 'avail_zone')
-        account = list(set(gb_account + f_account))
-        service = list(set(gb_service + f_service))
-        region = list(set(gb_region + f_region))
-        avail_zone = list(set(gb_avail_zone + f_avail_zone))
-
-        if not ReportQueryHandler.has_wildcard(service) and service:
-            filter_dict['product_code__in'] = service
-
-        if not ReportQueryHandler.has_wildcard(account) and account:
-            filter_dict['usage_account_id__in'] = account
-
-        if not ReportQueryHandler.has_wildcard(region) and region:
-            filter_dict['cost_entry_product__region__in'] = region
-
-        if not ReportQueryHandler.has_wildcard(avail_zone) and avail_zone:
-            filter_dict['availability_zone__in'] = avail_zone
+        # { query_param: database_field_name }
+        fields = {'account': 'usage_account_id',
+                  'service': 'product_code',
+                  'region': 'cost_entry_product__region',
+                  'avail_zone': 'availability_zone'}
+        # db query operation
+        op = 'in'
+        for q_param, db_field in fields.items():
+            group_by = self.get_query_param_data('group_by', q_param, list())
+            filter_ = self.get_query_param_data('filter', q_param, list())
+            list_ = list(set(group_by + filter_))    # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                filter_dict[f'{db_field}__{op}'] = list_
 
         return filter_dict
 
@@ -359,22 +345,15 @@ class ReportQueryHandler(object):
         }
         if self._annotations:
             annotations.update(self._annotations)
-        service = self.get_query_param_data('group_by', 'service')
-        account = self.get_query_param_data('group_by', 'account')
-        region = self.get_query_param_data('group_by', 'region')
-        avail_zone = self.get_query_param_data('group_by', 'avail_zone')
-        if service:
-            annotations['service'] = Concat(
-                'product_code', Value(''))
-        if account:
-            annotations['account'] = Concat(
-                'usage_account_id', Value(''))
-        if region:
-            annotations['region'] = Concat(
-                'cost_entry_product__region', Value(''))
-        if avail_zone:
-            annotations['avail_zone'] = Concat(
-                'availability_zone', Value(''))
+
+        # { query_param: database_field_name }
+        fields = {'account': 'usage_account_id',
+                  'service': 'product_code',
+                  'region': 'cost_entry_product__region',
+                  'avail_zone': 'availability_zone'}
+
+        for q_param, db_field in fields.items():
+            annotations[q_param] = Concat(db_field, Value(''))
 
         return annotations
 
