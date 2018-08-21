@@ -247,19 +247,19 @@ class ReportDBAccessor(KokuDBAccess):
     def insert_on_conflict_do_nothing(self,
                                       table_name,
                                       data,
-                                      columns=None):
+                                      conflict_columns=None):
         """Write an INSERT statement with an ON CONFLICT clause.
 
         This is useful to avoid duplicate row inserts. Intended for
         singl row inserts.
 
         Args:
-            table_name (str): The name of the table to create
+            table_name (str): The name of the table to insert into
             data (dict): A dictionary of data to insert into the object
             columns (list): A list of columns to check conflict on
 
         Returns:
-            (str): The insert statement to be executed
+            (str): The id of the inserted row
 
         """
         data = self.clean_data(data, table_name)
@@ -267,10 +267,54 @@ class ReportDBAccessor(KokuDBAccess):
         statement = insert(table).values(**data)
 
         result = self._conn.execute(
-            statement.on_conflict_do_nothing(index_elements=columns)
+            statement.on_conflict_do_nothing(index_elements=conflict_columns)
         )
         if result.inserted_primary_key:
             return result.inserted_primary_key[0]
+
+        if conflict_columns:
+            data = {key: value for key, value in data.items()
+                    if key in conflict_columns}
+
+        return self._get_primary_key(table_name, data)
+
+    def insert_on_conflict_do_update(self,
+                                     table_name,
+                                     data,
+                                     conflict_columns,
+                                     set_columns):
+        """Write an INSERT statement with an ON CONFLICT clause.
+
+        This is useful to update rows on insert. Intended for
+        singl row inserts.
+
+        Args:
+            table_name (str): The name of the table to insert into
+            data (dict): A dictionary of data to insert into the object
+            conflict_columns (list): Columns to check conflict on
+            set_columns (list): Columns to update
+
+        Returns:
+            (str): The id of the inserted row
+
+        """
+        data = self.clean_data(data, table_name)
+        set_data = {key: value for key, value in data.items()
+                    if key in set_columns}
+        table = getattr(self.report_schema, table_name)
+        statement = insert(table).values(**data)
+
+        result = self._conn.execute(
+            statement.on_conflict_do_update(
+                index_elements=conflict_columns,
+                set_=set_data
+            )
+        )
+        if result.inserted_primary_key:
+            return result.inserted_primary_key[0]
+
+        data = {key: value for key, value in data.items()
+                if key in conflict_columns}
 
         return self._get_primary_key(table_name, data)
 
@@ -278,7 +322,14 @@ class ReportDBAccessor(KokuDBAccess):
         """Return the row id for a specific object."""
         query = self._get_db_obj_query(table_name)
         query = query.filter_by(**data)
-        return query.first().id
+        try:
+            row_id = query.first().id
+        except AttributeError as err:
+            LOG.error(f'Row in {table_name} does not exist in database.')
+            LOG.error(f'Failed row data: {data}')
+            raise err
+        else:
+            return row_id
 
     def flush_db_object(self, table):
         """Commit a table row to the database.
@@ -409,10 +460,11 @@ class ReportDBAccessor(KokuDBAccess):
     def get_products(self):
         """Make a mapping of product sku to product objects."""
         table_name = AWS_CUR_TABLE_MAP['product']
-        columns = ['id', 'sku']
+        columns = ['id', 'sku', 'product_name', 'region']
         products = self._get_db_obj_query(table_name, columns=columns).all()
 
-        return {product.sku: product.id for product in products}
+        return {(product.sku, product.product_name, product.region): product.id
+                for product in products}
 
     def get_pricing(self):
         """Make a mapping of pricing values string to pricing objects."""
@@ -428,5 +480,4 @@ class ReportDBAccessor(KokuDBAccess):
         columns = ['id', 'reservation_arn']
         reservs = self._get_db_obj_query(table_name, columns=columns).all()
 
-        return {reservation.reservation_arn: reservation.id
-                for reservation in reservs}
+        return {res.reservation_arn: res.id for res in reservs}

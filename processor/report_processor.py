@@ -104,7 +104,7 @@ class ReportProcessor:
         )
         self.line_item_columns = None
 
-        self.hasher = Hasher(hash_function='md5')
+        self.hasher = Hasher(hash_function='sha256')
         self.hash_columns = self._get_line_item_hash_columns()
 
         self.current_bill = self.report_db.get_current_cost_entry_bill()
@@ -474,11 +474,14 @@ class ReportProcessor:
         """
         table_name = AWS_CUR_TABLE_MAP['product']
         sku = row.get('product/sku')
+        product_name = row.get('product/ProductName')
+        region = row.get('product/region')
+        key = (sku, product_name, region)
 
-        if sku in self.processed_report.products:
-            return self.processed_report.products[sku]
-        elif sku in self.existing_product_map:
-            return self.existing_product_map[sku]
+        if key in self.processed_report.products:
+            return self.processed_report.products[key]
+        elif key in self.existing_product_map:
+            return self.existing_product_map[key]
 
         data = self._get_data_for_table(
             row,
@@ -491,9 +494,9 @@ class ReportProcessor:
         product_id = self.report_db.insert_on_conflict_do_nothing(
             table_name,
             data,
-            columns=['sku']
+            conflict_columns=['sku', 'product_name', 'region']
         )
-        self.processed_report.products[sku] = product_id
+        self.processed_report.products[key] = product_id
 
         return product_id
 
@@ -509,24 +512,39 @@ class ReportProcessor:
         """
         table_name = AWS_CUR_TABLE_MAP['reservation']
         arn = row.get('reservation/ReservationARN')
+        line_item_type = row.get('lineItem/LineItemType', '').lower()
+        reservation_id = None
 
         if arn in self.processed_report.reservations:
-            return self.processed_report.reservations.get(arn)
+            reservation_id = self.processed_report.reservations.get(arn)
         elif arn in self.existing_reservation_map:
-            return self.existing_reservation_map[arn]
+            reservation_id = self.existing_reservation_map[arn]
 
-        data = self._get_data_for_table(
-            row,
-            table_name
-        )
-        value_set = set(data.values())
-        if value_set == {''}:
-            return
+        if reservation_id is None or line_item_type == 'rifee':
+            data = self._get_data_for_table(
+                row,
+                table_name
+            )
+            value_set = set(data.values())
+            if value_set == {''}:
+                return
+        else:
+            return reservation_id
 
-        reservation_id = self.report_db.insert_on_conflict_do_nothing(
-            table_name,
-            data
-        )
+        # Special rows with additional reservation information
+        if line_item_type == 'rifee':
+            reservation_id = self.report_db.insert_on_conflict_do_update(
+                table_name,
+                data,
+                conflict_columns=['reservation_arn'],
+                set_columns=list(data.keys())
+            )
+        else:
+            reservation_id = self.report_db.insert_on_conflict_do_nothing(
+                table_name,
+                data,
+                conflict_columns=['reservation_arn']
+            )
         self.processed_report.reservations[arn] = reservation_id
 
         return reservation_id
