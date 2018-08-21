@@ -228,12 +228,6 @@
         "provider_type":"AWS"
     },
     {
-        "database_column":"availability_zone",
-        "database_table":"reporting_awscostentryreservation",
-        "provider_column_name":"reservation/AvailabilityZone",
-        "provider_type":"AWS"
-    },
-    {
         "database_column":"number_of_reservations",
         "database_table":"reporting_awscostentryreservation",
         "provider_column_name":"reservation/NumberOfReservations",
@@ -246,32 +240,32 @@
         "provider_type":"AWS"
     },
     {
-        "database_column":"amortized_upfront_fee",
-        "database_table":"reporting_awscostentryreservation",
+        "database_column":"reservation_amortized_upfront_fee",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/AmortizedUpfrontFeeForBillingPeriod",
         "provider_type":"AWS"
     },
     {
-        "database_column":"amortized_upfront_cost_for_usage",
-        "database_table":"reporting_awscostentryreservation",
+        "database_column":"reservation_amortized_upfront_cost_for_usage",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/AmortizedUpfrontCostForUsage",
         "provider_type":"AWS"
     },
     {
-        "database_column":"recurring_fee_for_usage",
-        "database_table":"reporting_awscostentryreservation",
+        "database_column":"reservation_recurring_fee_for_usage",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/RecurringFeeForUsage",
         "provider_type":"AWS"
     },
     {
-        "database_column":"unused_quantity",
-        "database_table":"reporting_awscostentryreservation",
+        "database_column":"reservation_unused_quantity",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/unusedQuantity",
         "provider_type":"AWS"
     },
     {
-        "database_column":"unused_recurring_fee",
-        "database_table":"reporting_awscostentryreservation",
+        "database_column":"reservation_unused_recurring_fee",
+        "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/unusedRecurringFee",
         "provider_type":"AWS"
     }
