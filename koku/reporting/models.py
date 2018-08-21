@@ -185,3 +185,5 @@ class AWSCostEntryReservation(models.Model):
         decimal_places=9,
         null=True
     )
+    start_time = models.DateTimeField(null=True)
+    end_time = models.DateTimeField(null=True)

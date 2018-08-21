@@ -240,6 +240,18 @@
         "provider_type":"AWS"
     },
     {
+        "database_column":"start_time",
+        "database_table":"reporting_awscostentryreservation",
+        "provider_column_name":"reservation/StartTime",
+        "provider_type":"AWS"
+    },
+    {
+        "database_column":"end_time",
+        "database_table":"reporting_awscostentryreservation",
+        "provider_column_name":"reservation/EndTime",
+        "provider_type":"AWS"
+    },
+    {
         "database_column":"reservation_amortized_upfront_fee",
         "database_table":"reporting_awscostentrylineitem",
         "provider_column_name":"reservation/AmortizedUpfrontFeeForBillingPeriod",
@@ -260,13 +272,13 @@
     {
         "database_column":"reservation_unused_quantity",
         "database_table":"reporting_awscostentrylineitem",
-        "provider_column_name":"reservation/unusedQuantity",
+        "provider_column_name":"reservation/UnusedQuantity",
         "provider_type":"AWS"
     },
     {
         "database_column":"reservation_unused_recurring_fee",
         "database_table":"reporting_awscostentrylineitem",
-        "provider_column_name":"reservation/unusedRecurringFee",
+        "provider_column_name":"reservation/UnusedRecurringFee",
         "provider_type":"AWS"
     }
 ]
