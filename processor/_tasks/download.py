@@ -16,6 +16,7 @@
 #
 """Asynchronous tasks."""
 
+import psutil
 from celery.utils.log import get_task_logger
 
 from masu.exceptions import MasuProcessingError, MasuProviderError
@@ -61,6 +62,9 @@ def _get_report_files(customer_name,
                                 customer_name,
                                 provider_type)
     LOG.info(log_statement)
+    disk = psutil.disk_usage('/')
+    disk_msg = 'Avaiable disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
+    LOG.info(disk_msg)
 
     try:
         downloader = ReportDownloader(customer_name=customer_name,
