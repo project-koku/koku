@@ -517,15 +517,14 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(p_key)
 
     def test_get_primary_key_attribute_error(self):
-        """Test that a primary key is returned."""
-        table_name = random.choice(self.foreign_key_tables)
+        """Test that an AttributeError is raised on bad primary key lookup."""
+        table_name = table_name = AWS_CUR_TABLE_MAP['product']
         data = self.creator.create_columns_for_table(table_name)
         table = self.accessor.create_db_object(table_name, data)
         self.accessor.session.add(table)
         self.accessor.session.commit()
 
-        data = {key: ''.join([random.choice(string.digits) for _ in range(5)])
-                for key in data}
+        data['sku'] = ''.join([random.choice(string.digits) for _ in range(5)])
         with self.assertRaises(AttributeError):
             self.accessor._get_primary_key(table_name, data)
 
