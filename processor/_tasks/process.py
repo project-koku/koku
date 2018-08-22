@@ -18,6 +18,7 @@
 
 from os import path
 
+import psutil
 from celery.utils.log import get_task_logger
 
 import masu.util.remove_temp_files as remove_files
@@ -48,6 +49,10 @@ def _process_report_file(schema_name, report_path, compression):
                                 report_path,
                                 compression)
     LOG.info(log_statement)
+    mem = psutil.virtual_memory()
+    mem_msg = 'Avaiable memory: {} bytes ({}%)'.format(mem.free, mem.percent)
+    LOG.info(mem_msg)
+
     file_name = report_path.split('/')[-1]
 
     stats_recorder = ReportStatsDBAccessor(file_name)
