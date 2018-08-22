@@ -103,9 +103,14 @@ class AWSCostEntryLineItem(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
     normalization_factor = models.FloatField(null=True)
-    normalized_usage_amount = models.FloatField(null=True)
+    normalized_usage_amount = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
     currency_code = models.CharField(max_length=10)
     unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
@@ -119,6 +124,32 @@ class AWSCostEntryLineItem(models.Model):
                                                 null=True)
     public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                                 null=True)
+    reservation_amortized_upfront_fee = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
+    reservation_amortized_upfront_cost_for_usage = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
+    reservation_recurring_fee_for_usage = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
+    # Unused reservation fields more useful for later predictions.
+    reservation_unused_quantity = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
+    reservation_unused_recurring_fee = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
     tax_type = models.TextField(null=True)
 
 
@@ -291,6 +322,8 @@ class AWSCostEntryProduct(models.Model):
     class Meta:
         """Meta for AWSCostEntryProduct."""
 
+        unique_together = ('sku', 'product_name', 'region')
+
         indexes = [
             models.Index(
                 fields=['region'],
@@ -298,8 +331,7 @@ class AWSCostEntryProduct(models.Model):
             ),
         ]
 
-    # AWS unique identifier for the product
-    sku = models.CharField(max_length=128, null=True, unique=True)
+    sku = models.CharField(max_length=128, null=True)
     product_name = models.CharField(max_length=63, null=True)
     product_family = models.CharField(max_length=150, null=True)
     service_code = models.CharField(max_length=50, null=True)
@@ -315,22 +347,11 @@ class AWSCostEntryReservation(models.Model):
     """Information on a particular reservation in the AWS account."""
 
     reservation_arn = models.TextField(unique=True)
-    availability_zone = models.CharField(max_length=50, null=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
-    units_per_reservation = models.PositiveIntegerField(null=True)
-    amortized_upfront_fee = models.DecimalField(max_digits=17, decimal_places=9,
-                                                null=True)
-    amortized_upfront_cost_for_usage = models.DecimalField(
+    units_per_reservation = models.DecimalField(
         max_digits=17,
         decimal_places=9,
         null=True
     )
-    recurring_fee_for_usage = models.DecimalField(
-        max_digits=17,
-        decimal_places=9,
-        null=True
-    )
-    # Unused fields more useful for later predictions.
-    unused_quantity = models.PositiveIntegerField(null=True)
-    unused_recurring_fee = models.DecimalField(max_digits=17, decimal_places=9,
-                                               null=True)
+    start_time = models.DateTimeField(null=True)
+    end_time = models.DateTimeField(null=True)
