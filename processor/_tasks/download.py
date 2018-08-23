@@ -19,6 +19,7 @@
 import psutil
 from celery.utils.log import get_task_logger
 
+from masu.config import Config
 from masu.exceptions import MasuProcessingError, MasuProviderError
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
@@ -62,8 +63,11 @@ def _get_report_files(customer_name,
                                 customer_name,
                                 provider_type)
     LOG.info(log_statement)
-    disk = psutil.disk_usage('/')
-    disk_msg = 'Avaiable disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
+    try:
+        disk = psutil.disk_usage(Config.TMP_DIR)
+        disk_msg = 'Avaiable disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
+    except OSError:
+        disk_msg = 'Unable to find avaiable disk space. {} does not exist'.format(Config.TMP_DIR)
     LOG.info(disk_msg)
 
     try:
