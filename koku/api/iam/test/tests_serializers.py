@@ -18,7 +18,9 @@
 
 import uuid
 
+import faker
 from django.core import mail
+from django.db.utils import IntegrityError
 from rest_framework.exceptions import ValidationError
 
 from api.iam.email import SUBJECT
@@ -169,6 +171,8 @@ class UserSerializerTest(IamTestCase):
 class UserPreferenceSerializerTest(IamTestCase):
     """Tests for the user preference serializer."""
 
+    fake = faker.Faker()
+
     def setUp(self):
         """Create test case objects."""
         from django.conf import settings
@@ -200,7 +204,9 @@ class UserPreferenceSerializerTest(IamTestCase):
 
         kwargs = {'context': {'user': user}}
         test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
-        data = {'name': 'foo', 'description': 'foo', 'preference': test_pref}
+        data = {'name': self.fake.word(),
+                'description': self.fake.text(),
+                'preference': test_pref}
         serializer = UserPreferenceSerializer(data=data, **kwargs)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -219,10 +225,135 @@ class UserPreferenceSerializerTest(IamTestCase):
 
         kwargs = {'context': {'user': user}}
         test_pref = {'foo': ['a', [1, 2, 3], {'b': 'c'}]}
-        data = {'name': 'foo', 'description': 'foo', 'preference': test_pref}
+        data = {'name': self.fake.word(),
+                'description': self.fake.text(),
+                'preference': test_pref}
         serializer = UserPreferenceSerializer(data=data, **kwargs)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
+
+        with self.assertRaises(IntegrityError):
+            serializer = UserPreferenceSerializer(data=data, **kwargs)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+    def test_user_preference_locale(self):
+        """Test that valid locales are saved."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'locale',
+                'description': self.fake.text(),
+                'preference': {'locale': 'tg_TJ.KOI8-C'}}
+
+        pref = list(UserPreference.objects.filter(user=user, name='locale')).pop()
+        self.assertIsNotNone(pref)
+        self.assertIsInstance(pref, UserPreference)
+
+        serializer = UserPreferenceSerializer(pref, data=data, **kwargs)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
+        self.assertEqual(pref.name, data.get('name'))
+        self.assertEqual(pref.description, data.get('description'))
+        self.assertEqual(pref.preference, data.get('preference'))
+
+    def test_user_preference_locale_invalid(self):
+        """Test that we fail to create invalid preference."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'locale',
+                'description': self.fake.text(),
+                'preference': {'locale': 'squanch.UFC-73'}}
+
+        with self.assertRaises(ValidationError):
+            serializer = UserPreferenceSerializer(data=data, **kwargs)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+    def test_user_preference_timezone(self):
+        """Test that valid timezones are saved."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'timezone',
+                'description': self.fake.text(),
+                'preference': {'timezone': 'Antarctica/Troll'}}
+
+        pref = list(UserPreference.objects.filter(user=user, name='timezone')).pop()
+        self.assertIsNotNone(pref)
+        self.assertIsInstance(pref, UserPreference)
+
+        serializer = UserPreferenceSerializer(pref, data=data, **kwargs)
+        if serializer.is_valid(raise_exception=True):
+            pref = serializer.save()
+
+        self.assertEqual(pref.name, data.get('name'))
+        self.assertEqual(pref.description, data.get('description'))
+        self.assertEqual(pref.preference, data.get('preference'))
+
+    def test_user_preference_timezone_invalid(self):
+        """Test that we fail to create invalid preference."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'timezone',
+                'description': self.fake.text(),
+                'preference': {'timezone': 'Glapflap/Parblesnops'}}
+
+        with self.assertRaises(ValidationError):
+            serializer = UserPreferenceSerializer(data=data, **kwargs)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+    def test_user_preference_currency(self):
+        """Test that valid currency codes are saved."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'currency',
+                'description': self.fake.text(),
+                'preference': {'currency': 'HKD'}}
+
+        pref = list(UserPreference.objects.filter(user=user, name='currency')).pop()
+        self.assertIsNotNone(pref)
+        self.assertIsInstance(pref, UserPreference)
+
+        serializer = UserPreferenceSerializer(pref, data=data, **kwargs)
+        if serializer.is_valid(raise_exception=True):
+            pref = serializer.save()
+
+        self.assertEqual(pref.name, data.get('name'))
+        self.assertEqual(pref.description, data.get('description'))
+        self.assertEqual(pref.preference, data.get('preference'))
+
+    def test_user_preference_currency_invalid(self):
+        """Test that we fail to create invalid preference."""
+        user = None
+        serializer = UserSerializer(data=self.user_data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+
+        kwargs = {'context': {'user': user}}
+        data = {'name': 'currency',
+                'description': self.fake.text(),
+                'preference': {'currency': 'LOL'}}
 
         with self.assertRaises(ValidationError):
             serializer = UserPreferenceSerializer(data=data, **kwargs)
