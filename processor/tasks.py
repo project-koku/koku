@@ -21,6 +21,8 @@
 # we expect this situation to be temporary as we iterate on these details.
 
 
+import os
+
 from celery.utils.log import get_task_logger
 
 from masu.celery import celery
@@ -69,7 +71,7 @@ def get_report_files(customer_name,
     # initiate chained async task
     LOG.info('Reports to be processed: %s', str(reports))
     for report_dict in reports:
-        stats = ReportStatsDBAccessor(report_dict.get('file'))
+        stats = ReportStatsDBAccessor(os.path.basename(report_dict.get('file')))
         last_start = stats.get_last_started_datetime()
         last_end = stats.get_last_completed_datetime()
         stats.close_session()
