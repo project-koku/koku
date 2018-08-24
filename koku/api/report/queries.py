@@ -17,12 +17,11 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+import re
 from decimal import Decimal, DivisionByZero
 from itertools import groupby
-import re
 
-from django.db.models import (Count,
-                              F,
+from django.db.models import (F,
                               Sum,
                               Value,
                               Window)
@@ -120,8 +119,10 @@ class ReportQueryHandler(object):
     @property
     def is_sum(self):
         """Determine the type of API call this is.
-            is_sum == True -> API Summary data
-            is_sum == False -> Full data download
+
+        is_sum == True -> API Summary data
+        is_sum == False -> Full data download
+
         """
         return self.operation == OPERATION_SUM
 
@@ -132,16 +133,19 @@ class ReportQueryHandler(object):
 
     @units_key.setter
     def units_key(self, value):
+        """Set the units_key."""
         self._units_key = value
         if self.is_sum:
             self._units_key = value.replace('cost_entry_pricing__', '')
 
     @property
     def count(self):
+        """Return the count property."""
         return self._count
 
     @count.setter
     def count(self, value):
+        """Set the count property."""
         self._count = value
         if self.is_sum:
             self._count = 'resource_count'
@@ -386,7 +390,6 @@ class ReportQueryHandler(object):
                     filters.pop(key, None)
         return filters
 
-
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
@@ -423,9 +426,9 @@ class ReportQueryHandler(object):
         # { query_param: database_field_name }
         if not fields:
             fields = {'account': 'usage_account_id',
-                    'service': 'product_code',
-                    'region': 'cost_entry_product__region',
-                    'avail_zone': 'availability_zone'}
+                      'service': 'product_code',
+                      'region': 'cost_entry_product__region',
+                      'avail_zone': 'availability_zone'}
             if self.is_sum:
                 # The summary table has region built in
                 fields.pop('region', None)

@@ -17,7 +17,8 @@
 """Test the Report Queries."""
 from decimal import Decimal
 
-from django.db.models import Count, CharField, DateField, DecimalField, IntegerField, Sum, Max, Value
+from django.db.models import (CharField, Count, DateField, IntegerField, Max,
+                              Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from tenant_schemas.utils import tenant_context
@@ -660,12 +661,12 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'day'}}
         query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
-        # annotations = {'instance_type':
-        #                Concat('cost_entry_product__instance_type', Value(''))}
+        annotations = {'instance_type':
+                       Concat('cost_entry_product__instance_type', Value(''))}
         extras = {'count': 'resource_count',
                   'report_type': 'instance_type',
                   'group_by': ['instance_type'],
-                #   'annotations': annotations,
+                  'annotations': annotations,
                   'filter': {'instance_type__isnull': False}}
         handler = ReportQueryHandler(query_params, query_string,
                                      self.tenant, 'usage_amount',
@@ -1145,7 +1146,6 @@ class ReportQueryTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-
         query_params = {
             'filter': {
                 'resolution': 'monthly',

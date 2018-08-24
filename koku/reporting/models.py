@@ -218,7 +218,6 @@ class AWSCostEntryLineItemDaily(models.Model):
     tags = JSONField(null=True)
 
 
-
 class AWSCostEntryLineItemDailySummary(models.Model):
     """A daily aggregation of line items.
 
@@ -279,6 +278,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
                                                 null=True)
     tax_type = models.TextField(null=True)
 
+
 class AWSCostEntryLineItemAggregates(models.Model):
     """An aggregation of line item statistics.
 
@@ -293,7 +293,6 @@ class AWSCostEntryLineItemAggregates(models.Model):
         """Meta for AWSCostEntryLineAggregates."""
 
         db_table = 'reporting_awscostentrylineitem_aggregates'
-
 
     time_scope_value = models.IntegerField()
     report_type = models.CharField(max_length=50)
