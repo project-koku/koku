@@ -17,8 +17,8 @@
 """Test the Report Queries."""
 from decimal import Decimal
 
-from django.db.models import Value
-from django.db.models.functions import Concat
+from django.db.models import Count, CharField, DateField, DecimalField, IntegerField, Sum, Max, Value
+from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from tenant_schemas.utils import tenant_context
 
@@ -29,6 +29,9 @@ from api.utils import DateHelper
 from reporting.models import (AWSCostEntry,
                               AWSCostEntryBill,
                               AWSCostEntryLineItem,
+                              AWSCostEntryLineItemAggregates,
+                              AWSCostEntryLineItemDaily,
+                              AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
 
@@ -140,7 +143,7 @@ class ReportQueryTest(IamTestCase):
                         name='Amazon Elastic Compute Cloud',
                         family='Compute Instance',
                         code='AmazonEC2',
-                        region='US East (N. Virginia)',
+                        region='us-east-1',
                         instance_type='c4.xlarge',
                         memory=7.5,
                         vcpu=4):
@@ -170,9 +173,133 @@ class ReportQueryTest(IamTestCase):
 
     def _create_pricing(self, term='OnDemand', unit='Hrs'):
         """Create an AWSCostEntryPricing."""
-        ce_pricing = AWSCostEntryPricing(term=term, unit=unit)
-        ce_pricing.save()
+        ce_pricing, _ = AWSCostEntryPricing.objects.get_or_create(
+            term=term,
+            unit=unit
+        )
         return ce_pricing
+
+    def _populate_daily_table(self):
+        AWSCostEntryLineItemDaily.objects.all().delete()
+
+        included_fields = [
+            'cost_entry_product_id',
+            'cost_entry_pricing_id',
+            'cost_entry_reservation_id',
+            'line_item_type',
+            'usage_account_id',
+            'usage_type',
+            'operation',
+            'availability_zone',
+            'resource_id',
+            'tax_type',
+            'product_code',
+            'tags'
+        ]
+        annotations = {
+            'usage_start': Cast('usage_start', DateField()),
+            'usage_amount': Sum('usage_amount'),
+            'normalization_factor': Max('normalization_factor'),
+            'normalized_usage_amount': Sum('normalized_usage_amount'),
+            'currency_code': Max('currency_code'),
+            'unblended_rate': Max('unblended_rate'),
+            'unblended_cost': Sum('unblended_cost'),
+            'blended_rate': Max('blended_rate'),
+            'blended_cost': Sum('blended_cost'),
+            'public_on_demand_cost': Sum('public_on_demand_cost'),
+            'public_on_demand_rate': Max('public_on_demand_rate')
+        }
+
+        entries = AWSCostEntryLineItem.objects\
+            .values(*included_fields)\
+            .annotate(**annotations)
+        for entry in entries:
+            daily = AWSCostEntryLineItemDaily(**entry)
+            daily.save()
+
+    def _populate_daily_summary_table(self):
+        AWSCostEntryLineItemDailySummary.objects.all().delete()
+        included_fields = [
+            'usage_start',
+            'usage_account_id',
+            'availability_zone'
+        ]
+        annotations = {
+            'product_family': Concat('cost_entry_product__product_family', Value('')),
+            'product_code': Concat('cost_entry_product__service_code', Value('')),
+            'region': Concat('cost_entry_product__region', Value('')),
+            'instance_type': Concat('cost_entry_product__instance_type', Value('')),
+            'unit': Concat('cost_entry_pricing__unit', Value('')),
+            'usage_amount': Sum('usage_amount'),
+            'normalization_factor': Max('normalization_factor'),
+            'normalized_usage_amount': Sum('normalized_usage_amount'),
+            'currency_code': Max('currency_code'),
+            'unblended_rate': Max('unblended_rate'),
+            'unblended_cost': Sum('unblended_cost'),
+            'blended_rate': Max('blended_rate'),
+            'blended_cost': Sum('blended_cost'),
+            'public_on_demand_cost': Sum('public_on_demand_cost'),
+            'public_on_demand_rate': Max('public_on_demand_rate'),
+            'resource_count': Count('resource_id', distinct=True)
+        }
+
+        entries = AWSCostEntryLineItemDaily.objects\
+            .values(*included_fields)\
+            .annotate(**annotations)
+        for entry in entries:
+            summary = AWSCostEntryLineItemDailySummary(**entry)
+            summary.save()
+
+    def _populate_aggregates_table(self):
+        AWSCostEntryLineItemAggregates.objects.all().delete()
+        dh = DateHelper()
+        this_month_filter = {'usage_start__gte': dh.this_month_start}
+        ten_day_filter = {'usage_start__gte': dh.n_days_ago(dh.today, 10)}
+        last_month_filter = {'usage_start__gte': dh.last_month_start,
+                             'usage_start__lt': dh.this_month_start}
+
+        report_types = ['costs', 'instance_type', 'storage']
+        time_scopes = [
+            (-1, this_month_filter),
+            (-2, last_month_filter),
+            (-10, ten_day_filter)
+        ]
+
+        for r_type in report_types:
+            included_fields = [
+                'usage_account_id',
+                'product_code',
+                'availability_zone'
+            ]
+            annotations = {
+                'region': Concat('cost_entry_product__region', Value('')),
+                'usage_amount': Sum('usage_amount'),
+                'unblended_cost': Sum('unblended_cost'),
+                'resource_count': Count('resource_id', distinct=True),
+                'report_type': Value(r_type, CharField())
+            }
+            if r_type == 'costs':
+                annotations.pop('usage_amount')
+
+            for value, query_filter in time_scopes:
+                annotations.update(
+                    {'time_scope_value': Value(value, IntegerField())}
+                )
+                if r_type == 'instance_type':
+                    query_filter.update(
+                        {'cost_entry_product__instance_type__isnull': False}
+                    )
+                elif r_type == 'storage':
+                    query_filter.update(
+                        {'cost_entry_product__product_family': 'Storage'}
+                    )
+                entries = AWSCostEntryLineItemDaily.objects\
+                    .filter(**query_filter)\
+                    .values(*included_fields)\
+                    .annotate(**annotations)
+                for entry in entries:
+                    agg = AWSCostEntryLineItemAggregates(**entry)
+                    agg.save()
 
     def add_data_to_tenant(self, rate=Decimal('0.199'), amount=1,
                            bill_start=DateHelper().this_month_start,
@@ -192,7 +319,7 @@ class ReportQueryTest(IamTestCase):
             cost = rate * amount
             bill = self._create_bill(payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
-            ce_pricing = self._create_pricing(cost, rate)
+            ce_pricing = self._create_pricing()
 
             current = data_start
             while current < data_end:
@@ -203,11 +330,14 @@ class ReportQueryTest(IamTestCase):
                                                   ce_pricing, ce_product, rate,
                                                   cost, current, end_hour)
                 current = end_hour
+            self._populate_daily_table()
+            self._populate_daily_summary_table()
+            self._populate_aggregates_table()
 
     def test_has_filter_no_filter(self):
         """Test the has_filter method with no filter in the query params."""
         handler = ReportQueryHandler({}, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertFalse(handler.check_query_params('filter', 'time_scope_value'))
 
     def test_has_filter_with_filter(self):
@@ -215,13 +345,13 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertIsNotNone(handler.check_query_params('filter', 'time_scope_value'))
 
     def test_get_group_by_no_data(self):
         """Test the get_group_by_data method with no data in the query params."""
         handler = ReportQueryHandler({}, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertFalse(handler.get_query_param_data('group_by', 'service'))
 
     def test_get_group_by_with_service_list(self):
@@ -233,7 +363,8 @@ class ReportQueryTest(IamTestCase):
                                      query_string,
                                      self.tenant,
                                      'unblended_cost',
-                                     'currency_code')
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         service = handler.get_query_param_data('group_by', 'service')
         self.assertEqual(expected, service)
 
@@ -241,7 +372,7 @@ class ReportQueryTest(IamTestCase):
         """Test get_resolution returns default when query params are empty."""
         query_params = {}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'daily')
         self.assertEqual(handler.get_resolution(), 'daily')
 
@@ -249,21 +380,21 @@ class ReportQueryTest(IamTestCase):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'monthly')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
         query_params = {}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'day')
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
@@ -271,21 +402,21 @@ class ReportQueryTest(IamTestCase):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'month')
 
     def test_get_time_scope_units_empty_day_time_scope(self):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -10)
         self.assertEqual(handler.get_time_scope_value(), -10)
 
@@ -293,14 +424,14 @@ class ReportQueryTest(IamTestCase):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -1)
 
     def test_get_time_scope_value_empty_day_time_scope(self):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'day'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -10)
 
     def test_get_time_frame_filter_current_month(self):
@@ -310,7 +441,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -1,
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -326,7 +457,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -2,
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -342,7 +473,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -10,
                          'time_scope_units': 'day'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         dh = DateHelper()
         ten_days_ago = dh.n_days_ago(dh.today, 10)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -360,7 +491,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -30,
                          'time_scope_units': 'day'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         dh = DateHelper()
         thirty_days_ago = dh.n_days_ago(dh.today, 30)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -377,7 +508,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -391,7 +522,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
         handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -407,7 +538,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'service': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[service]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -435,7 +566,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'service': ['AmazonEC2']}}
         handler = ReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -463,7 +594,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'account': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[account]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -493,7 +624,7 @@ class ReportQueryTest(IamTestCase):
         query_string = '?group_by[account]=*&group_by[service]=AmazonEC2'
         handler = ReportQueryHandler(query_params, query_string,
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -516,15 +647,12 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_with_counts(self):
         """Test execute_query for with counts of unique resources."""
         dh = DateHelper()
-        self.add_data_to_tenant(rate=Decimal('0.299'),
-                                data_start=dh.today,
-                                data_end=dh.tomorrow)
 
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
         expected = {
-            dh.today.strftime('%Y-%m-%d'): dh.this_hour.hour,
+            dh.today.strftime('%Y-%m-%d'): 0,
             dh.yesterday.strftime('%Y-%m-%d'): 24
         }
 
@@ -532,18 +660,18 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'day'}}
         query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
-        annotations = {'instance_type':
-                       Concat('cost_entry_product__instance_type', Value(''))}
-        extras = {'count': 'resource_id',
+        # annotations = {'instance_type':
+        #                Concat('cost_entry_product__instance_type', Value(''))}
+        extras = {'count': 'resource_count',
+                  'report_type': 'instance_type',
                   'group_by': ['instance_type'],
-                  'annotations': annotations,
-                  'filter': {'cost_entry_product__instance_type__isnull': False}}
+                #   'annotations': annotations,
+                  'filter': {'instance_type__isnull': False}}
         handler = ReportQueryHandler(query_params, query_string,
                                      self.tenant, 'usage_amount',
-                                     'cost_entry_pricing__unit',
+                                     'unit',
                                      **extras)
         query_output = handler.execute_query()
-
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
@@ -573,7 +701,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'account': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -606,7 +734,7 @@ class ReportQueryTest(IamTestCase):
                         'order_by': {'cost': 'asc'}}
         handler = ReportQueryHandler(query_params, '?group_by[account]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -639,7 +767,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'region': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[region]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -665,10 +793,10 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'region': ['us-east-1']}}
+                        'group_by': {'region': ['us-east-2']}}
         handler = ReportQueryHandler(query_params, '?group_by[region]=us-east-1',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -696,7 +824,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'avail_zone': ['*']}}
         handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -725,7 +853,7 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'avail_zone': ['us-east-1a']}}
         handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=us-east-1a',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -754,7 +882,7 @@ class ReportQueryTest(IamTestCase):
                          'account': [self.payer_account_id]}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -778,7 +906,7 @@ class ReportQueryTest(IamTestCase):
                          'service': ['AmazonEC2']}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -801,10 +929,10 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'region': ['us-east-1']}}
+                         'region': ['us-east-2']}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -828,7 +956,7 @@ class ReportQueryTest(IamTestCase):
                          'avail_zone': ['us-east-1a']}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -853,7 +981,8 @@ class ReportQueryTest(IamTestCase):
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
                                      'currency_code',
-                                     **{'accept_type': 'text/csv'})
+                                     **{'accept_type': 'text/csv',
+                                        'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -876,7 +1005,8 @@ class ReportQueryTest(IamTestCase):
                         'operation': 'none'}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -902,7 +1032,8 @@ class ReportQueryTest(IamTestCase):
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
                                      'currency_code',
-                                     **{'accept_type': 'text/csv'})
+                                     **{'accept_type': 'text/csv',
+                                        'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -933,7 +1064,8 @@ class ReportQueryTest(IamTestCase):
         handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
                                      self.tenant, 'unblended_cost',
                                      'currency_code',
-                                     **{'accept_type': 'text/csv'})
+                                     **{'accept_type': 'text/csv',
+                                        'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -961,7 +1093,8 @@ class ReportQueryTest(IamTestCase):
                                      '?group_by[account]=*&filter[limit]=2&delta=Invalid',
                                      self.tenant,
                                      'unblended_cost',
-                                     'currency_code')
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         with self.assertRaises(NotImplementedError):
             handler.execute_query()
 
@@ -994,7 +1127,8 @@ class ReportQueryTest(IamTestCase):
                                      '?group_by[account]=*&filter[limit]=2&delta=month',
                                      self.tenant,
                                      'unblended_cost',
-                                     'currency_code')
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
