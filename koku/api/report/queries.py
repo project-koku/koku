@@ -175,12 +175,11 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter', 'resolution', 0)
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value', 0)
+        self.resolution = self.get_query_param_data('filter', 'resolution')
+        time_scope_value = self.get_time_scope_value()
         if not self.resolution:
             self.resolution = 'daily'
-            if time_scope_value in [-1, -2]:
+            if int(time_scope_value) in [-1, -2]:
                 self.resolution = 'monthly'
 
         if self.resolution == 'monthly':
@@ -208,8 +207,9 @@ class ReportQueryHandler(object):
         time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
 
         if not time_scope_units:
+            if time_scope_value is None:
             time_scope_units = 'day'
-            if time_scope_value in [-1, -2]:
+            elif int(time_scope_value) in [-1, -2]:
                 time_scope_units = 'month'
 
         self.time_scope_units = time_scope_units
