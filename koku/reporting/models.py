@@ -192,7 +192,7 @@ class AWSCostEntryLineItemDaily(models.Model):
 
     line_item_type = models.CharField(max_length=50, null=False)
     usage_account_id = models.CharField(max_length=50, null=False)
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
     product_code = models.CharField(max_length=50, null=False)
     usage_type = models.CharField(max_length=50, null=True)
     operation = models.CharField(max_length=50, null=True)
@@ -223,7 +223,9 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     """A daily aggregation of line items.
 
     This table is aggregated by service, and does not
-    have a breakdown by resource or tags.
+    have a breakdown by resource or tags. The contents of this table
+    should be considered ephemeral. It will be regularly deleted from
+    and repopulated.
 
     """
 
@@ -249,9 +251,10 @@ class AWSCostEntryLineItemDailySummary(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     # The following fields are used for grouping
-    usage_start = models.DateTimeField(null=False)
+    usage_start = models.DateField(null=False)
     usage_account_id = models.CharField(max_length=50, null=False)
     product_code = models.CharField(max_length=50, null=False)
+    product_family = models.CharField(max_length=150, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
@@ -281,7 +284,8 @@ class AWSCostEntryLineItemAggregates(models.Model):
 
     This table is aggregated by account, service, region,
     and availability zone. And reports the API type, usage, cost, and counts
-    where appropriate
+    where appropriate. The contents of this table should be considered
+    ephemeral. It will be regularly deleted from and repopulated.
 
     """
 
