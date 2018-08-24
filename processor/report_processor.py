@@ -169,8 +169,9 @@ class ReportProcessor:
                         self.line_item_conflict_columns
                     )
 
-                    LOG.info('Saving report rows %d to %d', row_count,
-                             row_count + len(self.processed_report.line_items))
+                    LOG.info('Saving report rows %d to %d for %s', row_count,
+                             row_count + len(self.processed_report.line_items),
+                             self._report_name)
                     row_count += len(self.processed_report.line_items)
 
                     self._update_mappings()
@@ -186,8 +187,9 @@ class ReportProcessor:
                     self.line_item_conflict_columns
                 )
 
-                LOG.info('Saving report rows %d to %d', row_count,
-                         row_count + len(self.processed_report.line_items))
+                LOG.info('Saving report rows %d to %d for %s', row_count,
+                         row_count + len(self.processed_report.line_items),
+                         self._report_name)
 
                 row_count += len(self.processed_report.line_items)
 
