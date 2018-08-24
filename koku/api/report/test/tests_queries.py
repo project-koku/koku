@@ -1142,3 +1142,28 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNotNone(delta.get('percent'))
         self.assertTrue(delta.get('percent') > Decimal(100))
+
+    def test_calculate_total(self):
+        """Test that calculated totals return correctly."""
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month'
+            }
+        }
+        handler = ReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            'unblended_cost',
+            'currency_code',
+            **{'report_type': 'costs'}
+        )
+        expected_units = 'USD'
+        with tenant_context(self.tenant):
+            result = handler.calculate_total(expected_units)
+
+        self.assertEqual(result.get('value'), self.current_month_total)
+        self.assertEqual(result.get('units'), expected_units)

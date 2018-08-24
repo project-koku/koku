@@ -132,6 +132,7 @@ class ReportQueryHandler(object):
 
     @units_key.setter
     def units_key(self, value):
+        self._units_key = value
         if self.is_sum:
             self._units_key = value.replace('cost_entry_pricing__', '')
 
@@ -141,6 +142,7 @@ class ReportQueryHandler(object):
 
     @count.setter
     def count(self, value):
+        self._count = value
         if self.is_sum:
             self._count = 'resource_count'
 
@@ -247,11 +249,9 @@ class ReportQueryHandler(object):
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
         time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
-
         if not time_scope_units:
-            if time_scope_value is None:
-                time_scope_units = 'day'
-            elif int(time_scope_value) in [-1, -2]:
+            time_scope_units = 'day'
+            if time_scope_value and int(time_scope_value) in [-1, -2]:
                 time_scope_units = 'month'
 
         self.time_scope_units = time_scope_units
@@ -587,7 +587,6 @@ class ReportQueryHandler(object):
 
             if self.is_sum:
                 query_filter = self._strip_table_references(query_filter)
-                import pdb; pdb.set_trace()
                 query = AWSCostEntryLineItemDailySummary.objects.filter(
                     **query_filter
                 )
