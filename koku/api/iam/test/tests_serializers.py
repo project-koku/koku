@@ -16,6 +16,7 @@
 #
 """Test the IAM serializers."""
 
+import random
 import uuid
 
 import faker
@@ -29,7 +30,8 @@ from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
                                  UserPreferenceSerializer,
                                  UserSerializer,
-                                 _create_schema_name)
+                                 _create_schema_name,
+                                 _currency_symbols)
 from .iam_test_case import IamTestCase
 
 
@@ -329,7 +331,7 @@ class UserPreferenceSerializerTest(IamTestCase):
         kwargs = {'context': {'user': user}}
         data = {'name': 'currency',
                 'description': self.fake.text(),
-                'preference': {'currency': 'HKD'}}
+                'preference': {'currency': random.choice(_currency_symbols())}}
 
         pref = list(UserPreference.objects.filter(user=user, name='currency')).pop()
         self.assertIsNotNone(pref)
