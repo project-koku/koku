@@ -18,7 +18,9 @@
 
 from random import randint
 
+from django.core.exceptions import ValidationError
 from django.urls import reverse
+from faker import Faker
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -29,6 +31,8 @@ from ..models import Customer, User, UserPreference
 class UserPreferenceViewtest(IamTestCase):
     """Tests the UserPreference view."""
 
+    fake = Faker()
+
     def setUp(self):
         """Set up the user view tests."""
         super().setUp()
@@ -36,9 +40,9 @@ class UserPreferenceViewtest(IamTestCase):
 
         self.test_data = {'name': 'test-pref',
                           'description': 'test-pref',
-                          'preference': {'test-pref': ['a',
-                                                       ['b', 'c'],
-                                                       {'foo': 'bar'}]}}
+                          'preference': {'test-pref': [self.fake.word(),
+                                         [self.fake.word(), self.fake.word()],
+                                         {self.fake.word(): self.fake.text()}]}}
 
         # create customer
         response = self.create_customer(self.customer_data[0])
@@ -176,6 +180,25 @@ class UserPreferenceViewtest(IamTestCase):
                               'uuid': response.data['uuid']})
         response = client.get(url)
         self.assertEqual(self.test_data['preference'], response.data['preference'])
+
+    def test_create_preference_duplicate(self):
+        """Test that auth'ed user can not set duplicate prefs."""
+        user_id = randint(0, 4)
+        client = APIClient()
+        url = reverse('preferences-list',
+                      kwargs={'user_uuid': self.user_data[user_id]['uuid']})
+        client.credentials(HTTP_AUTHORIZATION=self.user_data[user_id]['token'])
+
+        # create a pref
+        response = client.post(url, self.test_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # create the pref a second time.
+        dupe_data = self.test_data
+        dupe_data['preference'] = {'test-pref': ['some', 'other', 'data']}
+
+        dupe_response = client.post(url, dupe_data, format='json')
+        self.assertEqual(dupe_response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_preference_auth_other(self):
         """Test that auth'ed user cannot set prefs for other users."""

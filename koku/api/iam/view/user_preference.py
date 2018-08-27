@@ -18,7 +18,7 @@
 """View for User Preferences."""
 from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import exceptions, mixins, viewsets
+from rest_framework import exceptions, mixins, status, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.permissions import IsAuthenticated
@@ -115,7 +115,17 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
 
         user = models.User.objects.get(uuid=kwargs['user_uuid'])
         request.data['user'] = model_to_dict(user)
+
+        # if the pref already exists, it's a bad request
+        query = models.UserPreference.objects.filter(user=user,
+                                                     name=request.data.get('name'))
+        if query.count():
+            message = 'UserPreference({pref}) already exists for User({user})'
+            raise exceptions.ParseError(detail=message.format(pref=request.data.get('name'),
+                                                              user=user.username))
+
         return super().create(request=request, args=args, kwargs=kwargs)
+
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
