@@ -19,10 +19,12 @@
 # disabled module-wide due to meta-programming
 # pylint: disable=too-few-public-methods
 
+import locale
 import re
 import secrets
 import string
 
+import pytz
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.validators import UnicodeUsernameValidator
@@ -83,6 +85,25 @@ def _create_user(username, email, password):
 def _create_schema_name(customer_name):
     """Create a database schema name."""
     return re.compile(r'[\W_]+').sub('', customer_name).lower()
+
+
+def _currency_symbols():
+    """Compile a list of valid currency symbols."""
+    current = locale.getlocale()
+    locales = list(locale.locale_alias.values())
+    symbols = set()
+
+    for loc in locales:
+        try:
+            locale.setlocale(locale.LC_MONETARY, locale.normalize(loc))
+            currency = '{int_curr_symbol}'.format(**locale.localeconv())
+            if currency is not '':
+                symbols.add(currency.strip())
+        except (locale.Error, UnicodeDecodeError):
+            continue
+
+    locale.setlocale(locale.LC_MONETARY, current)
+    return list(symbols)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -198,27 +219,59 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
         model = UserPreference
         fields = ('uuid', 'name', 'description', 'preference', 'user')
 
+    def _generic_validation(self, data, field, iterable):
+        """Validate field data in a generic way.
+
+        Args:
+            data (dict) Serializer data
+            field (str) Preference field name
+            iterable (iterable) Iterable containing valid values
+
+        Raises:
+            ValidationError
+
+        Returns:
+            None
+
+        """
+        if data.get('name') is not field:
+            return
+
+        pref = data.get('preference', dict).get(field)
+
+        if pref not in iterable:
+            raise serializers.ValidationError(f'Invalid {field}: {pref}')
+
+    def _validate_locale(self, data):
+        """Check for a valid locale."""
+        self._generic_validation(data, 'locale', locale.locale_alias.values())
+
+    def _validate_currency(self, data):
+        """Check for a valid currency."""
+        self._generic_validation(data, 'currency', _currency_symbols())
+
+    def _validate_timezone(self, data):
+        """Check for a valid timezone."""
+        self._generic_validation(data, 'timezone', pytz.all_timezones)
+
     def validate(self, data):
-        """Check for uniqueness of user and name pairing."""
-        user = self.context.get('user')
-        data['user'] = model_to_dict(user)
-        pref_name = data.get('name')
-        query = UserPreference.objects.filter(user=user, name=pref_name)
-        if query.count():
-            raise serializers.ValidationError(f'User already has a preference {pref_name}.')
+        """Validate the preference."""
+        self._validate_locale(data)
+        self._validate_currency(data)
+        self._validate_timezone(data)
         return data
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a preference."""
-        user_data = validated_data.pop('user')
+        user_data = model_to_dict(self.context.get('user'))
         user = User.objects.get(username=user_data['username'])
         validated_data['user_id'] = user.id
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         """Update a preference."""
-        user_data = validated_data.pop('user')
+        user_data = model_to_dict(self.context.get('user'))
         user = User.objects.get(username=user_data['username'])
         validated_data['user_id'] = user.id
         return super().update(instance, validated_data)
