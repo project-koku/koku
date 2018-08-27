@@ -18,7 +18,6 @@
 
 from random import randint
 
-from django.core.exceptions import ValidationError
 from django.urls import reverse
 from faker import Faker
 from rest_framework import status

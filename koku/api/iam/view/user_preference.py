@@ -18,7 +18,7 @@
 """View for User Preferences."""
 from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import exceptions, mixins, status, viewsets
+from rest_framework import exceptions, mixins, viewsets
 from rest_framework.authentication import (SessionAuthentication,
                                            TokenAuthentication)
 from rest_framework.permissions import IsAuthenticated
@@ -125,7 +125,6 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                                                               user=user.username))
 
         return super().create(request=request, args=args, kwargs=kwargs)
-
 
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
