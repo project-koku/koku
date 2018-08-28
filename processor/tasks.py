@@ -19,16 +19,16 @@
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
-
-
+import datetime
 import os
-from datetime import timedelta
 
 import pytz
 from celery.utils.log import get_task_logger
 
 from masu.celery import celery
+from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -86,7 +86,8 @@ def get_report_files(customer_name,
 
         # Skip processing if already in progress.
         if started_date and not completed_date:
-            expired_start_date = (started_date + timedelta(hours=2)).replace(tzinfo=pytz.UTC)
+            expired_start_date = (started_date + datetime.timedelta(hours=2))\
+                .replace(tzinfo=pytz.UTC)
             if DateAccessor().today().replace(tzinfo=pytz.UTC) < expired_start_date:
                 LOG.info('Skipping processing task for %s since it was started at: %s.',
                          file_name, str(started_date))
@@ -122,6 +123,9 @@ def process_report_file(schema_name, report_path, compression):
 
     """
     _process_report_file(schema_name, report_path, compression)
+    start_date = datetime.date.today()
+    LOG.info(f'Queueing update_summary_tables task for {schema_name}')
+    update_summary_tables.delay(schema_name, start_date)
 
 
 @celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
@@ -138,3 +142,29 @@ def remove_expired_data(schema_name, simulate):
 
     """
     _remove_expired_data(schema_name, simulate)
+
+
+@celery.task(name='masu.processor.tasks.update_summary_tables',
+             queue_name='reporting')
+def update_summary_tables(schema_name, start_date,
+                          end_date=datetime.date.today()):
+    """Populate the summary tables for reporting.
+
+    Args:
+        start_date (datetime.date) The date to start populating the table.
+        end_date (datetime.date) The date to end on.
+
+    Returns
+        None
+
+    """
+    report_common_db = ReportingCommonDBAccessor()
+    column_map = report_common_db.column_map
+    report_common_db.close_session()
+    report_db = ReportDBAccessor(schema=schema_name, column_map=column_map)
+    LOG.info(f'Updating report summary tables for {schema_name} from {start_date} to {end_date}')
+    report_db.populate_line_item_daily_table(start_date, end_date)
+    report_db.populate_line_item_daily_summary_table(start_date, end_date)
+    report_db.populate_line_item_aggregate_table()
+    report_db.close_connections()
+    report_db.close_session()

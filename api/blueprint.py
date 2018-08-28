@@ -23,6 +23,7 @@ from masu.api.download import API_V1_ROUTES as download_routes_v1
 from masu.api.expired_data import API_V1_ROUTES as expired_data_v1
 from masu.api.notification import API_V1_ROUTES as notification_routes_v1
 from masu.api.region_map import API_V1_ROUTES as regionmap_routes_v1
+from masu.api.report_data import API_V1_ROUTES as report_data_routes_v1
 from masu.api.status import API_V1_ROUTES as status_routes_v1
 from masu.util.blueprint import add_routes_to_blueprint
 
@@ -34,3 +35,4 @@ add_routes_to_blueprint(api_v1, expired_data_v1)
 add_routes_to_blueprint(api_v1, download_routes_v1)
 add_routes_to_blueprint(api_v1, notification_routes_v1)
 add_routes_to_blueprint(api_v1, regionmap_routes_v1)
+add_routes_to_blueprint(api_v1, report_data_routes_v1)
