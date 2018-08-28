@@ -313,7 +313,8 @@ def costs(request):
         6721340654404,2018-07,19356.197856632,USD
 
     """
-    return _generic_report(request, 'unblended_cost', 'currency_code')
+    extras = {'report_type': 'costs'}
+    return _generic_report(request, 'unblended_cost', 'currency_code', **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -447,7 +448,8 @@ def instance_type(request):
     extras = {'filter': filter_scope,
               'annotations': annotations,
               'group_by': ['instance_type'],
-              'count': 'resource_id'}
+              'count': 'resource_id',
+              'report_type': 'instance_type'}
     return _generic_report(request,
                            'usage_amount',
                            'cost_entry_pricing__unit',
@@ -575,7 +577,8 @@ def storage(request):
 
     """
     filter_scope = {'cost_entry_product__product_family': 'Storage'}
-    extras = {'filter': filter_scope}
+    extras = {'filter': filter_scope,
+              'report_type': 'storage'}
     return _generic_report(request,
                            'usage_amount',
                            'cost_entry_pricing__unit',
