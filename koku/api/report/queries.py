@@ -17,11 +17,11 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+import re
 from decimal import Decimal, DivisionByZero
 from itertools import groupby
 
-from django.db.models import (Count,
-                              F,
+from django.db.models import (F,
                               Sum,
                               Value,
                               Window)
@@ -32,7 +32,9 @@ from django.db.models.functions import (Concat,
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
-from reporting.models import AWSCostEntryLineItem
+from reporting.models import (AWSCostEntryLineItem,
+                              AWSCostEntryLineItemAggregates,
+                              AWSCostEntryLineItemDailySummary)
 
 
 WILDCARD = '*'
@@ -87,7 +89,6 @@ class ReportQueryHandler(object):
         self.url_data = url_data
         self.tenant = tenant
         self.aggregate_key = aggregate_key
-        self.units_key = units_key
         self._accept_type = None
         self._filter = None
         self._group_by = None
@@ -97,6 +98,7 @@ class ReportQueryHandler(object):
         self._limit = self.get_query_param_data('filter', 'limit')
         self._order = self.get_order()
         self.operation = self.query_parameters.get('operation', OPERATION_SUM)
+        self.units_key = units_key
         self.resolution = None
         self.time_scope_value = None
         self.time_scope_units = None
@@ -106,10 +108,56 @@ class ReportQueryHandler(object):
         self._get_timeframe()
 
         if kwargs:
-            elements = ['accept_type', 'annotations', 'count', 'delta', 'filter', 'group_by']
+            elements = ['accept_type', 'annotations', 'delta',
+                        'filter', 'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
+            if 'count' in kwargs:
+                self.count = kwargs['count']
+
+    @property
+    def is_sum(self):
+        """Determine the type of API call this is.
+
+        is_sum == True -> API Summary data
+        is_sum == False -> Full data download
+
+        """
+        return self.operation == OPERATION_SUM
+
+    @property
+    def units_key(self):
+        """Return the unit used in this query."""
+        return self._units_key
+
+    @units_key.setter
+    def units_key(self, value):
+        """Set the units_key."""
+        self._units_key = value
+        if self.is_sum:
+            self._units_key = value.replace('cost_entry_pricing__', '')
+
+    @property
+    def count(self):
+        """Return the count property."""
+        return self._count
+
+    @count.setter
+    def count(self, value):
+        """Set the count property."""
+        self._count = value
+        if self.is_sum:
+            self._count = 'resource_count'
+
+    @property
+    def join_tables(self):
+        """List the foreign tables line items join to."""
+        return [
+            'cost_entry_product',
+            'cost_entry_pricing',
+            'cost_entry_reservation'
+        ]
 
     @staticmethod
     def has_wildcard(in_list):
@@ -175,12 +223,11 @@ class ReportQueryHandler(object):
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter', 'resolution', 0)
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value', 0)
+        self.resolution = self.get_query_param_data('filter', 'resolution')
+        time_scope_value = self.get_time_scope_value()
         if not self.resolution:
             self.resolution = 'daily'
-            if time_scope_value in [-1, -2]:
+            if int(time_scope_value) in [-1, -2]:
                 self.resolution = 'monthly'
 
         if self.resolution == 'monthly':
@@ -206,10 +253,9 @@ class ReportQueryHandler(object):
 
         time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
         time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
-
         if not time_scope_units:
             time_scope_units = 'day'
-            if time_scope_value in [-1, -2]:
+            if time_scope_value and int(time_scope_value) in [-1, -2]:
                 time_scope_units = 'month'
 
         self.time_scope_units = time_scope_units
@@ -297,6 +343,12 @@ class ReportQueryHandler(object):
             'usage_start__gte': self.start_datetime,
             'usage_end__lte': self.end_datetime,
         }
+        if self.is_sum:
+            # Summary table is already wrapped up at the date level
+            filter_dict = {
+                'usage_start__gte': self.start_datetime.date(),
+                'usage_start__lte': self.end_datetime.date(),
+            }
         if self._filter:
             filter_dict.update(self._filter)
 
@@ -305,6 +357,9 @@ class ReportQueryHandler(object):
                   'service': 'product_code',
                   'region': 'cost_entry_product__region',
                   'avail_zone': 'availability_zone'}
+        if self.is_sum:
+            # Use the summary table that has region built in
+            fields.update({'region': 'region'})
         # db query operation
         op = 'in'
         for q_param, db_field in fields.items():
@@ -315,6 +370,25 @@ class ReportQueryHandler(object):
                 filter_dict[f'{db_field}__{op}'] = list_
 
         return filter_dict
+
+    def _strip_table_references(self, filters):
+        """Remove the foreign table reference from a Django query string.
+
+        Args:
+            filter (dict): The Django query filter dict
+
+        Returns:
+            (dict): The query filter with the table reference stripped
+
+        """
+        filters = copy.deepcopy(filters)
+        for key in filters:
+            for table_name in self.join_tables:
+                if table_name in key:
+                    new_key = key.replace(f'{table_name}__', '')
+                    filters[new_key] = filters[key]
+                    filters.pop(key, None)
+        return filters
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
@@ -332,8 +406,11 @@ class ReportQueryHandler(object):
             group_by += self._group_by
         return group_by
 
-    def _get_annotations(self):
+    def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.
+
+        Args:
+            fields (dict): Fields to create annotations for
 
         Returns:
             (Dict): query annotations dictionary
@@ -343,15 +420,18 @@ class ReportQueryHandler(object):
             'date': self.date_trunc('usage_start'),
             'units': Concat(self.units_key, Value(''))
         }
-        if self._annotations:
+        if self._annotations and not self.is_sum:
             annotations.update(self._annotations)
 
         # { query_param: database_field_name }
-        fields = {'account': 'usage_account_id',
-                  'service': 'product_code',
-                  'region': 'cost_entry_product__region',
-                  'avail_zone': 'availability_zone'}
-
+        if not fields:
+            fields = {'account': 'usage_account_id',
+                      'service': 'product_code',
+                      'region': 'cost_entry_product__region',
+                      'avail_zone': 'availability_zone'}
+            if self.is_sum:
+                # The summary table has region built in
+                fields.pop('region', None)
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -507,23 +587,33 @@ class ReportQueryHandler(object):
             query_group_by = self._get_group_by()
             query_annotations = self._get_annotations()
             query_order_by = ('-date',)
-            query = AWSCostEntryLineItem.objects.filter(**query_filter)
+
+            if self.is_sum:
+                query_filter = self._strip_table_references(query_filter)
+                query = AWSCostEntryLineItemDailySummary.objects.filter(
+                    **query_filter
+                )
+            else:
+                query = AWSCostEntryLineItem.objects.filter(
+                    **query_filter
+                )
             query_data = query.annotate(**query_annotations)
             query_group_by = ['date'] + query_group_by
             query_group_by_with_units = query_group_by + ['units']
-            is_sum = self.operation == OPERATION_SUM
 
-            if is_sum:
+            if self.is_sum:
                 query_order_by += (self._order,)
                 query_data = query_data.values(*query_group_by_with_units)\
                     .annotate(total=Sum(self.aggregate_key))
 
-            if self._count and is_sum:
+            if self._count and self.is_sum:
+                # This is a sum because the summary table already
+                # has already performed counts
                 query_data = query_data.annotate(
-                    count=Count(self._count, distinct=True)
+                    count=Sum(self._count)
                 )
 
-            if self._limit and is_sum:
+            if self._limit and self.is_sum:
                 rank_order = F('total').desc()
                 if self._order != '-total':
                     rank_order = F('total').asc()
@@ -537,10 +627,10 @@ class ReportQueryHandler(object):
 
             query_data = query_data.order_by(*query_order_by)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
-            if is_sum and not is_csv_output:
+            if self.is_sum and not is_csv_output:
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
-            elif is_csv_output and is_sum:
+            elif is_csv_output and self.is_sum:
                 values_out = query_group_by_with_units + ['total']
                 if self._limit:
                     data = self._ranked_list(list(query_data))
@@ -552,14 +642,7 @@ class ReportQueryHandler(object):
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
-                if self._count:
-                    query_sum = query.aggregate(
-                        value=Sum(self.aggregate_key),
-                        count=Count(self._count, distinct=True)
-                    )
-                else:
-                    query_sum = query.aggregate(value=Sum(self.aggregate_key))
-                query_sum['units'] = units_value
+                query_sum = self.calculate_total(units_value)
 
             if self._delta:
                 self.query_delta = self.calculate_delta(self._delta,
@@ -587,6 +670,9 @@ class ReportQueryHandler(object):
         # get delta date range
         _start = kwargs.get('usage_start__gte')
         _end = kwargs.get('usage_end__lte')
+        if self.is_sum:
+            # Override as summary table is date based, not timestamp
+            _end = kwargs.get('usage_start__lte')
 
         if delta == 'day':
             previous = datetime.timedelta(days=1)
@@ -601,10 +687,16 @@ class ReportQueryHandler(object):
             raise NotImplementedError(f'invalid parameter: {delta}')
 
         delta_filter['usage_start__gte'] = _start - previous
-        delta_filter['usage_end__lte'] = _end - previous
 
-        # construct new query
-        delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+        if self.is_sum:
+            delta_filter['usage_start__lte'] = _end - previous
+            # construct new query
+            delta_query = AWSCostEntryLineItemDailySummary.objects.filter(
+                **delta_filter
+            )
+        else:
+            delta_filter['usage_end__lte'] = _end - previous
+            delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
 
         # get aggregate sum from query
         delta_sum = delta_query.aggregate(value=Sum(self.aggregate_key))
@@ -621,3 +713,50 @@ class ReportQueryHandler(object):
 
         query_delta = {'value': d_value, 'percent': d_percent}
         return query_delta
+
+    def calculate_total(self, units_value):
+        """Calculate aggregated totals for the query.
+
+        Args:
+            units_value (str): The unit of the reported total
+
+        Returns:
+            (dict) The aggregated totals for the query
+
+        """
+        filter_fields = [
+            'availability_zone',
+            'region',
+            'usage_account_id',
+            'product_code'
+        ]
+        total_filter = {}
+        query_filter = self._get_filter()
+
+        for field in filter_fields:
+            total_filter.update(
+                {key: value for key, value in query_filter.items()
+                 if re.match(field, key)}
+            )
+
+        total_filter['time_scope_value'] = self.get_query_param_data(
+            'filter',
+            'time_scope_value',
+            0
+        )
+        total_filter['report_type'] = self._report_type
+        total_query = AWSCostEntryLineItemAggregates.objects.filter(
+            **total_filter
+        )
+        if self._count:
+            query_sum = total_query.aggregate(
+                value=Sum(self.aggregate_key),
+                # This is a sum because the summary table already
+                # has already performed counts
+                count=Sum(self._count)
+            )
+        else:
+            query_sum = total_query.aggregate(value=Sum(self.aggregate_key))
+        query_sum['units'] = units_value
+
+        return query_sum

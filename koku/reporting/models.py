@@ -43,6 +43,16 @@ class AWSCostEntry(models.Model):
 
     """
 
+    class Meta:
+        """Meta for AWSCostEntry."""
+
+        indexes = [
+            models.Index(
+                fields=['interval_start'],
+                name='interval_start_idx',
+            ),
+        ]
+
     interval_start = models.DateTimeField(null=False)
     interval_end = models.DateTimeField(null=False)
 
@@ -143,6 +153,160 @@ class AWSCostEntryLineItem(models.Model):
     tax_type = models.TextField(null=True)
 
 
+class AWSCostEntryLineItemDaily(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by AWS resource.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostEntryLineItemDailySummary."""
+
+        db_table = 'reporting_awscostentrylineitem_daily'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='usage_start_idx',
+            ),
+            models.Index(
+                fields=['product_code'],
+                name='product_code_idx',
+            ),
+            models.Index(
+                fields=['usage_account_id'],
+                name='usage_account_id_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
+                                           on_delete=models.PROTECT, null=True)
+    cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
+                                           on_delete=models.PROTECT, null=True)
+    cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
+                                               on_delete=models.PROTECT,
+                                               null=True)
+
+    line_item_type = models.CharField(max_length=50, null=False)
+    usage_account_id = models.CharField(max_length=50, null=False)
+    usage_start = models.DateField(null=False)
+    product_code = models.CharField(max_length=50, null=False)
+    usage_type = models.CharField(max_length=50, null=True)
+    operation = models.CharField(max_length=50, null=True)
+    availability_zone = models.CharField(max_length=50, null=True)
+    resource_id = models.CharField(max_length=256, null=True)
+    usage_amount = models.FloatField(null=True)
+    normalization_factor = models.FloatField(null=True)
+    normalized_usage_amount = models.FloatField(null=True)
+    currency_code = models.CharField(max_length=10)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    tax_type = models.TextField(null=True)
+    tags = JSONField(null=True)
+
+
+class AWSCostEntryLineItemDailySummary(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by service, and does not
+    have a breakdown by resource or tags. The contents of this table
+    should be considered ephemeral. It will be regularly deleted from
+    and repopulated.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostEntryLineItemDailySummary."""
+
+        db_table = 'reporting_awscostentrylineitem_daily_summary'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='summary_usage_start_idx',
+            ),
+            models.Index(
+                fields=['product_code'],
+                name='summary_product_code_idx',
+            ),
+            models.Index(
+                fields=['usage_account_id'],
+                name='summary_usage_account_id_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+    # The following fields are used for grouping
+    usage_start = models.DateField(null=False)
+    usage_account_id = models.CharField(max_length=50, null=False)
+    product_code = models.CharField(max_length=50, null=False)
+    product_family = models.CharField(max_length=150, null=True)
+    availability_zone = models.CharField(max_length=50, null=True)
+    region = models.CharField(max_length=50, null=True)
+    instance_type = models.CharField(max_length=50, null=True)
+    unit = models.CharField(max_length=63, null=True)
+    # The following fields are aggregates
+    resource_count = models.IntegerField(null=True)
+    usage_amount = models.FloatField(null=True)
+    normalization_factor = models.FloatField(null=True)
+    normalized_usage_amount = models.FloatField(null=True)
+    currency_code = models.CharField(max_length=10)
+    unblended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    blended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                                null=True)
+    tax_type = models.TextField(null=True)
+
+
+class AWSCostEntryLineItemAggregates(models.Model):
+    """An aggregation of line item statistics.
+
+    This table is aggregated by account, service, region,
+    and availability zone. And reports the API type, usage, cost, and counts
+    where appropriate. The contents of this table should be considered
+    ephemeral. It will be regularly deleted from and repopulated.
+
+    """
+
+    class Meta:
+        """Meta for AWSCostEntryLineAggregates."""
+
+        db_table = 'reporting_awscostentrylineitem_aggregates'
+
+    time_scope_value = models.IntegerField()
+    report_type = models.CharField(max_length=50)
+    usage_account_id = models.CharField(max_length=50, null=True)
+    product_code = models.CharField(max_length=50, null=False)
+    region = models.CharField(max_length=50, null=True)
+    availability_zone = models.CharField(max_length=50, null=True)
+    usage_amount = models.DecimalField(max_digits=17, decimal_places=9,
+                                       null=True)
+    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                         null=True)
+    resource_count = models.IntegerField(null=True)
+
+
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
 
@@ -159,9 +323,16 @@ class AWSCostEntryProduct(models.Model):
     """The AWS product identified in a cost entry line item."""
 
     class Meta:
-        """Meta for AWSCostEntryReservation."""
+        """Meta for AWSCostEntryProduct."""
 
         unique_together = ('sku', 'product_name', 'region')
+
+        indexes = [
+            models.Index(
+                fields=['region'],
+                name='region_idx',
+            ),
+        ]
 
     sku = models.CharField(max_length=128, null=True)
     product_name = models.CharField(max_length=63, null=True)
