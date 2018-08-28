@@ -17,6 +17,7 @@
 """Database accessor for report data."""
 
 import logging
+import pkgutil
 import uuid
 from decimal import Decimal, InvalidOperation
 
@@ -68,6 +69,7 @@ class ReportSchema:
             self.column_types = column_types
 
 
+# pylint: disable=too-many-public-methods
 class ReportDBAccessor(KokuDBAccess):
     """Class to interact with customer reporting tables."""
 
@@ -83,7 +85,7 @@ class ReportDBAccessor(KokuDBAccess):
         self.column_map = column_map
         self.report_schema = ReportSchema(self.get_base().classes,
                                           self.column_map)
-        self.session = self.get_session()
+        self._session = self.get_session()
         self._conn = self._db.connect()
         self._pg2_conn = self._get_psycopg2_connection()
         self._cursor = self._get_psycopg2_cursor()
@@ -221,9 +223,9 @@ class ReportDBAccessor(KokuDBAccess):
         table = getattr(self.report_schema, table_name)
         if columns:
             entities = [getattr(table, column) for column in columns]
-            query = self.session.query(table).with_entities(*entities)
+            query = self._session.query(table).with_entities(*entities)
         else:
-            query = self.session.query(table)
+            query = self._session.query(table)
 
         return query
 
@@ -481,3 +483,75 @@ class ReportDBAccessor(KokuDBAccess):
         reservs = self._get_db_obj_query(table_name, columns=columns).all()
 
         return {res.reservation_arn: res.id for res in reservs}
+
+    def populate_line_item_daily_table(self, start_date, end_date):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+        daily_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_awscostentrylineitem_daily.sql'
+        )
+        daily_sql = daily_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        LOG.info(f'Updating {table_name} from {start_date} to {end_date}.')
+        self._cursor.execute(daily_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating {table_name}.')
+
+    # pylint: disable=invalid-name
+    def populate_line_item_daily_summary_table(self, start_date, end_date):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
+        summary_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_awscostentrylineitem_daily_summary.sql'
+        )
+        summary_sql = summary_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        LOG.info(f'Updating {table_name} from {start_date} to {end_date}.')
+        self._cursor.execute(summary_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating {table_name}.')
+
+    # pylint: disable=invalid-name
+    def populate_line_item_aggregate_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = AWS_CUR_TABLE_MAP['line_item_aggregates']
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_awscostentrylineitem_aggregates.sql'
+        )
+        agg_sql = agg_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_')
+        )
+        LOG.info(f'Updating {table_name}.')
+        self._cursor.execute(agg_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating {table_name}.')
