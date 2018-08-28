@@ -68,5 +68,5 @@ class ReportDBCleaner():
 
         if simulate is False:
             bill_objects.delete()
-            self._accessor.session.commit()
+            self._accessor.commit()
         return removed_items
