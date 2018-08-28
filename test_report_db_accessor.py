@@ -25,6 +25,8 @@ import uuid
 
 import psycopg2
 from sqlalchemy.orm.query import Query
+from sqlalchemy.sql import func
+
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor, ReportSchema
@@ -127,17 +129,17 @@ class ReportDBAccessorTest(MasuTestCase):
             self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
         if self.accessor._cursor.closed:
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
-        bill_id = self.creator.create_cost_entry_bill()
-        cost_entry_id = self.creator.create_cost_entry(bill_id)
-        product_id = self.creator.create_cost_entry_product()
-        pricing_id = self.creator.create_cost_entry_pricing()
-        reservation_id = self.creator.create_cost_entry_reservation()
+        bill = self.creator.create_cost_entry_bill()
+        cost_entry = self.creator.create_cost_entry(bill)
+        product = self.creator.create_cost_entry_product()
+        pricing = self.creator.create_cost_entry_pricing()
+        reservation = self.creator.create_cost_entry_reservation()
         self.creator.create_cost_entry_line_item(
-            bill_id,
-            cost_entry_id,
-            product_id,
-            pricing_id,
-            reservation_id
+            bill,
+            cost_entry,
+            product,
+            pricing,
+            reservation
         )
 
     def tearDown(self):
@@ -360,7 +362,6 @@ class ReportDBAccessorTest(MasuTestCase):
 
         table_name = AWS_CUR_TABLE_MAP['line_item']
         table = getattr(self.report_schema, table_name)
-        column_map = self.column_map[table_name]
         query = self.accessor._get_db_obj_query(table_name)
         initial_count = query.count()
         cost_entry = query.first()
@@ -508,8 +509,8 @@ class ReportDBAccessorTest(MasuTestCase):
         table_name = random.choice(self.foreign_key_tables)
         data = self.creator.create_columns_for_table(table_name)
         table = self.accessor.create_db_object(table_name, data)
-        self.accessor.session.add(table)
-        self.accessor.session.commit()
+        self.accessor._session.add(table)
+        self.accessor._session.commit()
 
 
         p_key = self.accessor._get_primary_key(table_name, data)
@@ -521,8 +522,8 @@ class ReportDBAccessorTest(MasuTestCase):
         table_name = table_name = AWS_CUR_TABLE_MAP['product']
         data = self.creator.create_columns_for_table(table_name)
         table = self.accessor.create_db_object(table_name, data)
-        self.accessor.session.add(table)
-        self.accessor.session.commit()
+        self.accessor._session.add(table)
+        self.accessor._session.commit()
 
         data['sku'] = ''.join([random.choice(string.digits) for _ in range(5)])
         with self.assertRaises(AttributeError):
@@ -548,7 +549,6 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_clean_data(self):
         """Test that data cleaning produces proper data types."""
         table_name = random.choice(self.all_tables)
-        table = getattr(self.report_schema, table_name)
         column_types = self.report_schema.column_types[table_name]
 
         data = self.creator.create_columns_for_table(table_name)
@@ -681,7 +681,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_get_reservations(self):
         """Test that a dict of reservations are returned."""
-        table_name = 'reporting_awscostentryreservation'
+        table_name = AWS_CUR_TABLE_MAP['reservation']
         query = self.accessor._get_db_obj_query(table_name)
         count = query.count()
         first_entry = query.first()
@@ -691,3 +691,147 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertIsInstance(reservations, dict)
         self.assertEqual(len(reservations.keys()), count)
         self.assertIn(first_entry.reservation_arn, reservations)
+
+    def test_populate_line_item_daily_table(self):
+        """Test that the daily table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        daily_table = getattr(self.accessor.report_schema, daily_table_name)
+
+        for _ in range(10):
+            bill = self.creator.create_cost_entry_bill()
+            cost_entry = self.creator.create_cost_entry(bill)
+            product = self.creator.create_cost_entry_product()
+            pricing = self.creator.create_cost_entry_pricing()
+            reservation = self.creator.create_cost_entry_reservation()
+            self.creator.create_cost_entry_line_item(
+                bill,
+                cost_entry,
+                product,
+                pricing,
+                reservation
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(ce_table.interval_start),
+            func.max(ce_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(daily_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        result_start_date, result_end_date = self.accessor._session.query(
+            func.min(daily_table.usage_start),
+            func.max(daily_table.usage_start)
+        ).first()
+
+        self.assertEqual(result_start_date, start_date.date())
+        self.assertEqual(result_end_date, end_date.date())
+
+    def test_populate_line_item_daily_summary_table(self):
+        """Test that the daily summary table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
+
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+
+        for _ in range(10):
+            bill = self.creator.create_cost_entry_bill()
+            cost_entry = self.creator.create_cost_entry(bill)
+            product = self.creator.create_cost_entry_product()
+            pricing = self.creator.create_cost_entry_pricing()
+            reservation = self.creator.create_cost_entry_reservation()
+            self.creator.create_cost_entry_line_item(
+                bill,
+                cost_entry,
+                product,
+                pricing,
+                reservation
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(ce_table.interval_start),
+            func.max(ce_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_summary_table(start_date,
+                                                              end_date)
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        result_start_date, result_end_date = self.accessor._session.query(
+            func.min(summary_table.usage_start),
+            func.max(summary_table.usage_start)
+        ).first()
+
+        self.assertEqual(result_start_date, start_date.date())
+        self.assertEqual(result_end_date, end_date.date())
+
+    def test_populate_line_item_aggregates_table(self):
+        """Test that the aggregates table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        agg_table_name = AWS_CUR_TABLE_MAP['line_item_aggregates']
+
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        agg_table = getattr(self.accessor.report_schema, agg_table_name)
+
+        expected_time_scope_values = [-1, -2, -10]
+        expected_report_types = ['storage', 'instance_type', 'costs']
+
+        for _ in range(25):
+            bill = self.creator.create_cost_entry_bill()
+            cost_entry = self.creator.create_cost_entry(bill)
+            product = self.creator.create_cost_entry_product()
+            pricing = self.creator.create_cost_entry_pricing()
+            reservation = self.creator.create_cost_entry_reservation()
+            self.creator.create_cost_entry_line_item(
+                bill,
+                cost_entry,
+                product,
+                pricing,
+                reservation
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(ce_table.interval_start),
+            func.max(ce_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(agg_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_summary_table(start_date,
+                                                              end_date)
+        self.accessor.populate_line_item_aggregate_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        time_scope_values = self.accessor._session\
+            .query(agg_table.time_scope_value)\
+            .group_by(agg_table.time_scope_value)\
+            .all()
+        time_scope_values = [val[0] for val in time_scope_values]
+
+        report_types = self.accessor._session\
+            .query(agg_table.report_type)\
+            .group_by(agg_table.report_type)\
+            .all()
+        report_types = [val[0] for val in report_types]
+
+        for val in expected_time_scope_values:
+            self.assertIn(val, time_scope_values)
+        for report in expected_report_types:
+            self.assertIn(report, report_types)

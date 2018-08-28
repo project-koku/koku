@@ -51,6 +51,9 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
 
         tables = copy.deepcopy(self.report_tables)
         tables.remove(AWS_CUR_TABLE_MAP['cost_entry'])
+        tables.remove(AWS_CUR_TABLE_MAP['line_item_daily'])
+        tables.remove(AWS_CUR_TABLE_MAP['line_item_daily_summary'])
+        tables.remove(AWS_CUR_TABLE_MAP['line_item_aggregates'])
         for table in tables:
             self.assertIn(table, keys)
 

@@ -18,14 +18,18 @@
 """Helper class for database test classes."""
 import csv
 import datetime
-from decimal import Decimal
 import io
+import random
+from decimal import Decimal
 
 from faker import Faker
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 
+# A subset of AWS product family values
+AWS_PRODUCT_FAMILY = ['Storage', 'Compute Instance',
+                      'Database Storage', 'Database Instance']
 
 class ReportObjectCreator:
     """Populate report tables with data for testing."""
@@ -37,18 +41,20 @@ class ReportObjectCreator:
         self.column_map = column_map
         self.column_types = column_types
 
-    def create_cost_entry(self, bill_id):
+    def create_cost_entry(self, bill):
         """Create a cost entry database object for test."""
         table_name = AWS_CUR_TABLE_MAP['cost_entry']
         row = self.db_accessor.create_db_object(table_name, {})
-        row.interval_start = self.stringify_datetime(self.fake.past_datetime())
-        row.interval_end = self.stringify_datetime(self.fake.past_datetime())
-        row.bill_id = bill_id
+        start_datetime = self.fake.past_datetime(start_date='-60d')
+        end_datetime = start_datetime + datetime.timedelta(hours=1)
+        row.interval_start = self.stringify_datetime(start_datetime)
+        row.interval_end = self.stringify_datetime(end_datetime)
+        row.bill_id = bill.id
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        return row.id
+        return row
 
     def create_cost_entry_bill(self):
         """Create a cost entry bill database object for test."""
@@ -56,10 +62,10 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        return row.id
+        return row
 
 
     def create_cost_entry_pricing(self):
@@ -68,21 +74,21 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        return row.id
+        return row
 
     def create_cost_entry_product(self):
         """Create a cost entry product database object for test."""
         table_name = AWS_CUR_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
+        row.product_family = random.choice(AWS_PRODUCT_FAMILY)
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
-
-        return row.id
+        return row
 
     def create_cost_entry_reservation(self):
         """Create a cost entry reservation database object for test."""
@@ -90,32 +96,34 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        return row.id
+        return row
 
     def create_cost_entry_line_item(self,
-                                    bill_id,
-                                    cost_entry_id,
-                                    product_id,
-                                    pricing_id,
-                                    reservation_id):
+                                    bill,
+                                    cost_entry,
+                                    product,
+                                    pricing,
+                                    reservation):
         """Create a cost entry line item database object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
 
         row = self.db_accessor.create_db_object(table_name, data)
-        row.cost_entry_bill_id = bill_id
-        row.cost_entry_id = cost_entry_id
-        row.cost_entry_product_id = product_id
-        row.cost_entry_pricing_id = pricing_id
-        row.cost_entry_reservation_id = reservation_id
+        row.cost_entry_bill_id = bill.id
+        row.cost_entry_id = cost_entry.id
+        row.cost_entry_product_id = product.id
+        row.cost_entry_pricing_id = pricing.id
+        row.cost_entry_reservation_id = reservation.id
+        row.usage_start = cost_entry.interval_start
+        row.usage_end = cost_entry.interval_end
 
-        self.db_accessor.session.add(row)
-        self.db_accessor.session.commit()
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
 
-        return row.id
+        return row
 
     def create_columns_for_table(self, table):
         """Generate data for a table."""
