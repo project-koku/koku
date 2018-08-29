@@ -732,7 +732,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
-                        'order_by': {'cost': 'asc'}}
+                        'order_by': {'total': 'asc'}}
         handler = ReportQueryHandler(query_params, '?group_by[account]=*',
                                      self.tenant, 'unblended_cost',
                                      'currency_code', **{'report_type': 'costs'})
@@ -759,6 +759,44 @@ class ReportQueryTest(IamTestCase):
                 data_point_total = month_item.get('values')[0].get('total')
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
+
+    def test_execute_query_curr_month_by_account_w_order_by_account(self):
+        """Test execute_query for current month on monthly breakdown by account with asc order."""
+        self.add_data_to_tenant(rate=Decimal('0.299'))
+        self.add_data_to_tenant(rate=Decimal('0.099'))
+        self.add_data_to_tenant(rate=Decimal('0.999'))
+
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'account': ['*']},
+                        'order_by': {'account': 'asc'}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('accounts')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            self.assertEqual(4, len(month_data))
+            current = '0'
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('account'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('account'))
+                data_point = month_item.get('values')[0].get('account')
+                self.assertLess(current, data_point)
+                current = data_point
 
     def test_execute_query_curr_month_by_region(self):
         """Test execute_query for current month on monthly breakdown by region."""
