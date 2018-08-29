@@ -17,6 +17,7 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+from collections import OrderedDict
 from decimal import Decimal, DivisionByZero
 from itertools import groupby
 
@@ -33,7 +34,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
 from reporting.models import AWSCostEntryLineItem
-
 
 WILDCARD = '*'
 OPERATION_SUM = 'sum'
@@ -71,6 +71,8 @@ class TruncMonthString(TruncMonth):
 class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
+    default_ordering = {'total': 'desc'}
+
     def __init__(self, query_parameters, url_data,
                  tenant, aggregate_key, units_key, **kwargs):
         """Establish report query handler.
@@ -95,7 +97,6 @@ class ReportQueryHandler(object):
         self._count = None
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
-        self._order = self.get_order()
         self.operation = self.query_parameters.get('operation', OPERATION_SUM)
         self.resolution = None
         self.time_scope_value = None
@@ -152,18 +153,40 @@ class ReportQueryHandler(object):
             value = self.query_parameters.get(dictkey).get(key)
         return value
 
-    def get_order(self):
-        """Extract the order parameters and apply the associated ordering.
+    @property
+    def order_field(self):
+        """Order-by field name.
+
+        The default is 'total'
+        """
+        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        return list(order_by.keys()).pop()
+
+    @property
+    def order_direction(self):
+        """Order-by orientation value.
 
         Returns:
-            (String): Ordering value either `total` or `-total`; default is -total
+            (str) 'asc' or 'desc'; default is 'desc'
 
         """
-        order = '-total'
-        cost = self.get_query_param_data('order_by', 'cost')
-        if cost and cost == 'asc':
-            order = 'total'
-        return order
+        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        return list(order_by.values()).pop()
+
+    @property
+    def order(self):
+        """Extract order_by parameter and apply ordering to the appropriate field.
+
+        Returns:
+            (String): Ordering value. Default is '-total'
+
+        Example:
+            `order_by[total]=asc` returns `total`
+            `order_by[total]=desc` returns `-total`
+
+        """
+        order_map = {'asc': '', 'desc': '-'}
+        return f'{order_map[self.order_direction]}{self.order_field}'
 
     def get_resolution(self):
         """Extract resolution or provide default.
@@ -371,7 +394,7 @@ class ReportQueryHandler(object):
         if group_index >= group_by_list_len:
             return data
 
-        out_data = {}
+        out_data = OrderedDict()
         curr_group = group_by_list[group_index]
 
         for key, group in groupby(data, lambda by: by.get(curr_group)):
@@ -386,6 +409,7 @@ class ReportQueryHandler(object):
                 out_data[key] = grouped + datapoint
             else:
                 out_data[key] = grouped
+
         return out_data
 
     def _ranked_list(self, data_list):
@@ -432,7 +456,7 @@ class ReportQueryHandler(object):
             (Dict): Dictionary of grouped dictionaries
 
         """
-        bucket_by_date = {}
+        bucket_by_date = OrderedDict()
         for item in self.time_interval:
             date_string = self.date_to_string(item)
             bucket_by_date[date_string] = []
@@ -514,7 +538,7 @@ class ReportQueryHandler(object):
             is_sum = self.operation == OPERATION_SUM
 
             if is_sum:
-                query_order_by += (self._order,)
+                query_order_by += (self.order,)
                 query_data = query_data.values(*query_group_by_with_units)\
                     .annotate(total=Sum(self.aggregate_key))
 
@@ -524,9 +548,7 @@ class ReportQueryHandler(object):
                 )
 
             if self._limit and is_sum:
-                rank_order = F('total').desc()
-                if self._order != '-total':
-                    rank_order = F('total').asc()
+                rank_order = getattr(F(self.order_field), self.order_direction)()
                 dense_rank_by_total = Window(
                     expression=DenseRank(),
                     partition_by=F('date'),
