@@ -205,6 +205,7 @@ class ReportDBAccessor(KokuDBAccess):
         if conn:
             conn.close()
         else:
+            self._cursor.close()
             self._pg2_conn.close()
             self._conn.close()
 

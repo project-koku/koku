@@ -36,6 +36,17 @@ class Config(object):
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
     DB_PORT = os.getenv('DATABASE_PORT', 15432)
 
+    SQLALCHEMY_DATABASE_URI = \
+        f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+
+    # Override for sqlite
+    if DB_ENGINE == 'sqlite':
+        SQLALCHEMY_DATABASE_URI = f'{DB_ENGINE}:///{DB_NAME}.db'
+
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SQLALCHEMY_POOL_SIZE = 5
+
     # Koku Connectivity
     KOKU_HOST = os.getenv('KOKU_HOST_ADDRESS', 'localhost')
     KOKU_PORT = os.getenv('KOKU_PORT', 8000)
@@ -48,15 +59,6 @@ class Config(object):
 
     # Set method for retreiving CUR accounts. 'db' or 'network'
     ACCOUNT_ACCESS_TYPE = os.getenv('ACCOUNT_ACCESS_TYPE', 'db')
-
-    SQLALCHEMY_DATABASE_URI = \
-        f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
-
-    # Override for sqlite
-    if DB_ENGINE == 'sqlite':
-        SQLALCHEMY_DATABASE_URI = f'{DB_ENGINE}:///{DB_NAME}.db'
-
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # AMQP Message Broker
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
