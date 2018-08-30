@@ -40,6 +40,7 @@ class CURAccountsDB(CURAccountsInterface):
         """
         collector = ProviderCollector()
         all_providers = collector.get_providers()
+        collector.close_session()
 
         accounts = []
         for provider in all_providers:

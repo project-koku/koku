@@ -22,7 +22,7 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from masu.config import Config
+from masu.database.engine import DB_ENGINE
 
 
 class KokuDBAccess(ABC):
@@ -36,26 +36,23 @@ class KokuDBAccess(ABC):
             schema       (String) database schema (i.e. public or customer tenant value)
         """
         self.schema = schema
-        self._db, self._meta = self._connect_db()
+        self._db = DB_ENGINE
+        self._meta = self._create_metadata()
         self._session_factory = sessionmaker(bind=self._db)
         self._session_registry = scoped_session(self._session_factory)
         self._session = self._create_session()
-
         self._base = self._prepare_base()
 
-    def _connect_db(self):
-        """
-        Connect to koku database.
+    def _create_metadata(self):
+        """Create database metadata to for a specific schema.
 
         Args:
             None
         Returns:
-            (sqlalchemy.engine.base.Engine): "SQLAlchemy engine object",
             (sqlalchemy.sql.schema.MetaData): "SQLAlchemy engine metadata"
+
         """
-        engine = sqlalchemy.create_engine(Config.SQLALCHEMY_DATABASE_URI, client_encoding='utf8')
-        meta = sqlalchemy.MetaData(bind=engine, schema=self.schema)
-        return engine, meta
+        return sqlalchemy.MetaData(bind=self._db, schema=self.schema)
 
     def _create_session(self):
         """Use a sessionmaker factory to create a scoped session."""

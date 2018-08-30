@@ -22,7 +22,6 @@ import os
 
 from flask import Flask
 from flask.logging import default_handler
-from flask_sqlalchemy import SQLAlchemy
 
 from masu.api.blueprint import api_v1
 from masu.api.status import ApplicationStatus
@@ -65,10 +64,6 @@ def create_app(test_config=None):
         # ignore "File exists"
         if e.errno != errno.EEXIST:
             logger.warning(e)
-
-    # Establish database
-    # pylint: disable=invalid-name, unused-variable
-    db = SQLAlchemy(app)  # noqa: F841
 
     # Add application config to Celery
     update_celery_config(celery_app, app)
