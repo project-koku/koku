@@ -22,7 +22,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily AS li
     JOIN reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
-    JOIN reporting_awscostentrypricing as pr
+    LEFT JOIN reporting_awscostentrypricing as pr
         ON li.cost_entry_pricing_id = pr.id
     WHERE li.usage_start >= '{start_date}'
         AND li.usage_start <= '{end_date}'
