@@ -35,6 +35,11 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         cls.accessor = ReportingCommonDBAccessor()
         cls.report_tables = list(AWS_CUR_TABLE_MAP.values())
 
+    @classmethod
+    def tearDownClass(cls):
+        """Close the DB session."""
+        cls.accessor.close_session()
+
     def test_initializer(self):
         """Test initializer."""
         report_common_schema = self.accessor.report_common_schema

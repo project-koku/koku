@@ -23,24 +23,24 @@ from tests import MasuTestCase
 class ProviderDBAuthAccessorTest(MasuTestCase):
     """Test Cases for the ProviderDBAuthAccessor object."""
 
-    def setUp(self):
-        pass
-
     def test_initializer(self):
         """Test Initializer"""
         auth_id = '1'
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertIsNotNone(accessor._session)
         self.assertTrue(accessor.does_db_entry_exist())
-    
+        accessor.close_session()
+
     def test_get_uuid(self):
         """Test uuid getter."""
         auth_id = '1'
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertEqual('7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6', accessor.get_uuid())
+        accessor.close_session()
 
     def test_get_get_provider_resource_name(self):
         """Test provider name getter."""
         auth_id = '1'
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertEqual('arn:aws:iam::111111111111:role/CostManagement', accessor.get_provider_resource_name())
+        accessor.close_session()

@@ -55,6 +55,12 @@ class ReportSchemaTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['reservation']
         ]
 
+    @classmethod
+    def tearDownClass(cls):
+        """Close the DB session."""
+        cls.common_accessor.close_session()
+        cls.accessor.close_session()
+
     def test_init(self):
         """Test the initializer."""
         tables = self.accessor.get_base().classes

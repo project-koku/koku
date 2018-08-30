@@ -24,18 +24,17 @@ from tests import MasuTestCase
 class AuthDBAccessorTest(MasuTestCase):
     """Test Cases for the AuthDBAccessor object."""
 
-    def setUp(self):
-        pass
-
     def test_initializer(self):
         """Test Initializer"""
         auth_id = '1'
         accessor = AuthDBAccessor(auth_id)
         self.assertIsNotNone(accessor._session)
         self.assertTrue(accessor.does_db_entry_exist())
+        accessor.close_session()
 
     def test_get_name(self):
         """Test name getter."""
         auth_id = '1'
         accessor = AuthDBAccessor(auth_id)
         self.assertEqual('Test Customer', accessor.get_name())
+        accessor.close_session()

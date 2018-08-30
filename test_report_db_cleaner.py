@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the ReportDBAccessor utility object."""
+"""Test the ReportDBCleaner utility object."""
 import datetime
 
 from masu.database import AWS_CUR_TABLE_MAP
@@ -51,6 +51,12 @@ class ReportDBCleanerTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['pricing'],
             AWS_CUR_TABLE_MAP['reservation']
         ]
+
+    @classmethod
+    def tearDownClass(cls):
+        """Close the DB session."""
+        cls.common_accessor.close_session()
+        cls.accessor.close_session()
 
     def setUp(self):
         """"Set up a test with database objects."""

@@ -24,30 +24,31 @@ from tests import MasuTestCase
 class CustomerDBAccessorTest(MasuTestCase):
     """Test Cases for the CustomerDBAccessor object."""
 
-    def setUp(self):
-        pass
-
     def test_initializer(self):
         """Test Initializer"""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
         self.assertIsNotNone(accessor._session)
         self.assertTrue(accessor.does_db_entry_exist())
-    
+        accessor.close_session()
+
     def test_get_uuid(self):
         """Test uuid getter."""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
         self.assertIsNotNone(accessor.get_uuid())
+        accessor.close_session()
 
     def test_get_schema_name(self):
         """Test provider name getter."""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
         self.assertEqual('testcustomer', accessor.get_schema_name())
+        accessor.close_session()
 
     def test_get_group_ptr_id(self):
         """Test provider name getter."""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
         self.assertEqual(1, accessor.get_group_ptr_id())
+        accessor.close_session()
