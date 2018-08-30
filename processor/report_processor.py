@@ -193,6 +193,7 @@ class ReportProcessor:
 
                 row_count += len(self.processed_report.line_items)
 
+            self.report_db.close_session()
             self.report_db.close_connections()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
