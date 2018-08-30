@@ -88,29 +88,31 @@ class ReportQueryHandler(object):
             units_key   (String): the key defining the units
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        self.query_parameters = query_parameters
-        self.url_data = url_data
-        self.tenant = tenant
-        self.aggregate_key = aggregate_key
         self._accept_type = None
-        self._filter = None
-        self._group_by = None
         self._annotations = None
         self._count = None
+        self._filter = None
+        self._group_by = None
+        self.end_datetime = None
+        self.resolution = None
+        self.start_datetime = None
+        self.time_interval = []
+        self.time_scope_units = None
+        self.time_scope_value = None
+
+        self.aggregate_key = aggregate_key
+        self.query_parameters = query_parameters
+        self.tenant = tenant
+        self.url_data = url_data
+
+        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
-        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
-        self.units_key = units_key
-        self.resolution = None
-        self.time_scope_value = None
-        self.time_scope_units = None
-        self.start_datetime = None
-        self.end_datetime = None
-        self.time_interval = []
         self._get_timeframe()
+        self.units_key = units_key
 
         if kwargs:
-            elements = ['accept_type', 'annotations', 'delta',
+            elements = ['accept_type', 'annotations', 'count', 'delta',
                         'filter', 'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
@@ -628,11 +630,11 @@ class ReportQueryHandler(object):
                 query_data = query_data.values(*query_group_by_with_units)\
                     .annotate(total=Sum(self.aggregate_key))
 
-            if self._count and self.is_sum:
+            if self.count and self.is_sum:
                 # This is a sum because the summary table already
                 # has already performed counts
                 query_data = query_data.annotate(
-                    count=Sum(self._count)
+                    count=Sum(self.count)
                 )
 
             if self._limit and self.is_sum:
@@ -764,16 +766,16 @@ class ReportQueryHandler(object):
             'time_scope_value',
             0
         )
-        total_filter['report_type'] = self._report_type
+        total_filter['report_type'] = getattr(self, '_report_type', 'costs')
         total_query = AWSCostEntryLineItemAggregates.objects.filter(
             **total_filter
         )
-        if self._count:
+        if self.count:
             query_sum = total_query.aggregate(
                 value=Sum(self.aggregate_key),
                 # This is a sum because the summary table already
                 # has already performed counts
-                count=Sum(self._count)
+                count=Sum(self.count)
             )
         else:
             query_sum = total_query.aggregate(value=Sum(self.aggregate_key))

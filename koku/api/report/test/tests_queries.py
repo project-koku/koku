@@ -773,7 +773,7 @@ class ReportQueryTest(IamTestCase):
                         'order_by': {'account': 'asc'}}
         handler = ReportQueryHandler(query_params, '?group_by[account]=*',
                                      self.tenant, 'unblended_cost',
-                                     'currency_code')
+                                     'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
