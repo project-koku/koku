@@ -576,7 +576,7 @@ def storage(request):
         2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
-    filter_scope = {'cost_entry_product__product_family': 'Storage'}
+    filter_scope = {'cost_entry_product__product_family__contains': 'Storage'}
     extras = {'filter': filter_scope,
               'report_type': 'storage'}
     return _generic_report(request,
