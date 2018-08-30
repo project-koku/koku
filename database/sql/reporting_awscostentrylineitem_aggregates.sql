@@ -48,7 +48,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
     WHERE li.usage_start >= current_date - INTERVAL '10 days'
-        AND p.product_family = 'Storage'
+        AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
 
@@ -102,7 +102,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
     WHERE li.usage_start >= date_trunc('month', current_date)::date
-        AND p.product_family = 'Storage'
+        AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
 
@@ -160,7 +160,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     WHERE li.usage_start >= (date_trunc('month', current_date) - interval '1 month')
         AND li.usage_start < date_trunc('month', current_date)
-        AND p.product_family = 'Storage'
+        AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 )
 ;
