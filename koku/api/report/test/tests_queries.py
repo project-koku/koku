@@ -21,11 +21,12 @@ from django.db.models import (CharField, Count, DateField, IntegerField, Max,
                               Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
+from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant
-from api.report.queries import ReportQueryHandler
+from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSCostEntry,
                               AWSCostEntryBill,
@@ -35,6 +36,162 @@ from reporting.models import (AWSCostEntry,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
+
+
+class QueryFilterTest(TestCase):
+    """Test the QueryFilter class."""
+
+    fake = Faker()
+
+    def test_composed_string_all(self):
+        """Test composed_query_string() method using all parameters."""
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+        filt = QueryFilter(table, field, operation, parameter)
+        expected = f'{table}__{field}__{operation}'
+        self.assertEqual(filt.composed_query_string(), expected)
+
+    def test_composed_string_table_op(self):
+        """Test composed_query_string() method using table and operation parameters."""
+        table = self.fake.word()
+        operation = self.fake.word()
+        filt = QueryFilter(table=table, operation=operation)
+        expected = f'{table}__{operation}'
+        self.assertEqual(filt.composed_query_string(), expected)
+
+    def test_composed_dict_all(self):
+        """Test composed_dict() method with all parameters."""
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+
+        filt = QueryFilter(table, field, operation, parameter)
+        expected = {f'{table}__{field}__{operation}': parameter}
+        self.assertEqual(filt.composed_dict(), expected)
+
+    def test_composed_dict_field(self):
+        """Test composed_dict() method without a Table parameter."""
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+        filt = QueryFilter(field=field, operation=operation,
+                           parameter=parameter)
+        expected = {f'{field}__{operation}': parameter}
+        self.assertEqual(filt.composed_dict(), expected)
+
+    def test_from_string_all(self):
+        """Test from_string() method with all parts."""
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        SEP = QueryFilter.SEP
+        test_string = table + SEP + field + SEP + operation
+        filt = QueryFilter().from_string(test_string)
+
+        self.assertEqual(filt.table, table)
+        self.assertEqual(filt.field, field)
+        self.assertEqual(filt.operation, operation)
+        self.assertEqual(filt.composed_query_string(), test_string)
+
+    def test_from_string_two_parts(self):
+        """Test from_string() method with two parts."""
+        table = self.fake.word()
+        operation = self.fake.word()
+        SEP = QueryFilter.SEP
+        test_string = table + SEP + operation
+        filt = QueryFilter().from_string(test_string)
+
+        self.assertEqual(filt.table, table)
+        self.assertEqual(filt.operation, operation)
+        self.assertEqual(filt.composed_query_string(), test_string)
+
+    def test_from_string_wrong_parts_few(self):
+        """Test from_string() method with too few parts."""
+        test_string = self.fake.word()
+        with self.assertRaises(TypeError):
+            QueryFilter().from_string(test_string)
+
+    def test_from_string_wrong_parts_more(self):
+        """Test from_string() method with too many parts."""
+        SEP = QueryFilter.SEP
+        test_string = self.fake.word() + SEP + \
+            self.fake.word() + SEP + \
+            self.fake.word() + SEP + \
+            self.fake.word()
+
+        with self.assertRaises(TypeError):
+            QueryFilter().from_string(test_string)
+
+
+class QueryFilterCollectionTest(TestCase):
+    """Test the QueryFilterCollection class."""
+
+    fake = Faker()
+
+    def test_constructor(self):
+        """Test the constructor using valid QueryFilter instances."""
+        filters = []
+        for _ in range(0, 3):
+            filt = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                               operation=self.fake.word(), parameter=self.fake.word())
+            filters.append(filt)
+        qf_coll = QueryFilterCollection(filters)
+        self.assertEqual(qf_coll._filters, filters)
+
+    def test_constructor_bad(self):
+        """Test the constructor using invalid values."""
+        bad_list = [self.fake.word(), self.fake.word()]
+
+        with self.assertRaises(AssertionError):
+            QueryFilterCollection(bad_list)
+
+    def test_add_filter(self):
+        """Test the add() method using a QueryFilter instance."""
+        filters = []
+        qf_coll = QueryFilterCollection()
+        for _ in range(0, 3):
+            filt = QueryFilter(self.fake.word(), self.fake.word(),
+                               self.fake.word(), self.fake.word())
+            filters.append(filt)
+            qf_coll.add(query_filter=filt)
+        self.assertEqual(qf_coll._filters, filters)
+
+    def test_add_params(self):
+        """Test the add() method using parameters."""
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+        filt = QueryFilter(table=table, field=field, operation=operation,
+                           parameter=parameter)
+        qf_coll = QueryFilterCollection()
+        qf_coll.add(table=table, field=field, operation=operation,
+                    parameter=parameter)
+        self.assertEqual(qf_coll._filters[0], filt)
+
+    def test_add_bad(self):
+        """Test the add() method using invalid values."""
+        qf_coll = QueryFilterCollection()
+
+        with self.assertRaises(AssertionError):
+            qf_coll.add(self.fake.word(), self.fake.word(), self.fake.word())
+
+    def test_compose(self):
+        """Test the compose() method."""
+        expected = {}
+        qf_coll = QueryFilterCollection()
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+        filt = QueryFilter(table=table, field=field, operation=operation,
+                           parameter=parameter)
+        expected.update(filt.composed_dict())
+        qf_coll.add(table=table, field=field, operation=operation, parameter=parameter)
+        self.assertEqual(qf_coll.compose(), expected)
 
 
 class ReportQueryUtilsTest(TestCase):
