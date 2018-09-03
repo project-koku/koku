@@ -304,10 +304,10 @@
         },
         "aws-xray-sdk": {
             "hashes": [
-                "sha256:72791618feb22eaff2e628462b0d58f398ce8c1bacfa989b7679817ab1fad60c",
-                "sha256:9e7ba8dd08fd2939376c21423376206bff01d0deaea7d7721c6b35921fed1943"
+                "sha256:d50c68727255ce8d1a26f986fabc4925677211450a894744ef898e3753943335",
+                "sha256:c19740a58321c1e491acfcf258fc06419d468223380284e5967843bee524ffd6"
             ],
-            "version": "==0.95"
+            "version": "==2.0"
         },
         "babel": {
             "hashes": [
