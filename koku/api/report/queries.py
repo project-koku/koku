@@ -112,11 +112,18 @@ class ReportQueryHandler(object):
         self.units_key = units_key
 
         if kwargs:
-            elements = ['accept_type', 'annotations', 'count', 'delta',
+            elements = ['accept_type', 'annotations', 'delta',
                         'filter', 'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
+
+            # don't override the property by using setattr
+            if 'count' in kwargs:
+                self.count = kwargs['count']
+
+        assert getattr(self, '_report_type'), \
+            'kwargs["report_type"] is missing!'
 
     @property
     def is_sum(self):
@@ -766,7 +773,7 @@ class ReportQueryHandler(object):
             'time_scope_value',
             0
         )
-        total_filter['report_type'] = getattr(self, '_report_type', 'costs')
+        total_filter['report_type'] = self._report_type
         total_query = AWSCostEntryLineItemAggregates.objects.filter(
             **total_filter
         )
