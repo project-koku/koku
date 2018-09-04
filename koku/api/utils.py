@@ -28,7 +28,9 @@ from pint.errors import UndefinedUnitError
 class DateHelper():
     """Helper class with convenience functions."""
 
-    _now = timezone.now()
+    def __init__(self):
+        """Initialize when now is."""
+        self._now = timezone.now()
 
     @property
     def one_day(self):
