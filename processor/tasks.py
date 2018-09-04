@@ -147,7 +147,7 @@ def remove_expired_data(schema_name, simulate):
 @celery.task(name='masu.processor.tasks.update_summary_tables',
              queue_name='reporting')
 def update_summary_tables(schema_name, start_date,
-                          end_date=datetime.date.today()):
+                          end_date=None):
     """Populate the summary tables for reporting.
 
     Args:
@@ -158,6 +158,8 @@ def update_summary_tables(schema_name, start_date,
         None
 
     """
+    if end_date is None:
+        end_date = datetime.date.today()
     report_common_db = ReportingCommonDBAccessor()
     column_map = report_common_db.column_map
     report_common_db.close_session()
