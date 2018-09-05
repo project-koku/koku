@@ -79,4 +79,4 @@ def _get_report_files(customer_name,
         return downloader.get_current_report()
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         LOG.error(str(err))
-        return []
+        raise err
