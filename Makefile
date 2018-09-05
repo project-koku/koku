@@ -177,7 +177,7 @@ oc-reinit: oc-delete-all oc-create-koku
 
 oc-run-migrations: oc-forward-ports
 	sleep 3
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas --shared
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
 	make oc-stop-forwarding-ports
 
 oc-stop-forwarding-ports:
