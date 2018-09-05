@@ -102,3 +102,6 @@ class Config(object):
 
     # Specify the day of the month for removal of expired report data.
     REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', 1))
+
+    # Specify the time of the day for removal of expired report data.
+    REMOVE_EXPIRED_REPORT_UTC_TIME = os.getenv('REMOVE_EXPIRED_REPORT_UTC_TIME', '00:00')

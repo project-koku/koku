@@ -50,8 +50,13 @@ def update_celery_config(celery, app):
 
     if app.config.get('REMOVE_EXPIRED_REPORT_DATA_ON_DAY') != 0:
         cleaning_day = app.config.get('REMOVE_EXPIRED_REPORT_DATA_ON_DAY')
+        cleaning_time = app.config.get('REMOVE_EXPIRED_REPORT_UTC_TIME')
+        hour, minute = cleaning_time.split(':')
+
         remove_expired_data_def = {'task': 'masu.celery.tasks.remove_expired_data',
-                                   'schedule': crontab(day_of_month=cleaning_day),
+                                   'schedule': crontab(hour=int(hour),
+                                                       minute=int(minute),
+                                                       day_of_month=cleaning_day),
                                    'args': []}
         celery.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
 
