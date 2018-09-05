@@ -123,7 +123,7 @@ def process_report_file(schema_name, report_path, compression):
 
     """
     _process_report_file(schema_name, report_path, compression)
-    start_date = datetime.date.today()
+    start_date = DateAccessor().today().date()
     LOG.info(f'Queueing update_summary_tables task for {schema_name}')
     update_summary_tables.delay(schema_name, start_date)
 
@@ -159,7 +159,7 @@ def update_summary_tables(schema_name, start_date,
 
     """
     if end_date is None:
-        end_date = datetime.date.today()
+        end_date = DateAccessor().today().date()
     report_common_db = ReportingCommonDBAccessor()
     column_map = report_common_db.column_map
     report_common_db.close_session()
