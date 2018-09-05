@@ -40,9 +40,6 @@ def check_report_updates():
 def remove_expired_data():
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
-    if today.hour == 0 and today.minute == 0:
-        LOG.info('Removing expired data at %s', str(today))
-        orchestrator = Orchestrator()
-        orchestrator.remove_expired_report_data()
-    else:
-        LOG.info('Skipping midnight report cleaning.  Current date/time is: %s', str(today))
+    LOG.info('Removing expired data at %s', str(today))
+    orchestrator = Orchestrator()
+    orchestrator.remove_expired_report_data()
