@@ -363,4 +363,4 @@ class AWSAccountAlias(models.Model):
     """The alias table for AWS accounts."""
 
     account_id = models.CharField(max_length=50, null=False, unique=True)
-    account_alias = models.CharField(max_length=63, null=False)
+    account_alias = models.CharField(max_length=63, null=True)
