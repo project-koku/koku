@@ -40,6 +40,11 @@ def update_celery_config(celery, app):
     }
 
     celery.conf.imports = ('masu.processor.tasks', 'masu.celery.tasks')
+    # Establish a new connection each task
+    celery.conf.broker_pool_limit = None
+    celery.conf.worker_concurrency = 2
+    # Only grab one task at a time
+    celery.conf.worker_prefetch_multiplier = 1
 
     # Celery Beat schedule
     if app.config.get('SCHEDULE_REPORT_CHECKS'):

@@ -20,7 +20,6 @@
 import logging
 import os
 import platform
-import socket
 import subprocess
 import sys
 
@@ -36,6 +35,9 @@ from masu.util.blueprint import application_route
 LOG = logging.getLogger(__name__)
 
 API_V1_ROUTES = {}
+
+BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
+CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
 
 
 @application_route('/status/', API_V1_ROUTES, methods=('GET',))
@@ -68,38 +70,46 @@ class ApplicationStatus():
     def __init__(self):
         """Initialize an ApplicationStatus object."""
         self._events = dict()
-
-    def _announce_worker_event(self, event):
-        """Announce worker events."""
-        state = celery_app.events.State()
-        state.event(event)
-        LOG.debug(f'EVENT: {event}')
-        self._events[event.pop('hostname')] = event
+        self.modules = {}
 
     @property
     def celery_status(self):
         """Determine the status of our connection to Celery.
 
-        :returns: dict of celery status
+        :returns: dict of celery status, or an error
         """
-        with celery_app.connection() as connection:
-            try:
-                connection.connect()
-                recv = celery_app.events.Receiver(connection, handlers={
-                    'worker-offline': self._announce_worker_event,
-                    'worker-online': self._announce_worker_event,
-                    'worker-heartbeat': self._announce_worker_event,
-                })
-                recv.capture(limit=5, timeout=5, wakeup=True)
-            except socket.timeout:
-                LOG.info('Timeout connecting to message broker.')
-            except ConnectionResetError:
-                LOG.info('Connection reset by message broker.')
-            except OSError as exc:
-                LOG.info(str(exc))
-            finally:
-                connection.release()
-        return self._events
+        # First check if our Broker is reachable
+        conn = None
+        try:
+            conn = celery_app.connection()
+            conn.heartbeat_check()
+        except ConnectionRefusedError:
+            return {'Error': BROKER_CONNECTION_ERROR}
+        # Now check if Celery workers are running
+        stats = self._check_celery_status()
+        if 'Error' in stats and stats['Error'] != CELERY_WORKER_NOT_FOUND:
+            stats = self._check_celery_status()
+        if conn:
+            conn.release()
+        return stats
+
+    def _check_celery_status(self):
+        """Check for celery status."""
+        try:
+            conn = celery_app.connection()
+            inspector = celery_app.control.inspect(
+                connection=conn,
+                timeout=1
+            )
+            stats = inspector.stats()
+            if not stats:
+                stats = {'Error': CELERY_WORKER_NOT_FOUND}
+        except ConnectionResetError as err:
+            stats = {'Error': str(err)}
+        finally:
+            if conn:
+                conn.release()
+        return stats
 
     @property
     def commit(self):
@@ -128,7 +138,13 @@ class ApplicationStatus():
         try:
             with psycopg2.connect(Config.SQLALCHEMY_DATABASE_URI) as conn:
                 curs = conn.cursor()
-                curs.execute('SELECT * FROM pg_stat_database')
+                curs.execute(
+                    """
+                    SELECT datname AS database,
+                        numbackends as database_connections
+                    FROM pg_stat_database
+                    """
+                )
                 raw = curs.fetchall()
 
                 # get pg_stat_database column names
@@ -167,11 +183,17 @@ class ApplicationStatus():
 
         :returns: A dictonary of module names and versions.
         """
+        return self._modules
+
+    # pylint: disable=unused-argument
+    @modules.setter
+    def modules(self, value):
         module_data = {}
         for name, module in sorted(sys.modules.items()):
             if hasattr(module, '__version__'):
                 module_data[str(name)] = str(module.__version__)
-        return module_data
+        # pylint: disable=attribute-defined-outside-init
+        self._modules = module_data
 
     @property
     def current_datetime(self):
@@ -204,7 +226,7 @@ class ApplicationStatus():
 
         LOG.info('Python: %s', self.python_version)
         module_list = []
-        for mod, version in self.modules.items():
+        for mod, version in list(self.modules.items()):
             module_list.append(f'{mod} - {version}')
 
         if module_list:

@@ -19,6 +19,7 @@
 import errno
 import logging
 import os
+import sys
 
 from flask import Flask
 from flask.logging import default_handler
@@ -52,10 +53,12 @@ def create_app(test_config=None):
         logging.disable(logging.CRITICAL)
     else:
         app.config.from_object('masu.config.Config')
-        ApplicationStatus().startup()
 
     # Logging
     logger.setLevel(app.config.get('LOG_LEVEL', 'WARNING'))
+
+    if not test_config and (sys.argv and 'celery' not in sys.argv[0]):
+        ApplicationStatus().startup()
 
     try:
         os.makedirs(app.instance_path)
