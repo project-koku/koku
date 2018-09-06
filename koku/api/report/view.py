@@ -442,11 +442,9 @@ def instance_type(request):
         8133889256380,2018-08-04,r4.large,10.0,Hrs
 
     """
-    filter_scope = {'instance_type__isnull': False}
     annotations = {'instance_type':
                    Concat('cost_entry_product__instance_type', Value(''))}
-    extras = {'filter': filter_scope,
-              'annotations': annotations,
+    extras = {'annotations': annotations,
               'group_by': ['instance_type'],
               'count': 'resource_id',
               'report_type': 'instance_type'}
@@ -576,9 +574,7 @@ def storage(request):
         2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
-    filter_scope = {'product_family__contains': 'Storage'}
-    extras = {'filter': filter_scope,
-              'report_type': 'storage'}
+    extras = {'report_type': 'storage'}
     return _generic_report(request,
                            'usage_amount',
                            'cost_entry_pricing__unit',

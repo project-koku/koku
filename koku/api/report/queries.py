@@ -209,7 +209,6 @@ class ReportQueryHandler(object):
         self._accept_type = None
         self._annotations = None
         self._count = None
-        self._filter = None
         self._group_by = None
         self.end_datetime = None
         self.resolution = None
@@ -231,7 +230,7 @@ class ReportQueryHandler(object):
 
         if kwargs:
             elements = ['accept_type', 'annotations', 'delta',
-                        'filter', 'group_by', 'report_type']
+                        'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -483,12 +482,20 @@ class ReportQueryHandler(object):
         """
         filters = QueryFilterCollection()
 
-        if self._filter:
-            for key, value in self._filter.items():
-                filt = QueryFilter().from_string(key)
-                if value is not None:
-                    filt.parameter = value
-                filters.add(filt)
+        # the summary table mirrors many of the fields in the cost_entry_product table.
+        cep_table = 'cost_entry_product'
+        if self.is_sum:
+            cep_table = None
+
+        # set up filters for instance-type and storage queries.
+        if self._report_type == 'instance_type':
+            filters.add(table=cep_table, field='instance_type',
+                        operation='isnull', parameter=False)
+        elif self._report_type == 'storage':
+            filters.add(table=cep_table, field='product_family',
+                        operation='contains', parameter='Storage')
+
+        region_filter = QueryFilter(table=cep_table, field='region', operation='in')
 
         if self.is_sum:
             # Summary table is already wrapped up at the date level
@@ -496,16 +503,11 @@ class ReportQueryHandler(object):
                                        parameter=self.start_datetime.date())
             end_filter = QueryFilter(table='usage_start', operation='lte',
                                      parameter=self.end_datetime.date())
-            # the summary table has a region field, otherwise we need to specify the table
-            region_filter = QueryFilter(field='region', operation='in')
         else:
             start_filter = QueryFilter(table='usage_start', operation='gte',
                                        parameter=self.start_datetime)
             end_filter = QueryFilter(table='usage_end', operation='lte',
                                      parameter=self.end_datetime)
-            region_filter = QueryFilter(table='cost_entry_product', field='region',
-                                        operation='in')
-
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
 
