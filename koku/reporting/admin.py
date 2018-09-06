@@ -23,7 +23,8 @@ from reporting.models import (AWSCostEntry,
                               AWSCostEntryLineItem,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct,
-                              AWSCostEntryReservation)
+                              AWSCostEntryReservation,
+                              AWSAccountAlias)
 
 admin.site.register(AWSCostEntry)
 admin.site.register(AWSCostEntryBill)
@@ -31,3 +32,4 @@ admin.site.register(AWSCostEntryLineItem)
 admin.site.register(AWSCostEntryPricing)
 admin.site.register(AWSCostEntryProduct)
 admin.site.register(AWSCostEntryReservation)
+admin.site.register(AWSAccountAlias)
