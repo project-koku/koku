@@ -146,6 +146,8 @@ objects:
         kind: ImageStreamTag
         name: ${NAME}:latest
     resources:
+      requests:
+        memory: ${BUILD_MEMORY_REQUEST}
       limits:
         memory: ${BUILD_MEMORY_LIMIT}
     source:
@@ -213,6 +215,8 @@ objects:
     selector:
       name: ${NAME}
     resources:
+      requests:
+        memory: ${MEMORY_REQUEST}
       limits:
         memory: ${MEMORY_LIMIT}
     strategy:
@@ -365,6 +369,8 @@ objects:
             failureThreshold: 3
             timeoutSeconds: 3
           resources:
+            requests:
+              memory: ${MEMORY_REQUEST}
             limits:
               memory: ${MEMORY_LIMIT}
     triggers:
@@ -392,6 +398,8 @@ objects:
     selector:
       name: koku-pgsql
     resources:
+      limits:
+        memory: ${MEMORY_REQUEST}
       limits:
         memory: ${MEMORY_LIMIT}
     strategy:
@@ -449,8 +457,10 @@ objects:
             successThreshold: 1
             timeoutSeconds: 1
           resources:
+            requests:
+              memory: ${POSTGRESQL_MEMORY_REQUEST}
             limits:
-              memory: ${MEMORY_POSTGRESQL_LIMIT}
+              memory: ${POSTGRESQL_MEMORY_LIMIT}
           volumeMounts:
           - mountPath: /var/lib/pgsql/data
             name: koku-pgsql-data
@@ -510,9 +520,19 @@ parameters:
   name: NAMESPACE
   required: true
   value: project-koku
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 1Gi
 - description: Maximum amount of memory the build container can use.
   displayName: Build Memory Limit
   name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of memory the Django container will request.
+  displayName: Memory Request
+  name: MEMORY_REQUEST
   required: true
   value: 1Gi
 - description: Maximum amount of memory the Django container can use.
@@ -520,9 +540,14 @@ parameters:
   name: MEMORY_LIMIT
   required: true
   value: 1Gi
+- description: Initial amount of memory the PostgreSQL container will request.
+  displayName: Memory Request (PostgreSQL)
+  name: POSTGRESQL_MEMORY_REQUEST
+  required: true
+  value: 512Mi
 - description: Maximum amount of memory the PostgreSQL container can use.
   displayName: Memory Limit (PostgreSQL)
-  name: MEMORY_POSTGRESQL_LIMIT
+  name: POSTGRESQL_MEMORY_LIMIT
   required: true
   value: 512Mi
 - description: Volume space available for data, e.g. 512Mi, 2Gi
