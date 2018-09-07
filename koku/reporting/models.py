@@ -359,6 +359,7 @@ class AWSCostEntryReservation(models.Model):
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
+
 class AWSAccountAlias(models.Model):
     """The alias table for AWS accounts."""
 
