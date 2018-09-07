@@ -28,7 +28,7 @@ from masu.processor.report_processor import ReportProcessor
 LOG = get_task_logger(__name__)
 
 
-def _process_report_file(schema_name, report_path, compression):
+def _process_report_file(schema_name, report_path, compression, provider):
     """
     Task to process a Report.
 
@@ -36,6 +36,7 @@ def _process_report_file(schema_name, report_path, compression):
         schema_name (String) db schema name
         report_path (String) path to downloaded reports
         compression (String) 'PLAIN' or 'GZIP'
+        provider    (String) provider type
 
     Returns:
         None
@@ -44,10 +45,12 @@ def _process_report_file(schema_name, report_path, compression):
     stmt = ('Processing Report:'
             ' schema_name: {},'
             ' report_path: {},'
-            ' compression: {}')
+            ' compression: {},'
+            ' provider: {}')
     log_statement = stmt.format(schema_name,
                                 report_path,
-                                compression)
+                                compression,
+                                provider)
     LOG.info(log_statement)
     mem = psutil.virtual_memory()
     mem_msg = 'Avaiable memory: {} bytes ({}%)'.format(mem.free, mem.percent)
@@ -61,7 +64,8 @@ def _process_report_file(schema_name, report_path, compression):
 
     processor = ReportProcessor(schema_name=schema_name,
                                 report_path=report_path,
-                                compression=compression)
+                                compression=compression,
+                                provider=provider)
 
     processor.process()
     stats_recorder.log_last_completed_datetime()
