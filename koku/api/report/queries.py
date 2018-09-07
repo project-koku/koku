@@ -22,6 +22,7 @@ from collections import OrderedDict
 from decimal import Decimal, DivisionByZero
 from itertools import groupby
 
+from dateutil import relativedelta
 from django.db.models import (F,
                               Sum,
                               Value,
@@ -576,8 +577,8 @@ class ReportQueryHandler(object):
         output['data'] = self.query_data
         output['total'] = self.query_sum
 
-        if self._delta:
-            output['delta'] = self.query_delta
+        # if self._delta:
+        #     output['delta'] = self.query_delta
 
         return output
 
@@ -637,6 +638,7 @@ class ReportQueryHandler(object):
                 query_data = query_data.values(*query_group_by_with_units)\
                     .annotate(total=Sum(self.aggregate_key))
 
+
             if self.count and self.is_sum:
                 # This is a sum because the summary table already
                 # has already performed counts
@@ -655,6 +657,13 @@ class ReportQueryHandler(object):
                 query_order_by = query_order_by + ('rank',)
 
             query_data = query_data.order_by(*query_order_by)
+
+            if self._delta:
+                query_data = self.add_deltas(
+                    query_data,
+                    query_filter
+                )
+
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
             if self.is_sum and not is_csv_output:
                 data = self._apply_group_by(list(query_data))
@@ -673,75 +682,103 @@ class ReportQueryHandler(object):
                 units_value = query.values(self.units_key).first().get(self.units_key)
                 query_sum = self.calculate_total(units_value)
 
-            if self._delta:
-                self.query_delta = self.calculate_delta(self._delta,
-                                                        query,
-                                                        query_sum,
-                                                        **query_filter)
-
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
 
-    def calculate_delta(self, delta, query, query_sum, **kwargs):
-        """Calculate cost deltas.
+    def add_deltas(self, query_data, query_filter):
+        """Calculate and add cost deltas to a reasult set.
 
         Args:
-            delta (String) 'day', 'month', or 'year'
-            query (Query) the original query being compared
+            query_data (list) The existing query data from execute_query
+            query_filter (dict) The existing query filters dictionary
 
         Returns:
-            (dict) with keys "value" and "percent"
+            (dict) query data with new with keys "value" and "percent"
 
         """
-        delta_filter = copy.deepcopy(kwargs)
+        delta_filter = copy.deepcopy(query_filter)
+
+        query_data.annotate()
 
         # get delta date range
-        _start = kwargs.get('usage_start__gte')
-        _end = kwargs.get('usage_end__lte')
+        _start = query_filter.get('usage_start__gte')
+        _end = query_filter.get('usage_end__lte')
         if self.is_sum:
             # Override as summary table is date based, not timestamp
-            _end = kwargs.get('usage_start__lte')
+            _end = query_filter.get('usage_start__lte')
 
-        if delta == 'day':
-            previous = datetime.timedelta(days=1)
-        elif delta == 'month':
-            dh = DateHelper()
-            last_month = dh.days_in_month(_start.replace(day=1) - dh.one_day)
-            previous = datetime.timedelta(days=last_month)
-        elif delta == 'year':
-            previous = datetime.timedelta(days=365)
+        # if delta == 'day':
+        #     previous = datetime.timedelta(days=1)
+        # elif delta == 'month':
+        #     dh = DateHelper()
+        #     last_month = dh.days_in_month(_start.replace(day=1) - dh.one_day)
+        #     previous = datetime.timedelta(days=last_month)
+        # elif delta == 'year':
+        #     previous = datetime.timedelta(days=365)
+        # else:
+        #     # paranoia.
+        #     raise NotImplementedError(f'invalid parameter: {delta}')
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
         else:
-            # paranoia.
-            raise NotImplementedError(f'invalid parameter: {delta}')
+            date_delta = datetime.timedelta(days=10)
 
-        delta_filter['usage_start__gte'] = _start - previous
-
+        delta_filter['usage_start__gte'] = _start - date_delta
+        query_group_by = ['date'] + self._get_group_by()
         if self.is_sum:
-            delta_filter['usage_start__lte'] = _end - previous
+            delta_filter['usage_start__lte'] = _end - date_delta
             # construct new query
             delta_query = AWSCostEntryLineItemDailySummary.objects.filter(
                 **delta_filter
             )
         else:
-            delta_filter['usage_end__lte'] = _end - previous
+            delta_filter['usage_end__lte'] = _end - date_delta
             delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
 
+
         # get aggregate sum from query
-        delta_sum = delta_query.aggregate(value=Sum(self.aggregate_key))
+        query_annotations = self._get_annotations()
+        # query_annotations.update({'value': Sum(self.aggregate_key)})
+        previous_sums = delta_query.annotate(**query_annotations)
+        previous_sums = previous_sums\
+            .values(*query_group_by)\
+            .annotate(total=Sum(self.aggregate_key))
 
+        previous_dict = {}
+        for row in previous_sums:
+            key = (row[key] for key in query_group_by)
+            previous_dict[key] = row['total']
+
+        for row in query_data:
+            key = (row[key] for key in query_group_by)
+            previous = previous_dict.get(key)
+            current_total = row.get('total', 0)
+            previous_total = previous.get('total', 0) if previous else 0
+
+            delta_value = current_total - previous_total
+            try:
+                delta_percent = Decimal((current_total - previous_total) / current_total * 100)
+            except (DivisionByZero, ZeroDivisionError):
+                delta_percent = Decimal(0)
+            row['delta_value'] = delta_value
+            row['delta_percent'] = delta_percent
+
+        return query_data
+            # q_sum = Decimal(query_sum.get('value') or 0)
+            # d_sum = Decimal(delta_sum.get('value') or 0)
+        #     d_value = q_sum - d_sum
         # calculate percentage difference: ((total - delta_total) / delta_total * 100)
-        q_sum = Decimal(query_sum.get('value') or 0)
-        d_sum = Decimal(delta_sum.get('value') or 0)
-        d_value = q_sum - d_sum
+        # for row in delta_sums:
+        #
 
-        try:
-            d_percent = (q_sum - d_sum) / d_sum * Decimal(100)
-        except DivisionByZero:
-            d_percent = Decimal(0)
+        # try:
+        #     d_percent = (q_sum - d_sum) / d_sum * Decimal(100)
+        # except DivisionByZero:
+        #     d_percent = Decimal(0)
 
-        query_delta = {'value': d_value, 'percent': d_percent}
-        return query_delta
+        # query_delta = {'value': d_value, 'percent': d_percent}
+        # return query_delta
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.
