@@ -101,7 +101,8 @@ def get_report_files(customer_name,
 
         request = {'schema_name': schema_name,
                    'report_path': report_dict.get('file'),
-                   'compression': report_dict.get('compression')}
+                   'compression': report_dict.get('compression'),
+                   'provider': provider_type}
         result = process_report_file.delay(**request)
         LOG.info('Processing task queued - File: %s, Task ID: %s',
                  report_dict.get('file'),
@@ -109,7 +110,7 @@ def get_report_files(customer_name,
 
 
 @celery.task(name='masu.processor.tasks.process_report_file', queue_name='process')
-def process_report_file(schema_name, report_path, compression):
+def process_report_file(schema_name, report_path, compression, provider):
     """
     Task to process a Report.
 
@@ -117,12 +118,13 @@ def process_report_file(schema_name, report_path, compression):
         schema_name (String) db schema name
         report_path (String) path to downloaded reports
         compression (String) 'PLAIN' or 'GZIP'
+        provider    (String) provider type
 
     Returns:
         None
 
     """
-    _process_report_file(schema_name, report_path, compression)
+    _process_report_file(schema_name, report_path, compression, provider)
     start_date = DateAccessor().today().date()
     LOG.info(f'Queueing update_summary_tables task for {schema_name}')
     update_summary_tables.delay(schema_name, start_date)
