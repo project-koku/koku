@@ -83,7 +83,14 @@ class QueryFilter(UserDict):
     parameter = None
 
     def __init__(self, table=None, field=None, operation=None, parameter=None):
-        """Constructor."""
+        """Constructor.
+
+        Args:
+            table (str) - The name of a DB table
+            field (str) - The name of a DB field
+            operation (str) - The name of a DB operation, e.g. 'in' or 'gte'
+            parameter (object) - A valid query target, e.g. a list or datetime
+        """
         super().__init__(table=table, field=field, operation=operation,
                          parameter=parameter)
         self.table = table
@@ -93,11 +100,9 @@ class QueryFilter(UserDict):
 
     def composed_query_string(self):
         """Return compiled query string."""
-        composed = ''
-        for el in [self.table, self.field, self.operation]:
-            if el:
-                composed += f'{el}{self.SEP}'
-        return composed.strip(self.SEP)
+        fields = [entry for entry in [self.table, self.field, self.operation]
+                  if entry is not None]
+        return self.SEP.join(fields)
 
     def composed_dict(self):
         """Return a dict formatted for Django's ORM."""
@@ -122,8 +127,8 @@ class QueryFilter(UserDict):
         elif len(parts) == 2:
             self.table, self.operation = parts
         else:
-            message = 'Insufficient parts in query string. ' + \
-                'Missing table, field, or operation.'
+            message = 'Incorrect number of parts in query string. ' + \
+                'Need at least two of [table, field, operation].'
             raise TypeError(message)
         return self
 
@@ -141,8 +146,9 @@ class QueryFilterCollection(object):
             self._filters = list()    # a list of QueryFilter objects
         else:
             for item in filters:
-                assert isinstance(item, QueryFilter), \
-                    'Filters list must be instances of QueryFilter.'
+                if not isinstance(item, QueryFilter):
+                    message = 'Filters list must be instances of QueryFilter.'
+                    raise TypeError(message)
             self._filters = filters
 
     def add(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
@@ -159,14 +165,16 @@ class QueryFilterCollection(object):
             parameter (object) query object
 
         """
+        error_message = 'query_filter can not be defined with other parameters'
+
         if query_filter:
-            assert not (table or field or operation or parameter), \
-                'query_filter can not be defined with other parameters'
+            if (table or field or operation or parameter):
+                raise AttributeError(error_message)
             self._filters.append(query_filter)
 
         if (table or field or operation or parameter):
-            assert not query_filter, \
-                'query_filter can not be defined with other parameters'
+            if query_filter:
+                raise AttributeError(error_message)
             qf = QueryFilter(table=table, field=field, operation=operation,
                              parameter=parameter)
             self._filters.append(qf)

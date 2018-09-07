@@ -145,7 +145,7 @@ class QueryFilterCollectionTest(TestCase):
         """Test the constructor using invalid values."""
         bad_list = [self.fake.word(), self.fake.word()]
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             QueryFilterCollection(bad_list)
 
     def test_add_filter(self):
@@ -176,7 +176,7 @@ class QueryFilterCollectionTest(TestCase):
         """Test the add() method using invalid values."""
         qf_coll = QueryFilterCollection()
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(AttributeError):
             qf_coll.add(self.fake.word(), self.fake.word(), self.fake.word())
 
     def test_compose(self):
