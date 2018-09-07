@@ -17,8 +17,9 @@
 """Query Handling for Reports."""
 import copy
 import datetime
+import logging
 import re
-from collections import OrderedDict
+from collections import OrderedDict, UserDict
 from decimal import Decimal, DivisionByZero
 from itertools import groupby
 
@@ -38,6 +39,7 @@ from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemDailySummary)
 
 
+LOG = logging.getLogger(__name__)
 WILDCARD = '*'
 OPERATION_SUM = 'sum'
 OPERATION_NONE = 'none'
@@ -71,6 +73,128 @@ class TruncMonthString(TruncMonth):
         return value.strftime('%Y-%m')
 
 
+class QueryFilter(UserDict):
+    """Dict-like object representing a single query filter."""
+
+    SEP = '__'    # separator
+    table = None
+    field = None
+    operation = None
+    parameter = None
+
+    def __init__(self, table=None, field=None, operation=None, parameter=None):
+        """Constructor.
+
+        Args:
+            table (str) - The name of a DB table
+            field (str) - The name of a DB field
+            operation (str) - The name of a DB operation, e.g. 'in' or 'gte'
+            parameter (object) - A valid query target, e.g. a list or datetime
+        """
+        super().__init__(table=table, field=field, operation=operation,
+                         parameter=parameter)
+        self.table = table
+        self.field = field
+        self.operation = operation
+        self.parameter = parameter
+
+    def composed_query_string(self):
+        """Return compiled query string."""
+        fields = [entry for entry in [self.table, self.field, self.operation]
+                  if entry is not None]
+        return self.SEP.join(fields)
+
+    def composed_dict(self):
+        """Return a dict formatted for Django's ORM."""
+        return {self.composed_query_string(): self.parameter}
+
+    def from_string(self, query_string):
+        """Parse a string representing a filter.
+
+        Returns:
+            QueryFilter instance.
+
+        Args:
+            query_string (str) A string representing a query filter.
+
+        Example:
+            QueryFilter().from_string('mytable__myfield__contains')
+
+        """
+        parts = query_string.split(self.SEP)
+        if len(parts) == 3:
+            self.table, self.field, self.operation = parts
+        elif len(parts) == 2:
+            self.table, self.operation = parts
+        else:
+            message = 'Incorrect number of parts in query string. ' + \
+                'Need at least two of [table, field, operation].'
+            raise TypeError(message)
+        return self
+
+    def __repr__(self):
+        """Return string representation."""
+        return str(self.composed_dict())
+
+
+class QueryFilterCollection(object):
+    """Object representing a set of filters for a query."""
+
+    def __init__(self, filters=None):
+        """Constructor."""
+        if filters is None:
+            self._filters = list()    # a list of QueryFilter objects
+        else:
+            for item in filters:
+                if not isinstance(item, QueryFilter):
+                    message = 'Filters list must be instances of QueryFilter.'
+                    raise TypeError(message)
+            self._filters = filters
+
+    def add(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
+        """Add a query filter to the collection.
+
+        Args:
+            query_filter (QueryFilter) a QueryFilter object
+
+            - or -
+
+            table (str)  db table name
+            field (str)  db field/row name
+            operation (str) db operation
+            parameter (object) query object
+
+        """
+        error_message = 'query_filter can not be defined with other parameters'
+
+        if query_filter:
+            if (table or field or operation or parameter):
+                raise AttributeError(error_message)
+            self._filters.append(query_filter)
+
+        if (table or field or operation or parameter):
+            if query_filter:
+                raise AttributeError(error_message)
+            qf = QueryFilter(table=table, field=field, operation=operation,
+                             parameter=parameter)
+            self._filters.append(qf)
+
+    def compose(self):
+        """Compose filters into a dict for submitting to Django's ORM."""
+        out = {}
+        for filt in self._filters:
+            if filt.parameter is not None:
+                out.update(filt.composed_dict())
+        return out
+
+    def __repr__(self):
+        """Return string representation."""
+        out = f'{self.__class__}: '
+        for filt in self._filters:
+            out += filt.__repr__() + ', '
+        return out
+
+
 class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
@@ -88,10 +212,11 @@ class ReportQueryHandler(object):
             units_key   (String): the key defining the units
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
+        LOG.debug(f'Query Params: {query_parameters}')
+
         self._accept_type = None
         self._annotations = None
         self._count = None
-        self._filter = None
         self._group_by = None
         self.end_datetime = None
         self.resolution = None
@@ -113,7 +238,7 @@ class ReportQueryHandler(object):
 
         if kwargs:
             elements = ['accept_type', 'annotations', 'delta',
-                        'filter', 'group_by', 'report_type']
+                        'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -121,6 +246,8 @@ class ReportQueryHandler(object):
             # don't override the property by using setattr
             if 'count' in kwargs:
                 self.count = kwargs['count']
+
+        self.query_filter = self._get_filter()
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
@@ -158,15 +285,6 @@ class ReportQueryHandler(object):
         self._count = value
         if self.is_sum:
             self._count = 'resource_count'
-
-    @property
-    def join_tables(self):
-        """List the foreign tables line items join to."""
-        return [
-            'cost_entry_product',
-            'cost_entry_pricing',
-            'cost_entry_reservation'
-        ]
 
     @staticmethod
     def has_wildcard(in_list):
@@ -370,56 +488,54 @@ class ReportQueryHandler(object):
             (Dict): query filter dictionary
 
         """
-        filter_dict = {
-            'usage_start__gte': self.start_datetime,
-            'usage_end__lte': self.end_datetime,
-        }
+        filters = QueryFilterCollection()
+
+        # the summary table mirrors many of the fields in the cost_entry_product table.
+        cep_table = 'cost_entry_product'
+        if self.is_sum:
+            cep_table = None
+
+        # set up filters for instance-type and storage queries.
+        if self._report_type == 'instance_type':
+            filters.add(table=cep_table, field='instance_type',
+                        operation='isnull', parameter=False)
+        elif self._report_type == 'storage':
+            filters.add(table=cep_table, field='product_family',
+                        operation='contains', parameter='Storage')
+
+        region_filter = QueryFilter(table=cep_table, field='region', operation='in')
+
         if self.is_sum:
             # Summary table is already wrapped up at the date level
-            filter_dict = {
-                'usage_start__gte': self.start_datetime.date(),
-                'usage_start__lte': self.end_datetime.date(),
-            }
-        if self._filter:
-            filter_dict.update(self._filter)
+            start_filter = QueryFilter(table='usage_start', operation='gte',
+                                       parameter=self.start_datetime.date())
+            end_filter = QueryFilter(table='usage_start', operation='lte',
+                                     parameter=self.end_datetime.date())
+        else:
+            start_filter = QueryFilter(table='usage_start', operation='gte',
+                                       parameter=self.start_datetime)
+            end_filter = QueryFilter(table='usage_end', operation='lte',
+                                     parameter=self.end_datetime)
+        filters.add(query_filter=start_filter)
+        filters.add(query_filter=end_filter)
 
-        # { query_param: database_field_name }
-        fields = {'account': 'usage_account_id',
-                  'service': 'product_code',
-                  'region': 'cost_entry_product__region',
-                  'avail_zone': 'availability_zone'}
-        if self.is_sum:
-            # Use the summary table that has region built in
-            fields.update({'region': 'region'})
-        # db query operation
-        op = 'in'
-        for q_param, db_field in fields.items():
+        # define filter parameters using API query params.
+        fields = {'account': QueryFilter(field='usage_account_id',
+                                         operation='in'),
+                  'service': QueryFilter(field='product_code', operation='in'),
+                  'region': region_filter,
+                  'avail_zone': QueryFilter(field='availability_zone',
+                                            operation='in')}
+        for q_param, filt in fields.items():
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                filter_dict[f'{db_field}__{op}'] = list_
+                filt.parameter = list_
+            filters.add(filt)
 
-        return filter_dict
-
-    def _strip_table_references(self, filters):
-        """Remove the foreign table reference from a Django query string.
-
-        Args:
-            filter (dict): The Django query filter dict
-
-        Returns:
-            (dict): The query filter with the table reference stripped
-
-        """
-        filters = copy.deepcopy(filters)
-        for key in filters:
-            for table_name in self.join_tables:
-                if table_name in key:
-                    new_key = key.replace(f'{table_name}__', '')
-                    filters[new_key] = filters[key]
-                    filters.pop(key, None)
-        return filters
+        LOG.debug(f'Filters: {filters.compose()}')
+        return filters.compose()
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
@@ -603,8 +719,8 @@ class ReportQueryHandler(object):
 
         return out_data
 
-    def execute_query(self):    # noqa: C901
-        """Execute query and return provided data.
+    def execute_sum_query(self):
+        """Execute query and return provided data when self.is_sum == True.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
@@ -614,37 +730,24 @@ class ReportQueryHandler(object):
         data = []
 
         with tenant_context(self.tenant):
-            query_filter = self._get_filter()
-            query_group_by = self._get_group_by()
-            query_annotations = self._get_annotations()
-            query_order_by = ('-date',)
+            query = AWSCostEntryLineItemDailySummary.objects.filter(**self.query_filter)
 
-            if self.is_sum:
-                query_filter = self._strip_table_references(query_filter)
-                query = AWSCostEntryLineItemDailySummary.objects.filter(
-                    **query_filter
-                )
-            else:
-                query = AWSCostEntryLineItem.objects.filter(
-                    **query_filter
-                )
+            query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
-            query_group_by = ['date'] + query_group_by
+
+            query_group_by = ['date'] + self._get_group_by()
             query_group_by_with_units = query_group_by + ['units']
 
-            if self.is_sum:
-                query_order_by += (self.order,)
-                query_data = query_data.values(*query_group_by_with_units)\
-                    .annotate(total=Sum(self.aggregate_key))
+            query_order_by = ('-date', self.order)
+            query_data = query_data.values(*query_group_by_with_units)\
+                .annotate(total=Sum(self.aggregate_key))
 
-            if self.count and self.is_sum:
+            if self.count:
                 # This is a sum because the summary table already
                 # has already performed counts
-                query_data = query_data.annotate(
-                    count=Sum(self.count)
-                )
+                query_data = query_data.annotate(count=Sum(self.count))
 
-            if self._limit and self.is_sum:
+            if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
                 dense_rank_by_total = Window(
                     expression=DenseRank(),
@@ -655,19 +758,16 @@ class ReportQueryHandler(object):
                 query_order_by = query_order_by + ('rank',)
 
             query_data = query_data.order_by(*query_order_by)
+
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
-            if self.is_sum and not is_csv_output:
-                data = self._apply_group_by(list(query_data))
-                data = self._transform_data(query_group_by, 0, data)
-            elif is_csv_output and self.is_sum:
-                values_out = query_group_by_with_units + ['total']
+            if is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
                     data = list(query_data)
             else:
-                values_out = query_group_by_with_units + EXPORT_COLUMNS
-                data = list(query_data.values(*values_out))
+                data = self._apply_group_by(list(query_data))
+                data = self._transform_data(query_group_by, 0, data)
 
             if query.exists():
                 units_value = query.values(self.units_key).first().get(self.units_key)
@@ -677,7 +777,47 @@ class ReportQueryHandler(object):
                 self.query_delta = self.calculate_delta(self._delta,
                                                         query,
                                                         query_sum,
-                                                        **query_filter)
+                                                        **self.query_filter)
+        self.query_sum = query_sum
+        self.query_data = data
+        return self._format_query_response()
+
+    def execute_query(self):
+        """Execute query and return provided data.
+
+        Returns:
+            (Dict): Dictionary response of query params, data, and total
+
+        """
+        if self.is_sum:
+            return self.execute_sum_query()
+
+        query_sum = {'value': 0}
+        data = []
+
+        with tenant_context(self.tenant):
+            query = AWSCostEntryLineItem.objects.filter(**self.query_filter)
+
+            query_annotations = self._get_annotations()
+            query_data = query.annotate(**query_annotations)
+
+            query_group_by = ['date'] + self._get_group_by()
+            query_group_by_with_units = query_group_by + ['units']
+
+            query_order_by = ('-date',)
+            query_data = query_data.order_by(*query_order_by)
+            values_out = query_group_by_with_units + EXPORT_COLUMNS
+            data = list(query_data.values(*values_out))
+
+            if query.exists():
+                units_value = query.values(self.units_key).first().get(self.units_key)
+                query_sum = self.calculate_total(units_value)
+
+            if self._delta:
+                self.query_delta = self.calculate_delta(self._delta,
+                                                        query,
+                                                        query_sum,
+                                                        **self.query_filter)
 
         self.query_sum = query_sum
         self.query_data = data
@@ -760,11 +900,10 @@ class ReportQueryHandler(object):
             'product_code'
         ]
         total_filter = {}
-        query_filter = self._get_filter()
 
         for field in filter_fields:
             total_filter.update(
-                {key: value for key, value in query_filter.items()
+                {key: value for key, value in self.query_filter.items()
                  if re.match(field, key)}
             )
 
