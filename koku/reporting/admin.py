@@ -18,13 +18,15 @@
 
 from django.contrib import admin
 
-from reporting.models import (AWSCostEntry,
+from reporting.models import (AWSAccountAlias,
+                              AWSCostEntry,
                               AWSCostEntryBill,
                               AWSCostEntryLineItem,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct,
                               AWSCostEntryReservation)
 
+admin.site.register(AWSAccountAlias)
 admin.site.register(AWSCostEntry)
 admin.site.register(AWSCostEntryBill)
 admin.site.register(AWSCostEntryLineItem)
