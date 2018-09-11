@@ -236,6 +236,7 @@ class ReportQueryHandler(object):
         self._limit = self.get_query_param_data('filter', 'limit')
         self._get_timeframe()
         self.units_key = units_key
+        self.query_delta = {'value': None, 'percent': None}
 
         if kwargs:
             elements = ['accept_type', 'annotations', 'delta',
@@ -693,8 +694,8 @@ class ReportQueryHandler(object):
         output['data'] = self.query_data
         output['total'] = self.query_sum
 
-        # if self._delta:
-        #     output['delta'] = self.query_delta
+        if self._delta:
+            output['delta'] = self.query_delta
 
         return output
 
@@ -760,10 +761,15 @@ class ReportQueryHandler(object):
 
             query_data = query_data.order_by(*query_order_by)
 
+            if query.exists():
+                units_value = query.values(self.units_key).first().get(self.units_key)
+                query_sum = self.calculate_total(units_value)
+
+
             if self._delta:
                 query_data = self.add_deltas(
                     query_data,
-                    query_filter
+                    query_sum
                 )
 
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
@@ -776,15 +782,6 @@ class ReportQueryHandler(object):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-            if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = self.calculate_total(units_value)
-
-            if self._delta:
-                self.query_delta = self.calculate_delta(self._delta,
-                                                        query,
-                                                        query_sum,
-                                                        **self.query_filter)
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
@@ -824,39 +821,25 @@ class ReportQueryHandler(object):
         self.query_data = data
         return self._format_query_response()
 
-    def add_deltas(self, query_data, query_filter):
+    def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a reasult set.
 
         Args:
             query_data (list) The existing query data from execute_query
-            query_filter (dict) The existing query filters dictionary
+            query_sum (list) The sum returned by calculate_totals
 
         Returns:
             (dict) query data with new with keys "value" and "percent"
 
         """
-        delta_filter = copy.deepcopy(query_filter)
+        delta_filter = copy.deepcopy(self.query_filter)
 
-        query_data.annotate()
-
-        # get delta date range
-        _start = query_filter.get('usage_start__gte')
-        _end = query_filter.get('usage_end__lte')
+        _start = delta_filter.get('usage_start__gte')
+        _end = delta_filter.get('usage_end__lte')
         if self.is_sum:
             # Override as summary table is date based, not timestamp
-            _end = query_filter.get('usage_start__lte')
+            _end = delta_filter.get('usage_start__lte')
 
-        # if delta == 'day':
-        #     previous = datetime.timedelta(days=1)
-        # elif delta == 'month':
-        #     dh = DateHelper()
-        #     last_month = dh.days_in_month(_start.replace(day=1) - dh.one_day)
-        #     previous = datetime.timedelta(days=last_month)
-        # elif delta == 'year':
-        #     previous = datetime.timedelta(days=365)
-        # else:
-        #     # paranoia.
-        #     raise NotImplementedError(f'invalid parameter: {delta}')
         if self.time_scope_value in [-1, -2]:
             date_delta = relativedelta.relativedelta(months=1)
         else:
@@ -866,19 +849,17 @@ class ReportQueryHandler(object):
         query_group_by = ['date'] + self._get_group_by()
         if self.is_sum:
             delta_filter['usage_start__lte'] = _end - date_delta
-            # construct new query
-            delta_query = AWSCostEntryLineItemDailySummary.objects.filter(
+            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
                 **delta_filter
             )
         else:
             delta_filter['usage_end__lte'] = _end - date_delta
-            delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
 
-
-        # get aggregate sum from query
+        # Added deltas for each grouping
+        # e.g. date, account, region, availability zone, et cetera
         query_annotations = self._get_annotations()
-        # query_annotations.update({'value': Sum(self.aggregate_key)})
-        previous_sums = delta_query.annotate(**query_annotations)
+        previous_sums = previous_query.annotate(**query_annotations)
         previous_sums = previous_sums\
             .values(*query_group_by)\
             .annotate(total=Sum(self.aggregate_key))
@@ -896,27 +877,34 @@ class ReportQueryHandler(object):
 
             delta_value = current_total - previous_total
             try:
-                delta_percent = Decimal((current_total - previous_total) / current_total * 100)
+                delta_percent = Decimal(
+                    (current_total - previous_total) / previous_total * 100
+                )
             except (DivisionByZero, ZeroDivisionError):
                 delta_percent = Decimal(0)
             row['delta_value'] = delta_value
             row['delta_percent'] = delta_percent
 
+        # Calculate the delta on the total aggregate
+        current_total_sum = Decimal(query_sum.get('value') or 0)
+        prev_total_sum = previous_query.aggregate(value=Sum(self.aggregate_key))
+        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
+
+        total_delta = current_total_sum - prev_total_sum
+        try:
+            total_delta_percent = Decimal(
+                (current_total_sum - prev_total_sum) / prev_total_sum * 100
+            )
+        except (DivisionByZero, ZeroDivisionError):
+                total_delta_percent = Decimal(0)
+
+        self.query_delta = {
+            'value': total_delta,
+            'percent': total_delta_percent
+        }
+
+
         return query_data
-            # q_sum = Decimal(query_sum.get('value') or 0)
-            # d_sum = Decimal(delta_sum.get('value') or 0)
-        #     d_value = q_sum - d_sum
-        # calculate percentage difference: ((total - delta_total) / delta_total * 100)
-        # for row in delta_sums:
-        #
-
-        # try:
-        #     d_percent = (q_sum - d_sum) / d_sum * Decimal(100)
-        # except DivisionByZero:
-        #     d_percent = Decimal(0)
-
-        # query_delta = {'value': d_value, 'percent': d_percent}
-        # return query_delta
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.
