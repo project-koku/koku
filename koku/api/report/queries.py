@@ -20,7 +20,7 @@ import datetime
 import logging
 import re
 from collections import OrderedDict, UserDict
-from decimal import Decimal, DivisionByZero
+from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
@@ -842,8 +842,10 @@ class ReportQueryHandler(object):
 
         if self.time_scope_value in [-1, -2]:
             date_delta = relativedelta.relativedelta(months=1)
+            interval = 1
         else:
             date_delta = datetime.timedelta(days=10)
+            interval = 10
 
         delta_filter['usage_start__gte'] = _start - date_delta
         query_group_by = ['date'] + self._get_group_by()
@@ -866,25 +868,31 @@ class ReportQueryHandler(object):
 
         previous_dict = {}
         for row in previous_sums:
-            key = (row[key] for key in query_group_by)
+            date_parts = row['date'].split('-')
+            date_end = int(date_parts[-1]) + interval
+            if date_end < 10:
+                date_parts[-1] = '0' + str(date_end)
+            else:
+                date_parts[-1] = str(date_end)
+
+            row['date'] = '-'.join(date_parts)
+            key = tuple((row[key] for key in query_group_by))
             previous_dict[key] = row['total']
 
         for row in query_data:
-            key = (row[key] for key in query_group_by)
-            previous = previous_dict.get(key)
+            key = tuple((row[key] for key in query_group_by))
+            previous_total = previous_dict.get(key, 0)
             current_total = row.get('total', 0)
-            previous_total = previous.get('total', 0) if previous else 0
 
             delta_value = current_total - previous_total
             try:
                 delta_percent = Decimal(
                     (current_total - previous_total) / previous_total * 100
                 )
-            except (DivisionByZero, ZeroDivisionError):
+            except (DivisionByZero, ZeroDivisionError, InvalidOperation):
                 delta_percent = Decimal(0)
             row['delta_value'] = delta_value
             row['delta_percent'] = delta_percent
-
         # Calculate the delta on the total aggregate
         current_total_sum = Decimal(query_sum.get('value') or 0)
         prev_total_sum = previous_query.aggregate(value=Sum(self.aggregate_key))
@@ -895,14 +903,13 @@ class ReportQueryHandler(object):
             total_delta_percent = Decimal(
                 (current_total_sum - prev_total_sum) / prev_total_sum * 100
             )
-        except (DivisionByZero, ZeroDivisionError):
+        except (DivisionByZero, ZeroDivisionError, InvalidOperation):
                 total_delta_percent = Decimal(0)
 
         self.query_delta = {
             'value': total_delta,
             'percent': total_delta_percent
         }
-
 
         return query_data
 
