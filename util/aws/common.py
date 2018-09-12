@@ -16,12 +16,16 @@
 #
 """AWS utility functions."""
 
+import logging
 import re
 
 import boto3
+from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 
 from masu.util import common as utils
+
+LOG = logging.getLogger(__name__)
 
 
 def get_assume_role_session(arn, session='MasuSession'):
@@ -147,6 +151,35 @@ def get_local_file_name(cur_key):
     local_file_name = f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
 
     return local_file_name
+
+
+def get_account_alias_from_role_arn(role_arn, session=None):
+    """
+    Get account ID for given RoleARN.
+
+    Args:
+        role_arn     (String) AWS IAM RoleARN
+
+    Returns:
+        (String): Account ID
+
+    """
+    if not session:
+        session = get_assume_role_session(role_arn)
+    iam_client = session.client('iam')
+
+    account_id = role_arn.split(':')[-2]
+    alias = None
+    try:
+        alias_response = iam_client.list_account_aliases()
+        alias_list = alias_response.get('AccountAliases', [])
+        # Note: Boto3 docs states that you can only have one alias per account
+        # so the pop() should be ok...
+        alias = alias_list.pop() if alias_list else None
+    except ClientError as err:
+        LOG.info('Unable to list account aliases.  Reason: %s', str(err))
+
+    return (account_id, alias)
 
 
 # pylint: disable=too-few-public-methods
