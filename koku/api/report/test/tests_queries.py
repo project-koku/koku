@@ -469,11 +469,6 @@ class ReportQueryTest(IamTestCase):
         self.payer_account_id = payer_account_id
 
         with tenant_context(self.tenant):
-            # bill = AWSCostEntryBill(bill_type='Anniversary',
-            #                         payer_account_id=payer_account_id,
-            #                         billing_period_start=bill_start,
-            #                         billing_period_end=bill_end)
-            # bill.save()
             cost = rate * amount
             bill = self._create_bill(payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
