@@ -30,9 +30,9 @@ import shutil
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.aws import utils
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws import common as utils
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
