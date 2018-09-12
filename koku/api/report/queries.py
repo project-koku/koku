@@ -765,7 +765,6 @@ class ReportQueryHandler(object):
                 units_value = query.values(self.units_key).first().get(self.units_key)
                 query_sum = self.calculate_total(units_value)
 
-
             if self._delta:
                 query_data = self.add_deltas(
                     query_data,
@@ -833,54 +832,15 @@ class ReportQueryHandler(object):
 
         """
         delta_filter = copy.deepcopy(self.query_filter)
-
-        _start = delta_filter.get('usage_start__gte')
-        _end = delta_filter.get('usage_end__lte')
-        if self.is_sum:
-            # Override as summary table is date based, not timestamp
-            _end = delta_filter.get('usage_start__lte')
-
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-            interval = 1
-        else:
-            date_delta = datetime.timedelta(days=10)
-            interval = 10
-
-        delta_filter['usage_start__gte'] = _start - date_delta
-        query_group_by = ['date'] + self._get_group_by()
-        if self.is_sum:
-            delta_filter['usage_start__lte'] = _end - date_delta
-            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
-                **delta_filter
-            )
-        else:
-            delta_filter['usage_end__lte'] = _end - date_delta
-            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
-
-        # Added deltas for each grouping
-        # e.g. date, account, region, availability zone, et cetera
-        query_annotations = self._get_annotations()
-        previous_sums = previous_query.annotate(**query_annotations)
-        previous_sums = previous_sums\
-            .values(*query_group_by)\
-            .annotate(total=Sum(self.aggregate_key))
-
-        previous_dict = {}
-        for row in previous_sums:
-            date_parts = row['date'].split('-')
-            date_end = int(date_parts[-1]) + interval
-            if date_end < 10:
-                date_parts[-1] = '0' + str(date_end)
-            else:
-                date_parts[-1] = str(date_end)
-
-            row['date'] = '-'.join(date_parts)
-            key = tuple((row[key] for key in query_group_by))
-            previous_dict[key] = row['total']
+        delta_group_by = ['date'] + self._get_group_by()
+        previous_query = self._create_previous_query(delta_filter)
+        previous_dict = self._create_previous_totals(
+            previous_query,
+            delta_group_by
+        )
 
         for row in query_data:
-            key = tuple((row[key] for key in query_group_by))
+            key = tuple((row[key] for key in delta_group_by))
             previous_total = previous_dict.get(key, 0)
             current_total = row.get('total', 0)
 
@@ -912,6 +872,76 @@ class ReportQueryHandler(object):
         }
 
         return query_data
+
+    def _create_previous_query(self, delta_filter):
+        """Get totals from the time period previous to the current report.
+
+        Args:
+            delta_filter (dict): A copy of the report filters
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
+
+        """
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        else:
+            date_delta = datetime.timedelta(days=10)
+
+        _start = delta_filter.get('usage_start__gte')
+        _end = delta_filter.get('usage_end__lte')
+        if self.is_sum:
+            # Override as summary table is date based, not timestamp
+            _end = delta_filter.get('usage_start__lte')
+
+        delta_filter['usage_start__gte'] = _start - date_delta
+
+        if self.is_sum:
+            delta_filter['usage_start__lte'] = _end - date_delta
+            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
+                **delta_filter
+            )
+        else:
+            delta_filter['usage_end__lte'] = _end - date_delta
+            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+
+        return previous_query
+
+    def _create_previous_totals(self, previous_query, query_group_by):
+        """Get totals from the time period previous to the current report.
+
+        Args:
+            previous_query (Query): A Django ORM query
+            query_group_by (dict): The group by dict for the current report
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
+
+        """
+        if self.time_scope_value in [-1, -2]:
+            interval = 1
+        else:
+            interval = 10
+        # Added deltas for each grouping
+        # e.g. date, account, region, availability zone, et cetera
+        query_annotations = self._get_annotations()
+        previous_sums = previous_query.annotate(**query_annotations)
+        previous_sums = previous_sums\
+            .values(*query_group_by)\
+            .annotate(total=Sum(self.aggregate_key))
+
+        previous_dict = {}
+        for row in previous_sums:
+            date_parts = row['date'].split('-')
+            date_end = int(date_parts[-1]) + interval
+            if date_end < 10:
+                date_parts[-1] = '0' + str(date_end)
+            else:
+                date_parts[-1] = str(date_end)
+
+            row['date'] = '-'.join(date_parts)
+            key = tuple((row[key] for key in query_group_by))
+            previous_dict[key] = row['total']
+
+        return previous_dict
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.

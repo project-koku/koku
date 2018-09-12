@@ -17,7 +17,6 @@
 """Test the Report Queries."""
 from decimal import Decimal
 
-from dateutil import relativedelta
 from django.db.models import (CharField, Count, DateField, IntegerField, Max,
                               Sum, Value)
 from django.db.models.functions import Cast, Concat
@@ -1278,13 +1277,16 @@ class ReportQueryTest(IamTestCase):
             self.assertEqual(month, cmonth_str)
 
     def test_execute_query_w_delta(self):
-        """Test execute_query for current month on monthly breakdown by account with limit."""
+        """Test grouped by deltas."""
         dh = DateHelper()
         bill_start = dh.last_month_start
         bill_end = dh.last_month_end
         current_total = 0
         prev_total = 0
 
+        # First we need to add data for the previous time period
+        # This convoluted method is necessary to re-use the randomized
+        # account ids and products
         with tenant_context(self.tenant):
             line_items = AWSCostEntryLineItem.objects.values()
             print(AWSCostEntryLineItem.objects.count())
@@ -1320,6 +1322,7 @@ class ReportQueryTest(IamTestCase):
                 (current_total - prev_total) / prev_total * 100
             )
 
+            # Recalculate the summary tables to include the new data
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
@@ -1354,11 +1357,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
     def test_execute_query_w_delta_no_previous_data(self):
-        """Test execute_query for current month on monthly breakdown by account with limit."""
-        dh = DateHelper()
-        bill_start = dh.last_month_start
-        bill_end = dh.last_month_end
-
+        """Test deltas with no previous data."""
         expected_delta_value = Decimal(self.current_month_total)
         expected_delta_percent = Decimal(0)
 
