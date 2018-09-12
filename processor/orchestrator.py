@@ -18,6 +18,7 @@
 
 import logging
 
+from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.processor.tasks import (get_report_files, remove_expired_data)
 
@@ -43,7 +44,6 @@ class Orchestrator():
             billing_source (String): Individual account to retrieve.
         """
         self._accounts = self.get_accounts(billing_source)
-        self._processing_requests = []
 
     @staticmethod
     def get_accounts(billing_source=None):
@@ -92,6 +92,7 @@ class Orchestrator():
             LOG.info('Download queued - customer: %s, Task ID: %s',
                      account.get('customer_name'),
                      str(async_result))
+        self.update_account_labels()
         return async_result
 
     def remove_expired_report_data(self, simulate=False):
@@ -116,3 +117,22 @@ class Orchestrator():
             async_results.append({'customer': account.get('customer_name'),
                                   'async_id': str(async_result)})
         return async_results
+
+    def update_account_labels(self):
+        """
+        Update account labels.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        """
+        for account in self._accounts:
+            labeler = AccountLabel(auth=account.get('authentication'),
+                                   schema=account.get('schema_name'),
+                                   provider_type=account.get('provider_type'))
+            account, label = labeler.get_label_details()
+            if account:
+                LOG.info('Account: %s Label: %s updated.', account, label)
