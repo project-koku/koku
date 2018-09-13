@@ -45,6 +45,12 @@ class AWSReportDownloaderError(Exception):
     pass
 
 
+class AWSReportDownloaderNoFileError(Exception):
+    """AWS Report Downloader error for missing file."""
+
+    pass
+
+
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
     AWS Cost and Usage Report Downloader.
@@ -113,7 +119,11 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                                                 self.report_name)
         LOG.info('Will attempt to download manifest: %s', manifest)
 
-        manifest_file, _ = self.download_file(manifest)
+        try:
+            manifest_file, _ = self.download_file(manifest)
+        except AWSReportDownloaderNoFileError as err:
+            LOG.error('Unable to get report manifest. Reason: %s', str(err))
+            return {'reportKeys': []}
 
         manifest_json = None
         with open(manifest_file, 'r') as manifest_file_handle:
@@ -193,7 +203,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 log_msg = 'Unable to find {} in S3 Bucket: {}'.format(s3_filename,
                                                                       self.report.get('S3Bucket'))
                 LOG.error(log_msg)
-                raise AWSReportDownloaderError(log_msg)
+                raise AWSReportDownloaderNoFileError(log_msg)
             else:
                 LOG.error('Error downloading file: Error: %s', str(ex))
                 raise AWSReportDownloaderError(str(ex))
