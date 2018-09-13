@@ -1,5 +1,58 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
+    SELECT -30 as time_scope_value,
+        'costs' as report_type,
+        li.usage_account_id,
+        li.product_code,
+        p.region,
+        li.availability_zone,
+        null as usage_amount,
+        sum(li.unblended_cost) as unblended_cost,
+        count(DISTINCT li.resource_id) as resource_count
+    FROM reporting_awscostentrylineitem_daily as li
+    JOIN reporting_awscostentryproduct as p
+        ON li.cost_entry_product_id = p.id
+    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+    GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
+
+    UNION
+
+    SELECT -30 as time_scope_value,
+        'instance_type' as report_type,
+        li.usage_account_id,
+        li.product_code,
+        p.region,
+        li.availability_zone,
+        sum(li.usage_amount) as usage_amount,
+        sum(li.unblended_cost) as unblended_cost,
+        count(DISTINCT li.resource_id) as resource_count
+    FROM reporting_awscostentrylineitem_daily as li
+    JOIN reporting_awscostentryproduct as p
+        ON li.cost_entry_product_id = p.id
+    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+        AND p.instance_type IS NOT NULL
+    GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
+
+    UNION
+
+    SELECT -30 as time_scope_value,
+        'storage' as report_type,
+        li.usage_account_id,
+        li.product_code,
+        p.region,
+        li.availability_zone,
+        sum(li.usage_amount) as usage_amount,
+        sum(li.unblended_cost) as unblended_cost,
+        count(DISTINCT li.resource_id) as resource_count
+    FROM reporting_awscostentrylineitem_daily as li
+    JOIN reporting_awscostentryproduct as p
+        ON li.cost_entry_product_id = p.id
+    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+        AND p.product_family LIKE '%Storage%'
+    GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
+
+    UNION
+
     SELECT -10 as time_scope_value,
         'costs' as report_type,
         li.usage_account_id,
