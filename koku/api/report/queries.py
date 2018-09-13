@@ -383,10 +383,12 @@ class ReportQueryHandler(object):
 
         if self.resolution == 'monthly':
             self.date_to_string = lambda dt: dt.strftime('%Y-%m')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
             self.date_trunc = TruncMonthString
             self.gen_time_interval = DateHelper().list_months
         else:
             self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
             self.date_trunc = TruncDayString
             self.gen_time_interval = DateHelper().list_days
 
@@ -917,9 +919,9 @@ class ReportQueryHandler(object):
 
         """
         if self.time_scope_value in [-1, -2]:
-            interval = 1
+            date_delta = relativedelta.relativedelta(months=1)
         else:
-            interval = 10
+            date_delta = datetime.timedelta(days=10)
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
         query_annotations = self._get_annotations()
@@ -930,14 +932,9 @@ class ReportQueryHandler(object):
 
         previous_dict = {}
         for row in previous_sums:
-            date_parts = row['date'].split('-')
-            date_end = int(date_parts[-1]) + interval
-            if date_end < 10:
-                date_parts[-1] = '0' + str(date_end)
-            else:
-                date_parts[-1] = str(date_end)
-
-            row['date'] = '-'.join(date_parts)
+            date = self.string_to_date(row['date'])
+            date = date + date_delta
+            row['date'] = self.date_to_string(date)
             key = tuple((row[key] for key in query_group_by))
             previous_dict[key] = row['total']
 
