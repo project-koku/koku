@@ -213,16 +213,16 @@ class ApplicationStatus():
 
     def startup(self):
         """Log startup information."""
-        LOG.info(f'API Version: {self.api_version}')
-        LOG.info(f'Celery Status: {self.celery_status}')
-        LOG.info(f'Commit: {self.commit}')
-        LOG.info(f'Current Date: {self.current_datetime}')
-        LOG.info(f'DEBUG enabled: {str(self.debug)}')
-        LOG.info(f'Database: {self.database_status}')
+        LOG.info('API Version: %s', self.api_version)
+        LOG.info('Celery Status: %s', self.celery_status)
+        LOG.info('Commit: %s', self.commit)
+        LOG.info('Current Date: %s', self.current_datetime)
+        LOG.info('DEBUG enabled: %s', str(self.debug))
+        LOG.info('Database: %s', self.database_status)
 
         LOG.info('Platform:')
         for name, value in self.platform_info.items():
-            LOG.info(f'{name} - {value}')
+            LOG.info('%s - %s', name, value)
 
         LOG.info('Python: %s', self.python_version)
         module_list = []

@@ -76,7 +76,6 @@ class ReportProcessor:
 
         """
         try:
-            files = self._processor.process()
+            return self._processor.process()
         except Exception as err:
             raise ReportProcessorError(str(err))
-        return files
