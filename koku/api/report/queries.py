@@ -34,7 +34,8 @@ from django.db.models.functions import (Concat,
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
-from reporting.models import (AWSCostEntryLineItem,
+from reporting.models import (AWSAccountAlias,
+                              AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary)
 
@@ -235,6 +236,8 @@ class ReportQueryHandler(object):
         self._limit = self.get_query_param_data('filter', 'limit')
         self._get_timeframe()
         self.units_key = units_key
+
+        self.account_aliases = {}
 
         if kwargs:
             elements = ['accept_type', 'annotations', 'delta',
@@ -678,7 +681,6 @@ class ReportQueryHandler(object):
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
             bucket_by_date[date] = grouped
-
         return bucket_by_date
 
     def _format_query_response(self):
@@ -715,6 +717,14 @@ class ReportQueryHandler(object):
             cur = {group_type: group,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
+            if group_type == 'account':
+                for value in group_value:
+                    if isinstance(value, dict):
+                        account_id = value.get('account')
+                        alias = self.account_aliases.get(str(account_id))
+                        if alias:
+                            value['account_alias'] = alias
+
             out_data.append(cur)
 
         return out_data
@@ -756,6 +766,9 @@ class ReportQueryHandler(object):
                 )
                 query_data = query_data.annotate(rank=dense_rank_by_total)
                 query_order_by = query_order_by + ('rank',)
+
+            for alias in AWSAccountAlias.objects.all():
+                self.account_aliases[alias.account_id] = alias.account_alias
 
             query_data = query_data.order_by(*query_order_by)
 
