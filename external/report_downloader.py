@@ -66,7 +66,8 @@ class ReportDownloader:
                                        auth_credential=self.credential,
                                        bucket=self.cur_source,
                                        report_name=self.report_name)
-        elif self.provider_type == LOCAL_SERVICE_PROVIDER:
+
+        if self.provider_type == LOCAL_SERVICE_PROVIDER:
             return LocalReportDownloader(customer_name=self.customer_name,
                                          auth_credential=self.credential,
                                          bucket=self.cur_source,

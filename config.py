@@ -22,7 +22,7 @@ import os
 
 
 # pylint: disable=too-few-public-methods
-class Config(object):
+class Config:
     """Configuration for app."""
 
     DEBUG_STRING = os.getenv('MASU_DEBUG', 'False')
@@ -34,7 +34,7 @@ class Config(object):
     DB_USER = os.getenv('DATABASE_USER', 'postgres')
     DB_PASSWORD = os.getenv('DATABASE_PASSWORD', 'postgres')
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
-    DB_PORT = os.getenv('DATABASE_PORT', 15432)
+    DB_PORT = os.getenv('DATABASE_PORT', '15432')
 
     SQLALCHEMY_DATABASE_URI = \
         f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
@@ -49,7 +49,7 @@ class Config(object):
 
     # Koku Connectivity
     KOKU_HOST = os.getenv('KOKU_HOST_ADDRESS', 'localhost')
-    KOKU_PORT = os.getenv('KOKU_PORT', 8000)
+    KOKU_PORT = os.getenv('KOKU_PORT', '8000')
     KOKU_ADMIN_USER = os.getenv('SERVICE_ADMIN_USER', 'admin')
     KOKU_ADMIN_PASS = os.getenv('SERVICE_ADMIN_PASSWORD', 'pass')
     KOKU_ACCESS_PROTOCOL = os.getenv('KOKU_ACCESS_PROTOCOL', 'http')
@@ -83,17 +83,17 @@ class Config(object):
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
     # Toggle to enable/disable scheduled checks for new reports.
-    SCHEDULE_REPORT_CHECKS = os.getenv('SCHEDULE_REPORT_CHECKS', True)
+    SCHEDULE_REPORT_CHECKS = os.getenv('SCHEDULE_REPORT_CHECKS', 'True')
 
     # The interval to scan for new reports.
     REPORT_CHECK_INTERVAL = datetime.timedelta(
-        minutes=int(os.getenv('SCHEDULE_CHECK_INTERVAL', 60)))
+        minutes=int(os.getenv('SCHEDULE_CHECK_INTERVAL', '60')))
 
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
     MASU_DATE_OVERRIDE = os.getenv('MASU_DATE_OVERRIDE')
 
     # Retention policy for the number of months of report data to keep.
-    MASU_RETAIN_NUM_MONTHS = int(os.getenv('MASU_RETAIN_NUM_MONTHS', 3))
+    MASU_RETAIN_NUM_MONTHS = int(os.getenv('MASU_RETAIN_NUM_MONTHS', '3'))
 
     # pylint: disable=fixme
     # TODO: Remove this if/when reporting model files are owned by masu
@@ -101,7 +101,7 @@ class Config(object):
     REPORTING_DECIMAL_PRECISION = 9
 
     # Specify the day of the month for removal of expired report data.
-    REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', 1))
+    REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', '1'))
 
     # Specify the time of the day for removal of expired report data.
     REMOVE_EXPIRED_REPORT_UTC_TIME = os.getenv('REMOVE_EXPIRED_REPORT_UTC_TIME', '00:00')
