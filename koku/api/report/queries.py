@@ -862,7 +862,6 @@ class ReportQueryHandler(object):
 
         total_delta = current_total_sum - prev_total_sum
         try:
-            import pdb; pdb.set_trace()
             total_delta_percent = Decimal(
                 (current_total_sum - prev_total_sum) / prev_total_sum * 100
             )
