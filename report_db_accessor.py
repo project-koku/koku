@@ -328,8 +328,8 @@ class ReportDBAccessor(KokuDBAccess):
         try:
             row_id = query.first().id
         except AttributeError as err:
-            LOG.error(f'Row in {table_name} does not exist in database.')
-            LOG.error(f'Failed row data: {data}')
+            LOG.error('Row in %s does not exist in database.', table_name)
+            LOG.error('Failed row data: %s', data)
             raise err
         else:
             return row_id
@@ -506,11 +506,12 @@ class ReportDBAccessor(KokuDBAccess):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info(f'Updating {table_name} from {start_date} to {end_date}.')
+        LOG.info(f'Updating %s from %s to %s.',
+                 table_name, start_date, end_date)
         self._cursor.execute(daily_sql)
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
-        LOG.info(f'Finished updating {table_name}.')
+        LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date):
@@ -534,11 +535,12 @@ class ReportDBAccessor(KokuDBAccess):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info(f'Updating {table_name} from {start_date} to {end_date}.')
+        LOG.info(f'Updating %s from %s to %s.',
+                 table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
-        LOG.info(f'Finished updating {table_name}.')
+        LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name
     def populate_line_item_aggregate_table(self):
@@ -551,8 +553,8 @@ class ReportDBAccessor(KokuDBAccess):
         agg_sql = agg_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_')
         )
-        LOG.info(f'Updating {table_name}.')
+        LOG.info('Updating %s.', table_name)
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
-        LOG.info(f'Finished updating {table_name}.')
+        LOG.info(f'Finished updating %s.', table_name)
