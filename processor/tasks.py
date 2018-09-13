@@ -126,7 +126,7 @@ def process_report_file(schema_name, report_path, compression, provider):
     """
     _process_report_file(schema_name, report_path, compression, provider)
     start_date = DateAccessor().today().date()
-    LOG.info(f'Queueing update_summary_tables task for {schema_name}')
+    LOG.info('Queueing update_summary_tables task for %s', schema_name)
     update_summary_tables.delay(schema_name, start_date)
 
 
@@ -166,7 +166,8 @@ def update_summary_tables(schema_name, start_date,
     column_map = report_common_db.column_map
     report_common_db.close_session()
     report_db = ReportDBAccessor(schema=schema_name, column_map=column_map)
-    LOG.info(f'Updating report summary tables for {schema_name} from {start_date} to {end_date}')
+    LOG.info('Updating report summary tables for %s from %s to %s',
+             schema_name, start_date, end_date)
     report_db.populate_line_item_daily_table(start_date, end_date)
     report_db.populate_line_item_daily_summary_table(start_date, end_date)
     report_db.populate_line_item_aggregate_table()

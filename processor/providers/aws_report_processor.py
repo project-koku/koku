@@ -30,7 +30,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+from masu.external import GZIP_COMPRESSED
 from masu.processor import ALLOWED_COMPRESSIONS
 from masu.util.common import stringify_json_data
 from masu.util.hash import Hasher
@@ -198,7 +198,6 @@ class AWSReportProcessor:
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
-        return
 
     # pylint: disable=inconsistent-return-statements, no-self-use
     def _get_file_opener(self, compression):
@@ -212,10 +211,9 @@ class AWSReportProcessor:
                 compression and the read mode for the file
 
         """
-        if compression == UNCOMPRESSED:
-            return open, 'r'
-        elif compression == GZIP_COMPRESSED:
+        if compression == GZIP_COMPRESSED:
             return gzip.open, 'rt'
+        return open, 'r'    # assume uncompressed by default
 
     def _save_to_db(self):
         """Save current batch of records to the database."""
@@ -367,7 +365,8 @@ class AWSReportProcessor:
 
         if start in self.processed_report.cost_entries:
             return self.processed_report.cost_entries[start]
-        elif start in self.existing_cost_entry_map:
+
+        if start in self.existing_cost_entry_map:
             return self.existing_cost_entry_map[start]
 
         data = {
@@ -446,7 +445,8 @@ class AWSReportProcessor:
         key = '{term}-{unit}'.format(term=term, unit=unit)
         if key in self.processed_report.pricing:
             return self.processed_report.pricing[key]
-        elif key in self.existing_pricing_map:
+
+        if key in self.existing_pricing_map:
             return self.existing_pricing_map[key]
 
         data = self._get_data_for_table(
@@ -483,7 +483,8 @@ class AWSReportProcessor:
 
         if key in self.processed_report.products:
             return self.processed_report.products[key]
-        elif key in self.existing_product_map:
+
+        if key in self.existing_product_map:
             return self.existing_product_map[key]
 
         data = self._get_data_for_table(

@@ -54,8 +54,10 @@ class AccountsAccessor:
         """
         if self.source_type == 'db':
             return CURAccountsDB()
-        elif self.source_type == 'network':
+
+        if self.source_type == 'network':
             return CURAccountsNetwork()
+
         return None
 
     def get_accounts(self):

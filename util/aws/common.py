@@ -183,7 +183,7 @@ def get_account_alias_from_role_arn(role_arn, session=None):
 
 
 # pylint: disable=too-few-public-methods
-class AwsArn(object):
+class AwsArn:
     """
     Object representing an AWS ARN.
 
