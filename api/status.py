@@ -104,7 +104,7 @@ class ApplicationStatus():
             stats = inspector.stats()
             if not stats:
                 stats = {'Error': CELERY_WORKER_NOT_FOUND}
-        except ConnectionResetError as err:
+        except (ConnectionResetError, TimeoutError) as err:
             stats = {'Error': str(err)}
         finally:
             if conn:
