@@ -28,7 +28,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.models import Customer, Tenant
 from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
 from api.utils import DateHelper
-from reporting.models import (AWSCostEntry,
+from reporting.models import (AWSAccountAlias,
+                              AWSCostEntry,
                               AWSCostEntryBill,
                               AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
@@ -1376,6 +1377,46 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(delta.get('percent'))
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
+
+    def test_execute_query_with_account_alias(self):
+        """Test execute_query when account alias is avaiable."""
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'limit': 2},
+                        'group_by': {'account': ['*']},
+                        'delta': 'month'}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=*&filter[limit]=2&delta=month',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
+        # Run account group_by query and verify that account_alias is not in response.
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+
+        account = data[0].get('accounts')[0].get('values')[0]['account']
+        account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
+        self.assertIsNone(account_alias)
+
+        # Add account alias to the database
+        test_alias = 'myaccount'
+        with tenant_context(self.tenant):
+            alias = AWSAccountAlias(account_id=account, account_alias=test_alias)
+            alias.save()
+
+        # Run query again and verify that account_alias is in response.
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+
+        account = data[0].get('accounts')[0].get('values')[0]['account']
+        account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
+        self.assertEqual(account_alias, test_alias)
+
+        with tenant_context(self.tenant):
+            AWSAccountAlias.objects.all().delete()
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
