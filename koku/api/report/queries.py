@@ -823,7 +823,7 @@ class ReportQueryHandler(object):
         return self._format_query_response()
 
     def add_deltas(self, query_data, query_sum):
-        """Calculate and add cost deltas to a reasult set.
+        """Calculate and add cost deltas to a result set.
 
         Args:
             query_data (list) The existing query data from execute_query
@@ -862,6 +862,7 @@ class ReportQueryHandler(object):
 
         total_delta = current_total_sum - prev_total_sum
         try:
+            import pdb; pdb.set_trace()
             total_delta_percent = Decimal(
                 (current_total_sum - prev_total_sum) / prev_total_sum * 100
             )
@@ -886,6 +887,8 @@ class ReportQueryHandler(object):
         """
         if self.time_scope_value in [-1, -2]:
             date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
         else:
             date_delta = datetime.timedelta(days=10)
 
@@ -920,6 +923,8 @@ class ReportQueryHandler(object):
         """
         if self.time_scope_value in [-1, -2]:
             date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
         else:
             date_delta = datetime.timedelta(days=10)
         # Added deltas for each grouping
