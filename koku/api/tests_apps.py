@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the API apps module."""
+import logging
 from unittest.mock import patch
 
 from django.apps import apps
@@ -23,12 +24,23 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.test import TestCase
 
 from api.apps import ApiConfig as KokuApiConfig
-from api.models import Status
 from koku.env import ENVIRONMENT
 
 
 class AppsModelTest(TestCase):
     """Tests against the apps functions."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up test class."""
+        # remove filters on logging
+        logging.disable(logging.NOTSET)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down test class."""
+        # restore filters on logging
+        logging.disable(logging.CRITICAL)
 
     @patch('api.apps.sys.argv', ['manage.py', 'test'])
     @patch('api.apps.ApiConfig.startup_status')
@@ -84,9 +96,10 @@ class AppsModelTest(TestCase):
 
     def test_startup_status(self):
         """Test the server status startup."""
-        api_config = apps.get_app_config('api')
-        api_config.startup_status()
-        self.assertEqual(Status.objects.count(), 1)
+        with self.assertLogs('api.status.models', level='INFO') as logger:
+            api_config = apps.get_app_config('api')
+            api_config.startup_status()
+            self.assertNotEqual(logger.output, [])
 
     # patching a method called by ApiConfig.ready()
     @patch.object(KokuApiConfig, 'startup_status',
