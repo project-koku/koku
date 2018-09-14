@@ -77,6 +77,7 @@ class Status:
 
     @property
     def api_version(self):
+        """Return the API version."""
         return API_VERSION
 
     def startup(self):

@@ -22,7 +22,6 @@ from api.models import (Customer,
                         ProviderAuthentication,
                         ProviderBillingSource,
                         ResetToken,
-                        Status,
                         User,
                         UserPreference)
 from reporting_common.models import CostUsageReportStatus

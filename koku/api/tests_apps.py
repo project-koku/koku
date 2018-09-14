@@ -24,7 +24,6 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.test import TestCase
 
 from api.apps import ApiConfig as KokuApiConfig
-from api.models import Status
 from koku.env import ENVIRONMENT
 
 
