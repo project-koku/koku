@@ -1301,9 +1301,6 @@ definitions:
           django.utils.six: 1.10.0
           django_filters: 1.0.4
           http.server: '0.6'
-      server_id:
-        type: string
-        example: ff4eb8e4-ddfb-4b66-8e0e-045a244990f3
   TokenIn:
     required:
       - username
