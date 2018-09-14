@@ -209,14 +209,7 @@ class QueryParamSerializer(serializers.Serializer):
         ('none', 'none'),
     )
 
-    # Tuples are (key, display_name)
-    DELTA_CHOICES = (
-        ('day', 'day'),
-        ('month', 'month'),
-        ('year', 'year'),
-    )
-
-    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    delta = serializers.BooleanField(required=False)
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
