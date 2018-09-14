@@ -22,22 +22,17 @@ import os
 import platform
 import subprocess
 import sys
-import uuid
-
-from django.db import models
 
 from api import API_VERSION
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Status(models.Model):
+class Status:
     """A server's status."""
 
-    server_id = models.UUIDField(default=uuid.uuid4,
-                                 editable=False)
-
-    def get_commit(self):  # pylint: disable=R0201
+    @property
+    def commit(self):  # pylint: disable=R0201
         """Collect the build number for the server.
 
         :returns: A build number
@@ -52,21 +47,24 @@ class Status(models.Model):
                 commit_info = commit_info.stdout.decode('utf-8').strip()
         return commit_info
 
-    def get_platform_info(self):  # pylint: disable=R0201
+    @property
+    def platform_info(self):  # pylint: disable=R0201
         """Collect the platform information.
 
         :returns: A dictionary of platform data
         """
         return platform.uname()._asdict()
 
-    def get_python_version(self):  # pylint: disable=R0201
+    @property
+    def python_version(self):  # pylint: disable=R0201
         """Collect the python version information.
 
         :returns: The python version string.
         """
         return sys.version.replace('\n', '')
 
-    def get_modules(self):  # pylint: disable=R0201
+    @property
+    def modules(self):  # pylint: disable=R0201
         """Collect the installed modules.
 
         :returns: A dictonary of module names and versions.
@@ -77,11 +75,9 @@ class Status(models.Model):
                 module_data[str(name)] = str(module.__version__)
         return module_data
 
-    commit = property(get_commit)
-    platform_info = property(get_platform_info)
-    python_version = property(get_python_version)
-    modules = property(get_modules)
-    api_version = API_VERSION
+    @property
+    def api_version(self):
+        return API_VERSION
 
     def startup(self):
         """Log startup information."""
@@ -99,5 +95,4 @@ class Status(models.Model):
         else:
             logger.info('Modules: None')
         logger.info('Commit: %s', self.commit)
-        logger.info('Server Id: %s', self.server_id)
         logger.info('API Version: %s', self.api_version)
