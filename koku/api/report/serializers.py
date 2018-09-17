@@ -88,8 +88,6 @@ class GroupBySerializer(serializers.Serializer):
                                 required=False)
     avail_zone = StringOrListField(child=serializers.CharField(),
                                    required=False)
-    delta = StringOrListField(child=serializers.CharField(),
-                              required=False)
     instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     region = StringOrListField(child=serializers.CharField(),
