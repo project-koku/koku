@@ -168,15 +168,13 @@ class QueryFilterCollection(object):
 
         """
         error_message = 'query_filter can not be defined with other parameters'
+        if query_filter and (table or field or operation or parameter):
+            raise AttributeError(error_message)
 
         if query_filter:
-            if (table or field or operation or parameter):
-                raise AttributeError(error_message)
             self._filters.append(query_filter)
 
         if (table or field or operation or parameter):
-            if query_filter:
-                raise AttributeError(error_message)
             qf = QueryFilter(table=table, field=field, operation=operation,
                              parameter=parameter)
             self._filters.append(qf)
