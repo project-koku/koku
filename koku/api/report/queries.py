@@ -20,9 +20,10 @@ import datetime
 import logging
 import re
 from collections import OrderedDict, UserDict
-from decimal import Decimal, DivisionByZero
+from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
+from dateutil import relativedelta
 from django.db.models import (F,
                               Sum,
                               Value,
@@ -236,6 +237,7 @@ class ReportQueryHandler(object):
         self._limit = self.get_query_param_data('filter', 'limit')
         self._get_timeframe()
         self.units_key = units_key
+        self.query_delta = {'value': None, 'percent': None}
 
         self.account_aliases = {}
 
@@ -384,10 +386,12 @@ class ReportQueryHandler(object):
 
         if self.resolution == 'monthly':
             self.date_to_string = lambda dt: dt.strftime('%Y-%m')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
             self.date_trunc = TruncMonthString
             self.gen_time_interval = DateHelper().list_months
         else:
             self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
             self.date_trunc = TruncDayString
             self.gen_time_interval = DateHelper().list_days
 
@@ -772,6 +776,16 @@ class ReportQueryHandler(object):
 
             query_data = query_data.order_by(*query_order_by)
 
+            if query.exists():
+                units_value = query.values(self.units_key).first().get(self.units_key)
+                query_sum = self.calculate_total(units_value)
+
+            if self._delta:
+                query_data = self.add_deltas(
+                    query_data,
+                    query_sum
+                )
+
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
             if is_csv_output:
                 if self._limit:
@@ -782,15 +796,6 @@ class ReportQueryHandler(object):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-            if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
-                query_sum = self.calculate_total(units_value)
-
-            if self._delta:
-                self.query_delta = self.calculate_delta(self._delta,
-                                                        query,
-                                                        query_sum,
-                                                        **self.query_filter)
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
@@ -826,75 +831,131 @@ class ReportQueryHandler(object):
                 units_value = query.values(self.units_key).first().get(self.units_key)
                 query_sum = self.calculate_total(units_value)
 
-            if self._delta:
-                self.query_delta = self.calculate_delta(self._delta,
-                                                        query,
-                                                        query_sum,
-                                                        **self.query_filter)
-
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
 
-    def calculate_delta(self, delta, query, query_sum, **kwargs):
-        """Calculate cost deltas.
+    def add_deltas(self, query_data, query_sum):
+        """Calculate and add cost deltas to a result set.
 
         Args:
-            delta (String) 'day', 'month', or 'year'
-            query (Query) the original query being compared
+            query_data (list) The existing query data from execute_query
+            query_sum (list) The sum returned by calculate_totals
 
         Returns:
-            (dict) with keys "value" and "percent"
+            (dict) query data with new with keys "value" and "percent"
 
         """
-        delta_filter = copy.deepcopy(kwargs)
+        delta_filter = copy.deepcopy(self.query_filter)
+        delta_group_by = ['date'] + self._get_group_by()
+        previous_query = self._create_previous_query(delta_filter)
+        previous_dict = self._create_previous_totals(
+            previous_query,
+            delta_group_by
+        )
 
-        # get delta date range
-        _start = kwargs.get('usage_start__gte')
-        _end = kwargs.get('usage_end__lte')
+        for row in query_data:
+            key = tuple((row[key] for key in delta_group_by))
+            previous_total = previous_dict.get(key, 0)
+            current_total = row.get('total', 0)
+
+            delta_value = current_total - previous_total
+            try:
+                delta_percent = Decimal(
+                    (current_total - previous_total) / previous_total * 100
+                )
+            except (DivisionByZero, ZeroDivisionError, InvalidOperation):
+                delta_percent = Decimal(0)
+            row['delta_value'] = delta_value
+            row['delta_percent'] = delta_percent
+        # Calculate the delta on the total aggregate
+        current_total_sum = Decimal(query_sum.get('value') or 0)
+        prev_total_sum = previous_query.aggregate(value=Sum(self.aggregate_key))
+        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
+
+        total_delta = current_total_sum - prev_total_sum
+        try:
+            total_delta_percent = Decimal(
+                (current_total_sum - prev_total_sum) / prev_total_sum * 100
+            )
+        except (DivisionByZero, ZeroDivisionError, InvalidOperation):
+                total_delta_percent = Decimal(0)
+
+        self.query_delta = {
+            'value': total_delta,
+            'percent': total_delta_percent
+        }
+
+        return query_data
+
+    def _create_previous_query(self, delta_filter):
+        """Get totals from the time period previous to the current report.
+
+        Args:
+            delta_filter (dict): A copy of the report filters
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
+
+        """
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
+        else:
+            date_delta = datetime.timedelta(days=10)
+
+        _start = delta_filter.get('usage_start__gte')
+        _end = delta_filter.get('usage_end__lte')
         if self.is_sum:
             # Override as summary table is date based, not timestamp
-            _end = kwargs.get('usage_start__lte')
+            _end = delta_filter.get('usage_start__lte')
 
-        if delta == 'day':
-            previous = datetime.timedelta(days=1)
-        elif delta == 'month':
-            dh = DateHelper()
-            last_month = dh.days_in_month(_start.replace(day=1) - dh.one_day)
-            previous = datetime.timedelta(days=last_month)
-        elif delta == 'year':
-            previous = datetime.timedelta(days=365)
-        else:
-            # paranoia.
-            raise NotImplementedError(f'invalid parameter: {delta}')
-
-        delta_filter['usage_start__gte'] = _start - previous
+        delta_filter['usage_start__gte'] = _start - date_delta
 
         if self.is_sum:
-            delta_filter['usage_start__lte'] = _end - previous
-            # construct new query
-            delta_query = AWSCostEntryLineItemDailySummary.objects.filter(
+            delta_filter['usage_start__lte'] = _end - date_delta
+            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
                 **delta_filter
             )
         else:
-            delta_filter['usage_end__lte'] = _end - previous
-            delta_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+            delta_filter['usage_end__lte'] = _end - date_delta
+            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
 
-        # get aggregate sum from query
-        delta_sum = delta_query.aggregate(value=Sum(self.aggregate_key))
+        return previous_query
 
-        # calculate percentage difference: ((total - delta_total) / delta_total * 100)
-        q_sum = Decimal(query_sum.get('value') or 0)
-        d_sum = Decimal(delta_sum.get('value') or 0)
-        d_value = q_sum - d_sum
+    def _create_previous_totals(self, previous_query, query_group_by):
+        """Get totals from the time period previous to the current report.
 
-        try:
-            d_percent = (q_sum - d_sum) / d_sum * Decimal(100)
-        except DivisionByZero:
-            d_percent = Decimal(0)
+        Args:
+            previous_query (Query): A Django ORM query
+            query_group_by (dict): The group by dict for the current report
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
 
-        query_delta = {'value': d_value, 'percent': d_percent}
-        return query_delta
+        """
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
+        else:
+            date_delta = datetime.timedelta(days=10)
+        # Added deltas for each grouping
+        # e.g. date, account, region, availability zone, et cetera
+        query_annotations = self._get_annotations()
+        previous_sums = previous_query.annotate(**query_annotations)
+        previous_sums = previous_sums\
+            .values(*query_group_by)\
+            .annotate(total=Sum(self.aggregate_key))
+
+        previous_dict = {}
+        for row in previous_sums:
+            date = self.string_to_date(row['date'])
+            date = date + date_delta
+            row['date'] = self.date_to_string(date)
+            key = tuple((row[key] for key in query_group_by))
+            previous_dict[key] = row['total']
+
+        return previous_dict
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.

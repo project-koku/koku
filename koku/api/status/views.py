@@ -42,7 +42,6 @@ def status(request):
     @apiSuccess {Object} platform_info  The server platform information.
     @apiSuccess {String} python_version  The version of python on the server.
     @apiSuccess {String} server_address  The address of the server.
-    @apiSuccess {String} server_id  The uuid of the server.
     @apiSuccessExample {json} Success-Response:
         HTTP/1.1 200 OK
         {
@@ -70,11 +69,10 @@ def status(request):
                 "django.utils.six": "1.10.0",
                 "django_filters": "1.0.4",
                 "http.server": "0.6"
-                },
-            "server_id": "ff4eb8e4-ddfb-4b66-8e0e-045a244990f3"
+                }
         }
     """
-    status_info = Status.objects.first()
+    status_info = Status()
     serializer = StatusSerializer(status_info)
     server_info = serializer.data
     server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')

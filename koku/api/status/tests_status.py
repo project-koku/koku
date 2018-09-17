@@ -35,6 +35,7 @@ class StatusModelTest(TestCase):
         """Test Class setup."""
         # remove filters on logging
         logging.disable(logging.NOTSET)
+        cls.status_info = Status()
 
     @classmethod
     def tearDownClass(cls):
@@ -44,15 +45,8 @@ class StatusModelTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
+        super().setUp()
         Tenant.objects.get_or_create(schema_name='public')
-
-        self.status_info = None
-        status_count = Status.objects.count()
-        if status_count == 0:
-            self.status_info = Status.objects.create()
-            self.status_info.save()
-        else:
-            self.status_info = Status.objects.get(pk=1)
 
     @patch('os.environ')
     def test_commit_with_env(self, mock_os):
@@ -126,15 +120,8 @@ class StatusViewTest(TestCase):
 
     def setUp(self):
         """Create test case setup."""
+        super().setUp()
         Tenant.objects.get_or_create(schema_name='public')
-
-        self.status_info = None
-        status_count = Status.objects.count()
-        if status_count == 0:
-            self.status_info = Status.objects.create()
-            self.status_info.save()
-        else:
-            self.status_info = Status.objects.get(pk=1)
 
     def test_status_endpoint(self):
         """Test the status endpoint."""
