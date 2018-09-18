@@ -51,6 +51,17 @@ class ProviderDBAccessor(KokuDBAccess):
         obj = self.get_session().query(self._provider).filter_by(uuid=self._uuid)
         return obj
 
+    def commit(self):
+        """
+        Commit pending database changes.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        self._session.commit()
+
     def get_uuid(self):
         """
         Return the provider uuid.
@@ -119,6 +130,30 @@ class ProviderDBAccessor(KokuDBAccess):
         billing_source_id = obj.billing_source_id
         billing_accessor = ProviderBillingSourceDBAccessor(billing_source_id)
         return billing_accessor.get_bucket()
+
+    def get_setup_complete(self):
+        """
+        Return whether or not a report has been processed.
+
+        Args:
+            None
+        Returns:
+            (Boolean): "True if a report has been processed for the provider.",
+        """
+        obj = self._get_db_obj_query().first()
+        return obj.setup_complete
+
+    def setup_complete(self):
+        """
+        Convinence method to set setup_complete to True.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        obj = self._get_db_obj_query().first()
+        obj.setup_complete = True
 
     def get_customer_uuid(self):
         """
