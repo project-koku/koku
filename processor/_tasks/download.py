@@ -20,6 +20,7 @@ import psutil
 from celery.utils.log import get_task_logger
 
 from masu.config import Config
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.exceptions import MasuProcessingError, MasuProviderError
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
@@ -32,6 +33,7 @@ def _get_report_files(customer_name,
                       authentication,
                       billing_source,
                       provider_type,
+                      provider_uuid,
                       report_name=None):
     """
     Task to download a Report.
@@ -45,6 +47,7 @@ def _get_report_files(customer_name,
                                     in the backend provider.
         report_source     (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
+        provider_uuid     (String): Provider uuid.
         report_name       (String): Name of the cost usage report to download.
 
     Returns:
@@ -53,15 +56,26 @@ def _get_report_files(customer_name,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
+    provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
+    reports_processed = provider_accessor.get_setup_complete()
+    provider_accessor.close_session()
+
+    if Config.INGEST_OVERRIDE or not reports_processed:
+        number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
+    else:
+        number_of_months = 1
+
     stmt = ('Downloading report for'
             ' credential: {},'
             ' source: {},'
             ' customer_name: {},'
-            ' provider: {}')
+            ' provider: {},'
+            ' number_of_months: {}')
     log_statement = stmt.format(authentication,
                                 billing_source,
                                 customer_name,
-                                provider_type)
+                                provider_type,
+                                number_of_months)
     LOG.info(log_statement)
     try:
         disk = psutil.disk_usage(Config.TMP_DIR)
@@ -76,7 +90,7 @@ def _get_report_files(customer_name,
                                       report_source=billing_source,
                                       provider_type=provider_type,
                                       report_name=report_name)
-        return downloader.get_current_report()
+        return downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         LOG.error(str(err))
         raise err

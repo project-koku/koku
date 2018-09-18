@@ -105,3 +105,9 @@ class Config:
 
     # Specify the time of the day for removal of expired report data.
     REMOVE_EXPIRED_REPORT_UTC_TIME = os.getenv('REMOVE_EXPIRED_REPORT_UTC_TIME', '00:00')
+
+    # Specify the number of months (bills) to ingest
+    INITIAL_INGEST_NUM_MONTHS = int(os.getenv('INITIAL_INGEST_NUM_MONTHS', '2'))
+
+    # Override the initial ingest requirement to allow INITIAL_INGEST_NUM_MONTHS
+    INGEST_OVERRIDE = False if os.getenv('INITIAL_INGEST_OVERRIDE', 'False') == 'False' else True

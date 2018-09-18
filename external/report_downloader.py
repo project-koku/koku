@@ -16,7 +16,10 @@
 #
 """Provider external interface for koku to consume."""
 
+from dateutil.relativedelta import relativedelta
+
 from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 
@@ -75,19 +78,23 @@ class ReportDownloader:
 
         return None
 
-    def get_current_report(self):
+    def get_reports(self, number_of_months=1):
         """
-        Download the current cost usage report.
+        Download cost usage reports.
 
         Args:
-            None
+            (Int) Number of monthly reports to download.
 
         Returns:
             (List) List of filenames downloaded.
 
         """
+        reports = []
         try:
-            files = self._downloader.download_current_report()
+            current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+            for month in reversed(range(number_of_months)):
+                calculated_month = current_month + relativedelta(months=-month)
+                reports = reports + self._downloader.download_report(calculated_month)
         except Exception as err:
             raise ReportDownloaderError(str(err))
-        return files
+        return reports
