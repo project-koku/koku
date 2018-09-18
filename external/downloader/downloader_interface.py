@@ -24,18 +24,15 @@ class DownloaderInterface(ABC):
     """Masu interface definition to download cost usage reports."""
 
     @abstractmethod
-    def download_current_report(self):
+    def download_report(self, date_time):
         """
-        Download the current cost usage report.
-
-        Implemented by a downloader class.  Must return a list of
-        full path of CUR files that are part of the cost usage report.
+        Download CUR for a given date.
 
         Args:
-            None
+            date_time (DateTime): The starting datetime object
 
         Returns:
-            (List) List of full local file paths to CUR files.
+            ([{}]) List of dictionaries containing file path, bill start date and compression.
 
         """
         pass

@@ -50,7 +50,8 @@ class CURAccountsDB(CURAccountsInterface):
                 'billing_source': provider_accessor.get_billing_source(),
                 'customer_name': provider_accessor.get_customer_name(),
                 'provider_type': provider_accessor.get_type(),
-                'schema_name': provider_accessor.get_schema()
+                'schema_name': provider_accessor.get_schema(),
+                'provider_uuid': provider_accessor.get_uuid()
             })
             provider_accessor.close_session()
         return accounts

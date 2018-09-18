@@ -30,7 +30,6 @@ from botocore.exceptions import ClientError
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProviderError
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -164,16 +163,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             files.append(file_name)
         return files
 
-    def download_current_report(self):
-        """
-        Read CUR manifest, download current report files.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        return self.download_report(DateAccessor().today())
-
     def download_file(self, key, stored_etag=None):
         """
         Download an S3 object to file.
@@ -241,6 +230,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = self.report.get('Compression')
+            report_dictionary['start_date'] = date_time
 
             cur_reports.append(report_dictionary)
         return cur_reports
