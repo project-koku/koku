@@ -14,11 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Local Report Downloader."""
+"""AWS Local Report Downloader."""
 
 # pylint: skip-file
 # Having trouble disabling the lint warning for duplicate-code (AWSReportDownloader..)
-# Disabling pylint on this file since LocalReportDownloader is a DEBUG feature.
+# Disabling pylint on this file since AWSLocalReportDownloader is a DEBUG feature.
 
 import hashlib
 import json
@@ -38,7 +38,7 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
+class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Local Cost and Usage Report Downloader."""
 
     def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
@@ -164,7 +164,7 @@ class LocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_s3_filename = utils.get_local_file_name(key)
 
-        directory_path = f'{DATA_DIR}/{self.customer_name}/local/{self.bucket}'
+        directory_path = f'{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}'
         full_file_path = f'{directory_path}/{local_s3_filename}'
 
         # Make sure the data directory exists

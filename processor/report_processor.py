@@ -16,7 +16,7 @@
 #
 """Report processor external interface."""
 
-from masu.external import (AMAZON_WEB_SERVICES, LOCAL_SERVICE_PROVIDER)
+from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
 from masu.processor.providers.aws_report_processor import AWSReportProcessor
 
 
@@ -58,7 +58,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
-        if self.provider_type in (AMAZON_WEB_SERVICES, LOCAL_SERVICE_PROVIDER):
+        if self.provider_type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression)
