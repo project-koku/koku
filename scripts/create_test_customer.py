@@ -136,8 +136,8 @@ class KokuCustomerOnboarder:
             print('Created provider billing source')
 
             provider_sql = """
-            INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id)
-                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 2, 1)
+            INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id, setup_complete)
+                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 2, 1, False)
                 ;
             """.format(name=self.customer.get('provider_name'))
 
