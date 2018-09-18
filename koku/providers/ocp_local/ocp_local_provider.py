@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS-local service provider implementation to be used by Koku."""
+"""OCP-local service provider implementation to be used by Koku."""
 import logging
 import os
 
@@ -34,18 +34,18 @@ def error_obj(key, message):
     return error
 
 
-class AWSLocalProvider(ProviderInterface):
+class OCPLocalProvider(ProviderInterface):
     """Provider interface defnition."""
 
     def name(self):
         """Return name of the provider."""
-        return 'AWS-local'
+        return 'OCP-local'
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
         if not os.path.isdir(storage_resource_name):
             key = 'bucket'
             message = 'Bucket {} could not be found with {}.'.format(
-                storage_resource_name, credential_name)
+                storage_resource_name, cluster_id)
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))

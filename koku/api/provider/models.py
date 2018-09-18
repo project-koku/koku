@@ -52,11 +52,17 @@ class Provider(models.Model):
     """
 
     PROVIDER_AWS = 'AWS'
+    PROVIDER_OCP = 'OCP'
     if settings.DEBUG:
         PROVIDER_AWS_LOCAL = 'AWS-local'
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),)
+        PROVIDER_OCP_LOCAL = 'OCP-local'
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                            (PROVIDER_OCP, PROVIDER_OCP),
+                            (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                            (PROVIDER_OCP_LOCAL, PROVIDER_OCP_LOCAL),)
     else:
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                            (PROVIDER_OCP, PROVIDER_OCP),)
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
