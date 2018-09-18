@@ -19,11 +19,13 @@
 # pylint: disable=too-many-arguments, too-many-function-args
 # disabled module-wide due to current state of task signature.
 # we expect this situation to be temporary as we iterate on these details.
+import calendar
 import datetime
 import os
 
 import pytz
 from celery.utils.log import get_task_logger
+from dateutil import parser
 
 from masu.celery import celery
 from masu.database.report_db_accessor import ReportDBAccessor
@@ -43,12 +45,9 @@ def get_report_files(customer_name,
                      billing_source,
                      provider_type,
                      schema_name,
-                     report_name=None):
+                     provider_uuid):
     """
     Task to download a Report.
-
-    Note that report_name will be not optional once Koku can specify
-    what report we should download.
 
     FIXME: A 2 hour timeout is arbitrarily set for in progress processing requests.
     Once we know a realistic processing time for the largest CUR file in production
@@ -61,7 +60,6 @@ def get_report_files(customer_name,
         billing_source    (String): Location of the cost usage report in the backend provider.
         provider_type     (String): Koku defined provider type string.  Example: Amazon = 'AWS'
         schema_name       (String): Name of the DB schema
-        report_name       (String): Name of the cost usage report to download.
 
     Returns:
         files (List) List of filenames with full local path.
@@ -73,7 +71,7 @@ def get_report_files(customer_name,
                                 authentication,
                                 billing_source,
                                 provider_type,
-                                report_name)
+                                provider_uuid)
 
     # initiate chained async task
     LOG.info('Reports to be processed: %s', str(reports))
@@ -102,7 +100,9 @@ def get_report_files(customer_name,
         request = {'schema_name': schema_name,
                    'report_path': report_dict.get('file'),
                    'compression': report_dict.get('compression'),
-                   'provider': provider_type}
+                   'start_date': report_dict.get('start_date'),
+                   'provider': provider_type,
+                   'provider_uuid': provider_uuid}
         result = process_report_file.delay(**request)
         LOG.info('Processing task queued - File: %s, Task ID: %s',
                  report_dict.get('file'),
@@ -110,7 +110,7 @@ def get_report_files(customer_name,
 
 
 @celery.task(name='masu.processor.tasks.process_report_file', queue_name='process')
-def process_report_file(schema_name, report_path, compression, provider):
+def process_report_file(schema_name, report_path, compression, provider, start_date, provider_uuid):
     """
     Task to process a Report.
 
@@ -119,13 +119,14 @@ def process_report_file(schema_name, report_path, compression, provider):
         report_path (String) path to downloaded reports
         compression (String) 'PLAIN' or 'GZIP'
         provider    (String) provider type
+        start_date  (String) Start date of billing month for file.
+        provider_uuid (String) provider_uuid
 
     Returns:
         None
 
     """
-    _process_report_file(schema_name, report_path, compression, provider)
-    start_date = DateAccessor().today().date()
+    _process_report_file(schema_name, report_path, compression, provider, provider_uuid)
     LOG.info('Queueing update_summary_tables task for %s', schema_name)
     update_summary_tables.delay(schema_name, start_date)
 
@@ -153,15 +154,21 @@ def update_summary_tables(schema_name, start_date,
     """Populate the summary tables for reporting.
 
     Args:
-        start_date (datetime.date) The date to start populating the table.
-        end_date (datetime.date) The date to end on.
+        start_date (String) The date to start populating the table.
+        end_date   (String) The date to end on.
 
     Returns
         None
 
     """
+    start_date = parser.parse(start_date)
+    end_date = parser.parse(end_date) if end_date else None
+
     if end_date is None:
-        end_date = DateAccessor().today().date()
+        last_day_of_month = calendar.monthrange(start_date.year, start_date.month)[1]
+        end_date = datetime.datetime(year=start_date.year,
+                                     month=start_date.month,
+                                     day=last_day_of_month)
     report_common_db = ReportingCommonDBAccessor()
     column_map = report_common_db.column_map
     report_common_db.close_session()

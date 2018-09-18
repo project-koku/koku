@@ -29,7 +29,6 @@ import shutil
 
 from masu.config import Config
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -141,16 +140,6 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                                  self.report_name,
                                  report_date_range)
 
-    def download_current_report(self):
-        """
-        Read CUR manifest, download current report files.
-
-        Returns:
-            (List) List of filenames downloaded.
-
-        """
-        return self.download_report(DateAccessor().today())
-
     def download_file(self, key, stored_etag=None):
         """
         Download an S3 object to file.
@@ -206,6 +195,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = 'GZIP'
+            report_dictionary['start_date'] = date_time
 
             cur_reports.append(report_dictionary)
         return cur_reports

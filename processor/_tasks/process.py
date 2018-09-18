@@ -22,21 +22,23 @@ import psutil
 from celery.utils.log import get_task_logger
 
 import masu.util.remove_temp_files as remove_files
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
 
 LOG = get_task_logger(__name__)
 
 
-def _process_report_file(schema_name, report_path, compression, provider):
+def _process_report_file(schema_name, report_path, compression, provider, provider_uuid):
     """
     Task to process a Report.
 
     Args:
-        schema_name (String) db schema name
-        report_path (String) path to downloaded reports
-        compression (String) 'PLAIN' or 'GZIP'
-        provider    (String) provider type
+        schema_name   (String) db schema name
+        report_path   (String) path to downloaded reports
+        compression   (String) 'PLAIN' or 'GZIP'
+        provider      (String) provider type
+        provider_uuid (String) provider uuid
 
     Returns:
         None
@@ -71,6 +73,11 @@ def _process_report_file(schema_name, report_path, compression, provider):
     stats_recorder.log_last_completed_datetime()
     stats_recorder.commit()
     stats_recorder.close_session()
+
+    provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
+    provider_accessor.setup_complete()
+    provider_accessor.commit()
+    provider_accessor.close_session()
 
     files = remove_files.remove_temp_cur_files(path.dirname(report_path))
     LOG.info('Temporary files removed: %s', str(files))
