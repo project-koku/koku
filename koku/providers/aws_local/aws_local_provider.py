@@ -34,7 +34,7 @@ def error_obj(key, message):
     return error
 
 
-class LocalProvider(ProviderInterface):
+class AWSLocalProvider(ProviderInterface):
     """Provider interface defnition."""
 
     def name(self):

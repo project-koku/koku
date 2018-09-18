@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from providers.aws.aws_provider import AWSProvider
-from providers.local.local_provider import LocalProvider
+from providers.aws_local.aws_local_provider import AWSLocalProvider
 from providers.provider_access import ProviderAccessor
 
 
@@ -41,12 +41,12 @@ class ProviderAccessorTestCase(TestCase):
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
 
-    def test_establish_local_provider(self):
-        """Verify that a local provider is created."""
-        provider_name = 'Local'
+    def test_establish_aws_local_provider(self):
+        """Verify that AWS local provider is created."""
+        provider_name = 'AWS-local'
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
-        self.assertTrue(isinstance(interface.service, LocalProvider))
+        self.assertTrue(isinstance(interface.service, AWSLocalProvider))
 
     def test_establish_invalid_provider(self):
         """Verify that an invalid service is created."""

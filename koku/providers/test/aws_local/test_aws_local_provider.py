@@ -14,18 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Tests the LocalProvider implementation for the Koku interface."""
+"""Tests the AWSLocalProvider implementation for the Koku interface."""
 
 import os
 import tempfile
 
 from django.test import TestCase
-from providers.local.local_provider import LocalProvider
+from providers.aws_local.aws_local_provider import AWSLocalProvider
 from rest_framework.exceptions import ValidationError
 
 
-class LocalProviderTestCase(TestCase):
-    """Parent Class for LocalProvider test cases."""
+class AWSLocalProviderTestCase(TestCase):
+    """Parent Class for AWSLocalProvider test cases."""
 
     def setUp(self):
         """Create test case objects."""
@@ -38,7 +38,7 @@ class LocalProviderTestCase(TestCase):
 
     def test_get_name(self):
         """Get name of provider."""
-        provider = LocalProvider()
+        provider = AWSLocalProvider()
         self.assertEqual(provider.name(), 'Local')
 
     def test_cost_usage_source_is_reachable(self):
@@ -46,7 +46,7 @@ class LocalProviderTestCase(TestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = self.cur_source
 
-        provider_interface = LocalProvider()
+        provider_interface = AWSLocalProvider()
 
         try:
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
@@ -58,7 +58,7 @@ class LocalProviderTestCase(TestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = '/bogus/path/'
 
-        provider_interface = LocalProvider()
+        provider_interface = AWSLocalProvider()
 
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
