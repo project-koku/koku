@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import random
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import (CharField, Count, DateField, IntegerField, Max,
@@ -464,14 +466,17 @@ class ReportQueryTest(IamTestCase):
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
                            data_start=DateHelper().yesterday,
-                           data_end=DateHelper().today):
+                           data_end=DateHelper().today,
+                           account_id=None):
         """Populate tenant with data."""
-        payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-        self.payer_account_id = payer_account_id
+        self.payer_account_id = account_id
+        if account_id is None:
+            payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+            self.payer_account_id = payer_account_id
 
         with tenant_context(self.tenant):
             cost = rate * amount
-            bill = self._create_bill(payer_account_id, bill_start, bill_end)
+            bill = self._create_bill(self.payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
             ce_pricing = self._create_pricing()
 
@@ -480,7 +485,7 @@ class ReportQueryTest(IamTestCase):
                 if current.month == DateHelper().this_month_start.month:
                     self.current_month_total += cost
                 end_hour = current + DateHelper().one_hour
-                self.create_hourly_instance_usage(payer_account_id, bill,
+                self.create_hourly_instance_usage(self.payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
                                                   cost, current, end_hour)
                 current = end_hour
@@ -1285,7 +1290,6 @@ class ReportQueryTest(IamTestCase):
         # account ids and products
         with tenant_context(self.tenant):
             line_items = AWSCostEntryLineItem.objects.values()
-            print(AWSCostEntryLineItem.objects.count())
             first = line_items[0]
             payer_account_id = first.get('usage_account_id')
             bill = self._create_bill(payer_account_id, bill_start, bill_end)
@@ -1378,6 +1382,65 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
+    def test_execute_query_orderby_delta(self):
+        """Test execute_query with ordering by delta ascending."""
+        account_id = self.payer_account_id
+        kwargs = {'account_id': account_id,
+                  'bill_start': DateHelper().last_month_start,
+                  'bill_end': DateHelper().last_month_end,
+                  'data_start': DateHelper().last_month_start,
+                  'data_end': DateHelper().last_month_start + timedelta(days=1)}
+
+        for _ in range(0, random.randint(3, 5)):
+            # add some current data.
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=account_id)
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=account_id)
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=account_id)
+
+            # add some past data.
+            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
+            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
+            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
+
+            # create another account id for the next loop
+            account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+            kwargs['account_id'] = account_id
+
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'order_by': {'delta': 'asc'},
+                        'group_by': {'account': ['*']},
+                        'delta': True}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=*&order_by[delta]=asc&delta=True',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('accounts')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            current_delta = Decimal(-9000)
+            for month_item in month_data:
+                self.assertIsInstance(month_item.get('account'), str)
+                self.assertIsInstance(month_item.get('values'), list)
+                self.assertIsNotNone(month_item.get('values')[0].get('delta_percent'))
+                data_point_delta = month_item.get('values')[0].get('delta_percent')
+                self.assertLessEqual(current_delta, data_point_delta)
+                current_delta = data_point_delta
+
     def test_execute_query_with_account_alias(self):
         """Test execute_query when account alias is avaiable."""
         query_params = {'filter':
@@ -1441,3 +1504,9 @@ class ReportQueryTest(IamTestCase):
 
         self.assertEqual(result.get('value'), self.current_month_total)
         self.assertEqual(result.get('units'), expected_units)
+
+    def test_percent_delta(self):
+        """Test _percent_delta() utility method."""
+        args = [{}, '', self.tenant, 'unblended_cost', 'currency_code']
+        rqh = ReportQueryHandler(*args, **{'report_type': 'costs'})
+        self.assertEqual(rqh._percent_delta(10, 5), 100)
