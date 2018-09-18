@@ -511,9 +511,9 @@ class ReportQueryHandler(object):
         region_filter = QueryFilter(table=cep_table, field='region', operation='in')
 
         start_filter = QueryFilter(table='usage_start', operation='gte',
-                                    parameter=self.start_datetime)
+                                   parameter=self.start_datetime)
         end_filter = QueryFilter(table='usage_end', operation='lte',
-                                    parameter=self.end_datetime)
+                                 parameter=self.end_datetime)
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
 
