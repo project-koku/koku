@@ -96,3 +96,20 @@ class ProviderDBAccessorTest(MasuTestCase):
         accessor = ProviderDBAccessor(uuid)
         self.assertEqual(expected_schema, accessor.get_schema())
         accessor.close_session()
+
+    def test_get_setup_complete(self):
+        """Test provider setup_complete getter."""
+        uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
+        accessor = ProviderDBAccessor(uuid)
+        self.assertEqual(False, accessor.get_setup_complete())
+        accessor.close_session()
+
+    def test_setup_complete(self):
+        """Test provider setup_complete method."""
+        uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
+        accessor = ProviderDBAccessor(uuid)
+        accessor.setup_complete()
+        accessor.commit()
+        self.assertEqual(True, accessor.get_setup_complete())
+
+        accessor.close_session()
