@@ -16,9 +16,9 @@
 #
 """Provider external interface for koku to consume."""
 
-from masu.external import (AMAZON_WEB_SERVICES, LOCAL_SERVICE_PROVIDER)
+from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
-from masu.external.downloader.local.local_report_downloader import LocalReportDownloader
+from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 
 
 class ReportDownloaderError(Exception):
@@ -67,11 +67,11 @@ class ReportDownloader:
                                        bucket=self.cur_source,
                                        report_name=self.report_name)
 
-        if self.provider_type == LOCAL_SERVICE_PROVIDER:
-            return LocalReportDownloader(customer_name=self.customer_name,
-                                         auth_credential=self.credential,
-                                         bucket=self.cur_source,
-                                         report_name=self.report_name)
+        if self.provider_type == AWS_LOCAL_SERVICE_PROVIDER:
+            return AWSLocalReportDownloader(customer_name=self.customer_name,
+                                            auth_credential=self.credential,
+                                            bucket=self.cur_source,
+                                            report_name=self.report_name)
 
         return None
 
