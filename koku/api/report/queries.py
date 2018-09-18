@@ -510,17 +510,10 @@ class ReportQueryHandler(object):
 
         region_filter = QueryFilter(table=cep_table, field='region', operation='in')
 
-        if self.is_sum:
-            # Summary table is already wrapped up at the date level
-            start_filter = QueryFilter(table='usage_start', operation='gte',
-                                       parameter=self.start_datetime.date())
-            end_filter = QueryFilter(table='usage_start', operation='lte',
-                                     parameter=self.end_datetime.date())
-        else:
-            start_filter = QueryFilter(table='usage_start', operation='gte',
-                                       parameter=self.start_datetime)
-            end_filter = QueryFilter(table='usage_end', operation='lte',
-                                     parameter=self.end_datetime)
+        start_filter = QueryFilter(table='usage_start', operation='gte',
+                                    parameter=self.start_datetime)
+        end_filter = QueryFilter(table='usage_end', operation='lte',
+                                    parameter=self.end_datetime)
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
 
@@ -917,19 +910,15 @@ class ReportQueryHandler(object):
 
         _start = delta_filter.get('usage_start__gte')
         _end = delta_filter.get('usage_end__lte')
-        if self.is_sum:
-            # Override as summary table is date based, not timestamp
-            _end = delta_filter.get('usage_start__lte')
 
         delta_filter['usage_start__gte'] = _start - date_delta
+        delta_filter['usage_end__lte'] = _end - date_delta
 
         if self.is_sum:
-            delta_filter['usage_start__lte'] = _end - date_delta
             previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
                 **delta_filter
             )
         else:
-            delta_filter['usage_end__lte'] = _end - date_delta
             previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
 
         return previous_query
