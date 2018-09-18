@@ -52,7 +52,7 @@ class ApiConfig(AppConfig):
         """Log the status of the server at startup."""
         # noqa: E402 pylint: disable=C0413
         from api.status.models import Status
-        status_info, _ = Status.objects.get_or_create()
+        status_info = Status()
 
         status_info.startup()
 

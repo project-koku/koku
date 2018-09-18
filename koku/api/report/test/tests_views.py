@@ -438,3 +438,32 @@ class ReportViewTest(IamTestCase):
         result = _fill_in_missing_units(expected_unit)(data)
 
         self.assertEqual(result.get('units'), expected_unit)
+
+    def test_execute_query_w_delta_true(self):
+        """Test that delta=True returns deltas."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        qs = 'delta=True'
+        url = reverse('reports-costs') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        qs = 'delta=False'
+        url = reverse('reports-costs') + '?' + qs
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_w_delta_bad_choice(self):
+        """Test invalid delta value."""
+        token = self.get_customer_owner_token(self.customer_data[0])
+        bad_delta = 'Invalid'
+        expected = f'"{bad_delta}" is not a valid boolean.'
+        qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
+        url = reverse('reports-costs') + '?' + qs
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=token)
+        response = client.get(url)
+        result = str(response.data.get('delta')[0])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(result, expected)

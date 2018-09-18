@@ -28,7 +28,8 @@ Creating an IAM Policy
 
 #. Browse to the *Policies* tab.
 #. Choose *Create Policy*.
-#. Select the *JSON* tab and past the following JSON policy into the editor replacing *bucket_name* with the S3 bucket thas was configured in the `Configuring an Amazon Account for Cost & Usage Reporting`_ section.
+#. Select the *JSON* tab and past the following JSON policy into the editor replacing *bucket_name* with the S3 bucket that was configured in the `Configuring an Amazon Account for Cost & Usage Reporting`_ section.
+#. Including Action `iam:ListAccountAliases` will allow Koku to display the AWS account alias rather than the account id.
 
 
 ::
@@ -55,6 +56,7 @@ Creating an IAM Policy
                   "organizations:List*",
                   "organizations:Describe*",
                   "s3:ListAllMyBuckets",
+                  "iam:ListAccountAliases",
                   "s3:HeadBucket",
                   "cur:DescribeReportDefinitions"
               ],

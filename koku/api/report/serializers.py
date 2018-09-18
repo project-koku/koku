@@ -86,14 +86,14 @@ class GroupBySerializer(serializers.Serializer):
 
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
-    instance_type = StringOrListField(child=serializers.CharField(),
-                                      required=False)
-    service = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    region = StringOrListField(child=serializers.CharField(),
-                               required=False)
     avail_zone = StringOrListField(child=serializers.CharField(),
                                    required=False)
+    instance_type = StringOrListField(child=serializers.CharField(),
+                                      required=False)
+    region = StringOrListField(child=serializers.CharField(),
+                               required=False)
+    service = StringOrListField(child=serializers.CharField(),
+                                required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
 
@@ -117,6 +117,8 @@ class OrderBySerializer(serializers.Serializer):
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
     cost = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
     inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
                                         required=False)
 
@@ -209,14 +211,7 @@ class QueryParamSerializer(serializers.Serializer):
         ('none', 'none'),
     )
 
-    # Tuples are (key, display_name)
-    DELTA_CHOICES = (
-        ('day', 'day'),
-        ('month', 'month'),
-        ('year', 'year'),
-    )
-
-    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    delta = serializers.BooleanField(required=False)
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
