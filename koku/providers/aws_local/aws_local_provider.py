@@ -39,7 +39,7 @@ class AWSLocalProvider(ProviderInterface):
 
     def name(self):
         """Return name of the provider."""
-        return 'Local'
+        return 'AWS-local'
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""

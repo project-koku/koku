@@ -39,7 +39,7 @@ class AWSLocalProviderTestCase(TestCase):
     def test_get_name(self):
         """Get name of provider."""
         provider = AWSLocalProvider()
-        self.assertEqual(provider.name(), 'Local')
+        self.assertEqual(provider.name(), 'AWS-local')
 
     def test_cost_usage_source_is_reachable(self):
         """Verify that the cost usage source is authenticated and created."""
