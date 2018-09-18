@@ -71,7 +71,7 @@ class Provider(models.Model):
                                  on_delete=models.CASCADE)
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
-    report_processed = models.BooleanField(default=False)
+    setup_complete = models.BooleanField(default=False)
 
     class Meta:
         """Metadata for the model."""
