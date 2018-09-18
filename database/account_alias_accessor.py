@@ -74,7 +74,7 @@ class AccountAliasAccessor(KokuDBAccess):
             None
 
         """
-        new_entry = self._account_alias(account_id=account_id)
+        new_entry = self._account_alias(account_id=account_id, account_alias=account_id)
         self._session.add(new_entry)
 
     def set_account_alias(self, alias):
