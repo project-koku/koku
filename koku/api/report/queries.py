@@ -613,7 +613,12 @@ class ReportQueryHandler(object):
                                                              grouped)
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
-                out_data[key].update(grouped)
+                group_key = list(grouped)[0]
+                group_values = grouped[group_key]
+                if isinstance(datapoint.get(group_key), list):
+                    datapoint[group_key].append(group_values)
+                else:
+                    datapoint[group_key] = group_values
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
             else:
