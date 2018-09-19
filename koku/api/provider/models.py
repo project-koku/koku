@@ -53,8 +53,8 @@ class Provider(models.Model):
 
     PROVIDER_AWS = 'AWS'
     if settings.DEBUG:
-        PROVIDER_LOCAL = 'Local'
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_LOCAL, PROVIDER_LOCAL),)
+        PROVIDER_AWS_LOCAL = 'AWS-local'
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),)
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
 
@@ -71,6 +71,7 @@ class Provider(models.Model):
                                  on_delete=models.CASCADE)
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
+    setup_complete = models.BooleanField(default=False)
 
     class Meta:
         """Metadata for the model."""
