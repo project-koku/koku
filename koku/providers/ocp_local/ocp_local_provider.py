@@ -45,7 +45,7 @@ class OCPLocalProvider(ProviderInterface):
         """Verify that the cost usage source exists and is reachable."""
         if not os.path.isdir(storage_resource_name):
             key = 'bucket'
-            message = 'Bucket {} could not be found with {}.'.format(
-                storage_resource_name, cluster_id)
+            message = 'Report for cluster {} could not be found at {}.'.format(
+                cluster_id, storage_resource_name)
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
