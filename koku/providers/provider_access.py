@@ -19,7 +19,7 @@
 import logging
 
 from providers.aws.aws_provider import AWSProvider
-from providers.local.local_provider import LocalProvider
+from providers.aws_local.aws_local_provider import AWSLocalProvider
 
 from api.provider.models import Provider
 
@@ -54,8 +54,8 @@ class ProviderAccessor:
         """
         if service_name == 'AWS':
             return AWSProvider()
-        elif service_name == 'Local':
-            return LocalProvider()
+        elif service_name == 'AWS-local':
+            return AWSLocalProvider()
 
     def service_name(self):
         """
