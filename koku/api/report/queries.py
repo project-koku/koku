@@ -25,6 +25,7 @@ from itertools import groupby
 
 from dateutil import relativedelta
 from django.db.models import (F,
+                              Max,
                               Sum,
                               Value,
                               Window)
@@ -613,12 +614,7 @@ class ReportQueryHandler(object):
                                                              grouped)
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
-                group_key = list(grouped)[0]
-                group_values = grouped[group_key]
-                if isinstance(datapoint.get(group_key), list):
-                    datapoint[group_key].append(group_values)
-                else:
-                    datapoint[group_key] = group_values
+                out_data[key].update(grouped)
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
             else:
@@ -753,14 +749,14 @@ class ReportQueryHandler(object):
             query_data = query.annotate(**query_annotations)
 
             query_group_by = ['date'] + self._get_group_by()
-            query_group_by_with_units = query_group_by + ['units']
 
             query_order_by = ('-date', )
             if self.order_field != 'delta':
                 query_order_by += (self.order,)
 
-            query_data = query_data.values(*query_group_by_with_units)\
-                .annotate(total=Sum(self.aggregate_key))
+            query_data = query_data.values(*query_group_by)\
+                .annotate(total=Sum(self.aggregate_key))\
+                .annotate(units=Max(self.units_key))
 
             if self.count:
                 # This is a sum because the summary table already
