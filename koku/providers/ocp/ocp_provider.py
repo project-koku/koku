@@ -41,7 +41,7 @@ class OCPProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
-        # TODO: Add storage_resource_name exitance check once Insights integration is complete.
+        # TODO: Add storage_resource_name existance check once Insights integration is complete.
         message = 'Stub to verify that OCP report for cluster {} could be found at {}.'.format(
                   cluster_id, storage_resource_name)
         LOG.info(message)
