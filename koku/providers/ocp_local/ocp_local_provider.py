@@ -16,7 +16,6 @@
 #
 """OCP-local service provider implementation to be used by Koku."""
 import logging
-import os
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -43,9 +42,13 @@ class OCPLocalProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
-        if not os.path.isdir(storage_resource_name):
+        if storage_resource_name:
             key = 'bucket'
-            message = 'Report for cluster {} could not be found at {}.'.format(
-                cluster_id, storage_resource_name)
+            message = 'Bucket is an invalid parameter for OCP.'
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
+
+        # TODO: Add storage_resource_name existance check once Insights integration is complete.
+        message = 'Stub to verify that OCP-local report for cluster {} is accessible.'.format(
+                  cluster_id)
+        LOG.info(message)

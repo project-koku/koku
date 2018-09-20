@@ -18,6 +18,7 @@
 import logging
 
 from django.utils.translation import ugettext as _
+from rest_framework import serializers
 
 from ..provider_interface import ProviderInterface
 
@@ -41,7 +42,13 @@ class OCPProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
+        if storage_resource_name:
+            key = 'bucket'
+            message = 'Bucket is an invalid parameter for OCP.'
+            LOG.error(message)
+            raise serializers.ValidationError(error_obj(key, message))
+
         # TODO: Add storage_resource_name existance check once Insights integration is complete.
-        message = 'Stub to verify that OCP report for cluster {} could be found at {}.'.format(
-                  cluster_id, storage_resource_name)
+        message = 'Stub to verify that OCP report for cluster {} is accessible.'.format(
+                  cluster_id)
         LOG.info(message)

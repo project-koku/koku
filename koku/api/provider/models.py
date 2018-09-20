@@ -72,7 +72,7 @@ class Provider(models.Model):
     authentication = models.ForeignKey('ProviderAuthentication', null=True,
                                        on_delete=models.CASCADE)
     billing_source = models.ForeignKey('ProviderBillingSource', null=True,
-                                       on_delete=models.CASCADE)
+                                       on_delete=models.CASCADE, blank=True)
     customer = models.ForeignKey('Customer', null=True,
                                  on_delete=models.CASCADE)
     created_by = models.ForeignKey('User', null=True,

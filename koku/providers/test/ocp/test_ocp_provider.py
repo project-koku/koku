@@ -18,6 +18,7 @@
 
 from django.test import TestCase
 from providers.ocp.ocp_provider import OCPProvider
+from rest_framework.serializers import ValidationError
 
 
 class OCPProviderTestCase(TestCase):
@@ -28,10 +29,24 @@ class OCPProviderTestCase(TestCase):
         provider = OCPProvider()
         self.assertEqual(provider.name(), 'OCP')
 
-    def test_cost_usage_source_is_reachable(self):
+    def test_cost_usage_source_is_reachable_bucket_provided(self):
         """Verify that the cost usage source is authenticated and created."""
         cluster_id = 'my-ocp-cluster-1'
         report_source = 'report_location'
 
         provider_interface = OCPProvider()
-        provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+
+    def test_cost_usage_source_is_reachable_no_bucket_provided(self):
+        """Verify that the cost usage source is not authenticated and created with no bucket provided."""
+        cluster_id = 'my-ocp-cluster-1'
+        report_source = None
+
+        provider_interface = OCPProvider()
+
+        try:
+            provider_interface.cost_usage_source_is_reachable(cluster_id, report_source)
+        except Exception:
+            self.fail('Unexpected error ')

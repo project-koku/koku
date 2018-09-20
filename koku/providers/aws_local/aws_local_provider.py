@@ -43,6 +43,11 @@ class AWSLocalProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
+        if not storage_resource_name:
+            key = 'bucket'
+            message = 'Bucket is a required parameter for AWS.'
+            raise serializers.ValidationError(error_obj(key, message))
+
         if not os.path.isdir(storage_resource_name):
             key = 'bucket'
             message = 'Bucket {} could not be found with {}.'.format(

@@ -21,6 +21,8 @@ from unittest.mock import patch
 from django.test import TestCase
 from providers.aws.aws_provider import AWSProvider
 from providers.aws_local.aws_local_provider import AWSLocalProvider
+from providers.ocp.ocp_provider import OCPProvider
+from providers.ocp_local.ocp_local_provider import OCPLocalProvider
 from providers.provider_access import ProviderAccessor
 
 
@@ -35,9 +37,15 @@ class ProviderAccessorTestCase(TestCase):
         """Tear down test case objects."""
         pass
 
-    def test_establish_valid_provider(self):
-        """Verify that a valid service is created."""
+    def test_establish_aws_provider(self):
+        """Verify that an aws service is created."""
         provider_name = 'AWS'
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+
+    def test_establish_ocp_provider(self):
+        """Verify that an ocp service is created."""
+        provider_name = 'OCP'
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
 
@@ -48,15 +56,28 @@ class ProviderAccessorTestCase(TestCase):
         self.assertIsNotNone(interface.service)
         self.assertTrue(isinstance(interface.service, AWSLocalProvider))
 
+    def test_establish_ocp_local_provider(self):
+        """Verify that OCP local provider is created."""
+        provider_name = 'OCP-local'
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+        self.assertTrue(isinstance(interface.service, OCPLocalProvider))
+
     def test_establish_invalid_provider(self):
         """Verify that an invalid service is created."""
         provider_name = 'BAD'
         interface = ProviderAccessor(provider_name)
         self.assertIsNone(interface.service)
 
-    def test_get_name(self):
-        """Get name of service provider."""
+    def test_get_name_aws(self):
+        """Get name of aws service provider."""
         provider = AWSProvider()
+        interface = ProviderAccessor(provider.name())
+        self.assertEqual(provider.name(), interface.service_name())
+
+    def test_get_name_ocp(self):
+        """Get name of ocp service provider."""
+        provider = OCPProvider()
         interface = ProviderAccessor(provider.name())
         self.assertEqual(provider.name(), interface.service_name())
 
