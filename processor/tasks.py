@@ -132,19 +132,20 @@ def process_report_file(schema_name, report_path, compression, provider, start_d
 
 
 @celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
-def remove_expired_data(schema_name, simulate):
+def remove_expired_data(schema_name, provider, simulate):
     """
     Remove expired report data.
 
     Args:
         schema_name (String) db schema name
+        provider    (String) provider type
         simulate    (Boolean) Simulate report data removal
 
     Returns:
         None
 
     """
-    _remove_expired_data(schema_name, simulate)
+    _remove_expired_data(schema_name, provider, simulate)
 
 
 @celery.task(name='masu.processor.tasks.update_summary_tables',

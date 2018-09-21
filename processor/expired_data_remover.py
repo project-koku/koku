@@ -22,10 +22,17 @@ from datetime import (datetime, timedelta)
 import pytz
 
 from masu.config import Config
-from masu.database.report_db_cleaner import ReportDBCleaner
+from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
 from masu.external.date_accessor import DateAccessor
+from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 
 LOG = logging.getLogger(__name__)
+
+
+class ExpiredDataRemoverError(Exception):
+    """Expired Data Removalerror."""
+
+    pass
 
 
 # pylint: disable=too-few-public-methods
@@ -37,7 +44,8 @@ class ExpiredDataRemover():
 
     """
 
-    def __init__(self, customer_schema, num_of_months_to_keep=Config.MASU_RETAIN_NUM_MONTHS):
+    def __init__(self, customer_schema, provider,
+                 num_of_months_to_keep=Config.MASU_RETAIN_NUM_MONTHS):
         """
         Initializer.
 
@@ -46,8 +54,34 @@ class ExpiredDataRemover():
             num_of_months_to_keep (Int): Number of months to retain in database.
         """
         self._schema = customer_schema
+        self._provider = provider
         self._months_to_keep = num_of_months_to_keep
         self._expiration_date = self._calculate_expiration_date()
+        try:
+            self._cleaner = self._set_cleaner()
+        except Exception as err:
+            raise ExpiredDataRemoverError(str(err))
+
+        if not self._cleaner:
+            raise ExpiredDataRemoverError('Invalid provider type specified.')
+
+    def _set_cleaner(self):
+        """
+        Create the expired report data object.
+
+        Object is specific to the report provider.
+
+        Args:
+            None
+
+        Returns:
+            (Object) : Provider-specific report cleaner
+
+        """
+        if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+            return AWSReportDBCleaner(self._schema)
+
+        return None
 
     def _calculate_expiration_date(self):
         """
@@ -87,6 +121,5 @@ class ExpiredDataRemover():
 
         """
         expiration_date = self._calculate_expiration_date()
-        cleaner = ReportDBCleaner(self._schema)
-        removed_data = cleaner.purge_expired_report_data(expiration_date, simulate)
+        removed_data = self._cleaner.purge_expired_report_data(expiration_date, simulate)
         return removed_data

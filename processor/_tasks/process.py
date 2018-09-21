@@ -21,7 +21,6 @@ from os import path
 import psutil
 from celery.utils.log import get_task_logger
 
-import masu.util.remove_temp_files as remove_files
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
@@ -79,5 +78,5 @@ def _process_report_file(schema_name, report_path, compression, provider, provid
     provider_accessor.commit()
     provider_accessor.close_session()
 
-    files = remove_files.remove_temp_cur_files(path.dirname(report_path))
+    files = processor.remove_processed_files(path.dirname(report_path))
     LOG.info('Temporary files removed: %s', str(files))
