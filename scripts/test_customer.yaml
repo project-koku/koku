@@ -7,6 +7,7 @@ customer:
   password: str0ng!P@ss
   provider_name: Test Provider
   provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
+  provider_type: 'AWS'
 koku:
   host: localhost
   port: 8000
