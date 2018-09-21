@@ -15,19 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the ReportDBCleaner utility object."""
+"""Test the AWSReportDBCleaner utility object."""
 import datetime
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor
-from masu.database.report_db_cleaner import ReportDBCleaner
+from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 
 
-class ReportDBCleanerTest(MasuTestCase):
-    """Test Cases for the ReportDBCleaner object."""
+class AWSReportDBCleanerTest(MasuTestCase):
+    """Test Cases for the AWSReportDBCleaner object."""
 
     @classmethod
     def setUpClass(cls):
@@ -96,7 +96,7 @@ class ReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = ReportDBCleaner('testcustomer')
+        cleaner = AWSReportDBCleaner('testcustomer')
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -122,7 +122,7 @@ class ReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = ReportDBCleaner('testcustomer')
+        cleaner = AWSReportDBCleaner('testcustomer')
 
         # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -147,7 +147,7 @@ class ReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = ReportDBCleaner('testcustomer')
+        cleaner = AWSReportDBCleaner('testcustomer')
 
         # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -174,7 +174,7 @@ class ReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = ReportDBCleaner('testcustomer')
+        cleaner = AWSReportDBCleaner('testcustomer')
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
