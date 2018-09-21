@@ -14,9 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS-local service provider implementation to be used by Koku."""
+"""OCP-local service provider implementation to be used by Koku."""
 import logging
-import os
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -34,23 +33,22 @@ def error_obj(key, message):
     return error
 
 
-class AWSLocalProvider(ProviderInterface):
+class OCPLocalProvider(ProviderInterface):
     """Provider interface defnition."""
 
     def name(self):
         """Return name of the provider."""
-        return 'AWS-local'
+        return 'OCP-local'
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, cluster_id, storage_resource_name):
         """Verify that the cost usage source exists and is reachable."""
-        if not storage_resource_name:
+        if storage_resource_name:
             key = 'bucket'
-            message = 'Bucket is a required parameter for AWS.'
-            raise serializers.ValidationError(error_obj(key, message))
-
-        if not os.path.isdir(storage_resource_name):
-            key = 'bucket'
-            message = 'Bucket {} could not be found with {}.'.format(
-                storage_resource_name, credential_name)
+            message = 'Bucket is an invalid parameter for OCP.'
             LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
+
+        # TODO: Add storage_resource_name existance check once Insights integration is complete.
+        message = 'Stub to verify that OCP-local report for cluster {} is accessible.'.format(
+                  cluster_id)
+        LOG.info(message)

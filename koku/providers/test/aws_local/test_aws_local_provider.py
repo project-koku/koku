@@ -62,3 +62,13 @@ class AWSLocalProviderTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
+
+    def test_cost_usage_source_is_reachable_no_bucket(self):
+        """Verify that the cost usage source is not authenticated and created when no bucket is provided."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = None
+
+        provider_interface = AWSLocalProvider()
+
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)

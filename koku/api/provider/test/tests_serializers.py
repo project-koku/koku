@@ -122,6 +122,33 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
 
+    def test_create_ocp_provider(self):
+        """Test creating a provider."""
+        cluster_id = 'my-ocp-cluster-1'
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_OCP,
+                    'authentication': {
+                        'provider_resource_name': cluster_id
+                    }}
+        new_cust = None
+        serializer = CustomerSerializer(data=self.customer_data[0])
+        if serializer.is_valid(raise_exception=True):
+            new_cust = serializer.save()
+        request = Mock()
+        request.user = new_cust.owner
+        context = {'request': request}
+        instance = None
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
     def test_create_provider_with_exception(self):
         """Test creating a provider with a provider exception."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
