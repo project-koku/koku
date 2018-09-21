@@ -1,6 +1,7 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
     SELECT date(ce.interval_start) as usage_start,
+        date(ce.interval_start) as usage_end,
         li.cost_entry_product_id,
         li.cost_entry_pricing_id,
         li.cost_entry_reservation_id,
@@ -53,6 +54,7 @@ WHERE usage_start >= '{start_date}'
 -- Populate the daily aggregate line item data
 INSERT INTO reporting_awscostentrylineitem_daily (
     usage_start,
+    usage_end,
     cost_entry_product_id,
     cost_entry_pricing_id,
     cost_entry_reservation_id,
@@ -77,6 +79,7 @@ INSERT INTO reporting_awscostentrylineitem_daily (
     public_on_demand_rate
 )
     SELECT usage_start,
+        usage_end,
         cost_entry_product_id,
         cost_entry_pricing_id,
         cost_entry_reservation_id,
