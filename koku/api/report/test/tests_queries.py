@@ -19,8 +19,8 @@ import random
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import (CharField, Count, DateField, IntegerField, Max,
-                              Sum, Value)
+from django.db.models import (CharField, Count, DateTimeField, IntegerField,
+                              Max, Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from faker import Faker
@@ -358,7 +358,8 @@ class ReportQueryTest(IamTestCase):
             'tags'
         ]
         annotations = {
-            'usage_start': Cast('usage_start', DateField()),
+            'usage_start': Cast('usage_start', DateTimeField()),
+            'usage_end': Cast('usage_start', DateTimeField()),
             'usage_amount': Sum('usage_amount'),
             'normalization_factor': Max('normalization_factor'),
             'normalized_usage_amount': Sum('normalized_usage_amount'),
@@ -382,6 +383,7 @@ class ReportQueryTest(IamTestCase):
         AWSCostEntryLineItemDailySummary.objects.all().delete()
         included_fields = [
             'usage_start',
+            'usage_end',
             'usage_account_id',
             'availability_zone'
         ]
@@ -417,7 +419,7 @@ class ReportQueryTest(IamTestCase):
         this_month_filter = {'usage_start__gte': dh.this_month_start}
         ten_day_filter = {'usage_start__gte': dh.n_days_ago(dh.today, 10)}
         last_month_filter = {'usage_start__gte': dh.last_month_start,
-                             'usage_start__lt': dh.this_month_start}
+                             'usage_end__lte': dh.last_month_end}
 
         report_types = ['costs', 'instance_type', 'storage']
         time_scopes = [
