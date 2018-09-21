@@ -87,7 +87,7 @@ class KokuCustomerOnboarder:
 
         data = {
             'name': self.customer.get('provider_name'),
-            'type': 'AWS',
+            'type': self.customer.get('provider_type'),
             'authentication': {
                 'provider_resource_name': self.customer.get('provider_resource_name')
             },
