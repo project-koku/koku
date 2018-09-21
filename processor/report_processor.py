@@ -17,7 +17,7 @@
 """Report processor external interface."""
 
 from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
-from masu.processor.providers.aws_report_processor import AWSReportProcessor
+from masu.processor.aws.aws_report_processor import AWSReportProcessor
 
 
 class ReportProcessorError(Exception):
@@ -77,5 +77,21 @@ class ReportProcessor:
         """
         try:
             return self._processor.process()
+        except Exception as err:
+            raise ReportProcessorError(str(err))
+
+    def remove_processed_files(self, path):
+        """
+        Remove temporary cost usage report files..
+
+        Args:
+            (String) path - local path to most recent report file.
+
+        Returns:
+            [String] - List of files that were removed.
+
+        """
+        try:
+            return self._processor.remove_temp_cur_files(path)
         except Exception as err:
             raise ReportProcessorError(str(err))

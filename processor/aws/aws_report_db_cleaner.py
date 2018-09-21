@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-few-public-methods
-class ReportDBCleaner():
+class AWSReportDBCleaner():
     """Class to remove report data."""
 
     def __init__(self, schema):

@@ -23,16 +23,17 @@ import gzip
 import io
 import json
 import logging
-from os import path
+from os import listdir, path, remove
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.processor import ALLOWED_COMPRESSIONS
-from masu.util.common import stringify_json_data
+from masu.util.common import extract_uuids_from_string, stringify_json_data
 from masu.util.hash import Hasher
 
 LOG = logging.getLogger(__name__)
@@ -198,6 +199,38 @@ class AWSReportProcessor:
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
+
+    def remove_temp_cur_files(self, report_path):
+        """Remove temporary cost usage report files."""
+        files = listdir(report_path)
+
+        LOG.info('Cleaning up temporary report files for %s', self._report_name)
+        victim_list = []
+        current_assembly_id = None
+        for file in files:
+            file_path = '{}/{}'.format(report_path, file)
+            if file.endswith('Manifest.json'):
+                with open(file_path, 'r') as manifest_file_handle:
+                    manifest_json = json.load(manifest_file_handle)
+                    current_assembly_id = manifest_json.get('assemblyId')
+            else:
+                stats = ReportStatsDBAccessor(file)
+                completed_date = stats.get_last_completed_datetime()
+                if completed_date:
+                    assembly_id = extract_uuids_from_string(file).pop()
+
+                    victim_list.append({'file': file_path,
+                                        'completed_date': completed_date,
+                                        'assemblyId': assembly_id})
+
+        removed_files = []
+        for victim in victim_list:
+            if victim['assemblyId'] != current_assembly_id:
+                LOG.info('Removing %s, completed processing on date %s',
+                         victim['file'], victim['completed_date'])
+                remove(victim['file'])
+                removed_files.append(victim['file'])
+        return removed_files
 
     # pylint: disable=inconsistent-return-statements, no-self-use
     def _get_file_opener(self, compression):

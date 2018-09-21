@@ -110,6 +110,7 @@ class Orchestrator():
         for account in self._accounts:
             LOG.info('Calling remove_expired_data with account: %s', account)
             async_result = remove_expired_data.delay(schema_name=account.get('schema_name'),
+                                                     provider=account.get('provider_type'),
                                                      simulate=simulate)
             LOG.info('Expired data removal queued - customer: %s, Task ID: %s',
                      account.get('customer_name'),
