@@ -71,4 +71,5 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
                     example: "my-s3-cur-bucket"
         """
         obj = self._get_db_obj_query().first()
-        return obj.bucket
+        bucket = obj.bucket if obj else None
+        return bucket
