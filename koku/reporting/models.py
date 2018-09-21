@@ -192,7 +192,8 @@ class AWSCostEntryLineItemDaily(models.Model):
 
     line_item_type = models.CharField(max_length=50, null=False)
     usage_account_id = models.CharField(max_length=50, null=False)
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=True)
     product_code = models.CharField(max_length=50, null=False)
     usage_type = models.CharField(max_length=50, null=True)
     operation = models.CharField(max_length=50, null=True)
@@ -250,7 +251,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     # The following fields are used for grouping
-    usage_start = models.DateField(null=False)
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=True)
     usage_account_id = models.CharField(max_length=50, null=False)
     product_code = models.CharField(max_length=50, null=False)
     product_family = models.CharField(max_length=150, null=True)
