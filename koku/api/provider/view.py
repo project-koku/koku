@@ -20,13 +20,11 @@ import logging
 
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
-from rest_framework.authentication import (SessionAuthentication,
-                                           TokenAuthentication)
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from api.iam.models import Customer
+from api.iam.models import Customer, User
 from api.provider import serializers
 from api.provider.models import Provider
 from .provider_manager import ProviderManager
@@ -59,8 +57,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
     lookup_field = 'uuid'
     queryset = Provider.objects.all()
-    authentication_classes = (TokenAuthentication,
-                              SessionAuthentication)
     permission_classes = (IsAuthenticated,)
 
     def get_serializer_class(self):
@@ -73,16 +69,17 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def get_queryset(self):
         """Get a queryset.
 
-        Restricts the returned Providers to the associated Customer,
+        Restricts the returned Providers to the associated account,
         by filtering against a `user` object in the request.
         """
         queryset = Provider.objects.none()
-        group = self.request.user.groups.first()
-        if self.request.user.is_superuser:
-            queryset = Provider.objects.all()
-        elif group:
-            customer = Customer.objects.get(pk=group.id)
-            queryset = Provider.objects.filter(customer=customer)
+        user = self.request.user
+        if user:
+            req_user = User.objects.get(username=user)
+            try:
+                queryset = Provider.objects.filter(customer=req_user.customer)
+            except Customer.DoesNotExist:
+                LOG.error('No customer found for user %s.', user)
         return queryset
 
     def create(self, request, *args, **kwargs):
@@ -95,10 +92,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiDescription Create a provider.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
 
         @apiParam (Request Body) {String} name The name for the provider.
         @apiParam (Request Body) {String} type The provider type.
@@ -167,10 +160,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiDescription Obtain the list of providers.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
 
         @apiSuccess {Number} count The number of users.
         @apiSuccess {String} previous  The uri of the previous page of results.
@@ -225,10 +214,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiDescription Get a provider.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
 
         @apiParam {String} uuid Provider unique ID.
 
@@ -279,11 +264,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             @apiVersion 1.0.0
             @apiDescription Delete a provider.
 
-            @apiHeader {String} token Authorization token of the created_by user or customer owner
-            @apiHeaderExample {json} Header-Example:
-                {
-                    "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-                }
+            @apiHeader {String} token Authorization token of an authenticated user
 
             @apiParam {String} uuid Provider unique ID.
 
@@ -294,18 +275,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
             if not self.get_queryset():
                 raise PermissionDenied()
 
-            # Block users of the orginization that are not customer owner
-            # or did not create the provider
             manager = ProviderManager(kwargs['uuid'])
-            if not manager.is_removable_by_user(request.user):
-                err_msg = '{} does not have permission to remove provider uuid: {}.'.format(request.user.username,
-                                                                                            kwargs['uuid'])
-                LOG.error(err_msg)
-                raise PermissionDenied()
             try:
-                manager.remove(request.user)
+                req_user = User.objects.get(username=request.user)
+                manager.remove(req_user)
             except Exception:
-                LOG.error('{} failed to remove provider uuid: {}.'.format(request.user.username, kwargs['uuid']))
+                LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, kwargs['uuid']))
                 raise ProviderDeleteException
 
             return Response(status=status.HTTP_204_NO_CONTENT)

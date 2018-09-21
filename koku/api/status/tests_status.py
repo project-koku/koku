@@ -24,6 +24,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from api.iam.models import Tenant
+from api.iam.serializers import UserSerializer
+from api.iam.test.iam_test_case import IamTestCase
 from api.status.models import Status
 
 
@@ -115,17 +117,24 @@ class StatusModelTest(TestCase):
             self.assertIn(expected, logger.output)
 
 
-class StatusViewTest(TestCase):
+class StatusViewTest(IamTestCase):
     """Tests the status view."""
 
     def setUp(self):
         """Create test case setup."""
         super().setUp()
-        Tenant.objects.get_or_create(schema_name='public')
+        self.user_data = self._create_user_data()
+        self.customer = self._create_customer_data()
+        self.request_context = self._create_request_context(self.customer,
+                                                            self.user_data)
+        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
 
     def test_status_endpoint(self):
         """Test the status endpoint."""
         url = reverse('server-status')
-        response = self.client.get(url)
+        headers = self.request_context['request'].META
+        response = self.client.get(url, **headers)
         json_result = response.json()
         self.assertEqual(json_result['api_version'], 1)

@@ -72,7 +72,6 @@ INSTALLED_APPS = [
 
     # third-party
     'rest_framework',
-    'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
     'querystring_parser',
@@ -93,7 +92,6 @@ SHARED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
-    'rest_framework.authtoken',
 )
 
 TENANT_APPS = (
@@ -104,16 +102,24 @@ DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'koku.middleware.KokuTenantMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
+    'koku.middleware.DisableCSRF',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'koku.middleware.IdentityHeaderMiddleware',
+    'koku.middleware.KokuTenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.RemoteUserBackend',
+]
+
+CSRF_COOKIE_SECURE = False
 
 ROOT_URLCONF = 'koku.urls'
 
@@ -287,14 +293,7 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 
 # Cors Setup
 # See https://github.com/ottoyiu/django-cors-headers
-
-# SECURITY WARNING: Replace this with proper origins once UI is deployed in insights
-CORS_ORIGIN_ALLOW_ALL = DEBUG
-APP_DOMAIN = ENVIRONMENT.get_value('APP_DOMAIN', default='project-koku.com')
-APP_DOMAIN_REGEX = APP_DOMAIN.replace('.', '\.')  # pylint: disable=W1401
-KOKU_UI_REGEX = r'^(http(s)?://)?koku-ui-([a-zA-Z0-9_-]*\.)?{0}$'.format(APP_DOMAIN_REGEX)
-if not DEBUG:
-    CORS_ORIGIN_REGEX_WHITELIST = (KOKU_UI_REGEX,)
+CORS_ORIGIN_ALLOW_ALL = True
 
 APPEND_SLASH = False
 

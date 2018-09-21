@@ -18,14 +18,19 @@
 
 from rest_framework import permissions
 
+from api.iam.models import User
+
 
 class IsObjectOwner(permissions.BasePermission):
     """Custom permission to only allow owners of an object to edit."""
 
     def has_object_permission(self, request, view, obj):
         """Permissions are only allowed to the owner of the object."""
+        r_user = None
         o_user = getattr(obj, 'user', None)
-        r_user = getattr(request, 'user', None)
+        req_user = getattr(request, 'user', None)
+        if req_user:
+            r_user = User.objects.get(username=req_user)
 
         if hasattr(o_user, 'uuid') and hasattr(r_user, 'uuid'):
             o_id = getattr(o_user, 'uuid', None)
