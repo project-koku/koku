@@ -1,6 +1,7 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
     SELECT li.usage_start,
+        li.usage_end,
         li.product_code,
         p.product_family,
         li.usage_account_id,
@@ -24,9 +25,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awscostentrypricing as pr
         ON li.cost_entry_pricing_id = pr.id
-    WHERE li.usage_start >= '{start_date}'
-        AND li.usage_start <= '{end_date}'
+    WHERE date(li.usage_start) >= '{start_date}'
+        AND date(li.usage_start) <= '{end_date}'
     GROUP BY li.usage_start,
+        li.usage_end,
         li.product_code,
         p.product_family,
         li.usage_account_id,
@@ -45,6 +47,7 @@ WHERE usage_start >= '{start_date}'
 -- Populate the daily aggregate line item data
 INSERT INTO reporting_awscostentrylineitem_daily_summary (
     usage_start,
+    usage_end,
     product_code,
     product_family,
     usage_account_id,
@@ -65,6 +68,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
     resource_count
 )
     SELECT usage_start,
+        usage_end,
         product_code,
         product_family,
         usage_account_id,
