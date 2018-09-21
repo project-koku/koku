@@ -79,6 +79,32 @@ class AWSProviderTestCase(TestCase):
         except Exception:
             self.fail('Unexpected Error')
 
+    @mock_sts
+    @mock_s3
+    @patch('providers.aws.aws_provider._check_org_access')
+    @patch('providers.aws.aws_provider._check_cost_report_access')
+    def test_cost_usage_source_is_reachable_no_bucket(self, check_org_access, check_cost_report_access):
+        """Verify that the cost usage source is not authenticated and created when bucket is not provided."""
+        check_org_access.return_value = True
+        check_cost_report_access.return_value = True
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        access_key_id, secret_access_key, session_token = _get_sts_access(
+            iam_arn)
+        s3_resource = boto3.resource(
+            's3',
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            aws_session_token=session_token,
+        )
+        s3_resource.create_bucket(Bucket=bucket_name)
+
+        provider_interface = AWSProvider()
+
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(iam_arn, None)
+
     @patch('providers.aws.aws_provider._get_sts_access')
     def test_provider_sts_fail(self, get_sts_access):
         """Test creating a provider with AWS STS failure."""
