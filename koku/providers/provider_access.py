@@ -20,6 +20,8 @@ import logging
 
 from providers.aws.aws_provider import AWSProvider
 from providers.aws_local.aws_local_provider import AWSLocalProvider
+from providers.ocp.ocp_provider import OCPProvider
+from providers.ocp_local.ocp_local_provider import OCPLocalProvider
 
 from api.provider.models import Provider
 
@@ -56,6 +58,10 @@ class ProviderAccessor:
             return AWSProvider()
         elif service_name == 'AWS-local':
             return AWSLocalProvider()
+        elif service_name == 'OCP-local':
+            return OCPLocalProvider()
+        elif service_name == 'OCP':
+            return OCPProvider()
 
     def service_name(self):
         """

@@ -64,7 +64,7 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(read_only=True)
     bucket = serializers.CharField(max_length=63, required=True,
-                                   allow_null=False, allow_blank=False)
+                                   allow_null=False, allow_blank=True)
 
     class Meta:
         """Metadata for the serializer."""
@@ -81,7 +81,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
     authentication = ProviderAuthenticationSerializer()
-    billing_source = ProviderBillingSourceSerializer()
+    billing_source = ProviderBillingSourceSerializer(required=False)
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
 
@@ -95,9 +95,6 @@ class ProviderSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         """Create a provider from validated data."""
-        authentication = validated_data.pop('authentication')
-        billing_source = validated_data.pop('billing_source')
-
         user = None
         customer = None
         request = self.context.get('request')
@@ -115,17 +112,26 @@ class ProviderSerializer(serializers.ModelSerializer):
             message = 'Requesting user could not be found.'
             raise serializers.ValidationError(error_obj(key, message))
 
-        provider_resource_name = authentication.get('provider_resource_name')
-        bucket = billing_source.get('bucket')
+        if 'billing_source' in validated_data:
+            billing_source = validated_data.pop('billing_source')
+            bucket = billing_source.get('bucket')
+        else:
+            bucket = None
 
+        authentication = validated_data.pop('authentication')
+        provider_resource_name = authentication.get('provider_resource_name')
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
         interface.cost_usage_source_ready(provider_resource_name, bucket)
 
+        bill = None
+        if bucket:
+            bill = ProviderBillingSource.objects.create(**billing_source)
+            bill.save()
+
         auth = ProviderAuthentication.objects.create(**authentication)
-        bill = ProviderBillingSource.objects.create(**billing_source)
         auth.save()
-        bill.save()
+
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer
         provider.created_by = user
