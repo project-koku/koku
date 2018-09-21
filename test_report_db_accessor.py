@@ -725,6 +725,11 @@ class ReportDBAccessorTest(MasuTestCase):
             func.max(ce_table.interval_start)
         ).first()
 
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+
         query = self.accessor._get_db_obj_query(daily_table_name)
         initial_count = query.count()
 
@@ -738,8 +743,8 @@ class ReportDBAccessorTest(MasuTestCase):
             func.max(daily_table.usage_start)
         ).first()
 
-        self.assertEqual(result_start_date, start_date.date())
-        self.assertEqual(result_end_date, end_date.date())
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
 
     def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""
@@ -768,6 +773,11 @@ class ReportDBAccessorTest(MasuTestCase):
             func.max(ce_table.interval_start)
         ).first()
 
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+
         query = self.accessor._get_db_obj_query(summary_table_name)
         initial_count = query.count()
 
@@ -782,8 +792,8 @@ class ReportDBAccessorTest(MasuTestCase):
             func.max(summary_table.usage_start)
         ).first()
 
-        self.assertEqual(result_start_date, start_date.date())
-        self.assertEqual(result_end_date, end_date.date())
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
 
     def test_populate_line_item_aggregates_table(self):
         """Test that the aggregates table is populated."""
