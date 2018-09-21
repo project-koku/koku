@@ -161,6 +161,11 @@ class AWSProvider(ProviderInterface):
                 credential_name)
             raise serializers.ValidationError(error_obj(key, message))
 
+        if not storage_resource_name:
+            key = 'bucket'
+            message = 'Bucket is a required parameter for AWS.'
+            raise serializers.ValidationError(error_obj(key, message))
+
         s3_exists = _check_s3_access(access_key_id, secret_access_key,
                                      session_token, storage_resource_name)
         if not s3_exists:

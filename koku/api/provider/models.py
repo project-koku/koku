@@ -52,11 +52,17 @@ class Provider(models.Model):
     """
 
     PROVIDER_AWS = 'AWS'
+    PROVIDER_OCP = 'OCP'
     if settings.DEBUG:
         PROVIDER_AWS_LOCAL = 'AWS-local'
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS), (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),)
+        PROVIDER_OCP_LOCAL = 'OCP-local'
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                            (PROVIDER_OCP, PROVIDER_OCP),
+                            (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
+                            (PROVIDER_OCP_LOCAL, PROVIDER_OCP_LOCAL),)
     else:
-        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),)
+        PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
+                            (PROVIDER_OCP, PROVIDER_OCP),)
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
@@ -66,7 +72,7 @@ class Provider(models.Model):
     authentication = models.ForeignKey('ProviderAuthentication', null=True,
                                        on_delete=models.CASCADE)
     billing_source = models.ForeignKey('ProviderBillingSource', null=True,
-                                       on_delete=models.CASCADE)
+                                       on_delete=models.CASCADE, blank=True)
     customer = models.ForeignKey('Customer', null=True,
                                  on_delete=models.CASCADE)
     created_by = models.ForeignKey('User', null=True,
