@@ -135,9 +135,6 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
             request (object): The request object
 
         """
-        print('*' * 90)
-        print(request.META)
-        print('*' * 90)
         if 'status' in request.path:
             return
 
