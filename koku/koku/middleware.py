@@ -51,7 +51,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
-        if hasattr(request, 'user'):
+        if 'status' not in request.path:
             username = request.user
             try:
                 User.objects.get(username=username)
@@ -61,9 +61,11 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
-        user = User.objects.get(username=request.user)
-        customer = user.customer
-        schema_name = customer.schema_name
+        schema_name = 'public'
+        if 'status' not in request.path:
+            user = User.objects.get(username=request.user)
+            customer = user.customer
+            schema_name = customer.schema_name
         try:
             tenant = model.objects.get(schema_name=schema_name)
         except model.DoesNotExist:
@@ -133,6 +135,9 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
             request (object): The request object
 
         """
+        if 'status' in request.path:
+            return
+
         # AuthenticationMiddleware is required so that request.user exists.
         if not hasattr(request, 'user'):
             raise ImproperlyConfigured(

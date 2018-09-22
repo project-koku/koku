@@ -34,6 +34,8 @@ class KokuTenantMiddlewareTest(IamTestCase):
                                               self.customer['org_id'])
         self.request_context = self._create_request_context(self.customer,
                                                             self.user_data)
+        request = self.request_context['request']
+        request.path = '/api/v1/providers/'
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()

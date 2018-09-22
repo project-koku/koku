@@ -32,7 +32,7 @@ import logging
 
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
-from . import database, email
+from . import database
 
 from .env import ENVIRONMENT
 
@@ -217,13 +217,6 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     )
 }
-
-EMAIL_HOST = email.EMAIL_HOST
-EMAIL_PORT = email.EMAIL_PORT
-EMAIL_HOST_USER = email.EMAIL_HOST_USER
-EMAIL_HOST_PASSWORD = email.EMAIL_HOST_PASSWORD
-EMAIL_USE_TLS = email.EMAIL_USE_TLS
-EMAIL_BACKEND = email.get_email_backend()
 
 PASSWORD_RESET_TIMEOUT_DAYS = 1
 
