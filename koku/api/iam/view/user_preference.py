@@ -19,7 +19,7 @@
 from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 import api.iam.models as models
 import api.iam.serializers as serializers
@@ -41,7 +41,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = models.UserPreference.objects.all()
     serializer_class = serializers.UserPreferenceSerializer
-    permission_classes = (IsObjectOwner, IsAuthenticated)
+    permission_classes = (IsObjectOwner, AllowAny)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('name',)
 

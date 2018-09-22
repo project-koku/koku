@@ -27,7 +27,7 @@ from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
@@ -219,7 +219,7 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
     """Get cost data.
@@ -311,7 +311,7 @@ def costs(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def instance_type(request):
     """Get inventory data.
@@ -446,7 +446,7 @@ def instance_type(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
     """Get inventory storage data.

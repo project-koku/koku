@@ -105,7 +105,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
     'koku.middleware.DisableCSRF',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'koku.middleware.IdentityHeaderMiddleware',
@@ -217,8 +216,6 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     )
 }
-
-PASSWORD_RESET_TIMEOUT_DAYS = 1
 
 LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')
 DJANGO_LOGGING_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'INFO')

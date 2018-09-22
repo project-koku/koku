@@ -21,7 +21,7 @@ import logging
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException, PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from api.iam.models import Customer, User
@@ -57,11 +57,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
     lookup_field = 'uuid'
     queryset = Provider.objects.all()
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (AllowAny,)
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""
-        if self.request.user.is_superuser:
+        if 'schema_name' in self.request.META.get('QUERY_STRING', ''):
             return serializers.AdminProviderSerializer
         else:
             return serializers.ProviderSerializer
@@ -145,9 +145,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 }
             }
         """
-        if request.user.is_superuser:
-            raise PermissionDenied()
-
         return super().create(request=request, args=args, kwargs=kwargs)
 
     def list(self, request, *args, **kwargs):
