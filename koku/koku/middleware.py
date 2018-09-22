@@ -135,6 +135,9 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
             request (object): The request object
 
         """
+        print('*' * 90)
+        print(request.META)
+        print('*' * 90)
         if 'status' in request.path:
             return
 
@@ -156,6 +159,7 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
             # If specified header doesn't exist then remove any existing
             # authenticated remote-user, or return (leaving request.user set to
             # AnonymousUser by the AuthenticationMiddleware).
+            print('error')
             if self.force_logout_if_no_header and request.user.is_authenticated:
                 self._remove_invalid_user(request)
             return
@@ -163,16 +167,21 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
         # getting passed in the headers, then the correct user is already
         # persisted in the session and we don't need to continue.
         if request.user.is_authenticated:
+            print('is_authenticated')
             if request.user.get_username() == self.clean_username(username, request):
+                print('match_username')
                 return
 
             # An authenticated user is associated with the request, but
             # it does not match the authorized user in the header.
+            print('_remove_invalid_user')
             self._remove_invalid_user(request)
 
         # We are seeing this user for the first time in this session, attempt
         # to authenticate the user.
+        print('auth.authenticate')
         user = auth.authenticate(request, remote_user=username)
+        print(user)
         if user:
             # User is valid.  Set request.user and persist user in the session
             # by logging the user in.
@@ -189,6 +198,7 @@ class IdentityHeaderMiddleware(RemoteUserMiddleware):
             except User.DoesNotExist:
                 IdentityHeaderMiddleware._create_user(username, email,
                                                       customer, request)
+            print('auth.login')
             auth.login(request, user)
 
 
