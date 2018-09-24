@@ -550,9 +550,9 @@
         },
         "jsonpickle": {
             "hashes": [
-                "sha256:545b3bee0d65e1abb4baa1818edcc9ec239aa9f2ffbfde8084d71c056180054f"
+                "sha256:ed4adf0d14564c56023862eabfac211cf01211a20c5271896c8ab6f80c68086c"
             ],
-            "version": "==0.9.6"
+            "version": "==1.0"
         },
         "lazy-object-proxy": {
             "hashes": [
