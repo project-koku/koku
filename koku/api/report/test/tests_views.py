@@ -45,7 +45,8 @@ class ReportViewTest(IamTestCase):
         self.user_data = self._create_user_data()
         self.customer = self._create_customer_data()
         self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
+                                                            self.user_data,
+                                                            create_tenant=True)
         self.headers = self.request_context['request'].META
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
@@ -205,16 +206,6 @@ class ReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
-
-    # def test_get_tenant_no_group(self):
-    #     """Test get_tenant with a user with no group."""
-    #     user = Mock()
-    #     group = Mock()
-    #     group.id = 909090
-    #     user.groups.first.return_value = group
-
-    #     with self.assertRaises(ValidationError):
-    #         get_tenant(user)
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""

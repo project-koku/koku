@@ -39,7 +39,7 @@ class CustomerSerializerTest(IamTestCase):
     def test_create_customer(self):
         """Test creating a customer."""
         # create the customers
-        customer = self.customer_data[0]
+        customer = self._create_customer_data()
         instance = None
         serializer = CustomerSerializer(data=customer)
         if serializer.is_valid(raise_exception=True):
@@ -58,7 +58,7 @@ class AdminCustomerSerializerTest(IamTestCase):
 
     def test_schema_name_present(self):
         """Test that the serializer contains schema_name."""
-        serializer = AdminCustomerSerializer(data=self.customer_data[0])
+        serializer = AdminCustomerSerializer(data=self._create_customer_data())
         serializer.is_valid()
         serializer.save()
         expected_schema_name = create_schema_name(serializer.data.get('account_id'),

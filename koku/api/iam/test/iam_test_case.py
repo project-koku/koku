@@ -31,15 +31,7 @@ from ...common import RH_IDENTITY_HEADER
 class IamTestCase(TestCase):
     """Parent Class for IAM test cases."""
 
-    service_admin_token = None
     fake = Faker()
-
-    def setUp(self):
-        """Create test case objects."""
-        # Tenant.objects.get_or_create(schema_name='public')
-        self.customer_data = []
-        self.customer_data.append(self._create_customer_data())
-        self.customer_data.append(self._create_customer_data())
 
     def _create_customer_data(self):
         """Create customer data."""
@@ -57,7 +49,7 @@ class IamTestCase(TestCase):
                      'email': self.fake.email()}
         return user_data
 
-    def _create_customer(self, account, org):
+    def _create_customer(self, account, org, create_tenant=False):
         """Create a customer.
 
         Args:
@@ -72,17 +64,19 @@ class IamTestCase(TestCase):
         schema_name = create_schema_name(account, org)
         customer = Customer(account_id=account, org_id=org, schema_name=schema_name)
         customer.save()
-        tenant = Tenant(schema_name=schema_name)
-        tenant.save()
+        if create_tenant:
+            tenant = Tenant(schema_name=schema_name)
+            tenant.save()
         return customer
 
-    def _create_request_context(self, customer_data, user_data, create_customer=True):
+    def _create_request_context(self, customer_data, user_data,
+                                create_customer=True, create_tenant=False):
         """Create the request context for a user."""
         customer = customer_data
         account = customer['account_id']
         org = customer['org_id']
         if create_customer:
-            self._create_customer(account, org)
+            self._create_customer(account, org, create_tenant=create_tenant)
         identity = {
             'identity': {
                 'org_id': org,

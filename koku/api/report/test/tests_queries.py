@@ -260,7 +260,8 @@ class ReportQueryTest(IamTestCase):
         super().setUp()
         customer = self._create_customer_data()
         new_customer = self._create_customer(customer['account_id'],
-                                             customer['org_id'])
+                                             customer['org_id'],
+                                             create_tenant=True)
         self.tenant = Tenant.objects.get(schema_name=new_customer.schema_name)
         self.add_data_to_tenant()
 
