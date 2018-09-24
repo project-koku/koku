@@ -1,13 +1,13 @@
 -i https://pypi.python.org/simple
-boto3==1.7.78
-botocore==1.10.78
-certifi==2018.8.13
+boto3==1.9.4
+botocore==1.12.4
+certifi==2018.8.24
 chardet==3.0.4
 django-cors-headers==2.4.0
 django-environ==0.4.5
 django-filter==2.0.0
 django-tenant-schemas==1.9.0
-django==2.1
+django==2.1.1
 djangorestframework-csv==2.1.0
 djangorestframework==3.8.2
 docutils==0.14
@@ -26,4 +26,4 @@ s3transfer==0.1.13
 six==1.11.0
 unicodecsv==0.14.1
 urllib3==1.23
-whitenoise==4.0
+whitenoise==4.1
