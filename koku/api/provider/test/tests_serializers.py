@@ -39,9 +39,11 @@ class ProviderSerializerTest(IamTestCase):
         self.customer = self._create_customer_data()
         self.request_context = self._create_request_context(self.customer,
                                                             self.user_data)
+        request = self.request_context['request']
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            user = serializer.save()
+            request.user = user
 
     def tearDown(self):
         """Tear down the serializer tests."""
@@ -150,9 +152,11 @@ class AdminProviderSerializerTest(IamTestCase):
         self.customer = self._create_customer_data()
         self.request_context = self._create_request_context(self.customer,
                                                             self.user_data)
+        request = self.request_context['request']
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            user = serializer.save()
+            request.user = user
 
     def test_schema_name_present_on_customer(self):
         """Test that schema_name is returned on customer."""

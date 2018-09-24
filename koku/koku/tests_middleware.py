@@ -38,7 +38,8 @@ class KokuTenantMiddlewareTest(IamTestCase):
         request.path = '/api/v1/providers/'
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
-            serializer.save()
+            user = serializer.save()
+            request.user = user
 
     def test_get_tenant_with_user(self):
         """Test that the customer tenant is returned."""

@@ -45,17 +45,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('name',)
 
-    def _get_req_user(self):
-        """Obtain the user for the request."""
-        req_user = None
-        if self.request.user:
-            req_user = models.User.objects.get(username=self.request.user)
-        return req_user
-
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
         queryset = models.UserPreference.objects.none()
-        req_user = self._get_req_user()
+        req_user = self.request.user
         if req_user:
             queryset = self.queryset.filter(user=req_user)
         return queryset
@@ -63,7 +56,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def get_serializer_context(self):
         """Pass user attribute to serializer."""
         context = super().get_serializer_context()
-        req_user = self._get_req_user()
+        req_user = self.request.user
         if req_user:
             context['user'] = req_user
         return context
@@ -111,7 +104,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        user = self._get_req_user()
+        user = request.user
         request.data['user'] = model_to_dict(user)
 
         # if the pref already exists, it's a bad request
@@ -250,6 +243,6 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        user = self._get_req_user()
+        user = request.user
         request.data['user'] = model_to_dict(user)
         return super(UserPreferenceViewSet, self).update(request=request, args=args, kwargs=kwargs)

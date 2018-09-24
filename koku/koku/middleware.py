@@ -19,7 +19,6 @@
 import logging
 from json.decoder import JSONDecodeError
 
-from django.contrib import auth
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from tenant_schemas.middleware import BaseTenantMiddleware
@@ -50,10 +49,13 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
         if 'status' not in request.path:
-            username = request.user
-            try:
-                User.objects.get(username=username)
-            except User.DoesNotExist:
+            if hasattr(request, 'user'):
+                username = request.user.username
+                try:
+                    User.objects.get(username=username)
+                except User.DoesNotExist:
+                    return HttpResponseUnauthorizedRequest()
+            else:
                 return HttpResponseUnauthorizedRequest()
         super().process_request(request)
 
@@ -61,7 +63,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         """Override the tenant selection logic."""
         schema_name = 'public'
         if 'status' not in request.path:
-            user = User.objects.get(username=request.user)
+            user = User.objects.get(username=request.user.username)
             customer = user.customer
             schema_name = customer.schema_name
         try:
@@ -134,6 +136,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
         """
         if 'status' in request.path:
+            request.user = User('', '')
             return
         try:
             json_rh_auth = extract_header(request, self.header)
@@ -143,12 +146,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             org = json_rh_auth['identity']['org_id']
         except (KeyError, JSONDecodeError):
             return
-        user = auth.authenticate(request, remote_user=username)
-        if user:
-            # User is valid.  Set request.user and persist user in the session
-            # by logging the user in.
-            request.user = user
-
+        if username:
             # Check for customer creation & user creation
             try:
                 customer = Customer.objects.filter(account_id=account, org_id=org).get()
@@ -156,11 +154,13 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 customer = IdentityHeaderMiddleware._create_customer(account, org)
 
             try:
-                User.objects.get(username=username)
+                user = User.objects.get(username=username)
             except User.DoesNotExist:
-                IdentityHeaderMiddleware._create_user(username, email,
-                                                      customer, request)
-            auth.login(request, user)
+                user = IdentityHeaderMiddleware._create_user(username,
+                                                             email,
+                                                             customer,
+                                                             request)
+            request.user = user
 
 
 class DisableCSRF(MiddlewareMixin):  # pylint: disable=too-few-public-methods

@@ -24,7 +24,7 @@ from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from api.iam.models import Customer, User
+from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
 from .provider_manager import ProviderManager
@@ -75,9 +75,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         queryset = Provider.objects.none()
         user = self.request.user
         if user:
-            req_user = User.objects.get(username=user)
             try:
-                queryset = Provider.objects.filter(customer=req_user.customer)
+                queryset = Provider.objects.filter(customer=user.customer)
             except Customer.DoesNotExist:
                 LOG.error('No customer found for user %s.', user)
         return queryset
@@ -274,8 +273,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
             manager = ProviderManager(kwargs['uuid'])
             try:
-                req_user = User.objects.get(username=request.user)
-                manager.remove(req_user)
+                manager.remove(request.user)
             except Exception:
                 LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, kwargs['uuid']))
                 raise ProviderDeleteException

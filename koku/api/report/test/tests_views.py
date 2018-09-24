@@ -305,16 +305,16 @@ class ReportViewTest(IamTestCase):
             'filter[time_scope_units]': 'month',
             'units': 'byte'
         }
-        # user = User.objects.get(
-        #     username=self.user_data['username']
-        # )
+        user = User.objects.get(
+            username=self.user_data['username']
+        )
 
         django_request = HttpRequest()
         qd = QueryDict(mutable=True)
         qd.update(params)
         django_request.GET = qd
         request = Request(django_request)
-        request.user = self.user_data['username']
+        request.user = user
         response = _generic_report(
             request,
             'usage_amount',

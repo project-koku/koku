@@ -74,8 +74,7 @@ def get_tenant(user):
     tenant = None
     if user:
         try:
-            user_obj = User.objects.get(username=user)
-            customer = user_obj.customer
+            customer = user.customer
             tenant = Tenant.objects.get(schema_name=customer.schema_name)
         except User.DoesNotExist:
             pass

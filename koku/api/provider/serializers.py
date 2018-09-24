@@ -23,7 +23,6 @@ from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from api.iam.models import User
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
                                  UserSerializer)
@@ -99,7 +98,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         customer = None
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            user = User.objects.get(username=request.user)
+            user = request.user
             if user.customer:
                 customer = user.customer
             else:

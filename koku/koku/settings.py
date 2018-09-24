@@ -102,23 +102,23 @@ DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'koku.middleware.DisableCSRF',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    # 'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
+    # 'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.RemoteUserBackend',
+    'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
 
-CSRF_COOKIE_SECURE = False
+# CSRF_COOKIE_SECURE = False
 
 ROOT_URLCONF = 'koku.urls'
 
