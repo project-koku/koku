@@ -140,11 +140,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         try:
             json_rh_auth = extract_header(request, self.header)
+            print(json_rh_auth)
             username = json_rh_auth['identity']['username']
             email = json_rh_auth['identity']['email']
             account = json_rh_auth['identity']['account_number']
             org = json_rh_auth['identity']['org_id']
         except (KeyError, JSONDecodeError):
+            print(request.META)
+            logger.warn('Could not obtain identity on request.')
             return
         if username:
             # Check for customer creation & user creation
