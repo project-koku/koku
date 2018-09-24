@@ -31,6 +31,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from .models import Customer, User, UserPreference
+from ..common import RH_IDENTITY_HEADER
 
 
 def _create_default_preferences(user):
@@ -122,7 +123,7 @@ class UserSerializer(serializers.ModelSerializer):
         customer = None
         request = self.context.get('request')
         if request and hasattr(request, 'META'):
-            json_rh_auth = extract_header(request, 'HTTP_X_RH_AUTH_IDENTITY')
+            json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
             if (json_rh_auth and 'identity' in json_rh_auth and
                 'account_number' in json_rh_auth['identity'] and
                     'org_id' in json_rh_auth['identity']):

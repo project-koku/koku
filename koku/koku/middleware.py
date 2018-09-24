@@ -23,6 +23,7 @@ from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from tenant_schemas.middleware import BaseTenantMiddleware
 
+from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
 
@@ -80,7 +81,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
     Processes the provided identity found on the request.
     """
 
-    header = 'HTTP_X_RH_AUTH_IDENTITY'
+    header = RH_IDENTITY_HEADER
 
     @staticmethod
     def _create_customer(account, org):
@@ -147,7 +148,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             org = json_rh_auth['identity']['org_id']
         except (KeyError, JSONDecodeError):
             print(request.META)
-            logger.warn('Could not obtain identity on request.')
+            logger.warning('Could not obtain identity on request.')
             return
         if username:
             # Check for customer creation & user creation

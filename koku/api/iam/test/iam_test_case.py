@@ -25,6 +25,7 @@ from faker import Faker
 
 from ..models import Customer, Tenant
 from ..serializers import create_schema_name
+from ...common import RH_IDENTITY_HEADER
 
 
 class IamTestCase(TestCase):
@@ -93,7 +94,7 @@ class IamTestCase(TestCase):
         json_identity = json_dumps(identity)
         mock_header = b64encode(json_identity.encode('utf-8'))
         request = Mock()
-        request.META = {'HTTP_X_RH_AUTH_IDENTITY': mock_header}
+        request.META = {RH_IDENTITY_HEADER: mock_header}
         request.user = user_data['username']
         request_context = {'request': request}
         return request_context
