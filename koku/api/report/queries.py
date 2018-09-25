@@ -338,7 +338,10 @@ class ReportQueryHandler(object):
         The default is 'total'
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
-        return list(order_by.keys()).pop()
+        order_by_key = list(order_by.keys()).pop()
+        if 'account_alias' in order_by:
+            return order_by_key.replace('account_alias', 'usage_account_id')
+        return order_by_key
 
     @property
     def order_direction(self):
@@ -720,9 +723,9 @@ class ReportQueryHandler(object):
                         alias = self.account_aliases.get(str(account_id))
                         if alias:
                             value['account_alias'] = alias
-
+                        else:
+                            value['account_alias'] = account_id
             out_data.append(cur)
-
         return out_data
 
     def execute_sum_query(self):
@@ -739,9 +742,13 @@ class ReportQueryHandler(object):
             query = AWSCostEntryLineItemDailySummary.objects.filter(**self.query_filter)
 
             query_annotations = self._get_annotations()
+
             query_data = query.annotate(**query_annotations)
 
             query_group_by = ['date'] + self._get_group_by()
+
+            for alias in AWSAccountAlias.objects.all():
+                self.account_aliases[alias.account_id] = alias.account_alias
 
             query_order_by = ('-date', )
             if self.order_field != 'delta':
@@ -766,9 +773,6 @@ class ReportQueryHandler(object):
                 query_data = query_data.annotate(rank=dense_rank_by_total)
                 query_order_by = query_order_by + ('rank',)
 
-            for alias in AWSAccountAlias.objects.all():
-                self.account_aliases[alias.account_id] = alias.account_alias
-
             if self.order_field != 'delta':
                 query_data = query_data.order_by(*query_order_by)
 
@@ -790,6 +794,13 @@ class ReportQueryHandler(object):
                 data = self._transform_data(query_group_by, 0, data)
 
         self.query_sum = query_sum
+        order_by_value = self.query_parameters.get('order_by')
+        if 'account' in query_group_by and order_by_value:
+            if 'account_alias' in order_by_value.keys():
+                is_reversed = True if self.order.startswith('-') else False
+                accounts_list = data[0]['accounts']
+                sorted_list = sorted(accounts_list, key = lambda i: i['values'][0]['account_alias'], reverse=is_reversed)
+                data[0]['accounts'] = sorted_list
         self.query_data = data
         return self._format_query_response()
 

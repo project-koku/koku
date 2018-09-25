@@ -1451,6 +1451,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month',
                          'limit': 2},
                         'group_by': {'account': ['*']},
+                        'order_by': {'account_alias': 'asc'},
                         'delta': 'month'}
         handler = ReportQueryHandler(query_params,
                                      '?group_by[account]=*&filter[limit]=2&delta=month',
@@ -1464,7 +1465,7 @@ class ReportQueryTest(IamTestCase):
 
         account = data[0].get('accounts')[0].get('values')[0]['account']
         account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertIsNone(account_alias)
+        self.assertEqual(account_alias, account)
 
         # Add account alias to the database
         test_alias = 'myaccount'

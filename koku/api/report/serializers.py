@@ -115,12 +115,14 @@ class OrderBySerializer(serializers.Serializer):
     """Serializer for handling query parameter order_by."""
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
-    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
+    total = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
     inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
                                         required=False)
+    account_alias = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                            required=False)
 
     def validate(self, data):
         """Validate incoming data."""
