@@ -1016,7 +1016,7 @@ definitions:
   ReportOrdering:
     type: object
     properties:
-      cost:
+      total:
         type: string
         enum:
           - asc
@@ -1026,7 +1026,7 @@ definitions:
         enum:
           - asc
           - desc
-    example: { 'cost': 'asc' }
+    example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
     type: object
