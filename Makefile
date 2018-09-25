@@ -118,7 +118,7 @@ oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
 oc-create-tags:
-	oc get istag postgresql:$(PGSQL_VERSION) || oc create istag postgresql:$(PGSQL_VERSION)} --from-image=centos/postgresql-96-centos7
+	oc get istag postgresql:$(PGSQL_VERSION) || oc create istag postgresql:$(PGSQL_VERSION) --from-image=centos/postgresql-96-centos7
 
 oc-create-db:
 	oc process openshift//postgresql-persistent \
