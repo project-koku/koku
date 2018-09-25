@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting', '0008_awsaccountalias'),
+        ('reporting', '0009_auto_20180918_1915'),
     ]
 
     operations = [
