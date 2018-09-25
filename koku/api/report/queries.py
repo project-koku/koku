@@ -726,6 +726,15 @@ class ReportQueryHandler(object):
                         else:
                             value['account_alias'] = account_id
             out_data.append(cur)
+        order_by_value = self.query_parameters.get('order_by')
+        if 'account' in group_type and order_by_value:
+            if 'account_alias' in order_by_value.keys():
+                is_reversed = True if self.order.startswith('-') else False
+                accounts_list = out_data
+                sorted_list = sorted(accounts_list,
+                                     key=lambda i: i['values'][0]['account_alias'],
+                                     reverse=is_reversed)
+                out_data = sorted_list
         return out_data
 
     def execute_sum_query(self):
@@ -794,13 +803,6 @@ class ReportQueryHandler(object):
                 data = self._transform_data(query_group_by, 0, data)
 
         self.query_sum = query_sum
-        order_by_value = self.query_parameters.get('order_by')
-        if 'account' in query_group_by and order_by_value:
-            if 'account_alias' in order_by_value.keys():
-                is_reversed = True if self.order.startswith('-') else False
-                accounts_list = data[0]['accounts']
-                sorted_list = sorted(accounts_list, key = lambda i: i['values'][0]['account_alias'], reverse=is_reversed)
-                data[0]['accounts'] = sorted_list
         self.query_data = data
         return self._format_query_response()
 
