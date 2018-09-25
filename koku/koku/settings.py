@@ -30,6 +30,8 @@ import os
 import sys
 import logging
 
+from corsheaders.defaults import default_headers
+
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 from . import database
@@ -284,6 +286,11 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 # Cors Setup
 # See https://github.com/ottoyiu/django-cors-headers
 CORS_ORIGIN_ALLOW_ALL = True
+
+CORS_ALLOW_HEADERS = default_headers + (
+    'x-rh-identity',
+    'HTTP_X_RH_IDENTITY',
+)
 
 APPEND_SLASH = False
 
