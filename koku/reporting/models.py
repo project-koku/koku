@@ -396,7 +396,7 @@ class OCPUsageReport(models.Model):
         indexes = [
             models.Index(
                 fields=['interval_start'],
-                name='interval_start_idx',
+                name='ocp_interval_start_idx',
             ),
         ]
 

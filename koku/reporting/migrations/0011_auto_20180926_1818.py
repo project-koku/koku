@@ -122,7 +122,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='ocpusagereport',
-            index=models.Index(fields=['interval_start'], name='interval_start_idx'),
+            index=models.Index(fields=['interval_start'], name='ocp_interval_start_idx'),
         ),
         migrations.AlterUniqueTogether(
             name='ocpusagelineitem',
