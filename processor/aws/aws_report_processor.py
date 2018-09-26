@@ -17,22 +17,25 @@
 
 """Processor for Cost Usage Reports."""
 
+import calendar
 import copy
 import csv
+import datetime
 import gzip
 import io
 import json
 import logging
 from os import listdir, path, remove
 
+from dateutil import parser
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
-from masu.processor import ALLOWED_COMPRESSIONS
+from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import extract_uuids_from_string, stringify_json_data
 from masu.util.hash import Hasher
 
@@ -65,7 +68,7 @@ class ProcessedReport:
 
 
 # pylint: disable=too-many-instance-attributes
-class AWSReportProcessor:
+class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     def __init__(self, schema_name, report_path, compression):
@@ -78,13 +81,8 @@ class AWSReportProcessor:
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
-        if compression.upper() not in ALLOWED_COMPRESSIONS:
-            err_msg = f'Compression {compression} is not supported.'
-            raise MasuProcessingError(err_msg)
+        super().__init__(schema_name=schema_name, report_path=report_path, compression=compression)
 
-        self._schema_name = schema_name
-        self._report_path = report_path
-        self._compression = compression.upper()
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
@@ -231,6 +229,35 @@ class AWSReportProcessor:
                 remove(victim['file'])
                 removed_files.append(victim['file'])
         return removed_files
+
+    def update_summary_tables(self, start_date, end_date=None):
+        """Populate the summary tables for reporting.
+
+        Args:
+            start_date (String) The date to start populating the table.
+            end_date   (String) The date to end on.
+
+        Returns
+            None
+
+        """
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date) if end_date else None
+
+        if end_date is None:
+            last_day_of_month = calendar.monthrange(start_date.year, start_date.month)[1]
+            end_date = datetime.datetime(year=start_date.year,
+                                         month=start_date.month,
+                                         day=last_day_of_month)
+
+        report_db = ReportDBAccessor(schema=self._schema_name, column_map=self.column_map)
+        LOG.info('Updating report summary tables for %s from %s to %s',
+                 self._schema_name, start_date, end_date)
+        report_db.populate_line_item_daily_table(start_date, end_date)
+        report_db.populate_line_item_daily_summary_table(start_date, end_date)
+        report_db.populate_line_item_aggregate_table()
+        report_db.close_connections()
+        report_db.close_session()
 
     # pylint: disable=inconsistent-return-statements, no-self-use
     def _get_file_opener(self, compression):
