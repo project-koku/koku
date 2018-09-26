@@ -383,6 +383,7 @@ class OCPUsageReportPeriod(models.Model):
     report_period_start = models.DateTimeField(null=False)
     report_period_end = models.DateTimeField(null=False)
 
+
 class OCPUsageReport(models.Model):
     """An entry for a single report from Operator Metering.
 
@@ -406,6 +407,7 @@ class OCPUsageReport(models.Model):
     report_period = models.ForeignKey('OCPUsageReportPeriod',
                                       on_delete=models.PROTECT)
 
+
 class OCPUsageLineItem(models.Model):
     """Raw report data for OpenShift pods."""
 
@@ -413,7 +415,6 @@ class OCPUsageLineItem(models.Model):
         """Meta for OCPUsageLineItem."""
 
         unique_together = ('report', 'namespace', 'pod', 'node')
-
 
     id = models.BigAutoField(primary_key=True)
 
