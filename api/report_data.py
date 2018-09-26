@@ -21,7 +21,8 @@ import logging
 
 from flask import jsonify, request
 
-from masu.processor.tasks import update_summary_tables
+from masu.external.accounts_accessor import AccountsAccessor
+from masu.processor.report_processor import ReportProcessor
 from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -48,10 +49,19 @@ def report_data():
         errmsg = 'start_date is a required parameter.'
         return jsonify({'Error': errmsg}), 400
 
-    LOG.info('Calling update_summary_tables async task.')
-    if end_date:
-        async_result = update_summary_tables.delay(schema_name, start_date, end_date)
-    else:
-        async_result = update_summary_tables.delay(schema_name, start_date)
+    for account in AccountsAccessor().get_accounts():
+        if schema_name == account.get('schema_name'):
+            LOG.info('Calling update_summary_tables.')
+            provider = account.get('provider_type')
+            processor = ReportProcessor(schema_name=schema_name,
+                                        report_path='/doesnt/matter',
+                                        compression='PLAIN',
+                                        provider=provider)
+            if end_date:
+                async_result = processor.summarize_report_data(start_date, end_date)
+            else:
+                async_result = processor.summarize_report_data(start_date)
 
-    return jsonify({'Report Data Task ID': str(async_result)})
+            return jsonify({'Report Data Task ID': str(async_result)})
+
+    return jsonify({'Report Data Task ID': 'Unable to find account'})

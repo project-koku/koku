@@ -18,10 +18,13 @@
 
 from dateutil.relativedelta import relativedelta
 
-from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
+from masu.external import (AMAZON_WEB_SERVICES,
+                           AWS_LOCAL_SERVICE_PROVIDER,
+                           OCP_LOCAL_SERVICE_PROVIDER)
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
+from masu.external.downloader.ocp_local.ocp_local_report_downloader import OCPLocalReportDownloader
 
 
 class ReportDownloaderError(Exception):
@@ -72,6 +75,12 @@ class ReportDownloader:
 
         if self.provider_type == AWS_LOCAL_SERVICE_PROVIDER:
             return AWSLocalReportDownloader(customer_name=self.customer_name,
+                                            auth_credential=self.credential,
+                                            bucket=self.cur_source,
+                                            report_name=self.report_name)
+
+        if self.provider_type == OCP_LOCAL_SERVICE_PROVIDER:
+            return OCPLocalReportDownloader(customer_name=self.customer_name,
                                             auth_credential=self.credential,
                                             bucket=self.cur_source,
                                             report_name=self.report_name)

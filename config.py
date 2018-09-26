@@ -74,6 +74,9 @@ class Config:
     # Data directory for processing incoming data
     TMP_DIR = '/var/tmp/masu'
 
+    # OCP-local simulates Insights report storage
+    INSIGHTS_LOCAL_REPORT_DIR = f'{TMP_DIR}/insights_local'
+
     # Celery settings
     CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
     # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'

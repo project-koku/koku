@@ -16,8 +16,12 @@
 #
 """Report processor external interface."""
 
-from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
+from masu.external import (AMAZON_WEB_SERVICES,
+                           AWS_LOCAL_SERVICE_PROVIDER,
+                           OCP_LOCAL_SERVICE_PROVIDER,
+                           OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
+from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 
 
 class ReportProcessorError(Exception):
@@ -62,6 +66,12 @@ class ReportProcessor:
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression)
+
+        if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, OCP_LOCAL_SERVICE_PROVIDER):
+            return OCPReportProcessor(schema_name=self.schema_name,
+                                      report_path=self.report_path,
+                                      compression=self.compression)
+
         return None
 
     def process(self):
@@ -93,5 +103,21 @@ class ReportProcessor:
         """
         try:
             return self._processor.remove_temp_cur_files(path)
+        except Exception as err:
+            raise ReportProcessorError(str(err))
+
+    def summarize_report_data(self, start_date, end_date=None):
+        """Populate the summary tables for reporting.
+
+        Args:
+            start_date (String) The date to start populating the table.
+            end_date   (String) The date to end on.
+
+        Returns
+            None
+
+        """
+        try:
+            return self._processor.update_summary_tables(start_date, end_date)
         except Exception as err:
             raise ReportProcessorError(str(err))
