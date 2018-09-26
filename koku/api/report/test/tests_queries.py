@@ -15,6 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import logging
+from pprint import pformat
+logging.disable(0)
+LOG = logging.getLogger(__name__)
+
+
 import random
 from datetime import timedelta
 from decimal import Decimal
@@ -385,7 +391,7 @@ class ReportQueryTest(IamTestCase):
             'usage_start',
             'usage_end',
             'usage_account_id',
-            'availability_zone'
+            'availability_zone',
         ]
         annotations = {
             'product_family': Concat('cost_entry_product__product_family', Value('')),
@@ -403,14 +409,20 @@ class ReportQueryTest(IamTestCase):
             'blended_cost': Sum('blended_cost'),
             'public_on_demand_cost': Sum('public_on_demand_cost'),
             'public_on_demand_rate': Max('public_on_demand_rate'),
-            'resource_count': Count('resource_id', distinct=True)
+            'resource_count': Count('resource_id', distinct=True),
         }
 
         entries = AWSCostEntryLineItemDaily.objects\
             .values(*included_fields)\
             .annotate(**annotations)
+
+        alias = AWSAccountAlias(account_id=self.payer_account_id,
+                                account_alias=self.account_alias)
+        alias.save()
+
         for entry in entries:
-            summary = AWSCostEntryLineItemDailySummary(**entry)
+            summary = AWSCostEntryLineItemDailySummary(**entry,
+                                                       account_alias=alias)
             summary.save()
 
     def _populate_aggregates_table(self):
@@ -469,12 +481,18 @@ class ReportQueryTest(IamTestCase):
                            bill_end=DateHelper().this_month_end,
                            data_start=DateHelper().yesterday,
                            data_end=DateHelper().today,
-                           account_id=None):
+                           account_id=None,
+                           account_alias=None):
         """Populate tenant with data."""
         self.payer_account_id = account_id
         if account_id is None:
-            payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-            self.payer_account_id = payer_account_id
+            self.payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+
+        self.account_alias = account_alias
+        if account_alias is None:
+            self.account_alias = self.fake.company()
+
+        LOG.warning(f'{self.payer_account_id} - {self.account_alias}')
 
         with tenant_context(self.tenant):
             cost = rate * amount
@@ -491,6 +509,7 @@ class ReportQueryTest(IamTestCase):
                                                   ce_pricing, ce_product, rate,
                                                   cost, current, end_hour)
                 current = end_hour
+
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
@@ -1458,30 +1477,40 @@ class ReportQueryTest(IamTestCase):
                                      'unblended_cost',
                                      'currency_code',
                                      **{'report_type': 'costs'})
-        # Run account group_by query and verify that account_alias is not in response.
         query_output = handler.execute_query()
         data = query_output.get('data')
 
-        account = data[0].get('accounts')[0].get('values')[0]['account']
         account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertIsNone(account_alias)
+        self.assertEqual(account_alias, self.account_alias)
 
-        # Add account alias to the database
-        test_alias = 'myaccount'
-        with tenant_context(self.tenant):
-            alias = AWSAccountAlias(account_id=account, account_alias=test_alias)
-            alias.save()
+    def test_execute_query_orderby_alias(self):
+        """Test execute_query when account alias is avaiable."""
+        for _ in range(0, random.randint(3, 5)):
+            # add some current data.
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=self.fake.ean(length=13),
+                                    account_alias=self.fake.company())
 
-        # Run query again and verify that account_alias is in response.
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'limit': 2},
+                        'group_by': {'account': ['*']},
+                        'delta': 'month'}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=*&filter[limit]=2&delta=month',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
 
-        account = data[0].get('accounts')[0].get('values')[0]['account']
         account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertEqual(account_alias, test_alias)
+        LOG.warning(f'XXX: {pformat(data)}')
 
-        with tenant_context(self.tenant):
-            AWSAccountAlias.objects.all().delete()
+        self.assertEqual(account_alias, self.account_alias)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
