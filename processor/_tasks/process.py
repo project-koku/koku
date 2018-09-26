@@ -28,7 +28,9 @@ from masu.processor.report_processor import ReportProcessor
 LOG = get_task_logger(__name__)
 
 
-def _process_report_file(schema_name, report_path, compression, provider, provider_uuid):
+# pylint: disable=too-many-arguments
+def _process_report_file(schema_name, report_path, compression,
+                         provider, provider_uuid, start_date):
     """
     Task to process a Report.
 
@@ -38,6 +40,7 @@ def _process_report_file(schema_name, report_path, compression, provider, provid
         compression   (String) 'PLAIN' or 'GZIP'
         provider      (String) provider type
         provider_uuid (String) provider uuid
+        start_date    (String) Start date of billing month for file.
 
     Returns:
         None
@@ -47,11 +50,13 @@ def _process_report_file(schema_name, report_path, compression, provider, provid
             ' schema_name: {},'
             ' report_path: {},'
             ' compression: {},'
-            ' provider: {}')
+            ' provider: {},'
+            ' start_date: {}')
     log_statement = stmt.format(schema_name,
                                 report_path,
                                 compression,
-                                provider)
+                                provider,
+                                start_date)
     LOG.info(log_statement)
     mem = psutil.virtual_memory()
     mem_msg = 'Avaiable memory: {} bytes ({}%)'.format(mem.free, mem.percent)
@@ -80,3 +85,6 @@ def _process_report_file(schema_name, report_path, compression, provider, provid
 
     files = processor.remove_processed_files(path.dirname(report_path))
     LOG.info('Temporary files removed: %s', str(files))
+
+    LOG.info('Building report table summary for %s', schema_name)
+    processor.summarize_report_data(start_date)
