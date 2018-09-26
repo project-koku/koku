@@ -254,6 +254,9 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=True)
     usage_account_id = models.CharField(max_length=50, null=False)
+    account_alias = models.ForeignKey('AWSAccountAlias',
+                                      on_delete=models.PROTECT,
+                                      null=True)
     product_code = models.CharField(max_length=50, null=False)
     product_family = models.CharField(max_length=150, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
