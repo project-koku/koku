@@ -50,7 +50,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
         if 'status' not in request.path:
-            if hasattr(request, 'user'):
+            if hasattr(request, 'user') and hasattr(request.user, 'username'):
                 username = request.user.username
                 try:
                     User.objects.get(username=username)

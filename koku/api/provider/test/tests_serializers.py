@@ -77,6 +77,8 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': 'my_s3_bucket'
                     }}
+        request = self.request_context['request']
+        request.user.customer = None
         serializer = ProviderSerializer(data=provider, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):

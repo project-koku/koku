@@ -177,7 +177,7 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
         (Response): The report in a Response object
 
     """
-    LOG.info(f'API: {request.path} USER: {request.user}')
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
 
     url_data = request.GET.urlencode()
     validation, params = process_query_parameters(url_data)
