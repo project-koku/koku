@@ -106,21 +106,21 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
-    # 'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.contrib.auth.middleware.AuthenticationMiddleware',
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
-    # 'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
+if DEVELOPMENT:
+    MIDDLEWARE.insert(4, 'koku.dev_middleware.DevelopmentIdentityHeaderMiddleware')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
 
-# CSRF_COOKIE_SECURE = False
 
 ROOT_URLCONF = 'koku.urls'
 
