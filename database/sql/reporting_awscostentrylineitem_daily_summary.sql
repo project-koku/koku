@@ -5,6 +5,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
         li.product_code,
         p.product_family,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.availability_zone,
         p.region,
         p.instance_type,
@@ -25,6 +26,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awscostentrypricing as pr
         ON li.cost_entry_pricing_id = pr.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE date(li.usage_start) >= '{start_date}'
         AND date(li.usage_start) <= '{end_date}'
     GROUP BY li.usage_start,
@@ -51,6 +54,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
     product_code,
     product_family,
     usage_account_id,
+    account_alias_id,
     availability_zone,
     region,
     instance_type,
@@ -72,6 +76,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
         product_code,
         product_family,
         usage_account_id,
+        account_alias_id,
         availability_zone,
         region,
         instance_type,
