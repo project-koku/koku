@@ -41,10 +41,6 @@ class IamTestCase(TestCase):
                               {'name': 'test_customer_2',
                                'owner': self.gen_user_data()}]
 
-    def tearDown(self):
-        """Tear down test case objects."""
-        User.objects.filter(username='service_user').all().delete()
-
     def get_token(self, username, password):  # pylint: disable=R0201
         """Get the token for the user."""
         url = reverse('token-auth')

@@ -741,8 +741,7 @@ class ReportQueryHandler(object):
             query_data = query_data.values(*query_group_by)\
                 .annotate(total=Sum(self.aggregate_key))\
                 .annotate(units=Max(self.units_key))\
-                .annotate(account_alias=Concat('account_alias__account_alias',
-                                               Value('')))
+                .annotate(account_alias=F('account_alias__account_alias'))
 
             if self.count:
                 # This is a sum because the summary table already

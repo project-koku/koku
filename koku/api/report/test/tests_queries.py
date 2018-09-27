@@ -20,7 +20,6 @@ from pprint import pformat
 logging.disable(0)
 LOG = logging.getLogger(__name__)
 
-
 import random
 from datetime import timedelta
 from decimal import Decimal
@@ -259,11 +258,10 @@ class ReportQueryUtilsTest(TestCase):
 class ReportQueryTest(IamTestCase):
     """Tests the report queries."""
 
-    current_month_total = Decimal('0')
-
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+
         self.create_service_admin()
         customer = self.customer_data[0]
         response = self.create_customer(customer)
@@ -347,8 +345,6 @@ class ReportQueryTest(IamTestCase):
         return ce_pricing
 
     def _populate_daily_table(self):
-        AWSCostEntryLineItemDaily.objects.all().delete()
-
         included_fields = [
             'cost_entry_product_id',
             'cost_entry_pricing_id',
@@ -386,7 +382,6 @@ class ReportQueryTest(IamTestCase):
             daily.save()
 
     def _populate_daily_summary_table(self):
-        AWSCostEntryLineItemDailySummary.objects.all().delete()
         included_fields = [
             'usage_start',
             'usage_end',
@@ -416,17 +411,15 @@ class ReportQueryTest(IamTestCase):
             .values(*included_fields)\
             .annotate(**annotations)
 
-        alias = AWSAccountAlias(account_id=self.payer_account_id,
-                                account_alias=self.account_alias)
-        alias.save()
-
         for entry in entries:
+            alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+            LOG.warning(f'{entry["usage_account_id"]} : {entry["blended_cost"]} : {entry["unblended_cost"]}')
+            LOG.warning(f'{list(alias)[0].account_id} : {list(alias)[0].account_alias}')
             summary = AWSCostEntryLineItemDailySummary(**entry,
-                                                       account_alias=alias)
+                                                       account_alias=list(alias).pop())
             summary.save()
 
     def _populate_aggregates_table(self):
-        AWSCostEntryLineItemAggregates.objects.all().delete()
         dh = DateHelper()
         this_month_filter = {'usage_start__gte': dh.this_month_start}
         ten_day_filter = {'usage_start__gte': dh.n_days_ago(dh.today, 10)}
@@ -492,9 +485,14 @@ class ReportQueryTest(IamTestCase):
         if account_alias is None:
             self.account_alias = self.fake.company()
 
-        LOG.warning(f'{self.payer_account_id} - {self.account_alias}')
-
         with tenant_context(self.tenant):
+            alias = list(AWSAccountAlias.objects.filter(
+                account_id=self.payer_account_id))
+            if not alias:
+                alias = AWSAccountAlias(account_id=self.payer_account_id,
+                                        account_alias=self.account_alias)
+                alias.save()
+
             cost = rate * amount
             bill = self._create_bill(self.payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
@@ -504,6 +502,7 @@ class ReportQueryTest(IamTestCase):
             while current < data_end:
                 if current.month == DateHelper().this_month_start.month:
                     self.current_month_total += cost
+
                 end_hour = current + DateHelper().one_hour
                 self.create_hourly_instance_usage(self.payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
@@ -869,11 +868,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
-        self.add_data_to_tenant(rate=Decimal('0.299'))
-        self.add_data_to_tenant(rate=Decimal('0.399'))
-        self.add_data_to_tenant(rate=Decimal('0.099'))
-        self.add_data_to_tenant(rate=Decimal('0.999'))
-        self.add_data_to_tenant(rate=Decimal('0.699'))
+        for _ in range(0, random.randint(3, 10)):
+            self.add_data_to_tenant(rate=Decimal(random.random()))
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -884,6 +880,8 @@ class ReportQueryTest(IamTestCase):
                                      'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
+        LOG.warning(f'XXX: {pformat(data)}')
+
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
@@ -1485,21 +1483,21 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_orderby_alias(self):
         """Test execute_query when account alias is avaiable."""
+        # generate test data
         for _ in range(0, random.randint(3, 5)):
-            # add some current data.
             self.add_data_to_tenant(rate=Decimal(random.random()),
                                     account_id=self.fake.ean(length=13),
                                     account_alias=self.fake.company())
 
+        # execute query
         query_params = {'filter':
                         {'resolution': 'monthly',
                          'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'limit': 2},
+                         'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
-                        'delta': 'month'}
+                        'order_by': {'account_alias': 'asc'}}
         handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&filter[limit]=2&delta=month',
+                                     '?group_by[account]=[*]&order_by[account_alias]=asc',
                                      self.tenant,
                                      'unblended_cost',
                                      'currency_code',
@@ -1507,10 +1505,14 @@ class ReportQueryTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get('data')
 
-        account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        LOG.warning(f'XXX: {pformat(data)}')
+        # test query output
+        aliases = []
+        for datum in data:
+            for account in datum.get('accounts'):
+                for value in account.get('values'):
+                    aliases.append(value.get('account_alias'))
 
-        self.assertEqual(account_alias, self.account_alias)
+        self.assertEqual(aliases, sorted(aliases))
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
