@@ -644,6 +644,7 @@ class ReportQueryHandler(object):
             group_by = self._get_group_by()
             for group in group_by:
                 other[group] = 'Other'
+                other['account_alias'] = 'Other'
             ranked_list.append(other)
 
         return ranked_list

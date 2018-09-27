@@ -413,11 +413,10 @@ class ReportQueryTest(IamTestCase):
 
         for entry in entries:
             alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
-            LOG.warning(f'{entry["usage_account_id"]} : {entry["blended_cost"]} : {entry["unblended_cost"]}')
-            LOG.warning(f'{list(alias)[0].account_id} : {list(alias)[0].account_alias}')
             summary = AWSCostEntryLineItemDailySummary(**entry,
                                                        account_alias=list(alias).pop())
             summary.save()
+            self.current_month_total += entry['blended_cost']
 
     def _populate_aggregates_table(self):
         dh = DateHelper()
@@ -500,9 +499,6 @@ class ReportQueryTest(IamTestCase):
 
             current = data_start
             while current < data_end:
-                if current.month == DateHelper().this_month_start.month:
-                    self.current_month_total += cost
-
                 end_hour = current + DateHelper().one_hour
                 self.create_hourly_instance_usage(self.payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
@@ -1299,52 +1295,36 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         dh = DateHelper()
-        bill_start = dh.last_month_start
-        bill_end = dh.last_month_end
-        current_total = 0
-        prev_total = 0
+        current_total = Decimal(0)
+        prev_total = Decimal(0)
 
-        # First we need to add data for the previous time period
-        # This convoluted method is necessary to re-use the randomized
-        # account ids and products
-        with tenant_context(self.tenant):
-            line_items = AWSCostEntryLineItem.objects.values()
-            first = line_items[0]
-            payer_account_id = first.get('usage_account_id')
-            bill = self._create_bill(payer_account_id, bill_start, bill_end)
+        account_id = self.payer_account_id
+        account_alias = self.account_alias
 
-            for row in line_items:
-                start = row['usage_start']
-                new_start = start.replace(month=start.month - 1)
-                end = row['usage_end']
-                new_end = end.replace(month=end.month - 1)
-                cost_entry = AWSCostEntry(
-                    interval_start=new_start,
-                    interval_end=new_end,
-                    bill=bill
-                )
-                cost_entry.save()
+        kwargs = {'account_id': account_id,
+                  'account_alias': account_alias,
+                  'bill_start': DateHelper().last_month_start,
+                  'bill_end': DateHelper().last_month_end,
+                  'data_start': DateHelper().last_month_start,
+                  'data_end': DateHelper().last_month_start + timedelta(days=1)}
 
-                row.pop('id')
-                row['usage_start'] = new_start
-                row['usage_end'] = new_end
-                current_total += row['unblended_cost']
-                row['unblended_cost'] = row['unblended_cost'] + Decimal(10.0)
-                prev_total += row['unblended_cost']
-                row['cost_entry_id'] = cost_entry.id
-                row['cost_entry_bill_id'] = bill.id
-                line_item = AWSCostEntryLineItem(**row)
-                line_item.save()
+        for _ in range(0, random.randint(3, 5)):
+            # add some current data.
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=account_id,
+                                    account_alias=account_alias)
+            current_total += self.current_month_total
+            self.current_month_total = Decimal(0)
 
-            expected_delta_value = Decimal(current_total - prev_total)
-            expected_delta_percent = Decimal(
-                (current_total - prev_total) / prev_total * 100
-            )
+            # add some previous data.
+            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
+            prev_total += self.current_month_total
+            self.current_month_total = Decimal(0)
 
-            # Recalculate the summary tables to include the new data
-            self._populate_daily_table()
-            self._populate_daily_summary_table()
-            self._populate_aggregates_table()
+        expected_delta_value = Decimal(current_total - prev_total)
+        expected_delta_percent = Decimal(
+            (current_total - prev_total) / prev_total * 100
+        )
 
         query_params = {'filter':
                         {'resolution': 'monthly',
@@ -1362,8 +1342,11 @@ class ReportQueryTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
+        LOG.warning(f'{pformat(data)}')
 
         values = data[0].get('accounts', [])[0].get('values', [])[0]
+        LOG.warning(f'{pformat(values)}')
+
         self.assertIn('delta_value', values)
         self.assertIn('delta_percent', values)
         self.assertEqual(values.get('delta_value'), expected_delta_value)
