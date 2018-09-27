@@ -45,7 +45,7 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    SQLALCHEMY_POOL_SIZE = 5
+    SQLALCHEMY_POOL_SIZE = 15
 
     # Koku Connectivity
     KOKU_HOST = os.getenv('KOKU_HOST_ADDRESS', 'localhost')
