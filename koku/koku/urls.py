@@ -24,6 +24,7 @@ from django.contrib import admin
 from django.urls import path
 from django.views.generic import RedirectView
 
+
 # pylint: disable=invalid-name
 urlpatterns = [
     path('admin/', admin.site.urls),

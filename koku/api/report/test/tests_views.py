@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
@@ -25,13 +25,13 @@ from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
+from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, Tenant, User
+from api.models import Customer, User
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
                              _generic_report,
-                             get_tenant,
                              process_query_parameters)
 from api.utils import UnitConverter
 
@@ -42,15 +42,15 @@ class ReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.create_service_admin()
-        customer = self.customer_data[0]
-        response = self.create_customer(customer)
-        self.assertEqual(response.status_code, 201)
-        customer_json = response.json()
-        customer_uuid = customer_json.get('uuid')
-        customer_obj = Customer.objects.filter(uuid=customer_uuid).get()
-        self.tenant = Tenant(schema_name=customer_obj.schema_name)
-        self.tenant.save()
+        self.user_data = self._create_user_data()
+        self.customer = self._create_customer_data()
+        self.request_context = self._create_request_context(self.customer,
+                                                            self.user_data,
+                                                            create_tenant=True)
+        self.headers = self.request_context['request'].META
+        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
 
         self.report = {
             'group_by': {
@@ -136,34 +136,11 @@ class ReportViewTest(IamTestCase):
         Customer.objects.all().delete()
         User.objects.all().delete()
 
-    def test_get_costs_anon(self):
-        """Test costs reports fail with an anonymous user."""
-        url = reverse('reports-costs')
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, 403)
-
-    def test_get_storage_anon(self):
-        """Test inventory storage reports fail with an anonymous user."""
-        url = reverse('reports-storage')
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, 403)
-
-    def test_get_instance_anon(self):
-        """Test inventory instance reports fail with an anonymous user."""
-        url = reverse('reports-instance-type')
-        client = APIClient()
-        response = client.get(url)
-        self.assertEqual(response.status_code, 403)
-
     def test_get_costs_customer_owner(self):
         """Test costs reports runs with a customer owner."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-costs')
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
@@ -172,11 +149,9 @@ class ReportViewTest(IamTestCase):
 
     def test_get_instance_customer_owner(self):
         """Test inventory instance reports runs with a customer owner."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-instance-type')
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
@@ -185,11 +160,9 @@ class ReportViewTest(IamTestCase):
 
     def test_get_storage_customer_owner(self):
         """Test inventory storage reports runs with a customer owner."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-storage')
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
@@ -212,53 +185,34 @@ class ReportViewTest(IamTestCase):
 
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
 
     def test_get_instance_usage_invalid_query_param(self):
         """Test instance usage reports runs with an invalid query param."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
         url = reverse('reports-instance-type') + '?' + qs
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
 
     def test_get_storage_usage_invalid_query_param(self):
         """Test storage usage reports runs with an invalid query param."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
         url = reverse('reports-storage') + '?' + qs
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
-
-    def test_get_tenant_no_group(self):
-        """Test get_tenant with a user with no group."""
-        user = Mock()
-        group = Mock()
-        group.id = 909090
-        user.groups.first.return_value = group
-
-        with self.assertRaises(ValidationError):
-            get_tenant(user)
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-costs')
         client = APIClient(HTTP_ACCEPT='text/csv')
 
-        client.credentials(HTTP_AUTHORIZATION=token)
-
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         response.render()
 
         self.assertEqual(response.status_code, 200)
@@ -267,13 +221,9 @@ class ReportViewTest(IamTestCase):
 
     def test_get_instance_csv(self):
         """Test CSV output of inventory instance reports."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-instance-type')
         client = APIClient(HTTP_ACCEPT='text/csv')
-
-        client.credentials(HTTP_AUTHORIZATION=token)
-
-        response = client.get(url, content_type='text/csv')
+        response = client.get(url, content_type='text/csv', **self.headers)
         response.render()
 
         self.assertEqual(response.status_code, 200)
@@ -282,13 +232,9 @@ class ReportViewTest(IamTestCase):
 
     def test_get_storage_csv(self):
         """Test CSV output of inventory storage reports."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         url = reverse('reports-storage')
         client = APIClient(HTTP_ACCEPT='text/csv')
-
-        client.credentials(HTTP_AUTHORIZATION=token)
-
-        response = client.get(url, content_type='text/csv')
+        response = client.get(url, content_type='text/csv', **self.headers)
         response.render()
 
         self.assertEqual(response.status_code, 200)
@@ -350,9 +296,9 @@ class ReportViewTest(IamTestCase):
             'filter[time_scope_units]': 'month',
             'units': 'byte'
         }
-        user = User.objects.filter(
-            username=self.customer_data[0]['owner']['username']
-        ).first()
+        user = User.objects.get(
+            username=self.user_data['username']
+        )
 
         django_request = HttpRequest()
         qd = QueryDict(mutable=True)
@@ -381,9 +327,9 @@ class ReportViewTest(IamTestCase):
             'units': 'second'
         }
 
-        user = User.objects.filter(
-            username=self.customer_data[0]['owner']['username']
-        ).first()
+        user = User.objects.get(
+            username=self.user_data['username']
+        )
 
         django_request = HttpRequest()
         qd = QueryDict(mutable=True)
@@ -441,29 +387,25 @@ class ReportViewTest(IamTestCase):
 
     def test_execute_query_w_delta_true(self):
         """Test that delta=True returns deltas."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         qs = 'delta=True'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
         qs = 'delta=False'
         url = reverse('reports-costs') + '?' + qs
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
-        token = self.get_customer_owner_token(self.customer_data[0])
         bad_delta = 'Invalid'
         expected = f'"{bad_delta}" is not a valid boolean.'
         qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
-        client.credentials(HTTP_AUTHORIZATION=token)
-        response = client.get(url)
+        response = client.get(url, **self.headers)
         result = str(response.data.get('delta')[0])
         self.assertEqual(response.status_code, 400)
         self.assertEqual(result, expected)

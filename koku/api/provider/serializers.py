@@ -23,7 +23,6 @@ from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
-from api.iam.models import Customer, User
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
                                  UserSerializer)
@@ -99,13 +98,12 @@ class ProviderSerializer(serializers.ModelSerializer):
         customer = None
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
-            user = User.objects.get(pk=request.user.id)
-            if user.groups.count() == 1:
-                group = user.groups.first()
-                customer = Customer.objects.get(pk=group.id)
+            user = request.user
+            if user.customer:
+                customer = user.customer
             else:
                 key = 'customer'
-                message = 'Group for requesting user could not be found.'
+                message = 'Customer for requesting user could not be found.'
                 raise serializers.ValidationError(error_obj(key, message))
         else:
             key = 'created_by'
