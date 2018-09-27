@@ -66,6 +66,13 @@ class KokuCustomerOnboarder:
                                          self.customer.get('user'),
                                          self.customer.get('email'),)
 
+    def create_customer(self):
+        """Create Koku Customer."""
+        # Customer, User, and Tenant schema are lazy initialized on any API request
+        response = requests.get(self.endpoint_base + 'reports/costs/',
+                                 headers=self.get_headers(self.auth_token))
+        print(response.text)
+
     def create_provider_api(self):
         """Create a Koku Provider using the Koku API."""
         data = {
@@ -120,7 +127,7 @@ class KokuCustomerOnboarder:
 
             provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id, setup_complete)
-                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 2, 1, False)
+                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 1, 1, False)
                 ;
             """.format(name=self.customer.get('provider_name'))
 
@@ -146,6 +153,7 @@ class KokuCustomerOnboarder:
 
     def onboard(self):
         """Execute Koku onboarding steps."""
+        self.create_customer()
 
         if self._config.get('bypass_api'):
             self.provider = self.create_provider_db()
