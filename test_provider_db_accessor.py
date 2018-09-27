@@ -84,7 +84,7 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_customer_name(self):
         """Test provider customer getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
-        expected_customer_name = 'Test Customer'
+        expected_customer_name = 'acct10001org20002'
         accessor = ProviderDBAccessor(uuid)
         self.assertEqual(expected_customer_name, accessor.get_customer_name())
         accessor.close_session()
@@ -92,7 +92,7 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_get_schema(self):
         """Test provider schema getter."""
         uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
-        expected_schema = 'testcustomer'
+        expected_schema = 'acct10001org20002'
         accessor = ProviderDBAccessor(uuid)
         self.assertEqual(expected_schema, accessor.get_schema())
         accessor.close_session()

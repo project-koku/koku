@@ -44,7 +44,7 @@ class ReportSchemaTest(MasuTestCase):
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = ReportDBAccessor(
-            schema='testcustomer',
+            schema='acct10001org20002',
             column_map=cls.column_map
         )
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
@@ -109,7 +109,7 @@ class ReportDBAccessorTest(MasuTestCase):
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = ReportDBAccessor(
-            schema='testcustomer',
+            schema='acct10001org20002',
             column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema

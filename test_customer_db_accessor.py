@@ -43,12 +43,5 @@ class CustomerDBAccessorTest(MasuTestCase):
         """Test provider name getter."""
         customer_id = '1'
         accessor = CustomerDBAccessor(customer_id)
-        self.assertEqual('testcustomer', accessor.get_schema_name())
-        accessor.close_session()
-
-    def test_get_group_ptr_id(self):
-        """Test provider name getter."""
-        customer_id = '1'
-        accessor = CustomerDBAccessor(customer_id)
-        self.assertEqual(1, accessor.get_group_ptr_id())
+        self.assertEqual('acct10001org20002', accessor.get_schema_name())
         accessor.close_session()
