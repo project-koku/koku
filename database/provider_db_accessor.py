@@ -17,7 +17,6 @@
 """Accessor for Provider information from koku database."""
 
 
-from masu.database.auth_db_accessor import AuthDBAccessor
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
@@ -180,12 +179,7 @@ class ProviderDBAccessor(KokuDBAccess):
             (String): "Name of the customer",
                     example: "Customer 1 Inc."
         """
-        obj = self._get_db_obj_query().first()
-        customer_id = obj.customer_id
-        customer_accessor = CustomerDBAccessor(customer_id)
-        group_ptr_id = customer_accessor.get_group_ptr_id()
-        auth_accessor = AuthDBAccessor(group_ptr_id)
-        return auth_accessor.get_name()
+        return self.get_schema()
 
     def get_schema(self):
         """

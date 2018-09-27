@@ -44,7 +44,7 @@ class CustomerDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ...",
         """
-        obj = self.get_session().query(self._customer).filter_by(group_ptr_id=self._customer_id)
+        obj = self.get_session().query(self._customer).filter_by(id=self._customer_id)
         return obj
 
     def get_uuid(self):
@@ -68,20 +68,7 @@ class CustomerDBAccessor(KokuDBAccess):
             None
         Returns:
             (String): "Schema Name based on customer name",
-                    example: "testcustomer"
+                    example: "acct10001org20002"
         """
         obj = self._get_db_obj_query().first()
         return obj.schema_name
-
-    def get_group_ptr_id(self):
-        """
-        Return the group id for the customer.
-
-        Args:
-            None
-        Returns:
-            (Integer): "Integer value to map customer to group.",
-                    example: "1"
-        """
-        obj = self._get_db_obj_query().first()
-        return obj.group_ptr_id
