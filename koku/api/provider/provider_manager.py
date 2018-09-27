@@ -42,8 +42,6 @@ class ProviderManager:
         """Establish provider manager database objects."""
         try:
             self.model = Provider.objects.all().filter(uuid=uuid).get()
-            self.created_by = self.model.created_by
-            self.owned_by = self.model.customer.owner
         except (ObjectDoesNotExist, ValidationError) as e:
             raise(ProviderManagerError(str(e)))
 
@@ -58,22 +56,12 @@ class ProviderManager:
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
-        # Provider is removable by the customer owner
-        if current_user.id != self.owned_by.id:
-            # Provider is also removable by the user that created it (not owner)
-            if current_user.id != self.created_by.id:
-                return False
-        return True
+        return self.model.customer == current_user.customer
 
     @transaction.atomic
     def remove(self, current_user, customer_remove_context=False):
         """Remove the provider with current_user."""
-        # Provider is removable by a service admin only if it's in the context of customer removal
-        force_removal_allowed = False
-        if current_user.is_superuser and customer_remove_context is True:
-            force_removal_allowed = True
-
-        if force_removal_allowed or self.is_removable_by_user(current_user):
+        if self.is_removable_by_user(current_user):
             authentication_model = self.model.authentication
             billing_source = self.model.billing_source
 

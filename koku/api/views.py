@@ -19,8 +19,6 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.status.views import status
-from api.iam.view.customer import CustomerViewSet
-from api.iam.view.user import UserViewSet
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.provider.view import ProviderViewSet
 from api.report.view import costs, instance_type, storage

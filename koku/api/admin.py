@@ -21,7 +21,6 @@ from api.models import (Customer,
                         Provider,
                         ProviderAuthentication,
                         ProviderBillingSource,
-                        ResetToken,
                         User,
                         UserPreference)
 from reporting_common.models import CostUsageReportStatus
@@ -31,6 +30,5 @@ admin.site.register(Customer)
 admin.site.register(Provider)
 admin.site.register(ProviderAuthentication)
 admin.site.register(ProviderBillingSource)
-admin.site.register(ResetToken)
 admin.site.register(User)
 admin.site.register(UserPreference)
