@@ -370,3 +370,265 @@ class AWSAccountAlias(models.Model):
 
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
+
+
+class OCPUsageReportPeriod(models.Model):
+    """The report period information for a Operator Metering report.
+
+    The reporting period (1 month) will cover many reports.
+
+    """
+
+    cluster_id = models.CharField(max_length=50, null=False)
+    report_period_start = models.DateTimeField(null=False)
+    report_period_end = models.DateTimeField(null=False)
+
+
+class OCPUsageReport(models.Model):
+    """An entry for a single report from Operator Metering.
+
+    A cost entry covers a specific time interval (e.g. 1 hour).
+
+    """
+
+    class Meta:
+        """Meta for OCPUsageReport."""
+
+        indexes = [
+            models.Index(
+                fields=['interval_start'],
+                name='ocp_interval_start_idx',
+            ),
+        ]
+
+    interval_start = models.DateTimeField(null=False)
+    interval_end = models.DateTimeField(null=False)
+
+    report_period = models.ForeignKey('OCPUsageReportPeriod',
+                                      on_delete=models.PROTECT)
+
+
+class OCPUsageLineItem(models.Model):
+    """Raw report data for OpenShift pods."""
+
+    class Meta:
+        """Meta for OCPUsageLineItem."""
+
+        unique_together = ('report', 'namespace', 'pod', 'node')
+
+    id = models.BigAutoField(primary_key=True)
+
+    report_period = models.ForeignKey('OCPUsageReportPeriod',
+                                      on_delete=models.PROTECT)
+
+    report = models.ForeignKey('OCPUsageReport',
+                               on_delete=models.PROTECT)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=False)
+
+    node = models.CharField(max_length=253, null=False)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    pod_usage_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_usage_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_memory_bytes = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+
+class OCPUsageLineItemDaily(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by OCP resource.
+
+    """
+
+    class Meta:
+        """Meta for OCPUsageLineItemDaily."""
+
+        db_table = 'reporting_ocpusagelineitem_daily'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='ocp_usage_idx',
+            ),
+            models.Index(
+                fields=['namespace'],
+                name='namespace_idx',
+            ),
+            models.Index(
+                fields=['pod'],
+                name='pod_idx',
+            ),
+            models.Index(
+                fields=['node'],
+                name='node_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=False)
+
+    node = models.CharField(max_length=253, null=False)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    pod_usage_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_usage_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_memory_bytes = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+
+class OCPUsageLineItemDailySummary(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by namespace, pod, and node, and does not
+    have a breakdown by resource or tags. The contents of this table
+    should be considered ephemeral. It will be regularly deleted from
+    and repopulated.
+
+    """
+
+    class Meta:
+        """Meta for OCPUsageLineItemDailySummary."""
+
+        db_table = 'reporting_ocpusagelineitem_daily_summary'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='summary_ocp_usage_idx',
+            ),
+            models.Index(
+                fields=['namespace'],
+                name='summary_namespace_idx',
+            ),
+            models.Index(
+                fields=['pod'],
+                name='summary_pod_idx',
+            ),
+            models.Index(
+                fields=['node'],
+                name='summary_node_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=False)
+
+    node = models.CharField(max_length=253, null=False)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    pod_usage_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_cpu_core_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_usage_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_memory_bytes = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
