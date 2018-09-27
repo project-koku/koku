@@ -517,12 +517,38 @@ class OCPUsageLineItemDaily(models.Model):
     pod_usage_cpu_core_seconds = models.DecimalField(
         max_digits=17,
         decimal_places=5,
-        null=True)
+        null=True
+    )
 
-    pod_usage_memory_seconds = models.DecimalField(
+    pod_request_cpu_core_seconds = models.DecimalField(
         max_digits=17,
         decimal_places=5,
-        null=True)
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_usage_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_memory_bytes = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
 
 
 class OCPUsageLineItemDailySummary(models.Model):
@@ -574,9 +600,35 @@ class OCPUsageLineItemDailySummary(models.Model):
     pod_usage_cpu_core_seconds = models.DecimalField(
         max_digits=17,
         decimal_places=5,
-        null=True)
+        null=True
+    )
 
-    pod_usage_memory_seconds = models.DecimalField(
+    pod_request_cpu_core_seconds = models.DecimalField(
         max_digits=17,
         decimal_places=5,
-        null=True)
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_usage_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_request_memory_byte_seconds = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
+
+    pod_limit_memory_bytes = models.DecimalField(
+        max_digits=17,
+        decimal_places=5,
+        null=True
+    )
