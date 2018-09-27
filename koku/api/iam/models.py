@@ -19,15 +19,12 @@
 
 from uuid import uuid4
 
-from django.conf import settings
-from django.contrib.auth.models import Group as DjangoGroup, User as DjangoUser
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.utils import timezone
 from tenant_schemas.models import TenantMixin
 
 
-class Customer(DjangoGroup):
+class Customer(models.Model):
     """A Koku Customer.
 
     A customer is an organization of N-number of users
@@ -35,40 +32,30 @@ class Customer(DjangoGroup):
     """
 
     date_created = models.DateTimeField(auto_now_add=True)
-    owner = models.ForeignKey('User', null=True, on_delete=models.SET_NULL)
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    account_id = models.CharField(max_length=150, blank=False, null=True)
+    org_id = models.CharField(max_length=150, blank=False, null=True)
     schema_name = models.TextField(unique=True, null=False, default='public')
 
     class Meta:
-        ordering = ['name']
+        unique_together = ('account_id', 'org_id')
+        ordering = ['schema_name']
 
 
-class User(DjangoUser):
+class User(models.Model):
     """A Koku User."""
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    username = models.CharField(max_length=150, unique=True)
+    email = models.EmailField(blank=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    is_active = models.NullBooleanField(default=True)
+    customer = models.ForeignKey('Customer', null=True, on_delete=models.CASCADE)
 
     class Meta:
         ordering = ['username']
-
-
-def token_expiration():
-    """Get the date time for token expiration."""
-    expire_setting = settings.PASSWORD_RESET_TIMEOUT_DAYS
-    expire = timezone.now() + timezone.timedelta(days=expire_setting)
-    return expire
-
-
-class ResetToken(models.Model):
-    """A Reset Token for managing user password resets."""
-
-    token = models.UUIDField(default=uuid4, editable=False,
-                             unique=True, null=False)
-    expiration_date = models.DateTimeField(default=token_expiration)
-    user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
-    used = models.BooleanField(default=False)
 
 
 class UserPreference(models.Model):

@@ -24,19 +24,15 @@ from django.utils.translation import ugettext as _
 from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
-from rest_framework.authentication import (SessionAuthentication,
-                                           TokenAuthentication)
 from rest_framework.decorators import (api_view,
-                                       authentication_classes,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
-from api.iam.customer_manager import CustomerManager
-from api.models import Customer
+from api.models import Tenant, User
 from api.report.queries import ReportQueryHandler
 from api.report.serializers import QueryParamSerializer
 from api.utils import UnitConverter
@@ -76,13 +72,11 @@ def get_tenant(user):
 
     """
     tenant = None
-    group = user.groups.first()
-    if group:
+    if user:
         try:
-            customer = Customer.objects.get(pk=group.id)
-            manager = CustomerManager(customer.uuid)
-            tenant = manager.get_tenant()
-        except Customer.DoesNotExist:
+            customer = user.customer
+            tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        except User.DoesNotExist:
             pass
     if tenant is None:
         error = {'details': _('Invalid user definition')}
@@ -224,8 +218,7 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
 
 
 @api_view(http_method_names=['GET'])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
     """Get cost data.
@@ -240,7 +233,6 @@ def costs(request):
     @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
-            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             "Accept": "text/csv;q=0.8, application/json"
         }
 
@@ -318,8 +310,7 @@ def costs(request):
 
 
 @api_view(http_method_names=['GET'])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def instance_type(request):
     """Get inventory data.
@@ -334,7 +325,6 @@ def instance_type(request):
     @apiHeader {String} accept HTTP Accept header. (See: RFC2616)
     @apiHeaderExample {json} Header-Example:
         {
-            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
             "Accept": "text/csv;q=0.8, application/json"
         }
 
@@ -455,8 +445,7 @@ def instance_type(request):
 
 
 @api_view(http_method_names=['GET'])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
     """Get inventory storage data.
@@ -468,10 +457,6 @@ def storage(request):
     @apiDescription Get inventory data.
 
     @apiHeader {String} token User authorization token.
-    @apiHeaderExample {json} Header-Example:
-        {
-            "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-        }
 
     @apiParam (Query Param) {Object} filter The filter to apply to the report.
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.

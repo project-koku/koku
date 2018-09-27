@@ -16,14 +16,14 @@
 #
 """Test the Provider serializers."""
 import uuid
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 
-from api.iam.serializers import (CustomerSerializer,
-                                 UserSerializer,
-                                 _create_schema_name)
+from api.iam.models import (Customer, User)
+from api.iam.serializers import (UserSerializer,
+                                 create_schema_name)
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import AdminProviderSerializer, ProviderSerializer
@@ -31,6 +31,26 @@ from api.provider.serializers import AdminProviderSerializer, ProviderSerializer
 
 class ProviderSerializerTest(IamTestCase):
     """Tests for the customer serializer."""
+
+    def setUp(self):
+        """Create test case objects."""
+        super().setUp()
+        self.user_data = self._create_user_data()
+        self.customer = self._create_customer_data()
+        self.request_context = self._create_request_context(self.customer,
+                                                            self.user_data)
+        request = self.request_context['request']
+        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+            request.user = user
+
+    def tearDown(self):
+        """Tear down the serializer tests."""
+        super().tearDown()
+        User.objects.all().delete()
+        Customer.objects.all().delete()
+        Provider.objects.all().delete()
 
     def test_create_provider_fails_user(self):
         """Test creating a provider fails with no user."""
@@ -47,28 +67,6 @@ class ProviderSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
 
-    def test_create_provider_fails_group(self):  # pylint: disable=C0103
-        """Test creating a provider where group is not found for user."""
-        provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AWS,
-                    'authentication': {
-                        'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
-                    },
-                    'billing_source': {
-                        'bucket': 'my_s3_bucket'
-                    }}
-        request = Mock()
-        new_user = None
-        serializer = UserSerializer(data=self.gen_user_data())
-        if serializer.is_valid(raise_exception=True):
-            new_user = serializer.save()
-        request.user = new_user
-        context = {'request': request}
-        serializer = ProviderSerializer(data=provider, context=context)
-        if serializer.is_valid(raise_exception=True):
-            with self.assertRaises(serializers.ValidationError):
-                serializer.save()
-
     def test_create_provider_fails_customer(self):  # pylint: disable=C0103
         """Test creating a provider where customer is not found for user."""
         provider = {'name': 'test_provider',
@@ -79,14 +77,9 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': 'my_s3_bucket'
                     }}
-        request = Mock()
-        new_user = None
-        serializer = UserSerializer(data=self.gen_user_data())
-        if serializer.is_valid(raise_exception=True):
-            new_user = serializer.save()
-        request.user = new_user
-        context = {'request': request}
-        serializer = ProviderSerializer(data=provider, context=context)
+        request = self.request_context['request']
+        request.user.customer = None
+        serializer = ProviderSerializer(data=provider, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
@@ -103,17 +96,10 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': bucket_name
                     }}
-        new_cust = None
-        serializer = CustomerSerializer(data=self.customer_data[0])
-        if serializer.is_valid(raise_exception=True):
-            new_cust = serializer.save()
-        request = Mock()
-        request.user = new_cust.owner
-        context = {'request': request}
         instance = None
 
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=provider, context=context)
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
@@ -130,17 +116,10 @@ class ProviderSerializerTest(IamTestCase):
                     'authentication': {
                         'provider_resource_name': cluster_id
                     }}
-        new_cust = None
-        serializer = CustomerSerializer(data=self.customer_data[0])
-        if serializer.is_valid(raise_exception=True):
-            new_cust = serializer.save()
-        request = Mock()
-        request.user = new_cust.owner
-        context = {'request': request}
-        instance = None
 
+        instance = None
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=provider, context=context)
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
@@ -161,20 +140,25 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': bucket_name
                     }}
-        new_cust = None
-        serializer = CustomerSerializer(data=self.customer_data[0])
-        if serializer.is_valid(raise_exception=True):
-            new_cust = serializer.save()
-        request = Mock()
-        request.user = new_cust.owner
-        context = {'request': request}
-
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
-            ProviderSerializer(data=provider, context=context)
+            ProviderSerializer(data=provider, context=self.request_context)
 
 
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""
+
+    def setUp(self):
+        """Create test case objects."""
+        super().setUp()
+        self.user_data = self._create_user_data()
+        self.customer = self._create_customer_data()
+        self.request_context = self._create_request_context(self.customer,
+                                                            self.user_data)
+        request = self.request_context['request']
+        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+            request.user = user
 
     def test_schema_name_present_on_customer(self):
         """Test that schema_name is returned on customer."""
@@ -188,23 +172,17 @@ class AdminProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': bucket_name
                     }}
-        new_cust = None
-        serializer = CustomerSerializer(data=self.customer_data[0])
-        if serializer.is_valid(raise_exception=True):
-            new_cust = serializer.save()
-        request = Mock()
-        request.user = new_cust.owner
-        context = {'request': request}
-        instance = None
 
         with patch.object(ProviderAccessor,
                           'cost_usage_source_ready',
                           returns=True):
-            serializer = AdminProviderSerializer(data=provider, context=context)
+            serializer = AdminProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
+                serializer.save()
 
-        expected_schema_name = _create_schema_name(instance.customer.name)
+        account = self.customer['account_id']
+        org = self.customer['org_id']
+        expected_schema_name = create_schema_name(account, org)
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsNotNone(schema_name)
         self.assertEqual(schema_name, expected_schema_name)
