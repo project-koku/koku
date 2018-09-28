@@ -381,7 +381,7 @@ class ReportQueryTest(IamTestCase):
             'usage_start',
             'usage_end',
             'usage_account_id',
-            'availability_zone',
+            'availability_zone'
         ]
         annotations = {
             'product_family': Concat('cost_entry_product__product_family', Value('')),
@@ -399,13 +399,12 @@ class ReportQueryTest(IamTestCase):
             'blended_cost': Sum('blended_cost'),
             'public_on_demand_cost': Sum('public_on_demand_cost'),
             'public_on_demand_rate': Max('public_on_demand_rate'),
-            'resource_count': Count('resource_id', distinct=True),
+            'resource_count': Count('resource_id', distinct=True)
         }
 
         entries = AWSCostEntryLineItemDaily.objects\
             .values(*included_fields)\
             .annotate(**annotations)
-
         for entry in entries:
             alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
             summary = AWSCostEntryLineItemDailySummary(**entry,
@@ -499,7 +498,6 @@ class ReportQueryTest(IamTestCase):
                                                   ce_pricing, ce_product, rate,
                                                   cost, current, end_hour)
                 current = end_hour
-
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
@@ -860,7 +858,7 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
         for _ in range(0, random.randint(3, 10)):
-            self.add_data_to_tenant(rate=Decimal(random.random()))
+            self.add_data_to_tenant()
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -871,7 +869,6 @@ class ReportQueryTest(IamTestCase):
                                      'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
-
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
@@ -1345,7 +1342,6 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
 
         values = data[0].get('accounts', [])[0].get('values', [])[0]
-
         self.assertIn('delta_value', values)
         self.assertIn('delta_percent', values)
         self.assertEqual(values.get('delta_value'), expected_delta_value)
