@@ -1,15 +1,13 @@
 ---
 customer:
   bucket: test-bucket
-  customer_name: Test Customer
+  account_id: 10001
+  org_id: 20002
   email: test@example.com
   user: test_customer
-  password: str0ng!P@ss
   provider_name: Test Provider
   provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
   provider_type: 'AWS'
 koku:
   host: localhost
   port: 8000
-  user: admin
-  password: pass

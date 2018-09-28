@@ -20,18 +20,16 @@ import random
 import uuid
 
 import faker
-from django.core import mail
 from django.db.utils import IntegrityError
 from rest_framework.exceptions import ValidationError
 
-from api.iam.email import SUBJECT
-from api.iam.models import ResetToken, UserPreference
+from api.iam.models import UserPreference
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
                                  UserPreferenceSerializer,
                                  UserSerializer,
-                                 _create_schema_name,
-                                 _currency_symbols)
+                                 _currency_symbols,
+                                 create_schema_name)
 from .iam_test_case import IamTestCase
 
 
@@ -41,28 +39,17 @@ class CustomerSerializerTest(IamTestCase):
     def test_create_customer(self):
         """Test creating a customer."""
         # create the customers
-        for customer in self.customer_data:
-            instance = None
-            serializer = CustomerSerializer(data=customer)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
-
-            schema_name = serializer.data.get('schema_name')
-
-            self.assertIsNone(schema_name)
-            self.assertFalse('schema_name' in serializer.data)
-            self.assertEqual(customer['name'], instance.name)
-            self.assertTrue(ResetToken.objects.filter(
-                user=instance.owner).exists)
-
-    def test_uuid_field(self):
-        """Test that a uuid is generated."""
-        # create the customer
+        customer = self._create_customer_data()
         instance = None
-        serializer = CustomerSerializer(data=self.customer_data[0])
+        serializer = CustomerSerializer(data=customer)
         if serializer.is_valid(raise_exception=True):
             instance = serializer.save()
 
+        schema_name = serializer.data.get('schema_name')
+
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data)
+        self.assertEqual(customer['account_id'], instance.account_id)
         self.assertIsInstance(instance.uuid, uuid.UUID)
 
 
@@ -71,10 +58,11 @@ class AdminCustomerSerializerTest(IamTestCase):
 
     def test_schema_name_present(self):
         """Test that the serializer contains schema_name."""
-        serializer = AdminCustomerSerializer(data=self.customer_data[0])
+        serializer = AdminCustomerSerializer(data=self._create_customer_data())
         serializer.is_valid()
         serializer.save()
-        expected_schema_name = _create_schema_name(serializer.data.get('name'))
+        expected_schema_name = create_schema_name(serializer.data.get('account_id'),
+                                                  serializer.data.get('org_id'))
         schema_name = serializer.data.get('schema_name')
         self.assertIsNotNone(schema_name)
         self.assertEqual(schema_name, expected_schema_name)
@@ -85,44 +73,19 @@ class UserSerializerTest(IamTestCase):
 
     def setUp(self):
         """Create test case objects."""
-        self.user_data = [self.gen_user_data(),
-                          self.gen_user_data()]
+        self.user_data = [self._create_user_data(),
+                          self._create_user_data()]
 
     def test_create_user(self):
         """Test creating a user."""
         # create the users
         for user in self.user_data:
-            outbox_count = len(mail.outbox)
             instance = None
             serializer = UserSerializer(data=user)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
             self.assertEqual(user['username'], instance.username)
-            self.assertIsNotNone(instance.password)
-            self.assertTrue(ResetToken.objects.filter(user=instance).exists)
-            self.assertEqual(len(mail.outbox), outbox_count + 1)
-            self.assertEqual(mail.outbox[0].subject, SUBJECT)
-
-    def test_update_user(self):
-        """Test updating a user."""
-        # create the user
-        instance = None
-        serializer = UserSerializer(data=self.user_data[0])
-        if serializer.is_valid(raise_exception=True):
-            instance = serializer.save()
-
-        # update the user
-        new_data = {'username': instance.username,
-                    'email': instance.email,
-                    'password': 's3kr!t'}
-        new_serializer = UserSerializer(instance,
-                                        new_data)
-        if new_serializer.is_valid(raise_exception=True):
-            instance = new_serializer.save()
-
-        # test the update
-        self.assertEqual(new_data['password'], instance.password)
 
     def test_uuid_field(self):
         """Test that we generate a uuid."""
@@ -134,16 +97,6 @@ class UserSerializerTest(IamTestCase):
 
         self.assertIsInstance(instance.uuid, uuid.UUID)
 
-    def test_invalid_email(self):
-        """Test that we only accept valid e-mail addresses."""
-        bad_email_user = {'username': 'foo',
-                          'password': 's3kr1t',
-                          'email': 'this.is.not.an.email.address'}
-        serializer = UserSerializer(data=bad_email_user)
-        with self.assertRaises(ValidationError):
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-
     def test_unique_user(self):
         """Test that a user must be unique."""
         # create the user
@@ -151,23 +104,10 @@ class UserSerializerTest(IamTestCase):
         if serializer_1.is_valid(raise_exception=True):
             serializer_1.save()
 
-        duplicate_email = self.user_data[0]
-        duplicate_email['username'] = 'other_user'
-
-        serializer_2 = UserSerializer(data=duplicate_email)
+        serializer_2 = UserSerializer(data=self.user_data[0])
         with self.assertRaises(ValidationError):
             if serializer_2.is_valid(raise_exception=True):
                 serializer_2.save()
-
-    def test_non_password_user(self):
-        """Test that a user with no password."""
-        # create the user
-        gen_user = self.gen_user_data()
-        del gen_user['password']
-        serializer = UserSerializer(data=gen_user)
-        if serializer.is_valid(raise_exception=True):
-            instance = serializer.save()
-        self.assertIsNotNone(instance.password)
 
 
 class UserPreferenceSerializerTest(IamTestCase):
@@ -178,16 +118,21 @@ class UserPreferenceSerializerTest(IamTestCase):
     def setUp(self):
         """Create test case objects."""
         from django.conf import settings
-        self.user_data = self.gen_user_data()
+        super().setUp()
         self.preference_defaults = [
             {'currency': settings.KOKU_DEFAULT_CURRENCY},
             {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
             {'locale': settings.KOKU_DEFAULT_LOCALE}]
+        self.user_data = self._create_user_data()
+        customer_data = self._create_customer_data()
+        self.request_context = self._create_request_context(customer_data,
+                                                            self.user_data)
 
     def test_user_preference_defaults(self):
         """Test that defaults are set for new users."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -200,7 +145,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_arbitrary(self):
         """Test that we can set and retrieve an arbitrary preference."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -221,7 +167,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_duplicate(self):
         """Test that we fail to create arbitrary preference if it already exits."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -242,7 +189,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_locale(self):
         """Test that valid locales are saved."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -266,7 +214,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_locale_invalid(self):
         """Test that we fail to create invalid preference."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -283,7 +232,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_timezone(self):
         """Test that valid timezones are saved."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -307,7 +257,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_timezone_invalid(self):
         """Test that we fail to create invalid preference."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -324,7 +275,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_currency(self):
         """Test that valid currency codes are saved."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 
@@ -348,7 +300,8 @@ class UserPreferenceSerializerTest(IamTestCase):
     def test_user_preference_currency_invalid(self):
         """Test that we fail to create invalid preference."""
         user = None
-        serializer = UserSerializer(data=self.user_data)
+        serializer = UserSerializer(data=self.user_data,
+                                    context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
 

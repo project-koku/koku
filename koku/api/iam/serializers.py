@@ -20,31 +20,18 @@
 # pylint: disable=too-few-public-methods
 
 import locale
-import re
-import secrets
-import string
+from base64 import b64decode
+from json import loads as json_loads
 
 import pytz
 from django.conf import settings
-from django.contrib.auth.models import Group
-from django.contrib.auth.validators import UnicodeUsernameValidator
-from django.core.validators import validate_email
 from django.db import transaction
 from django.forms.models import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 
-from .email import new_user_login_email
-from .models import Customer, ResetToken, User, UserPreference
-
-
-def _gen_temp_password():
-    """Generate a temporary password."""
-    choices = '!@#$%^&*()_+' + string.digits \
-        + string.ascii_uppercase + string.ascii_lowercase
-
-    return ''.join(secrets.choice(choices) for i in range(10))
+from .models import Customer, User, UserPreference
+from ..common import RH_IDENTITY_HEADER
 
 
 def _create_default_preferences(user):
@@ -63,28 +50,14 @@ def _create_default_preferences(user):
             serializer.save()
 
 
-def _create_user(username, email, password):
+def _create_user(username, email, customer):
     """Create a user and associated password reset token."""
-    user_pass = None
-    if password:
-        user_pass = password
-    else:
-        user_pass = _gen_temp_password()
-
-    user = User.objects.create_user(username=username,
-                                    email=email,
-                                    password=user_pass)
+    user = User(username=username,
+                email=email,
+                customer=customer)
+    user.save()
     _create_default_preferences(user=user)
-    reset_token = ResetToken(user=user)
-    reset_token.save()
-    new_user_login_email(username, email, str(user.uuid),
-                         str(reset_token.token))
     return user
-
-
-def _create_schema_name(customer_name):
-    """Create a database schema name."""
-    return re.compile(r'[\W_]+').sub('', customer_name).lower()
 
 
 def _currency_symbols():
@@ -106,31 +79,68 @@ def _currency_symbols():
     return list(symbols)
 
 
+def extract_header(request, header):
+    """Extract and decode json header.
+
+    Args:
+        request(object): The incoming request
+        header(str): The header to decode
+    Returns:
+        JWT(dict): Identity dictionary
+    """
+    rh_auth_header = request.META[header]
+    decoded_rh_auth = b64decode(rh_auth_header)
+    json_rh_auth = json_loads(decoded_rh_auth)
+    return json_rh_auth
+
+
+def create_schema_name(account, org):
+    """Create a database schema name."""
+    return f'acct{account}org{org}'
+
+
+def error_obj(key, message):
+    """Create an error object."""
+    error = {
+        key: [_(message)]
+    }
+    return error
+
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the User model."""
-
-    email = serializers.EmailField(required=True,
-                                   max_length=150,
-                                   allow_blank=False,
-                                   validators=[validate_email,
-                                               UniqueValidator(queryset=User.objects.all())])
 
     class Meta:
         """Metadata for the serializer."""
 
         model = User
-        fields = ('uuid', 'username', 'email', 'password')
-        extra_kwargs = {'password': {'write_only': True, 'required': False,
-                                     'style': {'input_type': 'password'},
-                                     'max_length': 128, 'allow_null': False}}
+        fields = ('uuid', 'username', 'email')
 
     @transaction.atomic
     def create(self, validated_data):
         """Create a user from validated data."""
+        user = None
+        customer = None
+        request = self.context.get('request')
+        if request and hasattr(request, 'META'):
+            json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
+            if (json_rh_auth and 'identity' in json_rh_auth and
+                'account_number' in json_rh_auth['identity'] and
+                    'org_id' in json_rh_auth['identity']):
+                account = json_rh_auth['identity']['account_number']
+                org = json_rh_auth['identity']['org_id']
+            if account and org:
+                schema_name = create_schema_name(account, org)
+                customer = Customer.objects.get(schema_name=schema_name)
+            else:
+                key = 'customer'
+                message = 'Customer for requesting user could not be found.'
+                raise serializers.ValidationError(error_obj(key, message))
+
         user = _create_user(
             username=validated_data.get('username'),
             email=validated_data.get('email'),
-            password=validated_data.get('password'))
+            customer=customer)
 
         return user
 
@@ -138,52 +148,21 @@ class UserSerializer(serializers.ModelSerializer):
 class CustomerSerializer(serializers.ModelSerializer):
     """Serializer for the Customer model."""
 
-    owner = UserSerializer()
-
     class Meta:
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'name', 'owner', 'date_created')
-
-    @transaction.atomic
-    def create(self, validated_data):
-        """Create a customer and owner."""
-        owner_data = validated_data.pop('owner')
-        owner = _create_user(username=owner_data.get('username'),
-                             email=owner_data.get('email'),
-                             password=owner_data.get('password'))
-
-        validated_data['owner_id'] = owner.id
-        name = validated_data['name']
-        validated_data['schema_name'] = _create_schema_name(name)
-        customer = Customer.objects.create(**validated_data)
-        customer.user_set.add(owner)
-        customer.save()
-
-        return customer
-
-    @staticmethod
-    def get_authentication_group_for_customer(customer):
-        """Get auth group for given customer."""
-        return Group.objects.get(name=customer)
-
-    @staticmethod
-    def get_users_for_group(group):
-        """Get users that belong to a given authentication group."""
-        return group.user_set.all()
+        fields = ('uuid', 'account_id', 'org_id', 'date_created')
 
 
 class AdminCustomerSerializer(CustomerSerializer):
     """Serializer with admin specific fields."""
 
-    schema_name = serializers.CharField(read_only=True)
-
     class Meta:
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'name', 'owner', 'date_created', 'schema_name')
+        fields = ('uuid', 'account_id', 'org_id', 'date_created', 'schema_name')
 
 
 class NestedUserSerializer(serializers.ModelSerializer):
@@ -195,17 +174,11 @@ class NestedUserSerializer(serializers.ModelSerializer):
     https://medium.com/django-rest-framework/dealing-with-unique-constraints-in-nested-serializers-dade33b831d9
     """
 
-    email = serializers.EmailField(required=True,
-                                   max_length=150,
-                                   allow_blank=False,
-                                   validators=[validate_email])
-
     class Meta:
         """Metadata for the serializer."""
 
         model = User
         fields = ('uuid', 'username', 'email')
-        extra_kwargs = {'username': {'validators': [UnicodeUsernameValidator()]}}
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
@@ -275,14 +248,3 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
         user = User.objects.get(username=user_data['username'])
         validated_data['user_id'] = user.id
         return super().update(instance, validated_data)
-
-
-class PasswordChangeSerializer(serializers.Serializer):
-    """Serializer for the Password change."""
-
-    token = serializers.UUIDField(required=True)
-    password = serializers.CharField(write_only=True,
-                                     required=True,
-                                     max_length=128,
-                                     allow_null=False,
-                                     style={'input_type': 'password'})

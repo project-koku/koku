@@ -19,9 +19,7 @@
 from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
-from rest_framework.authentication import (SessionAuthentication,
-                                           TokenAuthentication)
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 
 import api.iam.models as models
 import api.iam.serializers as serializers
@@ -43,21 +41,24 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = models.UserPreference.objects.all()
     serializer_class = serializers.UserPreferenceSerializer
-    authentication_classes = (TokenAuthentication,
-                              SessionAuthentication)
-    permission_classes = (IsObjectOwner, IsAuthenticated)
+    permission_classes = (IsObjectOwner, AllowAny)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('name',)
 
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
-        return self.queryset.filter(user=self.request.user)
+        queryset = models.UserPreference.objects.none()
+        req_user = self.request.user
+        if req_user:
+            queryset = self.queryset.filter(user=req_user)
+        return queryset
 
     def get_serializer_context(self):
         """Pass user attribute to serializer."""
         context = super().get_serializer_context()
-        if self.request.user:
-            context['user'] = self.request.user
+        req_user = self.request.user
+        if req_user:
+            context['user'] = req_user
         return context
 
     def _validate_user(self, user_id, uuid):
@@ -69,19 +70,13 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a user preference.
 
-        @api {post} /api/v1/user/:user_uuid/preferences/ Create a user preference
+        @api {post} /api/v1/preferences/ Create a user preference
         @apiName createUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
         @apiDescription Create a user preference.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
-
-        @apiParam {String} user_uuid User unique ID.
 
         @apiParam (Request Body) {String} name User preference name.
                                                No requirement to match the key in preference
@@ -109,11 +104,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        if not self._validate_user(request.user.id, kwargs['user_uuid']):
-            # don't allow user_a to set user_b's preferences
-            raise exceptions.PermissionDenied()
-
-        user = models.User.objects.get(uuid=kwargs['user_uuid'])
+        user = request.user
         request.data['user'] = model_to_dict(user)
 
         # if the pref already exists, it's a bad request
@@ -129,19 +120,13 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
-        @api {get} /api/v1/user/:user_uuid/preferences/ Obtain a list of user preferences
+        @api {get} /api/v1/preferences/ Obtain a list of user preferences
         @apiName GetUserPreferences
         @apiGroup UserPreferences
         @apiVersion 1.0.0
         @apiDescription Obtain the list of preferences for the user.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
-
-        @apiParam (Path) {String} user_uuid User unique ID.
 
         @apiParam (Query) {String} name Filter by preference name.
 
@@ -180,28 +165,19 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                             ]
             }
         """
-        if not self._validate_user(request.user.id, kwargs['user_uuid']):
-            # don't allow user_a to see user_b's preferences
-            raise exceptions.PermissionDenied()
-
         return super().list(request=request, args=args, kwargs=kwargs)
 
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 
-        @api {get} /api/v1/user/:user_uuid/preferences/:pref_uuid Get a preference
+        @api {get} /api/v1/preferences/:pref_uuid Get a preference
         @apiName GetUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
         @apiDescription Get a user preference.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
 
-        @apiParam {String} user_uuid User unique ID.
         @apiParam {String} pref_uuid User Preference unique ID.
 
         @apiSuccess {String} uuid The identifier of the preference.
@@ -219,55 +195,37 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        if not self._validate_user(request.user.id, kwargs['user_uuid']):
-            # don't allow user_a to see user_b's preferences
-            raise exceptions.PermissionDenied()
-
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """Delete a user preference.
 
-        @api {delete} /api/v1/user/:user_uuid/preferences/:pref_uuid Delete a preference
+        @api {delete} /api/v1/preferences/:pref_uuid Delete a preference
         @apiName DeleteUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
         @apiDescription Delete a user preference.
 
         @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
 
-        @apiParam {String} user_uuid User unique ID.
         @apiParam {String} pref_uuid User Preference unique ID.
 
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 204 NO CONTENT
         """
-        if not self._validate_user(request.user.id, kwargs['user_uuid']):
-            # don't allow user_a to delete user_b's preferences
-            raise exceptions.PermissionDenied()
-
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
     def update(self, request, *args, **kwargs):
         """Update a user preference.
 
-        @api {put} /api/v1/user/:user_uuid/preferences/:pref_uuid Update a preference
+        @api {put} /api/v1/preferences/:pref_uuid Update a preference
         @apiName UpdateUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
         @apiDescription Udpate a user preference.
 
-        @apiHeader {String} token User authorization token.
-        @apiHeaderExample {json} Header-Example:
-            {
-                "Authorization": "Token 45138a913da44ab89532bab0352ef84b"
-            }
+        @apiHeader {String} token User authorization header.
 
-        @apiParam {String} user_uuid User unique ID.
         @apiParam {String} pref_uuid User Preference unique ID.
 
         @apiSuccess {String} uuid The identifier of the preference.
@@ -285,10 +243,6 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        if not self._validate_user(request.user.id, kwargs['user_uuid']):
-            # don't allow user_a to delete user_b's preferences
-            raise exceptions.PermissionDenied()
-
-        user = models.User.objects.get(uuid=kwargs['user_uuid'])
+        user = request.user
         request.data['user'] = model_to_dict(user)
         return super(UserPreferenceViewSet, self).update(request=request, args=args, kwargs=kwargs)

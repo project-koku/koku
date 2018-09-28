@@ -30,9 +30,11 @@ import os
 import sys
 import logging
 
+from corsheaders.defaults import default_headers
+
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
-from . import database, email
+from . import database
 
 from .env import ENVIRONMENT
 
@@ -72,7 +74,6 @@ INSTALLED_APPS = [
 
     # third-party
     'rest_framework',
-    'rest_framework.authtoken',
     'django_filters',
     'corsheaders',
     'querystring_parser',
@@ -93,7 +94,6 @@ SHARED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
-    'rest_framework.authtoken',
 )
 
 TENANT_APPS = (
@@ -104,16 +104,23 @@ DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'koku.middleware.KokuTenantMiddleware',
+    'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
+    'koku.middleware.IdentityHeaderMiddleware',
+    'koku.middleware.KokuTenantMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
+if DEVELOPMENT:
+    MIDDLEWARE.insert(4, 'koku.dev_middleware.DevelopmentIdentityHeaderMiddleware')
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.AllowAllUsersModelBackend',
+]
+
 
 ROOT_URLCONF = 'koku.urls'
 
@@ -212,15 +219,6 @@ REST_FRAMEWORK = {
     )
 }
 
-EMAIL_HOST = email.EMAIL_HOST
-EMAIL_PORT = email.EMAIL_PORT
-EMAIL_HOST_USER = email.EMAIL_HOST_USER
-EMAIL_HOST_PASSWORD = email.EMAIL_HOST_PASSWORD
-EMAIL_USE_TLS = email.EMAIL_USE_TLS
-EMAIL_BACKEND = email.get_email_backend()
-
-PASSWORD_RESET_TIMEOUT_DAYS = 1
-
 LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')
 DJANGO_LOGGING_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'INFO')
 KOKU_LOGGING_LEVEL = os.getenv('KOKU_LOG_LEVEL', 'INFO')
@@ -287,14 +285,12 @@ KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value('KOKU_DEFAULT_LOCALE', default='en_U
 
 # Cors Setup
 # See https://github.com/ottoyiu/django-cors-headers
+CORS_ORIGIN_ALLOW_ALL = True
 
-# SECURITY WARNING: Replace this with proper origins once UI is deployed in insights
-CORS_ORIGIN_ALLOW_ALL = DEBUG
-APP_DOMAIN = ENVIRONMENT.get_value('APP_DOMAIN', default='project-koku.com')
-APP_DOMAIN_REGEX = APP_DOMAIN.replace('.', '\.')  # pylint: disable=W1401
-KOKU_UI_REGEX = r'^(http(s)?://)?koku-ui-([a-zA-Z0-9_-]*\.)?{0}$'.format(APP_DOMAIN_REGEX)
-if not DEBUG:
-    CORS_ORIGIN_REGEX_WHITELIST = (KOKU_UI_REGEX,)
+CORS_ALLOW_HEADERS = default_headers + (
+    'x-rh-identity',
+    'HTTP_X_RH_IDENTITY',
+)
 
 APPEND_SLASH = False
 
