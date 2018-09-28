@@ -10,12 +10,6 @@ basePath: '/api/v1'
 tags:
 - name: 'Status'
   description: 'Operations about status'
-- name: 'Token'
-  description: 'Operations about authentication token access'
-- name: 'Customer'
-  description: 'Operations about customer interaction'
-- name: 'User'
-  description: 'Operations about user interaction'
 - name: 'UserPreference'
   description: 'Operations about user preferences'
 - name: 'Provider'
@@ -42,257 +36,7 @@ paths:
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
-  /token-auth/:
-    post:
-      tags:
-        - Token
-      summary: Obtain an authentication token
-      operationId: getAuthToken
-      consumes:
-      - 'application/json'
-      produces:
-      - 'application/json'
-      parameters:
-      - in: 'body'
-        name: 'body'
-        description: Username and password to exchange for token
-        required: true
-        schema:
-          $ref: '#/definitions/TokenIn'
-      responses:
-        200:
-          description: An token object
-          schema:
-            $ref: '#/definitions/TokenOut'
-        400:
-          description: Invalid Token
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-  /customers/:
-    post:
-      tags:
-        - Customer
-      summary: Create a customer
-      operationId: createCustomer
-      consumes:
-      - 'application/json'
-      produces:
-      - 'application/json'
-      parameters:
-      - in: 'body'
-        name: 'body'
-        description: Customer to add to the service
-        required: true
-        schema:
-          $ref: '#/definitions/CustomerIn'
-      responses:
-        201:
-          description: An object describing the customer
-          schema:
-            $ref: '#/definitions/CustomerOut'
-        401:
-          description: Unauthorized
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-    get:
-      tags:
-        - Customer
-      summary: List the customers
-      operationId: listCustomers
-      produces:
-      - 'application/json'
-      responses:
-        200:
-          description: A paginated list of customer objects
-          schema:
-            $ref: '#/definitions/CustomerPagination'
-        401:
-          description: Unauthorized
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-  /customers/{uuid}/:
-    get:
-      tags:
-        - Customer
-      summary: Get a customer
-      operationId: getCustomer
-      produces:
-      - 'application/json'
-      parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of customer to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
-      responses:
-        200:
-          description: A customer objects
-          schema:
-            $ref: '#/definitions/CustomerOut'
-        401:
-          description: Unauthorized
-        404:
-          description: Not Found
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-    delete:
-      summary: Delete a customer
-      operationId: deleteCustomer
-      tags:
-        - Customer
-      parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of customer to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
-      responses:
-        204:
-          description: Customer deleted
-        401:
-          description: Unauthorized
-        404:
-          description: Not Found
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-
-
-  /users/:
-    post:
-      tags:
-        - User
-      summary: Create a user
-      operationId: createUser
-      consumes:
-      - 'application/json'
-      produces:
-      - 'application/json'
-      parameters:
-      - in: 'body'
-        name: 'body'
-        description: User to add to a Customer
-        required: true
-        schema:
-          $ref: '#/definitions/UserIn'
-      responses:
-        201:
-          description: An object describing the user
-          schema:
-            $ref: '#/definitions/UserOut'
-        401:
-          description: Unauthorized
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-    get:
-      tags:
-        - User
-      summary: List the users
-      operationId: listUsers
-      produces:
-      - 'application/json'
-      responses:
-        200:
-          description: A paginated list of user objects
-          schema:
-            $ref: '#/definitions/UserPagination'
-        401:
-          description: Unauthorized
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-  /users/{uuid}/:
-    get:
-      tags:
-        - User
-      summary: Get a user
-      operationId: getUser
-      produces:
-      - 'application/json'
-      parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
-      responses:
-        200:
-          description: A User object
-          schema:
-            $ref: '#/definitions/UserOut'
-        401:
-          description: Unauthorized
-        404:
-          description: Not Found
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-    delete:
-      tags:
-        - User
-      summary: Delete a user
-      operationId: deleteUser
-      parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
-      responses:
-        204:
-          description: User deleted
-        401:
-          description: Unauthorized
-        404:
-          description: Not Found
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-  /users/{uuid}/preferences/:
+  /preferences/:
     post:
       tags:
         - UserPreference
@@ -303,12 +47,6 @@ paths:
       produces:
       - 'application/json'
       parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
       - in: 'body'
         name: 'body'
         description: Preference to add to a Preference
@@ -355,7 +93,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /users/{user_uuid}/preferences/{pref_uuid}/:
+  /preferences/{pref_uuid}/:
     get:
       tags:
         - UserPreference
@@ -364,12 +102,6 @@ paths:
       produces:
       - 'application/json'
       parameters:
-      - name: 'user_uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
       - name: 'pref_uuid'
         in: 'path'
         description: 'ID of preference to get'
@@ -401,12 +133,6 @@ paths:
       produces:
       - 'application/json'
       parameters:
-      - name: 'user_uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
       - name: 'pref_uuid'
         in: 'path'
         description: 'ID of preference to get'
@@ -438,12 +164,6 @@ paths:
       produces:
       - 'application/json'
       parameters:
-      - name: 'user_uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
       - name: 'pref_uuid'
         in: 'path'
         description: 'ID of preference to get'
@@ -465,63 +185,6 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-      security:
-      - api_key: []
-  /users/{uuid}/reset-password/:
-    put:
-      tags:
-        - User
-      summary: Reset a user's password
-      operationId: resetUserPassword
-      consumes:
-      - 'application/json'
-      produces:
-      - 'application/json'
-      parameters:
-      - name: 'uuid'
-        in: 'path'
-        description: 'ID of user to get'
-        required: true
-        type: 'string'
-        format: 'uuid'
-      - in: 'body'
-        name: 'body'
-        description: User password reset information
-        required: true
-        schema:
-          $ref: '#/definitions/PasswordChangeIn'
-      responses:
-        200:
-          description: A User objects
-          schema:
-            $ref: '#/definitions/UserOut'
-        404:
-          description: Not Found
-          schema:
-            $ref: '#/definitions/Error'
-        500:
-          description: Unexpected Error
-          schema:
-            $ref: '#/definitions/Error'
-  /users/current/:
-    get:
-      tags:
-        - User
-      summary: Get the current user
-      operationId: getCurrentUser
-      produces:
-      - 'application/json'
-      responses:
-        200:
-          description: An object describing the user
-          schema:
-            $ref: '#/definitions/UserOut'
-        401:
-          description: Unauthorized
         500:
           description: Unexpected Error
           schema:
@@ -787,43 +450,26 @@ securityDefinitions:
 definitions:
   Customer:
     required:
-      - name
+      - account_id
+      - org_id
     properties:
-      name:
+      account_id:
         type: string
-        example: My Tech Company
-  CustomerIn:
-    allOf:
-      - $ref: '#/definitions/Customer'
-      - required:
-          - owner
-    properties:
-      owner:
-        $ref: '#/definitions/UserIn'
-  CustomerPagination:
-    allOf:
-      - $ref: '#/definitions/ListPagination'
-      - required:
-          - results
-    properties:
-      results:
-        type: array
-        items:
-          $ref: '#/definitions/CustomerOut'
+        example: '11838292'
+      org_id:
+        type: string
+        example: '1555276'
   CustomerOut:
     allOf:
       - $ref: '#/definitions/Customer'
       - required:
           - uuid
-          - owner
           - date_created
     properties:
       uuid:
         type: string
         format: uuid
         example: 600562e7-d7d7-4516-8522-410e72792daf
-      owner:
-        $ref: '#/definitions/UserOut'
       date_created:
         type: string
         format: date-time
@@ -850,18 +496,6 @@ definitions:
         type: string
         format: uri
         example: /api/v1/(resources)/?page=4
-  PasswordChangeIn:
-    required:
-      - token
-      - password
-    properties:
-      password:
-        type: string
-        example: str0ng!P@ss
-      token:
-        type: string
-        format: uuid
-        example: 40874085-358e-43a8-908f-59c5b11f9179
   ProviderAuthenticationIn:
     required:
       - provider_resource_name
@@ -1124,7 +758,7 @@ definitions:
                                     'date': '2018-05-28',
                                     'units': 'USD',
                                     'account': '8577742690384',
-                                    'total': 1498.92962634
+                                    'total': 1498.92962634,
                                     'account_alias': 'sample-account'
                                 }
                             ]
@@ -1302,24 +936,6 @@ definitions:
           django.utils.six: 1.10.0
           django_filters: 1.0.4
           http.server: '0.6'
-  TokenIn:
-    required:
-      - username
-      - password
-    properties:
-      username:
-        type: string
-        example: smithj
-      password:
-        type: string
-        example: str0ng!P@ss
-  TokenOut:
-    required:
-      - token
-    properties:
-      token:
-        type: string
-        example: 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
   User:
     required:
       - username
@@ -1347,25 +963,6 @@ definitions:
       description:
         type: string
         example: my long preference description
-  UserIn:
-    allOf:
-      - $ref: '#/definitions/User'
-      - required:
-          - password
-    properties:
-      password:
-        type: string
-        example: str0ng!P@ss
-  UserPagination:
-    allOf:
-      - $ref: '#/definitions/ListPagination'
-      - required:
-          - results
-    properties:
-      results:
-        type: array
-        items:
-          $ref: '#/definitions/UserOut'
   UserOut:
     allOf:
       - $ref: '#/definitions/User'

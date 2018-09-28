@@ -43,6 +43,8 @@ import os
 import pkgutil
 import sys
 import yaml
+from base64 import b64encode
+from json import dumps as json_dumps
 
 import psycopg2
 import requests
@@ -59,32 +61,20 @@ class KokuCustomerOnboarder:
 
         self.endpoint_base = f'http://{self.koku.get("host")}:{self.koku.get("port")}/api/v1/'
 
-        self.admin_token = self.get_token(self.koku.get('user'),
-                                          self.koku.get('password'))
+        self.auth_token = self.get_token(self.customer.get('account_id'),
+                                         self.customer.get('org_id'),
+                                         self.customer.get('user'),
+                                         self.customer.get('email'),)
 
     def create_customer(self):
         """Create Koku Customer."""
-        data = {
-            'name': self.customer.get('customer_name'),
-            'owner': {
-                'username': self.customer.get('user'),
-                'email': self.customer.get('email'),
-                'password': self.customer.get('password')
-            }
-        }
-        response = requests.post(self.endpoint_base + 'customers/',
-                                 headers=self.get_headers(self.admin_token),
-                                 json=data)
+        # Customer, User, and Tenant schema are lazy initialized on any API request
+        response = requests.get(self.endpoint_base + 'reports/costs/',
+                                 headers=self.get_headers(self.auth_token))
         print(response.text)
-        return response
 
     def create_provider_api(self):
         """Create a Koku Provider using the Koku API."""
-        # get a new auth token using the new customer credentials, so that we
-        # have the correct permissions to create a provider.
-        customer_token = self.get_token(self.customer.get('user'),
-                                        self.customer.get('password'))
-
         data = {
             'name': self.customer.get('provider_name'),
             'type': self.customer.get('provider_type'),
@@ -96,7 +86,7 @@ class KokuCustomerOnboarder:
 
         response = requests.post(
             self.endpoint_base + 'providers/',
-            headers=self.get_headers(customer_token),
+            headers=self.get_headers(self.auth_token),
             json=data
         )
         print(response.text)
@@ -137,7 +127,7 @@ class KokuCustomerOnboarder:
 
             provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id, setup_complete)
-                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 2, 1, False)
+                    VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 1, 1, False)
                 ;
             """.format(name=self.customer.get('provider_name'))
 
@@ -147,26 +137,23 @@ class KokuCustomerOnboarder:
 
     def get_headers(self, token):
         """returns HTTP Token Auth header"""
-        return {'Authorization': f'Token {token}'}
+        return {'x-rh-identity': token}
 
-    def get_token(self, username, password):
+    def get_token(self, account_id, org_id, username, email):
         """Authenticate with the Koku API and obtain an auth token."""
-        endpoint = self.endpoint_base + 'token-auth/'
-        data = {'username': username,
-                'password': password}
+        identity = {'account_number': account_id,
+                    'org_id': org_id,
+                    'username': username,
+                    'email': email}
+        header = {'identity': identity}
+        json_identity = json_dumps(header)
+        token = b64encode(json_identity.encode('utf-8'))
+        return token
 
-        response = requests.post(endpoint, data=data)
-        if response.status_code == 200:
-            json_response = response.json()
-            token = json_response.get('token')
-            print(f'Acquired token {token}')
-            return token
-        else:
-            raise Exception(f'{response.status_code}: {response.reason}')
 
     def onboard(self):
         """Execute Koku onboarding steps."""
-        self.created_customer = self.create_customer()
+        self.create_customer()
 
         if self._config.get('bypass_api'):
             self.provider = self.create_provider_db()
