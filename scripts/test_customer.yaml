@@ -2,7 +2,7 @@
 customer:
   bucket: test-bucket
   account_id: 10001
-  org_id: 20001
+  org_id: 20002
   email: test@example.com
   user: test_customer
   provider_name: Test Provider
