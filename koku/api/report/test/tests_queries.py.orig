@@ -27,7 +27,7 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, Tenant
+from api.models import Tenant
 from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
@@ -256,11 +256,25 @@ class ReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+<<<<<<< HEAD
+
+        self.create_service_admin()
+        customer = self.customer_data[0]
+        response = self.create_customer(customer)
+        self.assertEqual(response.status_code, 201)
+        customer_json = response.json()
+        customer_uuid = customer_json.get('uuid')
+        customer_obj = Customer.objects.filter(uuid=customer_uuid).get()
+        self.current_month_total = Decimal('0')
+        self.tenant = Tenant(schema_name=customer_obj.schema_name)
+        self.tenant.save()
+=======
         customer = self._create_customer_data()
         new_customer = self._create_customer(customer['account_id'],
                                              customer['org_id'],
                                              create_tenant=True)
         self.tenant = Tenant.objects.get(schema_name=new_customer.schema_name)
+>>>>>>> upstream/master
         self.add_data_to_tenant()
 
     def create_hourly_instance_usage(self, payer_account_id, bill,
