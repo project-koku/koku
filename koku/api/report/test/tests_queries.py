@@ -256,6 +256,8 @@ class ReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+        self.current_month_total = Decimal(0)
+
         customer = self._create_customer_data()
         new_customer = self._create_customer(customer['account_id'],
                                              customer['org_id'],
