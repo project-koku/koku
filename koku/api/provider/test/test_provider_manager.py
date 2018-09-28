@@ -108,16 +108,39 @@ class ProviderManagerTest(IamTestCase):
         with self.assertRaises(ProviderManagerError):
             ProviderManager(uuid='abc')
 
-    def test_remove(self):
-        """Remove provider."""
+    def test_remove_aws(self):
+        """Remove aws provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
         provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
-        provider = Provider.objects.create(name='providername',
+        provider = Provider.objects.create(name='awsprovidername',
                                            created_by=self.user,
                                            customer=self.customer,
                                            authentication=provider_authentication,
                                            billing_source=provider_billing)
+        provider_uuid = provider.uuid
+
+        new_user_dict = self._create_user_data()
+        request_context = self._create_request_context(self.current_customer_data,
+                                                       new_user_dict, False)
+        user_serializer = UserSerializer(data=new_user_dict, context=request_context)
+        other_user = None
+        if user_serializer.is_valid(raise_exception=True):
+            other_user = user_serializer.save()
+
+        manager = ProviderManager(provider_uuid)
+        manager.remove(other_user)
+        provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+        self.assertFalse(provider_query)
+
+    def test_remove_ocp(self):
+        """Remove ocp provider."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
