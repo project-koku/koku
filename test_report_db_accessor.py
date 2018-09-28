@@ -29,7 +29,8 @@ from sqlalchemy.sql import func
 
 
 from masu.database import AWS_CUR_TABLE_MAP
-from masu.database.report_db_accessor import ReportDBAccessor, ReportSchema
+from masu.database.report_db_accessor_base import ReportSchema
+from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
