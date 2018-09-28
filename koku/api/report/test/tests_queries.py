@@ -27,7 +27,7 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, Tenant
+from api.models import Tenant
 from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
