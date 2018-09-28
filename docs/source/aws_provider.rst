@@ -28,7 +28,7 @@ Creating an IAM Policy
 
 #. Browse to the *Policies* tab.
 #. Choose *Create Policy*.
-#. Select the *JSON* tab and past the following JSON policy into the editor replacing *bucket_name* with the S3 bucket that was configured in the `Configuring an Amazon Account for Cost & Usage Reporting`_ section.
+#. Select the *JSON* tab and paste the following JSON policy into the editor replacing *bucket_name* with the S3 bucket that was configured in the `Configuring an Amazon Account for Cost & Usage Reporting`_ section.
 #. Including Action `iam:ListAccountAliases` will allow Koku to display the AWS account alias rather than the account id.
 
 
@@ -86,7 +86,7 @@ Visibility to cost data is controlled by leveraging the configuration of AWS org
 
 Enabling AWS Notifications
 **************************
-In order to make data available as early possible AWS can send a notification to Koku when it writes or updates cost and usage data. In order to enable the notification capability you will need to create an SNS topic, alter the topic policy, and create a subscription then update the S3 bucket created above to generate events when changes occur.
+In order to make data available as early as possible AWS can send a notification to Koku when it writes or updates cost and usage data. In order to enable the notification capability you will need to create an SNS topic, alter the topic policy, and create a subscription then update the S3 bucket created above to generate events when changes occur.
 
 Creating an SNS Topic
 ---------------------
@@ -130,7 +130,7 @@ Create SNS Topic Subscription
 
 #. Select the *Create subscription* button for the topic.
 #. Choose **HTTPS** from the *Protocol* drop down menu.
-#. Provide ``https:\\`` in the *Endpoint* field.
+#. Provide ``https://`` in the *Endpoint* field.
 #. Select the *Create subscription* button to save the configuration.
 
 Set S3 Bucket to Generate Events
