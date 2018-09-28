@@ -66,7 +66,8 @@ class ProviderManager:
             billing_source = self.model.billing_source
 
             authentication_model.delete()
-            billing_source.delete()
+            if billing_source:
+                billing_source.delete()
             self.model.delete()
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
