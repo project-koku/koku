@@ -5,12 +5,26 @@ import pkgutil
 from django.db import migrations, models
 
 
-def load_report_map_data(apps, schema_editor):
+def load_aws_report_map_data(apps, schema_editor):
     """Load AWS Cost Usage report to database mapping."""
     ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
 
     data = pkgutil.get_data('reporting_common',
                             'data/aws_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        map = ReportColumnMap(**entry)
+        map.save()
+
+
+def load_ocp_report_map_data(apps, schema_editor):
+    """Load OCP Usage report to database mapping."""
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/ocp_report_column_map.json')
 
     data = json.loads(data)
 
@@ -26,7 +40,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(load_report_map_data),
+        migrations.RunPython(load_aws_report_map_data),
+        migrations.RunPython(load_ocp_report_map_data),
         migrations.AlterField(
             model_name='reportcolumnmap',
             name='provider_type',
