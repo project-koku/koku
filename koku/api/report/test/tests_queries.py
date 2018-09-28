@@ -15,11 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-import logging
-from pprint import pformat
-logging.disable(0)
-LOG = logging.getLogger(__name__)
-
 import random
 from datetime import timedelta
 from decimal import Decimal
@@ -468,7 +463,7 @@ class ReportQueryTest(IamTestCase):
                     agg = AWSCostEntryLineItemAggregates(**entry)
                     agg.save()
 
-    def add_data_to_tenant(self, rate=Decimal('0.199'), amount=1,
+    def add_data_to_tenant(self, rate=Decimal(random.random()), amount=1,
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
                            data_start=DateHelper().yesterday,
@@ -876,7 +871,6 @@ class ReportQueryTest(IamTestCase):
                                      'currency_code', **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
-        LOG.warning(f'XXX: {pformat(data)}')
 
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
@@ -1303,23 +1297,29 @@ class ReportQueryTest(IamTestCase):
 
         kwargs = {'account_id': account_id,
                   'account_alias': account_alias,
-                  'bill_start': DateHelper().last_month_start,
-                  'bill_end': DateHelper().last_month_end,
-                  'data_start': DateHelper().last_month_start,
-                  'data_end': DateHelper().last_month_start + timedelta(days=1)}
+                  'bill_start': dh.last_month_start,
+                  'bill_end': dh.last_month_end,
+                  'data_start': dh.last_month_start,
+                  'data_end': dh.last_month_start + timedelta(days=1)}
 
         for _ in range(0, random.randint(3, 5)):
             # add some current data.
-            self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=account_id,
+            self.add_data_to_tenant(account_id=account_id,
                                     account_alias=account_alias)
-            current_total += self.current_month_total
-            self.current_month_total = Decimal(0)
-
             # add some previous data.
-            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
-            prev_total += self.current_month_total
-            self.current_month_total = Decimal(0)
+            self.add_data_to_tenant(**kwargs)
+
+        # fetch the expected sums from the DB.
+        with tenant_context(self.tenant):
+            curr = AWSCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=dh.this_month_start,
+                usage_end__lte=dh.this_month_end).aggregate(value=Sum('unblended_cost'))
+            current_total = Decimal(curr.get('value'))
+
+            prev = AWSCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=dh.last_month_start,
+                usage_end__lte=dh.last_month_end).aggregate(value=Sum('unblended_cost'))
+            prev_total = Decimal(prev.get('value'))
 
         expected_delta_value = Decimal(current_total - prev_total)
         expected_delta_percent = Decimal(
@@ -1329,23 +1329,22 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly',
                          'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'limit': 2},
+                         'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'delta': True}
         handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&filter[limit]=2&delta=True',
+                                     '?group_by[account]=*&delta=True',
                                      self.tenant,
                                      'unblended_cost',
                                      'currency_code',
                                      **{'report_type': 'costs'})
+
+        # test the calculations
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
-        LOG.warning(f'{pformat(data)}')
 
         values = data[0].get('accounts', [])[0].get('values', [])[0]
-        LOG.warning(f'{pformat(values)}')
 
         self.assertIn('delta_value', values)
         self.assertIn('delta_percent', values)
