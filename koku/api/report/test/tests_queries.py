@@ -16,6 +16,7 @@
 #
 """Test the Report Queries."""
 import random
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 
@@ -461,8 +462,8 @@ class ReportQueryTest(IamTestCase):
     def add_data_to_tenant(self, rate=Decimal(random.random()), amount=1,
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
-                           data_start=DateHelper().yesterday,
-                           data_end=DateHelper().today,
+                           data_start=DateHelper().this_month_start,
+                           data_end=DateHelper().this_month_start + DateHelper().one_day,
                            account_id=None,
                            account_alias=None):
         """Populate tenant with data."""
@@ -815,15 +816,17 @@ class ReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
+        # this may need some additional work, but I think this covers most cases.
         expected = {
-            dh.today.strftime('%Y-%m-%d'): 0,
-            dh.yesterday.strftime('%Y-%m-%d'): 24
+            dh.this_month_start.strftime('%Y-%m-%d'): min(dh._now.hour + 1, 24),
+            (dh.this_month_start + dh.one_day).strftime('%Y-%m-%d'): 0,
+            (dh.this_month_start - dh.one_day).strftime('%Y-%m-%d'): 0,
         }
 
         query_params = {'filter':
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'day'}}
-        query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
+        query_string = '?filter[time_scope_value]=-1&filter[time_scope_units]=day&filter[resolution]=daily'
         annotations = {'instance_type':
                        Concat('cost_entry_product__instance_type', Value(''))}
         extras = {'count': 'resource_count',
@@ -842,7 +845,7 @@ class ReportQueryTest(IamTestCase):
 
         total = query_output.get('total')
         self.assertIsNotNone(total.get('count'))
-        self.assertEqual(total.get('count'), sum(expected.values()))
+        self.assertEqual(total.get('count'), 24)
 
         for data_item in data:
             instance_types = data_item.get('instance_types')
@@ -1458,10 +1461,16 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_orderby_alias(self):
         """Test execute_query when account alias is avaiable."""
         # generate test data
+        expected = {self.account_alias: self.payer_account_id}
         for _ in range(0, random.randint(3, 5)):
+            account_id = self.fake.ean(length=13)
+            account_alias = self.fake.company()
+            expected[account_alias] = account_id
+
             self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=self.fake.ean(length=13),
-                                    account_alias=self.fake.company())
+                                    account_id=account_id,
+                                    account_alias=account_alias)
+        expected = OrderedDict(sorted(expected.items()))
 
         # execute query
         query_params = {'filter':
@@ -1480,13 +1489,13 @@ class ReportQueryTest(IamTestCase):
         data = query_output.get('data')
 
         # test query output
-        aliases = []
+        actual = OrderedDict()
         for datum in data:
             for account in datum.get('accounts'):
                 for value in account.get('values'):
-                    aliases.append(value.get('account_alias'))
+                    actual[value.get('account_alias')] = value.get('account')
 
-        self.assertEqual(aliases, sorted(aliases))
+        self.assertEqual(actual, expected)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
