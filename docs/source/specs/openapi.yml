@@ -675,7 +675,7 @@ definitions:
   ReportDelta:
     type: object
     properties:
-      cost:
+      delta:
         type: boolean
     example: { 'delta': 'True' }
     description: 'Toggle to include delta values in report.'
