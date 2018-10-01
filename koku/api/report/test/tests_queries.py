@@ -462,8 +462,8 @@ class ReportQueryTest(IamTestCase):
     def add_data_to_tenant(self, rate=Decimal('0.199'), amount=1,
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
-                           data_start=DateHelper().yesterday,
-                           data_end=DateHelper().today,
+                           data_start=DateHelper().this_month_start,
+                           data_end=(DateHelper().this_month_start + DateHelper().one_day),
                            account_id=None):
         """Populate tenant with data."""
         self.payer_account_id = account_id
@@ -808,14 +808,13 @@ class ReportQueryTest(IamTestCase):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
         expected = {
-            dh.today.strftime('%Y-%m-%d'): 0,
-            dh.yesterday.strftime('%Y-%m-%d'): 24
+            dh.this_month_start.strftime('%Y-%m'): 24,
         }
 
         query_params = {'filter':
-                        {'resolution': 'daily', 'time_scope_value': -1,
-                         'time_scope_units': 'day'}}
-        query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'}}
+        query_string = '?filter[time_scope_value]=-1&filter[resolution]=monthly'
         annotations = {'instance_type':
                        Concat('cost_entry_product__instance_type', Value(''))}
         extras = {'count': 'resource_count',
