@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 boto3==1.9.14
-botocore==1.10.78
+botocore==1.12.14
 certifi==2018.8.13
 chardet==3.0.4
 django-cors-headers==2.4.0
