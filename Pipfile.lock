@@ -612,11 +612,10 @@
         },
         "moto": {
             "hashes": [
-                "sha256:7c86d1c3bd6362954afaded735354c11afd22037eb6736152f057a1bff0c8868",
-                "sha256:b8556c1e0cebf931a698bf7198bb3eaf2287c8c9bb4f3455ea5d2015ad8f1708"
+                "sha256:a465b73d907531cd5bf4e550b71a2e22b718d646ed201852046ce0bfa7962c79",
+                "sha256:58fe0a0d55cbd9a001c02c146c15790cfcebf010c6648cb9990e6c3204709cbb"
             ],
-            "index": "pypi",
-            "version": "==1.3.4"
+            "version": "==1.3.6"
         },
         "packaging": {
             "hashes": [
