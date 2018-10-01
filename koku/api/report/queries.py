@@ -41,7 +41,6 @@ from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemDailySummary)
 
 
-logging.disable(0)
 LOG = logging.getLogger(__name__)
 WILDCARD = '*'
 OPERATION_SUM = 'sum'
