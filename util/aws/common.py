@@ -169,7 +169,7 @@ def get_account_alias_from_role_arn(role_arn, session=None):
     iam_client = session.client('iam')
 
     account_id = role_arn.split(':')[-2]
-    alias = None
+    alias = account_id
     try:
         alias_response = iam_client.list_account_aliases()
         alias_list = alias_response.get('AccountAliases', [])
