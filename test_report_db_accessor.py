@@ -24,6 +24,7 @@ import string
 import uuid
 
 import psycopg2
+from dateutil import relativedelta
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import func
 
@@ -804,22 +805,27 @@ class ReportDBAccessorTest(MasuTestCase):
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
         agg_table = getattr(self.accessor.report_schema, agg_table_name)
 
-        expected_time_scope_values = [-1, -2, -10]
+        expected_time_scope_values = [-1, -2, -10, -30]
         expected_report_types = ['storage', 'instance_type', 'costs']
 
-        for _ in range(25):
-            bill = self.creator.create_cost_entry_bill()
-            cost_entry = self.creator.create_cost_entry(bill)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(
-                bill,
-                cost_entry,
-                product,
-                pricing,
-                reservation
-            )
+        today = datetime.datetime.utcnow()
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for cost_entry_date in (today, last_month):
+            bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
+            for family in ['Storage', 'Compute Instance', 'Database Storage',
+                           'Database Instance']:
+                product = self.creator.create_cost_entry_product(family)
+                pricing = self.creator.create_cost_entry_pricing()
+                reservation = self.creator.create_cost_entry_reservation()
+                self.creator.create_cost_entry_line_item(
+                    bill,
+                    cost_entry,
+                    product,
+                    pricing,
+                    reservation
+                )
 
         start_date, end_date = self.accessor._session.query(
             func.min(ce_table.interval_start),

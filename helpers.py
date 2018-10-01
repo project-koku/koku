@@ -22,6 +22,7 @@ import io
 import random
 from decimal import Decimal
 
+from dateutil import relativedelta
 from faker import Faker
 
 from masu.config import Config
@@ -41,11 +42,14 @@ class ReportObjectCreator:
         self.column_map = column_map
         self.column_types = column_types
 
-    def create_cost_entry(self, bill):
+    def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
         table_name = AWS_CUR_TABLE_MAP['cost_entry']
         row = self.db_accessor.create_db_object(table_name, {})
-        start_datetime = self.fake.past_datetime(start_date='-60d')
+        if entry_datetime:
+            start_datetime = entry_datetime
+        else:
+            start_datetime = self.fake.past_datetime(start_date='-60d')
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         row.interval_start = self.stringify_datetime(start_datetime)
         row.interval_end = self.stringify_datetime(end_datetime)
@@ -56,17 +60,24 @@ class ReportObjectCreator:
 
         return row
 
-    def create_cost_entry_bill(self):
+    def create_cost_entry_bill(self, bill_date=None):
         """Create a cost entry bill database object for test."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         data = self.create_columns_for_table(table_name)
+
+        if bill_date:
+            bill_start = bill_date.replace(day=1).date()
+            bill_end = bill_start + relativedelta.relativedelta(months=1)
+
+            data['billing_period_start'] = bill_start
+            data['billing_period_end'] = bill_end
+
         row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor._session.add(row)
         self.db_accessor._session.commit()
 
         return row
-
 
     def create_cost_entry_pricing(self):
         """Create a cost entry pricing database object for test."""
@@ -79,12 +90,15 @@ class ReportObjectCreator:
 
         return row
 
-    def create_cost_entry_product(self):
+    def create_cost_entry_product(self, product_family=None):
         """Create a cost entry product database object for test."""
         table_name = AWS_CUR_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
-        row.product_family = random.choice(AWS_PRODUCT_FAMILY)
+        if product_family:
+            row.product_family = product_family
+        else:
+            row.product_family = random.choice(AWS_PRODUCT_FAMILY)
         self.db_accessor._session.add(row)
         self.db_accessor._session.commit()
 
