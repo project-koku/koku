@@ -41,10 +41,6 @@ class ReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self.column_map = column_map
-        self._session = self.get_session()
-        self._conn = self._db.connect()
-        self._pg2_conn = self._get_psycopg2_connection()
-        self._cursor = self._get_psycopg2_cursor()
 
     def get_current_cost_entry_bill(self, bill_id=None):
         """Get the most recent cost entry bill object."""
