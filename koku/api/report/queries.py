@@ -36,8 +36,7 @@ from django.db.models.functions import (Concat,
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
-from reporting.models import (AWSAccountAlias,
-                              AWSCostEntryLineItem,
+from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary)
 
@@ -237,8 +236,6 @@ class ReportQueryHandler(object):
         self._get_timeframe()
         self.units_key = units_key
         self.query_delta = {'value': None, 'percent': None}
-
-        self.account_aliases = {}
 
         if kwargs:
             elements = ['accept_type', 'annotations', 'delta',
@@ -573,11 +570,12 @@ class ReportQueryHandler(object):
         if not fields:
             fields = {'account': 'usage_account_id',
                       'service': 'product_code',
-                      'region': 'cost_entry_product__region',
                       'avail_zone': 'availability_zone'}
-            if self.is_sum:
-                # The summary table has region built in
-                fields.pop('region', None)
+
+            if not self.is_sum:
+                # The summary table has region built-in
+                fields['region'] = 'cost_entry_product__region'
+
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -645,6 +643,7 @@ class ReportQueryHandler(object):
             group_by = self._get_group_by()
             for group in group_by:
                 other[group] = 'Other'
+                other['account_alias'] = 'Other'
             ranked_list.append(other)
 
         return ranked_list
@@ -713,14 +712,6 @@ class ReportQueryHandler(object):
             cur = {group_type: group,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
-            if group_type == 'account':
-                for value in group_value:
-                    if isinstance(value, dict):
-                        account_id = value.get('account')
-                        alias = self.account_aliases.get(str(account_id))
-                        if alias:
-                            value['account_alias'] = alias
-
             out_data.append(cur)
 
         return out_data
@@ -749,7 +740,8 @@ class ReportQueryHandler(object):
 
             query_data = query_data.values(*query_group_by)\
                 .annotate(total=Sum(self.aggregate_key))\
-                .annotate(units=Max(self.units_key))
+                .annotate(units=Max(self.units_key))\
+                .annotate(account_alias=F('account_alias__account_alias'))
 
             if self.count:
                 # This is a sum because the summary table already
@@ -765,9 +757,6 @@ class ReportQueryHandler(object):
                 )
                 query_data = query_data.annotate(rank=dense_rank_by_total)
                 query_order_by = query_order_by + ('rank',)
-
-            for alias in AWSAccountAlias.objects.all():
-                self.account_aliases[alias.account_id] = alias.account_alias
 
             if self.order_field != 'delta':
                 query_data = query_data.order_by(*query_order_by)
