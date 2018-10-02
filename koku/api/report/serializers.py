@@ -122,6 +122,9 @@ class OrderBySerializer(serializers.Serializer):
     inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
                                         required=False)
 
+    account_alias = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                            required=False)
+
     def validate(self, data):
         """Validate incoming data."""
         handle_invalid_fields(self, data)
