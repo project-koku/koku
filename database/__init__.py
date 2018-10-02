@@ -27,3 +27,12 @@ AWS_CUR_TABLE_MAP = {
     'pricing': 'reporting_awscostentrypricing',
     'reservation': 'reporting_awscostentryreservation',
 }
+
+OCP_REPORT_TABLE_MAP = {
+    'report_period': 'reporting_ocpusagereportperiod',
+    'report': 'reporting_ocpusagereport',
+    'usage_report': 'reporting_ocpusagereport',
+    'line_item': 'reporting_ocpusagelineitem',
+    'line_item_daily': 'reporting_ocpusagelineitem_daily',
+    'line_item_daily_summary': 'reporting_ocpusagelineitem_daily_summary',
+}
