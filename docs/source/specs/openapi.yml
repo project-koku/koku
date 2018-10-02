@@ -670,6 +670,16 @@ definitions:
         enum:
           - asc
           - desc
+      region:
+        type: string
+        enum:
+          - asc
+          - desc
+      service:
+        type: string
+        enum:
+          - asc
+          - desc
     example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
