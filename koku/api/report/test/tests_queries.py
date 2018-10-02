@@ -818,15 +818,13 @@ class ReportQueryTest(IamTestCase):
 
         # this may need some additional work, but I think this covers most cases.
         expected = {
-            dh.this_month_start.strftime('%Y-%m-%d'): min(dh._now.hour + 1, 24),
-            (dh.this_month_start + dh.one_day).strftime('%Y-%m-%d'): 0,
-            (dh.this_month_start - dh.one_day).strftime('%Y-%m-%d'): 0,
+            dh.this_month_start.strftime('%Y-%m'): 24,
         }
 
         query_params = {'filter':
-                        {'resolution': 'daily', 'time_scope_value': -1,
-                         'time_scope_units': 'day'}}
-        query_string = '?filter[time_scope_value]=-1&filter[time_scope_units]=day&filter[resolution]=daily'
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'}}
+        query_string = '?filter[time_scope_value]=-1&filter[resolution]=monthly'
         annotations = {'instance_type':
                        Concat('cost_entry_product__instance_type', Value(''))}
         extras = {'count': 'resource_count',

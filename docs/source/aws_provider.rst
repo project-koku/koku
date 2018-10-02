@@ -1,7 +1,7 @@
 Adding an AWS Account
 #####################
 
-This section describes how to configure your AWS account to allow Koku access.  Configuring your account involves configuring four AWS services. Setting up the AWS account for cost and usage reporting to an S3 bucket to make the cost and usage data available. Creating an Identity Access Management (IAM) Policy and Role to be utilized by Koku to process the cost and usage data. AWS organization setup in order to control cost visibility (optional). AWS simple notification service (SNS) setup in order to trigger processing of cost and usage data when created or updated (optional).
+This section describes how to configure your AWS account to allow Koku access.  Configuring your account involves configuring three AWS services. Setting up the AWS account for cost and usage reporting to an S3 bucket to make the cost and usage data available. Creating an Identity Access Management (IAM) Policy and Role to be utilized by Koku to process the cost and usage data. AWS simple notification service (SNS) setup in order to trigger processing of cost and usage data when created or updated (optional).
 
 Configuring an Amazon Account for Cost & Usage Reporting
 ********************************************************
@@ -53,8 +53,6 @@ Creating an IAM Policy
               "Sid": "VisualEditor1",
               "Effect": "Allow",
               "Action": [
-                  "organizations:List*",
-                  "organizations:Describe*",
                   "s3:ListAllMyBuckets",
                   "iam:ListAccountAliases",
                   "s3:HeadBucket",
@@ -78,11 +76,6 @@ Creating an IAM Role
 #. Choose the *Review* button and complete the creation fo the role by naming the role ``CostManagement``.
 #. Select the newly created role ``CostManagement`` to view the summary.
 #. Capture the *Role ARN* as it will be used in the provider creation.
-
-Utilizing AWS Organizations
-***************************
-
-Visibility to cost data is controlled by leveraging the configuration of AWS organizations. Sign in to the AWS Management Console as an administrator of the account you wish to add, and open the Organizations console at `https://console.aws.amazon.com/organizations/ <https://console.aws.amazon.com/organizations/>`_. To learn more about AWS organizations read the article `Understand How IAM and Organizations Interact - Amazon AWS <https://aws.amazon.com/premiumsupport/knowledge-center/iam-policy-service-control-policy/>`_.
 
 Enabling AWS Notifications
 **************************

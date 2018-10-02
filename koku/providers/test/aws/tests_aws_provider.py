@@ -25,7 +25,6 @@ from django.test import TestCase
 from moto import mock_s3, mock_sns, mock_sts
 from providers.aws.aws_provider import (AWSProvider,
                                         _check_cost_report_access,
-                                        _check_org_access,
                                         _get_sts_access)
 from rest_framework.exceptions import ValidationError
 
@@ -53,11 +52,9 @@ class AWSProviderTestCase(TestCase):
 
     @mock_sts
     @mock_s3
-    @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
-    def test_cost_usage_source_is_reachable(self, check_org_access, check_cost_report_access):
+    def test_cost_usage_source_is_reachable(self, check_cost_report_access):
         """Verify that the cost usage source is authenticated and created."""
-        check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -81,11 +78,9 @@ class AWSProviderTestCase(TestCase):
 
     @mock_sts
     @mock_s3
-    @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
-    def test_cost_usage_source_is_reachable_no_bucket(self, check_org_access, check_cost_report_access):
+    def test_cost_usage_source_is_reachable_no_bucket(self, check_cost_report_access):
         """Verify that the cost usage source is not authenticated and created when bucket is not provided."""
-        check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -155,31 +150,6 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
 
-    @mock_sts
-    @mock_s3
-    @patch('providers.aws.aws_provider._check_org_access', return_value=False)
-    @patch('providers.aws.aws_provider._check_cost_report_access', return_value=True)
-    @patch('providers.aws.aws_provider._check_s3_access', return_value=True)
-    def test_provider_org_fail(self, check_org_access, check_cost_report_access, check_s3_access):
-        """Test creating a provider with AWS org access failure."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        access_key_id, secret_access_key, session_token = _get_sts_access(
-            iam_arn)
-        s3_resource = boto3.resource(
-            's3',
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-            aws_session_token=session_token,
-        )
-        s3_resource.create_bucket(Bucket=bucket_name)
-
-        provider_interface = AWSProvider()
-        try:
-            provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
-        except Exception:
-            self.fail('Unexpected error thrown')
-
     def test_no_credential_error(self):
         """Test attempting STS access where no credentials are found."""
         with patch.object(SigV4Auth, 'add_auth', side_effect=NoCredentialsError):
@@ -212,16 +182,6 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(iam_arn, bucket_name)
 
-    @mock_sts
-    def test_check_org_access_fail(self):
-        """Test _check_org_access with boto exception."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        access_key_id, secret_access_key, session_token = _get_sts_access(
-            iam_arn)
-        access_exists = _check_org_access(access_key_id, secret_access_key,
-                                          session_token)
-        self.assertFalse(access_exists)
-
     @patch('boto3.client')
     def test_check_cost_report_access_fail(self, mock_boto3):
         """Test _check_cost_report_access with boto exception."""
@@ -239,11 +199,9 @@ class AWSProviderTestCase(TestCase):
     @mock_sns
     @mock_sts
     @mock_s3
-    @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
-    def test_get_sns_topics(self, check_org_access, check_cost_report_access):
+    def test_get_sns_topics(self, check_cost_report_access):
         """Verify when the bucket is configured for notifications."""
-        check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -280,11 +238,9 @@ class AWSProviderTestCase(TestCase):
     @mock_sns
     @mock_sts
     @mock_s3
-    @patch('providers.aws.aws_provider._check_org_access')
     @patch('providers.aws.aws_provider._check_cost_report_access')
-    def test_get_sns_topics_none_set(self, check_org_access, check_cost_report_access):
+    def test_get_sns_topics_none_set(self, check_cost_report_access):
         """Verify when the bucket is not configured for notifications."""
-        check_org_access.return_value = True
         check_cost_report_access.return_value = True
 
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
