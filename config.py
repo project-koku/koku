@@ -84,6 +84,7 @@ class Config:
     REPORT_PROCESSING_BATCH_SIZE = 100000
 
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+    OCP_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 
     # Toggle to enable/disable scheduled checks for new reports.
     SCHEDULE_REPORT_CHECKS = os.getenv('SCHEDULE_REPORT_CHECKS', 'True')
