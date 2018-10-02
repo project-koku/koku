@@ -26,7 +26,7 @@ from dateutil import relativedelta
 from faker import Faker
 
 from masu.config import Config
-from masu.database import AWS_CUR_TABLE_MAP
+from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ['Storage', 'Compute Instance',
@@ -133,6 +133,51 @@ class ReportObjectCreator:
         row.cost_entry_reservation_id = reservation.id
         row.usage_start = cost_entry.interval_start
         row.usage_end = cost_entry.interval_end
+
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
+
+        return row
+
+    def create_ocp_report_period(self):
+        """Create an OCP report database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+
+        data = {'cluster_id': self.fake.pystr()[:8],
+                'report_period_start': self.stringify_datetime(self.fake.past_datetime()),
+                'report_period_end': self.stringify_datetime(self.fake.past_datetime())}
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
+
+        return row
+
+    def create_ocp_report(self, reporting_period):
+        """Create an OCP reporting period database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP['report']
+
+        data = {'report_period_id': reporting_period.id,
+                'interval_start': self.stringify_datetime(self.fake.past_datetime()),
+                'interval_end': self.stringify_datetime(self.fake.past_datetime())}
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
+
+        return row
+
+    def create_ocp_usage_line_item(self,
+                                   report_period,
+                                   report):
+        """Create an OCP usage line item database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item']
+        data = self.create_columns_for_table(table_name)
+
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        row.report_period_id = report_period.id
+        row.report_id = report.id
 
         self.db_accessor._session.add(row)
         self.db_accessor._session.commit()
