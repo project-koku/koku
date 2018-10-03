@@ -48,18 +48,6 @@
         "provider_type":"OCP"
     },
     {
-        "database_column":"usage_start",
-        "database_table":"reporting_ocpusagelineitem",
-        "provider_column_name":"data_start",
-        "provider_type":"OCP"
-    },
-    {
-        "database_column":"usage_end",
-        "database_table":"reporting_ocpusagelineitem",
-        "provider_column_name":"data_end",
-        "provider_type":"OCP"
-    },
-    {
         "database_column":"pod_usage_cpu_core_seconds",
         "database_table":"reporting_ocpusagelineitem",
         "provider_column_name":"pod_usage_cpu_core_seconds",
