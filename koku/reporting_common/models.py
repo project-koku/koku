@@ -17,8 +17,8 @@
 
 """Models for shared reporting tables."""
 
-from django.utils import timezone
 from django.db import models
+from django.utils import timezone
 
 from api.provider.models import Provider
 
