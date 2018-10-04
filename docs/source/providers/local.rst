@@ -1,17 +1,13 @@
 Adding a Local Provider
-#######################
+=======================
 
 This section describes the local providers that are used for development and
 testing purposes. Local providers give Koku the ability to access test data
 without requiring a dependency on an external service, such as AWS S3 or a
 pre-existing OpenShift cluster (OKD).
 
-Configuring an AWS Local Provider
-*********************************
-
-Local Provider with OpenShift
------------------------------
-
+AWS Local Provider
+------------------
 These steps will allow you to configure a local provider for a Koku instance
 deployed into an OpenShift environment.
 
@@ -30,7 +26,7 @@ deployed into an OpenShift environment.
 Once configured, you should be able to use Masu's download endpoint to queue
 tasks to download and process the local provider's data.
 
-Configuring an OKD Local Provider
-*********************************
+OKD Local Provider
+------------------
 
 TBD
