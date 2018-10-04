@@ -17,18 +17,32 @@
 
 """Models for shared reporting tables."""
 
+from django.utils import timezone
 from django.db import models
 
 from api.provider.models import Provider
 
 
+class CostUsageReportManifest(models.Model):
+    """Information gathered from a cost usage report manifest file."""
+
+    assembly_id = models.TextField(unique=True)
+    manifest_creation_datetime = models.DateTimeField(null=True,
+                                                      default=timezone.now)
+    manifest_updated_datetime = models.DateTimeField(null=True,
+                                                     default=timezone.now)
+    billing_period_start_datetime = models.DateTimeField()
+    num_processed_files = models.IntegerField(default=0)
+    num_total_files = models.IntegerField()
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+
+
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
-    provider = models.ForeignKey('api.Provider', null=True,
+    manifest = models.ForeignKey('CostUsageReportManifest', null=True,
                                  on_delete=models.CASCADE)
     report_name = models.CharField(max_length=128, null=False, unique=True)
-    cursor_position = models.PositiveIntegerField()
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
