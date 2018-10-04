@@ -107,23 +107,6 @@ def _get_configured_sns_topics(access_key_id, secret_access_key, session_token, 
     return topics
 
 
-def _check_org_access(access_key_id, secret_access_key, session_token):
-    """Check for provider organization access."""
-    access_ok = True
-    org_client = boto3.client(
-        'organizations',
-        aws_access_key_id=access_key_id,
-        aws_secret_access_key=secret_access_key,
-        aws_session_token=session_token,
-    )
-    try:
-        org_client.describe_organization()
-    except (ClientError, BotoConnectionError) as boto_error:
-        LOG.exception(boto_error)
-        access_ok = False
-    return access_ok
-
-
 def _check_cost_report_access(access_key_id, secret_access_key, session_token,
                               region='us-east-1'):
     """Check for provider cost and usage report access."""
@@ -182,13 +165,6 @@ class AWSProvider(ProviderInterface):
                 'definition data with {}.'.format(
                     credential_name)
             raise serializers.ValidationError(error_obj(key, message))
-
-        org_access = _check_org_access(access_key_id, secret_access_key,
-                                       session_token)
-        if not org_access:
-            message = 'Unable to obtain organization data with {}.'.format(
-                credential_name)
-            LOG.info(message)
 
         sns_topics = _get_configured_sns_topics(access_key_id, secret_access_key,
                                                 session_token, storage_resource_name)

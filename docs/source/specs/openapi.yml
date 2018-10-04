@@ -660,18 +660,34 @@ definitions:
         enum:
           - asc
           - desc
+      delta:
+        type: string
+        enum:
+          - asc
+          - desc
+      account_alias:
+        type: string
+        enum:
+          - asc
+          - desc
+      region:
+        type: string
+        enum:
+          - asc
+          - desc
+      service:
+        type: string
+        enum:
+          - asc
+          - desc
     example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
     type: object
     properties:
-      cost:
-        type: string
-        enum:
-          - day
-          - month
-          - year
-    example: { 'delta': 'month' }
+      delta:
+        type: boolean
+    example: { 'delta': 'True' }
     description: 'Toggle to include delta values in report.'
   ReportResolution:
     type: string

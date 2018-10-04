@@ -16,6 +16,7 @@
 #
 """Test the Report Queries."""
 import random
+from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 
@@ -253,11 +254,11 @@ class ReportQueryUtilsTest(TestCase):
 class ReportQueryTest(IamTestCase):
     """Tests the report queries."""
 
-    current_month_total = Decimal('0')
-
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+        self.current_month_total = Decimal(0)
+
         customer = self._create_customer_data()
         new_customer = self._create_customer(customer['account_id'],
                                              customer['org_id'],
@@ -336,8 +337,6 @@ class ReportQueryTest(IamTestCase):
         return ce_pricing
 
     def _populate_daily_table(self):
-        AWSCostEntryLineItemDaily.objects.all().delete()
-
         included_fields = [
             'cost_entry_product_id',
             'cost_entry_pricing_id',
@@ -375,7 +374,6 @@ class ReportQueryTest(IamTestCase):
             daily.save()
 
     def _populate_daily_summary_table(self):
-        AWSCostEntryLineItemDailySummary.objects.all().delete()
         included_fields = [
             'usage_start',
             'usage_end',
@@ -405,11 +403,13 @@ class ReportQueryTest(IamTestCase):
             .values(*included_fields)\
             .annotate(**annotations)
         for entry in entries:
-            summary = AWSCostEntryLineItemDailySummary(**entry)
+            alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+            summary = AWSCostEntryLineItemDailySummary(**entry,
+                                                       account_alias=list(alias).pop())
             summary.save()
+            self.current_month_total += entry['blended_cost']
 
     def _populate_aggregates_table(self):
-        AWSCostEntryLineItemAggregates.objects.all().delete()
         dh = DateHelper()
         this_month_filter = {'usage_start__gte': dh.this_month_start}
         ten_day_filter = {'usage_start__gte': dh.n_days_ago(dh.today, 10)}
@@ -459,19 +459,30 @@ class ReportQueryTest(IamTestCase):
                     agg = AWSCostEntryLineItemAggregates(**entry)
                     agg.save()
 
-    def add_data_to_tenant(self, rate=Decimal('0.199'), amount=1,
+    def add_data_to_tenant(self, rate=Decimal(random.random()), amount=1,
                            bill_start=DateHelper().this_month_start,
                            bill_end=DateHelper().this_month_end,
-                           data_start=DateHelper().yesterday,
-                           data_end=DateHelper().today,
-                           account_id=None):
+                           data_start=DateHelper().this_month_start,
+                           data_end=DateHelper().this_month_start + DateHelper().one_day,
+                           account_id=None,
+                           account_alias=None):
         """Populate tenant with data."""
         self.payer_account_id = account_id
         if account_id is None:
-            payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-            self.payer_account_id = payer_account_id
+            self.payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+
+        self.account_alias = account_alias
+        if account_alias is None:
+            self.account_alias = self.fake.company()
 
         with tenant_context(self.tenant):
+            alias = list(AWSAccountAlias.objects.filter(
+                account_id=self.payer_account_id))
+            if not alias:
+                alias = AWSAccountAlias(account_id=self.payer_account_id,
+                                        account_alias=self.account_alias)
+                alias.save()
+
             cost = rate * amount
             bill = self._create_bill(self.payer_account_id, bill_start, bill_end)
             ce_product = self._create_product()
@@ -479,8 +490,6 @@ class ReportQueryTest(IamTestCase):
 
             current = data_start
             while current < data_end:
-                if current.month == DateHelper().this_month_start.month:
-                    self.current_month_total += cost
                 end_hour = current + DateHelper().one_hour
                 self.create_hourly_instance_usage(self.payer_account_id, bill,
                                                   ce_pricing, ce_product, rate,
@@ -807,15 +816,15 @@ class ReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
+        # this may need some additional work, but I think this covers most cases.
         expected = {
-            dh.today.strftime('%Y-%m-%d'): 0,
-            dh.yesterday.strftime('%Y-%m-%d'): 24
+            dh.this_month_start.strftime('%Y-%m'): 24,
         }
 
         query_params = {'filter':
-                        {'resolution': 'daily', 'time_scope_value': -1,
-                         'time_scope_units': 'day'}}
-        query_string = '?filter[time_scope_value]=-1&filter[resolution]=daily'
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'}}
+        query_string = '?filter[time_scope_value]=-1&filter[resolution]=monthly'
         annotations = {'instance_type':
                        Concat('cost_entry_product__instance_type', Value(''))}
         extras = {'count': 'resource_count',
@@ -834,7 +843,7 @@ class ReportQueryTest(IamTestCase):
 
         total = query_output.get('total')
         self.assertIsNotNone(total.get('count'))
-        self.assertEqual(total.get('count'), sum(expected.values()))
+        self.assertEqual(total.get('count'), 24)
 
         for data_item in data:
             instance_types = data_item.get('instance_types')
@@ -845,11 +854,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
-        self.add_data_to_tenant(rate=Decimal('0.299'))
-        self.add_data_to_tenant(rate=Decimal('0.399'))
-        self.add_data_to_tenant(rate=Decimal('0.099'))
-        self.add_data_to_tenant(rate=Decimal('0.999'))
-        self.add_data_to_tenant(rate=Decimal('0.699'))
+        for _ in range(0, random.randint(3, 10)):
+            self.add_data_to_tenant()
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -1277,66 +1283,57 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         dh = DateHelper()
-        bill_start = dh.last_month_start
-        bill_end = dh.last_month_end
-        current_total = 0
-        prev_total = 0
+        current_total = Decimal(0)
+        prev_total = Decimal(0)
 
-        # First we need to add data for the previous time period
-        # This convoluted method is necessary to re-use the randomized
-        # account ids and products
+        account_id = self.payer_account_id
+        account_alias = self.account_alias
+
+        kwargs = {'account_id': account_id,
+                  'account_alias': account_alias,
+                  'bill_start': dh.last_month_start,
+                  'bill_end': dh.last_month_end,
+                  'data_start': dh.last_month_start,
+                  'data_end': dh.last_month_start + timedelta(days=1)}
+
+        for _ in range(0, random.randint(3, 5)):
+            # add some current data.
+            self.add_data_to_tenant(account_id=account_id,
+                                    account_alias=account_alias)
+            # add some previous data.
+            self.add_data_to_tenant(**kwargs)
+
+        # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            line_items = AWSCostEntryLineItem.objects.values()
-            first = line_items[0]
-            payer_account_id = first.get('usage_account_id')
-            bill = self._create_bill(payer_account_id, bill_start, bill_end)
+            curr = AWSCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=dh.this_month_start,
+                usage_end__lte=dh.this_month_end).aggregate(value=Sum('unblended_cost'))
+            current_total = Decimal(curr.get('value'))
 
-            for row in line_items:
-                start = row['usage_start']
-                new_start = start.replace(month=start.month - 1)
-                end = row['usage_end']
-                new_end = end.replace(month=end.month - 1)
-                cost_entry = AWSCostEntry(
-                    interval_start=new_start,
-                    interval_end=new_end,
-                    bill=bill
-                )
-                cost_entry.save()
+            prev = AWSCostEntryLineItemDailySummary.objects.filter(
+                usage_start__gte=dh.last_month_start,
+                usage_end__lte=dh.last_month_end).aggregate(value=Sum('unblended_cost'))
+            prev_total = Decimal(prev.get('value'))
 
-                row.pop('id')
-                row['usage_start'] = new_start
-                row['usage_end'] = new_end
-                current_total += row['unblended_cost']
-                row['unblended_cost'] = row['unblended_cost'] + Decimal(10.0)
-                prev_total += row['unblended_cost']
-                row['cost_entry_id'] = cost_entry.id
-                row['cost_entry_bill_id'] = bill.id
-                line_item = AWSCostEntryLineItem(**row)
-                line_item.save()
-
-            expected_delta_value = Decimal(current_total - prev_total)
-            expected_delta_percent = Decimal(
-                (current_total - prev_total) / prev_total * 100
-            )
-
-            # Recalculate the summary tables to include the new data
-            self._populate_daily_table()
-            self._populate_daily_summary_table()
-            self._populate_aggregates_table()
+        expected_delta_value = Decimal(current_total - prev_total)
+        expected_delta_percent = Decimal(
+            (current_total - prev_total) / prev_total * 100
+        )
 
         query_params = {'filter':
                         {'resolution': 'monthly',
                          'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'limit': 2},
+                         'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'delta': True}
         handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&filter[limit]=2&delta=True',
+                                     '?group_by[account]=*&delta=True',
                                      self.tenant,
                                      'unblended_cost',
                                      'currency_code',
                                      **{'report_type': 'costs'})
+
+        # test the calculations
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1453,30 +1450,50 @@ class ReportQueryTest(IamTestCase):
                                      'unblended_cost',
                                      'currency_code',
                                      **{'report_type': 'costs'})
-        # Run account group_by query and verify that account_alias is not in response.
         query_output = handler.execute_query()
         data = query_output.get('data')
 
-        account = data[0].get('accounts')[0].get('values')[0]['account']
         account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertIsNone(account_alias)
+        self.assertEqual(account_alias, self.account_alias)
 
-        # Add account alias to the database
-        test_alias = 'myaccount'
-        with tenant_context(self.tenant):
-            alias = AWSAccountAlias(account_id=account, account_alias=test_alias)
-            alias.save()
+    def test_execute_query_orderby_alias(self):
+        """Test execute_query when account alias is avaiable."""
+        # generate test data
+        expected = {self.account_alias: self.payer_account_id}
+        for _ in range(0, random.randint(3, 5)):
+            account_id = self.fake.ean(length=13)
+            account_alias = self.fake.company()
+            expected[account_alias] = account_id
 
-        # Run query again and verify that account_alias is in response.
+            self.add_data_to_tenant(rate=Decimal(random.random()),
+                                    account_id=account_id,
+                                    account_alias=account_alias)
+        expected = OrderedDict(sorted(expected.items()))
+
+        # execute query
+        query_params = {'filter':
+                        {'resolution': 'monthly',
+                         'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'account': ['*']},
+                        'order_by': {'account_alias': 'asc'}}
+        handler = ReportQueryHandler(query_params,
+                                     '?group_by[account]=[*]&order_by[account_alias]=asc',
+                                     self.tenant,
+                                     'unblended_cost',
+                                     'currency_code',
+                                     **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
 
-        account = data[0].get('accounts')[0].get('values')[0]['account']
-        account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertEqual(account_alias, test_alias)
+        # test query output
+        actual = OrderedDict()
+        for datum in data:
+            for account in datum.get('accounts'):
+                for value in account.get('values'):
+                    actual[value.get('account_alias')] = value.get('account')
 
-        with tenant_context(self.tenant):
-            AWSAccountAlias.objects.all().delete()
+        self.assertEqual(actual, expected)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""

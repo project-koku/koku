@@ -121,6 +121,12 @@ class OrderBySerializer(serializers.Serializer):
                                     required=False)
     inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
                                         required=False)
+    account_alias = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                            required=False)
+    region = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                     required=False)
+    service = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                      required=False)
 
     def validate(self, data):
         """Validate incoming data."""
