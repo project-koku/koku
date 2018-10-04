@@ -751,6 +751,34 @@ class ReportQueryTest(IamTestCase):
                 self.assertEqual(compute, 'AmazonEC2')
                 self.assertIsInstance(month_item.get('values'), list)
 
+    def test_query_by_partial_filtered_service(self):
+        """Test execute_query monthly breakdown by filtered service."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month'},
+                        'group_by': {'service': ['eC2']}}
+        handler = ReportQueryHandler(query_params, '?group_by[service]=eC2',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code', **{'report_type': 'costs'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+        self.assertEqual(total.get('value'), self.current_month_total)
+
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        for data_item in data:
+            month_val = data_item.get('date')
+            month_data = data_item.get('services')
+            self.assertEqual(month_val, cmonth_str)
+            self.assertIsInstance(month_data, list)
+            for month_item in month_data:
+                compute = month_item.get('service')
+                self.assertEqual(compute, 'AmazonEC2')
+                self.assertIsInstance(month_item.get('values'), list)
+
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
         query_params = {'filter':
@@ -1079,7 +1107,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'account': [self.payer_account_id]}}
+                         'account': [self.account_alias]}}
         handler = ReportQueryHandler(query_params, '',
                                      self.tenant, 'unblended_cost',
                                      'currency_code', **{'report_type': 'costs'})
