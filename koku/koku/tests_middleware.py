@@ -104,3 +104,23 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertIsNotNone(user)
         tenant = Tenant.objects.get(schema_name=self.schema_name)
         self.assertIsNotNone(tenant)
+
+    def test_process_no_customer(self):
+        """Test that the customer, tenant and user are not created."""
+        customer = self._create_customer_data()
+        account_id = customer['account_id']
+        del customer['account_id']
+        request_context = self._create_request_context(customer,
+                                                       self.user_data,
+                                                       create_customer=False)
+        mock_request = request_context['request']
+        mock_request.path = '/api/v1/providers/'
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        self.assertTrue(hasattr(mock_request, 'user'))
+        with self.assertRaises(Customer.DoesNotExist):
+            customer = Customer.objects.get(account_id=account_id,
+                                            org_id=customer['org_id'])
+
+        with self.assertRaises(User.DoesNotExist):
+            User.objects.get(username=self.user_data['username'])

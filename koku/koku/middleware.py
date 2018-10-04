@@ -148,7 +148,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
             return
-        if username:
+        if (username and email and account and org):
             # Check for customer creation & user creation
             try:
                 customer = Customer.objects.filter(account_id=account, org_id=org).get()
