@@ -506,8 +506,6 @@ class ReportQueryHandler(object):
             filters.add(table=cep_table, field='product_family',
                         operation='contains', parameter='Storage')
 
-        region_filter = QueryFilter(table=cep_table, field='region', operation='in')
-
         start_filter = QueryFilter(table='usage_start', operation='gte',
                                    parameter=self.start_datetime)
         end_filter = QueryFilter(table='usage_end', operation='lte',
@@ -516,19 +514,25 @@ class ReportQueryHandler(object):
         filters.add(query_filter=end_filter)
 
         # define filter parameters using API query params.
-        fields = {'account': QueryFilter(field='usage_account_id',
-                                         operation='in'),
-                  'service': QueryFilter(field='product_code', operation='in'),
-                  'region': region_filter,
-                  'avail_zone': QueryFilter(field='availability_zone',
-                                            operation='in')}
+        fields = {'account': {'field': 'account_alias__account_alias',
+                              'operation': 'icontains'},
+                  'service': {'field': 'product_code',
+                              'operation': 'icontains'},
+                  'avail_zone': {'field': 'availability_zone',
+                                 'operation': 'icontains'},
+                  'region': {'field': 'availability_zone',
+                             'operation': 'icontains',
+                             'table': cep_table
+                             }
+                  }
         for q_param, filt in fields.items():
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                filt.parameter = list_
-            filters.add(filt)
+                for item in list_:
+                    q_filter = QueryFilter(parameter=item, **filt)
+                    filters.add(q_filter)
 
         LOG.debug(f'Filters: {filters.compose()}')
         return filters.compose()
