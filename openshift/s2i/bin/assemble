@@ -51,8 +51,10 @@ if [[ ! -z "$ENABLE_PIPENV" ]]; then
   install_pipenv
   echo "---> Installing dependencies via pipenv ..."
   if [[ -f Pipfile ]]; then
+    pipenv run pip install pip==18.0
     pipenv install --deploy --ignore-pipfile --verbose
   elif [[ -f requirements.txt ]]; then
+    pipenv run pip install pip==18.0
     pipenv install -r requirements.txt --verbose
   fi
   # pipenv check
