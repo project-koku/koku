@@ -647,6 +647,7 @@ class ReportQueryHandler(object):
             group_by = self._get_group_by()
             for group in group_by:
                 other[group] = 'Other'
+            if 'account' in group_by:
                 other['account_alias'] = 'Other'
             ranked_list.append(other)
 
@@ -744,8 +745,10 @@ class ReportQueryHandler(object):
 
             query_data = query_data.values(*query_group_by)\
                 .annotate(total=Sum(self.aggregate_key))\
-                .annotate(units=Max(self.units_key))\
-                .annotate(account_alias=F('account_alias__account_alias'))
+                .annotate(units=Max(self.units_key))
+
+            if 'account' in query_group_by:
+                query_data = query_data.annotate(account_alias=F('account_alias__account_alias'))
 
             if self.count:
                 # This is a sum because the summary table already
