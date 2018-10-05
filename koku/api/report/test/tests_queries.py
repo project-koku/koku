@@ -1552,3 +1552,49 @@ class ReportQueryTest(IamTestCase):
         args = [{}, '', self.tenant, 'unblended_cost', 'currency_code']
         rqh = ReportQueryHandler(*args, **{'report_type': 'costs'})
         self.assertEqual(rqh._percent_delta(10, 5), 100)
+
+    def test_rank_list(self):
+        """Test rank list limit with account alias."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month', 'limit': 2},
+                        'group_by': {'account': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code', **{'report_type': 'costs'})
+        data_list = [
+            {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
+            {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
+            {'account': '3', 'account_alias': '3', 'total': 3, 'rank': 3},
+            {'account': '4', 'account_alias': '4', 'total': 2, 'rank': 4}
+        ]
+        expected = [
+            {'account': '1', 'account_alias': '1', 'total': 5},
+            {'account': '2', 'account_alias': '2', 'total': 4},
+            {'account': 'Other', 'account_alias': 'Other', 'total': 5}
+        ]
+        ranked_list = handler._ranked_list(data_list)
+        self.assertEqual(ranked_list, expected)
+
+    def test_rank_list_no_account(self):
+        """Test rank list limit with out account alias."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month', 'limit': 2},
+                        'group_by': {'service': ['*']}}
+        handler = ReportQueryHandler(query_params, '?group_by[service]=*&filter[limit]=2',
+                                     self.tenant, 'unblended_cost',
+                                     'currency_code', **{'report_type': 'costs'})
+        data_list = [
+            {'service': '1', 'total': 5, 'rank': 1},
+            {'service': '2', 'total': 4, 'rank': 2},
+            {'service': '3', 'total': 3, 'rank': 3},
+            {'service': '4', 'total': 2, 'rank': 4}
+        ]
+        expected = [
+            {'service': '1', 'total': 5},
+            {'service': '2', 'total': 4},
+            {'service': 'Other', 'total': 5}
+        ]
+        ranked_list = handler._ranked_list(data_list)
+        self.assertEqual(ranked_list, expected)
