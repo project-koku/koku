@@ -73,8 +73,8 @@ class IamTestCase(TestCase):
                                 create_customer=True, create_tenant=False):
         """Create the request context for a user."""
         customer = customer_data
-        account = customer['account_id']
-        org = customer['org_id']
+        account = customer.get('account_id')
+        org = customer.get('org_id')
         if create_customer:
             self._create_customer(account, org, create_tenant=create_tenant)
         identity = {
