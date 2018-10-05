@@ -1,5 +1,23 @@
 [
     {
+        "database_column":"cluster_id",
+        "database_table":"reporting_ocpusagereportperiod",
+        "provider_column_name":"cluster_id",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"report_period_start",
+        "database_table":"reporting_ocpusagereportperiod",
+        "provider_column_name":"report_period_start",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"report_period_end",
+        "database_table":"reporting_ocpusagereportperiod",
+        "provider_column_name":"report_period_end",
+        "provider_type":"OCP"
+    },
+    {
         "database_column":"interval_start",
         "database_table":"reporting_ocpusagereport",
         "provider_column_name":"interval_start",
@@ -27,18 +45,6 @@
         "database_column":"node",
         "database_table":"reporting_ocpusagelineitem",
         "provider_column_name":"node",
-        "provider_type":"OCP"
-    },
-    {
-        "database_column":"usage_start",
-        "database_table":"reporting_ocpusagelineitem",
-        "provider_column_name":"usage_start",
-        "provider_type":"OCP"
-    },
-    {
-        "database_column":"usage_end",
-        "database_table":"reporting_ocpusagelineitem",
-        "provider_column_name":"usage_end",
         "provider_type":"OCP"
     },
     {
