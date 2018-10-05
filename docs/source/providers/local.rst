@@ -21,12 +21,8 @@ deployed into an OpenShift environment.
 #. Upload the test data to the Koku pod: ``oc rsync <data_on_host> <koku_pod>:/tmp/masu``
 #. Create the local provider in the Koku app.
     Provider Resource Name: ``arn:aws:iam::111111111111:role/LocalAWSProvider``
+    Provider Type: ``AWS``
     Bucket: ``/tmp/koku/local/<report_name>``
 
 Once configured, you should be able to use Masu's download endpoint to queue
 tasks to download and process the local provider's data.
-
-OKD Local Provider
-------------------
-
-TBD
