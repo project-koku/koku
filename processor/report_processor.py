@@ -16,12 +16,17 @@
 #
 """Report processor external interface."""
 
+import logging
+
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ReportProcessorError(Exception):
@@ -35,12 +40,14 @@ class ReportProcessorError(Exception):
 class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 
-    def __init__(self, schema_name, report_path, compression, provider):
-        """Set the downloader based on the backend cloud provider."""
+    def __init__(self, schema_name, report_path, compression, provider,
+                 manifest_id):
+        """Set the processor based on the data provider."""
         self.schema_name = schema_name
         self.report_path = report_path
         self.compression = compression
         self.provider_type = provider
+        self.manifest_id = manifest_id
         try:
             self._processor = self._set_processor()
         except Exception as err:
@@ -102,22 +109,6 @@ class ReportProcessor:
 
         """
         try:
-            return self._processor.remove_temp_cur_files(path)
-        except Exception as err:
-            raise ReportProcessorError(str(err))
-
-    def summarize_report_data(self, start_date, end_date=None):
-        """Populate the summary tables for reporting.
-
-        Args:
-            start_date (String) The date to start populating the table.
-            end_date   (String) The date to end on.
-
-        Returns
-            None
-
-        """
-        try:
-            return self._processor.update_summary_tables(start_date, end_date)
+            return self._processor.remove_temp_cur_files(path, self.manifest_id)
         except Exception as err:
             raise ReportProcessorError(str(err))

@@ -20,6 +20,7 @@
 # Having trouble disabling the lint warning for duplicate-code (AWSReportDownloader..)
 # Disabling pylint on this file since AWSLocalReportDownloader is a DEBUG feature.
 
+import datetime
 import hashlib
 import json
 import logging
@@ -28,6 +29,7 @@ import re
 import shutil
 
 from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -72,6 +74,14 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.bucket_path = bucket
         self.bucket = bucket.replace('/', '_')
         self.credential = auth_credential
+        self.provider_id = None
+        if 'provider_id' in kwargs:
+            self._provider_id = kwargs['provider_id']
+
+    @property
+    def manifest_date_format(self):
+        """Set the AWS manifest date format."""
+        return '%Y%m%dT000000.000Z'
 
     def _extract_names(self, bucket):
         """
@@ -179,13 +189,19 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifest = self._get_manifest(date_time)
+        assembly_id = manifest.get('assemblyId')
+        manifest_id = self._process_manifest_db_record(manifest)
+
         reports = manifest.get('reportKeys')
 
         cur_reports = []
         for report in reports:
             report_dictionary = {}
             local_s3_filename = utils.get_local_file_name(report)
-            stats_recorder = ReportStatsDBAccessor(local_s3_filename)
+            stats_recorder = ReportStatsDBAccessor(
+                local_s3_filename,
+                manifest_id
+            )
             stored_etag = stats_recorder.get_etag()
             report_path = self.bucket_path + '/' + report
             LOG.info('Downloading %s with credential %s', report_path, self.credential)
@@ -196,6 +212,41 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = 'GZIP'
             report_dictionary['start_date'] = date_time
+            report_dictionary['assembly_id'] = assembly_id
+            report_dictionary['manifest_id'] = manifest_id
 
             cur_reports.append(report_dictionary)
         return cur_reports
+
+    def _process_manifest_db_record(self, manifest):
+        """Insert or update the manifest DB record."""
+        LOG.info(f'Upserting manifest database record: ')
+
+        assembly_id = manifest.get('assemblyId')
+
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest_entry = manifest_accessor.get_manifest(
+            assembly_id,
+            self._provider_id
+        )
+
+        if not manifest_entry:
+            billing_str = manifest.get('billingPeriod', {}).get('start')
+            billing_start = datetime.datetime.strptime(
+                billing_str,
+                self.manifest_date_format
+            )
+            manifest_dict = {
+                'assembly_id': assembly_id,
+                'billing_period_start_datetime': billing_start,
+                'num_total_files': len(manifest.get('reportKeys', [])),
+                'provider_id': self._provider_id
+            }
+            manifest_entry = manifest_accessor.add(manifest_dict)
+
+        manifest_accessor.mark_manifest_as_updated(manifest_entry)
+        manifest_accessor.commit()
+        manifest_id = manifest_entry.id
+        manifest_accessor.close_session()
+
+        return manifest_id

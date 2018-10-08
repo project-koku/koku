@@ -69,4 +69,6 @@ class AWSReportDBCleaner():
         if simulate is False:
             bill_objects.delete()
             self._accessor.commit()
+        self._accessor.close_connections()
+        self._accessor.close_session()
         return removed_items
