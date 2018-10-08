@@ -59,6 +59,9 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(' ', '_')
         self.report_name = report_name
         self.cluster_id = auth_credential
+        self.provider_id = None
+        if 'provider_id' in kwargs:
+            self.provider_id = kwargs['provider_id']
 
     def get_report_for(self, date_time):
         """
@@ -130,7 +133,7 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         for report in reports:
             report_dictionary = {}
             local_file_name = utils.get_local_file_name(report)
-            stats_recorder = ReportStatsDBAccessor(local_file_name)
+            stats_recorder = ReportStatsDBAccessor(local_file_name, None)
             stored_etag = stats_recorder.get_etag()
             LOG.info('Downloading %s for cluster ID: %s', report, self.cluster_id)
             file_name, etag = self.download_file(report, stored_etag)

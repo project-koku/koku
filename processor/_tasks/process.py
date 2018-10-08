@@ -22,30 +22,32 @@ import psutil
 from celery.utils.log import get_task_logger
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.processor.report_processor import ReportProcessor
 
 LOG = get_task_logger(__name__)
 
 
-# pylint: disable=too-many-arguments
-def _process_report_file(schema_name, report_path, compression,
-                         provider, provider_uuid, start_date):
+# pylint: disable=too-many-arguments,too-many-locals
+def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     """
     Task to process a Report.
 
     Args:
         schema_name   (String) db schema name
-        report_path   (String) path to downloaded reports
-        compression   (String) 'PLAIN' or 'GZIP'
         provider      (String) provider type
         provider_uuid (String) provider uuid
-        start_date    (String) Start date of billing month for file.
+        report_dict   (dict) The report data dict from previous task
 
     Returns:
         None
 
     """
+    start_date = report_dict.get('start_date')
+    report_path = report_dict.get('file')
+    compression = report_dict.get('compression')
+    manifest_id = report_dict.get('manifest_id')
     stmt = ('Processing Report:'
             ' schema_name: {},'
             ' report_path: {},'
@@ -64,19 +66,27 @@ def _process_report_file(schema_name, report_path, compression,
 
     file_name = report_path.split('/')[-1]
 
-    stats_recorder = ReportStatsDBAccessor(file_name)
+    stats_recorder = ReportStatsDBAccessor(file_name, manifest_id)
     stats_recorder.log_last_started_datetime()
     stats_recorder.commit()
 
     processor = ReportProcessor(schema_name=schema_name,
                                 report_path=report_path,
                                 compression=compression,
-                                provider=provider)
+                                provider=provider,
+                                manifest_id=manifest_id)
 
     processor.process()
     stats_recorder.log_last_completed_datetime()
     stats_recorder.commit()
     stats_recorder.close_session()
+
+    manifest_accesor = ReportManifestDBAccessor()
+    manifest = manifest_accesor.get_manifest_by_id(manifest_id)
+    manifest.num_processed_files += 1
+    manifest_accesor.mark_manifest_as_updated(manifest)
+    manifest_accesor.commit()
+    manifest_accesor.close_session()
 
     provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
     provider_accessor.setup_complete()
@@ -85,6 +95,3 @@ def _process_report_file(schema_name, report_path, compression,
 
     files = processor.remove_processed_files(path.dirname(report_path))
     LOG.info('Temporary files removed: %s', str(files))
-
-    LOG.info('Building report table summary for %s', schema_name)
-    processor.summarize_report_data(start_date)

@@ -17,17 +17,13 @@
 
 """Processor for Cost Usage Reports."""
 
-import calendar
 import copy
 import csv
-import datetime
 import gzip
 import io
 import json
 import logging
 from os import listdir, path, remove
-
-from dateutil import parser
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
@@ -198,7 +194,8 @@ class AWSReportProcessor(ReportProcessorBase):
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
 
-    def remove_temp_cur_files(self, report_path):
+    # pylint: disable=too-many-locals
+    def remove_temp_cur_files(self, report_path, manifest_id):
         """Remove temporary cost usage report files."""
         files = listdir(report_path)
 
@@ -212,7 +209,7 @@ class AWSReportProcessor(ReportProcessorBase):
                     manifest_json = json.load(manifest_file_handle)
                     current_assembly_id = manifest_json.get('assemblyId')
             else:
-                stats = ReportStatsDBAccessor(file)
+                stats = ReportStatsDBAccessor(file, manifest_id)
                 completed_date = stats.get_last_completed_datetime()
                 if completed_date:
                     assembly_id = extract_uuids_from_string(file).pop()
@@ -229,35 +226,6 @@ class AWSReportProcessor(ReportProcessorBase):
                 remove(victim['file'])
                 removed_files.append(victim['file'])
         return removed_files
-
-    def update_summary_tables(self, start_date, end_date=None):
-        """Populate the summary tables for reporting.
-
-        Args:
-            start_date (String) The date to start populating the table.
-            end_date   (String) The date to end on.
-
-        Returns
-            None
-
-        """
-        start_date = parser.parse(start_date)
-        end_date = parser.parse(end_date) if end_date else None
-
-        if end_date is None:
-            last_day_of_month = calendar.monthrange(start_date.year, start_date.month)[1]
-            end_date = datetime.datetime(year=start_date.year,
-                                         month=start_date.month,
-                                         day=last_day_of_month)
-
-        report_db = ReportDBAccessor(schema=self._schema_name, column_map=self.column_map)
-        LOG.info('Updating report summary tables for %s from %s to %s',
-                 self._schema_name, start_date, end_date)
-        report_db.populate_line_item_daily_table(start_date, end_date)
-        report_db.populate_line_item_daily_summary_table(start_date, end_date)
-        report_db.populate_line_item_aggregate_table()
-        report_db.close_connections()
-        report_db.close_session()
 
     # pylint: disable=inconsistent-return-statements, no-self-use
     def _get_file_opener(self, compression):
