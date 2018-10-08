@@ -305,6 +305,9 @@ class AWSCostEntryLineItemAggregates(models.Model):
     time_scope_value = models.IntegerField()
     report_type = models.CharField(max_length=50)
     usage_account_id = models.CharField(max_length=50, null=True)
+    account_alias = models.ForeignKey('AWSAccountAlias',
+                                      on_delete=models.PROTECT,
+                                      null=True)
     product_code = models.CharField(max_length=50, null=False)
     region = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
