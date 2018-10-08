@@ -129,21 +129,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(current_report.interval_end)
         self.assertIsNotNone(current_report.report_period_id)
 
-    def test_get_usage_report_before_date(self):
-        """Test that the recent usage report is returned before given date."""
-        current_report = self.accessor.get_current_usage_report()
-        self.assertIsNotNone(current_report.interval_start)
-        start_date = current_report.interval_start
-
-        before_target = start_date + relativedelta.relativedelta(months=+1)
-        query = self.accessor.get_usage_report_before_date(before_target)
-        report = query.first()
-        self.assertTrue(report.interval_start < before_target)
-
-        after_date = start_date + relativedelta.relativedelta(months=-1)
-        query = self.accessor.get_usage_report_before_date(after_date)
-        report = query.first()
-        self.assertIsNone(report)
+    def test_get_current_usage_period(self):
+        """Test that the most recent usage period is returned."""
+        current_report_period = self.accessor.get_current_usage_period()
+        self.assertIsNotNone(current_report_period.report_period_start)
+        self.assertIsNotNone(current_report_period.report_period_end)
 
     def test_get_lineitem_query_for_reportid(self):
         """Test that the line item data is returned given a report_id."""
@@ -159,8 +149,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(query_report.namespace)
         self.assertIsNotNone(query_report.pod)
         self.assertIsNotNone(query_report.node)
-        self.assertIsNotNone(query_report.usage_start)
-        self.assertIsNotNone(query_report.usage_end)
         self.assertIsNotNone(query_report.pod_usage_cpu_core_seconds)
         self.assertIsNotNone(query_report.pod_request_cpu_core_seconds)
         self.assertIsNotNone(query_report.pod_limit_cpu_cores)
