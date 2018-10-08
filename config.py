@@ -75,7 +75,7 @@ class Config:
     TMP_DIR = '/var/tmp/masu'
 
     # OCP-local simulates Insights report storage
-    INSIGHTS_LOCAL_REPORT_DIR = f'{TMP_DIR}/insights_local'
+    INSIGHTS_LOCAL_REPORT_DIR = '/var/tmp/insights_local'
 
     # Celery settings
     CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
@@ -84,7 +84,7 @@ class Config:
     REPORT_PROCESSING_BATCH_SIZE = 100000
 
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
-    OCP_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+    OCP_DATETIME_STR_FORMAT = '%Y-%m-%d %H:%M:%S +0000 UTC'
 
     # Toggle to enable/disable scheduled checks for new reports.
     SCHEDULE_REPORT_CHECKS = os.getenv('SCHEDULE_REPORT_CHECKS', 'True')
