@@ -43,12 +43,6 @@ class ProviderViewTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             serializer.save()
 
-    def tearDown(self):
-        """Tear down user tests."""
-        super().tearDown()
-        Customer.objects.all().delete()
-        User.objects.all().delete()
-
     def create_provider(self, bucket_name, iam_arn, headers=None):
         """Create a provider and return response."""
         req_headers = self.headers
@@ -81,15 +75,6 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))
-
-    def test_create_provider_no_duplicate(self):
-        """Test create a provider should catch duplicate PRN."""
-        iam_arn = 'arn:aws:s3:::my_s3_bucket'
-        bucket_name = 'my_s3_bucket'
-        response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
-        response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 400)
 
     def test_list_provider(self):
         """Test list providers."""

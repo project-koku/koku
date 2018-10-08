@@ -40,8 +40,9 @@ class ProviderManager:
 
     def __init__(self, uuid):
         """Establish provider manager database objects."""
+        self._uuid = uuid
         try:
-            self.model = Provider.objects.all().filter(uuid=uuid).get()
+            self.model = Provider.objects.all().filter(uuid=self._uuid).get()
         except (ObjectDoesNotExist, ValidationError) as e:
             raise(ProviderManagerError(str(e)))
 
@@ -65,10 +66,19 @@ class ProviderManager:
             authentication_model = self.model.authentication
             billing_source = self.model.billing_source
 
-            authentication_model.delete()
-            if billing_source:
+            auth_count = Provider.objects.exclude(uuid=self._uuid)\
+                .filter(authentication=authentication_model).count()
+            billing_count = Provider.objects.exclude(uuid=self._uuid)\
+                .filter(billing_source=billing_source).count()
+            # Multiple providers can use the same role or bucket.
+            # This will only delete the associated records if it is the
+            # only provider using them.
+            if auth_count == 0:
+                authentication_model.delete()
+            if billing_source and billing_count == 0:
                 billing_source.delete()
             self.model.delete()
+
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
             err_msg = 'User {} does not have permission to delete provider {}'.format(current_user, str(self.model))
