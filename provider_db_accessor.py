@@ -61,6 +61,10 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         self._session.commit()
 
+    def get_provider(self):
+        """Return the provider."""
+        return self._get_db_obj_query().first()
+
     def get_uuid(self):
         """
         Return the provider uuid.

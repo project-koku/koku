@@ -24,7 +24,7 @@ from masu.database.koku_database_access import KokuDBAccess
 class ReportStatsDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for CUR processing statistics."""
 
-    def __init__(self, report_name, provider_id=None, schema='public'):
+    def __init__(self, report_name, manifest_id, schema='public'):
         """
         Establish CUR statistics database connection.
 
@@ -34,15 +34,14 @@ class ReportStatsDBAccessor(KokuDBAccess):
             schema         (String) database schema (i.e. public or customer tenant value)
         """
         super().__init__(schema)
-        self._provider_id = provider_id
+        self._manifest_id = manifest_id
         self._report_name = report_name
         self._costentrystatus = self.get_base().classes.reporting_common_costusagereportstatus
 
         if self.does_db_entry_exist() is False:
             update_fields = {}
-            update_fields['provider_id'] = self._provider_id
             update_fields['report_name'] = self._report_name
-            update_fields['cursor_position'] = 0
+            update_fields['manifest_id'] = self._manifest_id
             self.add(update_fields)
 
         self._obj = self._get_db_obj_query().first()
@@ -156,7 +155,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             (Dictionary): Fields containing CUR Status attributes.
 
             Valid keys are: report_name,
-                            cursor_position,
+                            manifest_id,
                             last_completed_date (optional),
                             last_started_date (optional),
                             etag (optional)
