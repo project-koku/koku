@@ -40,30 +40,29 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.column_map = column_map
 
-    def get_current_usage_report(self, report_id=None):
+    def get_current_usage_report(self):
         """Get the most recent usage report object."""
-        table_name = OCP_REPORT_TABLE_MAP['usage_report']
+        table_name = OCP_REPORT_TABLE_MAP['report']
         interval_start = getattr(
             getattr(self.report_schema, table_name),
             'interval_start'
         )
-        if report_id is not None:
-            return self._get_db_obj_query(table_name).filter(id=report_id).first()
 
         return self._get_db_obj_query(table_name)\
             .order_by(interval_start.desc())\
             .first()
 
-    def get_usage_report_before_date(self, date):
-        """Get the cost entry bill objects with billing period before provided date."""
-        table_name = OCP_REPORT_TABLE_MAP['usage_report']
-        interval_start = getattr(
+    def get_current_usage_period(self):
+        """Get the most recent usage report period object."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        report_period_start = getattr(
             getattr(self.report_schema, table_name),
-            'interval_start'
+            'report_period_start'
         )
-        base_query = self._get_db_obj_query(table_name)
-        usage_report_query = base_query.filter(interval_start <= date)
-        return usage_report_query
+
+        return self._get_db_obj_query(table_name)\
+            .order_by(report_period_start.desc())\
+            .first()
 
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
@@ -75,3 +74,31 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         base_query = self._get_db_obj_query(table_name)
         line_item_query = base_query.filter(query_report_id == report_id)
         return line_item_query
+
+    def get_report_periods(self):
+        """Make a mapping of report periods by time."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        report_period_start = getattr(
+            getattr(self.report_schema, table_name),
+            'report_period_start'
+        )
+        report_period = self._get_db_obj_query(table_name)\
+            .order_by(report_period_start.desc())\
+            .all()
+
+        return {entry.report_period_start.strftime(self._datetime_format): entry.id
+                for entry in report_period}
+
+    def get_reports(self):
+        """Make a mapping of reports by time."""
+        table_name = OCP_REPORT_TABLE_MAP['report']
+        interval_start = getattr(
+            getattr(self.report_schema, table_name),
+            'interval_start'
+        )
+        report = self._get_db_obj_query(table_name)\
+            .order_by(interval_start.desc())\
+            .all()
+
+        return {entry.interval_start.strftime(self._datetime_format): entry.id
+                for entry in report}
