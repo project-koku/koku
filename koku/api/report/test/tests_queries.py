@@ -21,7 +21,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import (CharField, Count, DateTimeField, IntegerField,
-                              Max, Sum, Value)
+                              Max, Q, Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from faker import Faker
@@ -73,8 +73,9 @@ class QueryFilterTest(TestCase):
         parameter = self.fake.word()
 
         filt = QueryFilter(table, field, operation, parameter)
-        expected = {f'{table}__{field}__{operation}': parameter}
-        self.assertEqual(filt.composed_dict(), expected)
+        expected_dict = {f'{table}__{field}__{operation}': parameter}
+        expected = Q(**expected_dict)
+        self.assertEqual(filt.composed_Q(), expected)
 
     def test_composed_dict_field(self):
         """Test composed_dict() method without a Table parameter."""
@@ -83,8 +84,9 @@ class QueryFilterTest(TestCase):
         parameter = self.fake.word()
         filt = QueryFilter(field=field, operation=operation,
                            parameter=parameter)
-        expected = {f'{field}__{operation}': parameter}
-        self.assertEqual(filt.composed_dict(), expected)
+        expected_dict = {f'{field}__{operation}': parameter}
+        expected = Q(**expected_dict)
+        self.assertEqual(filt.composed_Q(), expected)
 
     def test_from_string_all(self):
         """Test from_string() method with all parts."""
@@ -185,7 +187,6 @@ class QueryFilterCollectionTest(TestCase):
 
     def test_compose(self):
         """Test the compose() method."""
-        expected = {}
         qf_coll = QueryFilterCollection()
         table = self.fake.word()
         field = self.fake.word()
@@ -193,7 +194,7 @@ class QueryFilterCollectionTest(TestCase):
         parameter = self.fake.word()
         filt = QueryFilter(table=table, field=field, operation=operation,
                            parameter=parameter)
-        expected.update(filt.composed_dict())
+        expected = filt.composed_Q()
         qf_coll.add(table=table, field=field, operation=operation, parameter=parameter)
         self.assertEqual(qf_coll.compose(), expected)
 
@@ -456,7 +457,8 @@ class ReportQueryTest(IamTestCase):
                     .values(*included_fields)\
                     .annotate(**annotations)
                 for entry in entries:
-                    agg = AWSCostEntryLineItemAggregates(**entry)
+                    alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
+                    agg = AWSCostEntryLineItemAggregates(**entry, account_alias=list(alias).pop())
                     agg.save()
 
     def add_data_to_tenant(self, rate=Decimal(random.random()), amount=1,
