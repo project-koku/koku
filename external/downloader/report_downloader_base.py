@@ -26,7 +26,8 @@ class ReportDownloaderBase():
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, download_path=None):
+    # pylint: disable=unused-argument
+    def __init__(self, download_path=None, **kwargs):
         """
         Create a downloader.
 

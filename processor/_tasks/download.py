@@ -28,7 +28,7 @@ LOG = get_task_logger(__name__)
 
 
 # disabled until the program flow stabilizes a bit more
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-locals
 def _get_report_files(customer_name,
                       authentication,
                       billing_source,
@@ -58,6 +58,7 @@ def _get_report_files(customer_name,
     """
     provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
     reports_processed = provider_accessor.get_setup_complete()
+    provider_id = provider_accessor.get_provider().id
     provider_accessor.close_session()
 
     if Config.INGEST_OVERRIDE or not reports_processed:
@@ -89,6 +90,7 @@ def _get_report_files(customer_name,
                                       access_credential=authentication,
                                       report_source=billing_source,
                                       provider_type=provider_type,
+                                      provider_id=provider_id,
                                       report_name=report_name)
         return downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
