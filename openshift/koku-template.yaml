@@ -683,4 +683,4 @@ parameters:
 - displayName: Upgrade pip
   description: Whether to upgrade pip to latest
   name: UPGRADE_PIP_TO_LATEST
-  value: False
+  value: ''
