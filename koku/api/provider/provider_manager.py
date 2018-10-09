@@ -18,6 +18,8 @@
 
 import logging
 
+import requests
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 
@@ -77,9 +79,26 @@ class ProviderManager:
                 authentication_model.delete()
             if billing_source and billing_count == 0:
                 billing_source.delete()
+            self._delete_report_data()
             self.model.delete()
 
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
         else:
             err_msg = 'User {} does not have permission to delete provider {}'.format(current_user, str(self.model))
             raise ProviderManagerError(err_msg)
+
+    def _delete_report_data(self):
+        """Call masu to delete report data for the provider."""
+
+        LOG.info('Calling masu to delete report data for provider %s',
+                 self.model.id)
+        params = {
+            'schema_name': self.model.customer.schema_name,
+            'provider': self.model.type,
+            'provider_id': self.model.id
+            }
+        # Delete the report data for this provider
+
+        delete_url = settings.MASU_BASE_URL + settings.MASU_API_REPORT_DATA
+        response = requests.delete(delete_url, params=params)
+        LOG.info('Response: %s', response.json())
