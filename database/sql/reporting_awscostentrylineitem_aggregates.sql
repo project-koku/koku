@@ -3,6 +3,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -30 as time_scope_value,
         'costs' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -12,6 +13,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '30 days'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -20,6 +23,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -30 as time_scope_value,
         'instance_type' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -29,6 +33,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '30 days'
         AND p.instance_type IS NOT NULL
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -38,6 +44,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -30 as time_scope_value,
         'storage' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -47,6 +54,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '30 days'
         AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -56,6 +65,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -10 as time_scope_value,
         'costs' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -65,6 +75,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '10 days'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -73,6 +85,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -10 as time_scope_value,
         'instance_type' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -82,6 +95,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '10 days'
         AND p.instance_type IS NOT NULL
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -91,6 +106,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -10 as time_scope_value,
         'storage' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -100,6 +116,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= current_date - INTERVAL '10 days'
         AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -110,6 +128,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -1 as time_scope_value,
         'costs' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -119,6 +138,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= date_trunc('month', current_date)::date
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -127,6 +148,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -1 as time_scope_value,
         'instance_type' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -136,6 +158,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= date_trunc('month', current_date)::date
         AND p.instance_type IS NOT NULL
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -145,6 +169,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -1 as time_scope_value,
         'storage' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -154,6 +179,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= date_trunc('month', current_date)::date
         AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -164,6 +191,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -2 as time_scope_value,
         'costs' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -173,6 +201,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= (date_trunc('month', current_date) - interval '1 month')
         AND li.usage_start < date_trunc('month', current_date)
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
@@ -183,6 +213,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -2 as time_scope_value,
         'instance_type' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -192,6 +223,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= (date_trunc('month', current_date) - interval '1 month')
         AND li.usage_start < date_trunc('month', current_date)
         AND p.instance_type IS NOT NULL
@@ -202,6 +235,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     SELECT -2 as time_scope_value,
         'storage' as report_type,
         li.usage_account_id,
+        max(aa.id) as account_alias_id,
         li.product_code,
         p.region,
         li.availability_zone,
@@ -211,6 +245,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
     FROM reporting_awscostentrylineitem_daily as li
     JOIN reporting_awscostentryproduct as p
         ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
     WHERE li.usage_start >= (date_trunc('month', current_date) - interval '1 month')
         AND li.usage_start < date_trunc('month', current_date)
         AND p.product_family LIKE '%Storage%'
@@ -226,6 +262,7 @@ INSERT INTO reporting_awscostentrylineitem_aggregates (
     time_scope_value,
     report_type,
     usage_account_id,
+    account_alias_id,
     product_code,
     region,
     availability_zone,
@@ -236,6 +273,7 @@ INSERT INTO reporting_awscostentrylineitem_aggregates (
 SELECT time_scope_value,
     report_type,
     usage_account_id,
+    account_alias_id,
     product_code,
     region,
     availability_zone,
