@@ -36,9 +36,14 @@ def report_data():
     """Update report summary tables in the database."""
     params = request.args
 
+    provider = params.get('provider')
     schema_name = params.get('schema')
     start_date = params.get('start_date')
     end_date = params.get('end_date')
+
+    if provider is None:
+        errmsg = 'provider is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
 
     if schema_name is None:
         errmsg = 'schema is a required parameter.'
@@ -51,8 +56,14 @@ def report_data():
     LOG.info('Calling update_summary_tables async task.')
 
     if end_date:
-        async_result = update_summary_tables.delay(schema_name, start_date, end_date)
+        async_result = update_summary_tables.delay(
+            schema_name,
+            provider,
+            start_date,
+            end_date
+        )
     else:
-        async_result = update_summary_tables.delay(schema_name, start_date)
+        async_result = update_summary_tables.delay(schema_name, provider,
+                                                   start_date)
 
     return jsonify({'Report Data Task ID': str(async_result)})
