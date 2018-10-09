@@ -661,3 +661,7 @@ parameters:
 - displayName: User Interface Domain
   value: 'project-koku.com'
   name: APP_DOMAIN
+- displayName: Upgrade pip
+  description: Whether to upgrade pip to latest
+  name: UPGRADE_PIP_TO_LATEST
+  value: ''

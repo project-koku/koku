@@ -981,7 +981,7 @@ class ReportQueryHandler(object):
         total_filter['time_scope_value'] = self.get_query_param_data(
             'filter',
             'time_scope_value',
-            0
+            -10
         )
         total_filter['report_type'] = self._report_type
         total_query = AWSCostEntryLineItemAggregates.objects.filter(

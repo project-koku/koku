@@ -34,6 +34,9 @@ class AWSCostEntryBill(models.Model):
     payer_account_id = models.CharField(max_length=50, null=False)
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
+    summary_data_creation_datetime = models.DateTimeField(null=True)
+    summary_data_updated_datetime = models.DateTimeField(null=True)
+    finalized_datetime = models.DateTimeField(null=True)
 
 
 class AWSCostEntry(models.Model):
@@ -302,6 +305,9 @@ class AWSCostEntryLineItemAggregates(models.Model):
     time_scope_value = models.IntegerField()
     report_type = models.CharField(max_length=50)
     usage_account_id = models.CharField(max_length=50, null=True)
+    account_alias = models.ForeignKey('AWSAccountAlias',
+                                      on_delete=models.PROTECT,
+                                      null=True)
     product_code = models.CharField(max_length=50, null=False)
     region = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
