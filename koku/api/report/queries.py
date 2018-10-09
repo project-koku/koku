@@ -18,7 +18,7 @@
 import copy
 import datetime
 import logging
-from collections import OrderedDict, UserDict
+from collections import OrderedDict, UserDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
@@ -183,15 +183,12 @@ class QueryFilterCollection(object):
     def compose(self):
         """Compose filters into a dict for submitting to Django's ORM."""
         composed_query = None
-        compose_dict = {}
+        compose_dict = defaultdict(list)
         for filt in self._filters:
             filt_key = filt.composed_query_string()
-            if compose_dict.get(filt_key) is None:
-                compose_dict[filt_key] = [filt]
-            else:
-                compose_dict[filt_key].append(filt)
+            compose_dict[filt_key].append(filt)
 
-        for _, filter_list in compose_dict.items():
+        for filter_list in compose_dict.values():
             or_filter = None
             for filter_item in filter_list:
                 if or_filter is None:
