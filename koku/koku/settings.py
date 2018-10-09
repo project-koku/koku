@@ -299,10 +299,10 @@ if len(sys.argv) > 1 and sys.argv[1] == 'test':
     logging.disable(logging.CRITICAL)
 
 # Masu API Endpoints
-MASU_SERVICE_NAME = ENVIRONMENT.get_value('MASU_SERVICE_NAME',
+MASU_SERVICE_HOST = ENVIRONMENT.get_value('MASU_SERVICE_HOST',
                                           default='localhost')
 MASU_SERVICE_PORT = ENVIRONMENT.get_value('MASU_SERVICE_PORT',
                                           default='5000')
-MASU_BASE_URL = f'http://{MASU_SERVICE_NAME}:{MASU_SERVICE_PORT}/'
+MASU_BASE_URL = f'http://{MASU_SERVICE_HOST}:{MASU_SERVICE_PORT}/'
 
 MASU_API_REPORT_DATA = 'api/v1/report_data/'
