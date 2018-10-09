@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting', '0005_auto_20181003_1416'),
+        ('reporting', '0006_awscostentrylineitemaggregates_account_alias'),
     ]
 
     operations = [

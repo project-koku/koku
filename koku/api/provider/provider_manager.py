@@ -93,7 +93,7 @@ class ProviderManager:
         LOG.info('Calling masu to delete report data for provider %s',
                  self.model.id)
         params = {
-            'schema_name': self.model.customer.schema_name,
+            'schema': self.model.customer.schema_name,
             'provider': self.model.type,
             'provider_id': self.model.id
             }
