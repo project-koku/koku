@@ -667,6 +667,17 @@ class ReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) == 31)
 
+    def test_execute_take_defaults(self):
+        """Test execute_query for current month on daily breakdown."""
+        query_params = {}
+        handler = ReportQueryHandler(query_params, '', self.tenant, 'unblended_cost',
+                                     'currency_code', **{'report_type': 'costs'})
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('value'))
+
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
         query_params = {'filter':
