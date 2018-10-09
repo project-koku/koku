@@ -20,9 +20,9 @@ import logging
 from datetime import datetime, tzinfo
 
 import pytz
+from dateutil import parser
 
 from masu.config import Config
-
 
 LOG = logging.getLogger(__name__)
 
@@ -39,20 +39,23 @@ class DateAccessor():
     """Accessor to get date time."""
 
     mock_date_time = None
-    date_time_last_accessed = datetime.now()
+    date_time_last_accessed = datetime.now(tz=pytz.UTC)
 
     def __init__(self):
         """Initializer."""
         if Config.MASU_DATE_OVERRIDE and Config.DEBUG and DateAccessor.mock_date_time is None:
-            DateAccessor.mock_date_time = datetime.strptime(Config.MASU_DATE_OVERRIDE,
-                                                            '%Y-%m-%d %H:%M:%S')
+            # python-dateutil is needed in Python <=3.6.x;
+            # in Python 3.7 there is datetime.fromisoformat()
+            DateAccessor.mock_date_time = parser.parse(Config.MASU_DATE_OVERRIDE)
+            if DateAccessor.mock_date_time.tzinfo is None:
+                DateAccessor.mock_date_time = DateAccessor.mock_date_time.replace(tzinfo=pytz.UTC)
             LOG.info('Initializing masu date/time to %s', str(DateAccessor.mock_date_time))
 
     def today(self):
         """
         Return the current date and time.
 
-        When the environment varaible MASU_DEBUG is set to True,
+        When the environment variable MASU_DEBUG is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
@@ -64,20 +67,19 @@ class DateAccessor():
             example: 2018-07-24 15:47:33
 
         """
-        current_date = datetime.today()
+        current_date = datetime.now(tz=pytz.UTC)
         if Config.DEBUG and DateAccessor.mock_date_time:
             seconds_delta = (current_date - DateAccessor.date_time_last_accessed)
             DateAccessor.date_time_last_accessed = current_date
 
             DateAccessor.mock_date_time = DateAccessor.mock_date_time + seconds_delta
             current_date = DateAccessor.mock_date_time
-
         return current_date
 
     def today_with_timezone(self, timezone):
         """Return the current datetime at the timezone indictated.
 
-        When the environment varaible MASU_DEBUG is set to True,
+        When the environment variable MASU_DEBUG is set to True,
         the MASU_DATE_OVERRIDE environment variable can be used to
         override masu's current date and time.
 
