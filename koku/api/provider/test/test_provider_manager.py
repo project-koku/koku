@@ -167,12 +167,13 @@ class ProviderManagerTest(IamTestCase):
                                            authentication=provider_authentication,
                                            billing_source=provider_billing)
         provider2 = Provider.objects.create(name='awsprovidername2',
-                                           created_by=self.user,
-                                           customer=self.customer,
-                                           authentication=provider_authentication,
-                                           billing_source=provider_billing)
+                                            created_by=self.user,
+                                            customer=self.customer,
+                                            authentication=provider_authentication,
+                                            billing_source=provider_billing)
         provider_uuid = provider2.uuid
 
+        self.assertNotEqual(provider.uuid, provider2.uuid)
         new_user_dict = self._create_user_data()
         request_context = self._create_request_context(self.current_customer_data,
                                                        new_user_dict, False)
