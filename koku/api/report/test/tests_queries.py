@@ -146,7 +146,12 @@ class QueryFilterCollectionTest(TestCase):
         qf_coll = QueryFilterCollection(filters)
         self.assertEqual(qf_coll._filters, filters)
 
-    def test_constructor_bad(self):
+    def test_constructor_bad_type(self):
+        """Test the constructor using an invalid object type."""
+        with self.assertRaises(TypeError):
+            QueryFilterCollection(dict())
+
+    def test_constructor_bad_elements(self):
         """Test the constructor using invalid values."""
         bad_list = [self.fake.word(), self.fake.word()]
 
@@ -196,6 +201,71 @@ class QueryFilterCollectionTest(TestCase):
         expected = filt.composed_Q()
         qf_coll.add(table=table, field=field, operation=operation, parameter=parameter)
         self.assertEqual(qf_coll.compose(), expected)
+
+    def test_contains_with_filter(self):
+        """Test the __contains__() method using a QueryFilter."""
+        qf = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                         parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf])
+        self.assertIn(qf, qf_coll)
+
+    def test_contains_with_dict(self):
+        """Test the __contains__() method using a dict to get a fuzzy match."""
+        table = self.fake.word()
+        field = self.fake.word()
+        operation = self.fake.word()
+        parameter = self.fake.word()
+        qf = QueryFilter(table=table, field=field, operation=operation,
+                         parameter=parameter)
+        qf_coll = QueryFilterCollection([qf])
+        self.assertIn({'table': table, 'parameter': parameter}, qf_coll)
+
+    def test_contains_fail(self):
+        """Test the __contains__() method fails with a non-matching filter."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1])
+        self.assertNotIn(qf2, qf_coll)
+
+    def test_delete_filter(self):
+        """Test the delete() method works with QueryFilters."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        qf_coll.delete(qf1)
+        self.assertEqual([qf2], qf_coll._filters)
+        self.assertNotIn(qf1, qf_coll)
+
+    def test_delete_params(self):
+        """Test the delete() method works with parameters."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        qf_coll.delete(table=qf1.table, field=qf1.field,
+                       parameter=qf1.parameter)
+        self.assertEqual([qf2], qf_coll._filters)
+        self.assertNotIn(qf1, qf_coll)
+
+    def test_get_fail(self):
+        """Test the get() method fails when no match is found."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        response = qf_coll.get({'table': self.fake.word(),
+                                'field': self.fake.word(),
+                                'parameter': self.fake.word()})
+        self.assertIsNone(response)
 
 
 class ReportQueryUtilsTest(TestCase):
