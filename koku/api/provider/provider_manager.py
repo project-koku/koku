@@ -22,6 +22,7 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
+from requests.exceptions import ConnectionError
 
 from api.provider.models import Provider
 
@@ -79,7 +80,12 @@ class ProviderManager:
                 authentication_model.delete()
             if billing_source and billing_count == 0:
                 billing_source.delete()
-            self._delete_report_data()
+            try:
+                self._delete_report_data()
+            except ConnectionError as err:
+                LOG.error(err)
+                LOG.warning(('The masu service is unavailable. '
+                             'Unable to remove report data for provider.'))
             self.model.delete()
 
             LOG.info('Provider: {} removed by {}'.format(self.model.name, current_user.username))
@@ -89,16 +95,14 @@ class ProviderManager:
 
     def _delete_report_data(self):
         """Call masu to delete report data for the provider."""
-
         LOG.info('Calling masu to delete report data for provider %s',
                  self.model.id)
         params = {
             'schema': self.model.customer.schema_name,
             'provider': self.model.type,
             'provider_id': self.model.id
-            }
+        }
         # Delete the report data for this provider
-
         delete_url = settings.MASU_BASE_URL + settings.MASU_API_REPORT_DATA
         response = requests.delete(delete_url, params=params)
         LOG.info('Response: %s', response.json())
