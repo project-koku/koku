@@ -18,14 +18,14 @@
 import copy
 import datetime
 import logging
-import re
-from collections import OrderedDict, UserDict
+from collections import OrderedDict, UserDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
 from django.db.models import (F,
                               Max,
+                              Q,
                               Sum,
                               Value,
                               Window)
@@ -106,9 +106,10 @@ class QueryFilter(UserDict):
                   if entry is not None]
         return self.SEP.join(fields)
 
-    def composed_dict(self):
-        """Return a dict formatted for Django's ORM."""
-        return {self.composed_query_string(): self.parameter}
+    def composed_Q(self):
+        """Return a Q object formatted for Django's ORM."""
+        query_dict = {self.composed_query_string(): self.parameter}
+        return Q(**query_dict)
 
     def from_string(self, query_string):
         """Parse a string representing a filter.
@@ -136,7 +137,7 @@ class QueryFilter(UserDict):
 
     def __repr__(self):
         """Return string representation."""
-        return str(self.composed_dict())
+        return str(self.composed_Q())
 
 
 class QueryFilterCollection(object):
@@ -181,11 +182,25 @@ class QueryFilterCollection(object):
 
     def compose(self):
         """Compose filters into a dict for submitting to Django's ORM."""
-        out = {}
+        composed_query = None
+        compose_dict = defaultdict(list)
         for filt in self._filters:
-            if filt.parameter is not None:
-                out.update(filt.composed_dict())
-        return out
+            filt_key = filt.composed_query_string()
+            compose_dict[filt_key].append(filt)
+
+        for filter_list in compose_dict.values():
+            or_filter = None
+            for filter_item in filter_list:
+                if or_filter is None:
+                    or_filter = filter_item.composed_Q()
+                else:
+                    or_filter = or_filter | filter_item.composed_Q()
+            if composed_query is None:
+                composed_query = or_filter
+            else:
+                composed_query = composed_query & or_filter
+
+        return composed_query
 
     def __repr__(self):
         """Return string representation."""
@@ -484,34 +499,18 @@ class ReportQueryHandler(object):
         self._create_time_interval()
         return (self.start_datetime, self.end_datetime, self.time_interval)
 
-    def _get_filter(self):
-        """Create dictionary for filter parameters.
+    def _get_search_filter(self, filters):
+        """Populate the query filter collection for search filters.
 
+        Args:
+            filters (QueryFilterCollection): collection of query filters
         Returns:
-            (Dict): query filter dictionary
-
+            (QueryFilterCollection): populated collection of query filters
         """
-        filters = QueryFilterCollection()
-
         # the summary table mirrors many of the fields in the cost_entry_product table.
         cep_table = 'cost_entry_product'
         if self.is_sum:
             cep_table = None
-
-        # set up filters for instance-type and storage queries.
-        if self._report_type == 'instance_type':
-            filters.add(table=cep_table, field='instance_type',
-                        operation='isnull', parameter=False)
-        elif self._report_type == 'storage':
-            filters.add(table=cep_table, field='product_family',
-                        operation='contains', parameter='Storage')
-
-        start_filter = QueryFilter(table='usage_start', operation='gte',
-                                   parameter=self.start_datetime)
-        end_filter = QueryFilter(table='usage_end', operation='lte',
-                                 parameter=self.end_datetime)
-        filters.add(query_filter=start_filter)
-        filters.add(query_filter=end_filter)
 
         # define filter parameters using API query params.
         fields = {'account': {'field': 'account_alias__account_alias',
@@ -534,8 +533,59 @@ class ReportQueryHandler(object):
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 
-        LOG.debug(f'Filters: {filters.compose()}')
-        return filters.compose()
+        composed_filters = filters.compose()
+        LOG.debug(f'Filters: {composed_filters}')
+        return composed_filters
+
+    def _get_filter(self, delta=False):
+        """Create dictionary for filter parameters.
+
+        Args:
+            delta (Boolean): Construct timeframe for delta
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        filters = QueryFilterCollection()
+
+        # the summary table mirrors many of the fields in the cost_entry_product table.
+        cep_table = 'cost_entry_product'
+        if self.is_sum:
+            cep_table = None
+
+        # set up filters for instance-type and storage queries.
+        if self._report_type == 'instance_type':
+            filters.add(table=cep_table, field='instance_type',
+                        operation='isnull', parameter=False)
+        elif self._report_type == 'storage':
+            filters.add(table=cep_table, field='product_family',
+                        operation='contains', parameter='Storage')
+
+        if delta:
+            if self.time_scope_value in [-1, -2]:
+                date_delta = relativedelta.relativedelta(months=1)
+            elif self.time_scope_value == -30:
+                date_delta = datetime.timedelta(days=30)
+            else:
+                date_delta = datetime.timedelta(days=10)
+            start = self.start_datetime - date_delta
+            end = self.end_datetime - date_delta
+        else:
+            start = self.start_datetime
+            end = self.end_datetime
+
+        start_filter = QueryFilter(table='usage_start', operation='gte',
+                                   parameter=start)
+        end_filter = QueryFilter(table='usage_end', operation='lte',
+                                 parameter=end)
+        filters.add(query_filter=start_filter)
+        filters.add(query_filter=end_filter)
+
+        # define filter parameters using API query params.
+        composed_filters = self._get_search_filter(filters)
+
+        LOG.debug(f'Filters: {composed_filters}')
+        return composed_filters
 
     def _get_group_by(self):
         """Create list for group_by parameters."""
@@ -732,7 +782,7 @@ class ReportQueryHandler(object):
         data = []
 
         with tenant_context(self.tenant):
-            query = AWSCostEntryLineItemDailySummary.objects.filter(**self.query_filter)
+            query = AWSCostEntryLineItemDailySummary.objects.filter(self.query_filter)
 
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
@@ -803,7 +853,7 @@ class ReportQueryHandler(object):
         data = []
 
         with tenant_context(self.tenant):
-            query = AWSCostEntryLineItem.objects.filter(**self.query_filter)
+            query = AWSCostEntryLineItem.objects.filter(self.query_filter)
 
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
@@ -853,9 +903,8 @@ class ReportQueryHandler(object):
             (dict) query data with new with keys "value" and "percent"
 
         """
-        delta_filter = copy.deepcopy(self.query_filter)
         delta_group_by = ['date'] + self._get_group_by()
-        previous_query = self._create_previous_query(delta_filter)
+        previous_query = self._create_previous_query()
         previous_dict = self._create_previous_totals(
             previous_query,
             delta_group_by
@@ -889,34 +938,21 @@ class ReportQueryHandler(object):
                                 reverse=reverse)
         return query_data
 
-    def _create_previous_query(self, delta_filter):
+    def _create_previous_query(self):
         """Get totals from the time period previous to the current report.
 
-        Args:
-            delta_filter (dict): A copy of the report filters
         Returns:
             (dict) A dictionary keyed off the grouped values for the report
 
         """
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
-        else:
-            date_delta = datetime.timedelta(days=10)
-
-        _start = delta_filter.get('usage_start__gte')
-        _end = delta_filter.get('usage_end__lte')
-
-        delta_filter['usage_start__gte'] = _start - date_delta
-        delta_filter['usage_end__lte'] = _end - date_delta
+        delta_filter = self._get_filter(delta=True)
 
         if self.is_sum:
             previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
-                **delta_filter
+                delta_filter
             )
         else:
-            previous_query = AWSCostEntryLineItem.objects.filter(**delta_filter)
+            previous_query = AWSCostEntryLineItem.objects.filter(delta_filter)
 
         return previous_query
 
@@ -964,29 +1000,24 @@ class ReportQueryHandler(object):
             (dict) The aggregated totals for the query
 
         """
-        filter_fields = [
-            'availability_zone',
-            'region',
-            'usage_account_id',
-            'product_code'
-        ]
-        total_filter = {}
+        filt_collection = QueryFilterCollection()
+        total_filter = self._get_search_filter(filt_collection)
 
-        for field in filter_fields:
-            total_filter.update(
-                {key: value for key, value in self.query_filter.items()
-                 if re.match(field, key)}
-            )
-
-        total_filter['time_scope_value'] = self.get_query_param_data(
+        time_scope_value = self.get_query_param_data(
             'filter',
             'time_scope_value',
-            0
+            -10
         )
-        total_filter['report_type'] = self._report_type
+        time_and_report_filter = Q(time_scope_value=time_scope_value) & Q(report_type=self._report_type)
+        if total_filter is None:
+            total_filter = time_and_report_filter
+        else:
+            total_filter = total_filter & time_and_report_filter
+
         total_query = AWSCostEntryLineItemAggregates.objects.filter(
-            **total_filter
+            total_filter
         )
+
         if self.count:
             query_sum = total_query.aggregate(
                 value=Sum(self.aggregate_key),
