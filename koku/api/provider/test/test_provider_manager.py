@@ -17,7 +17,7 @@
 """Test the Provider views."""
 import json
 import logging
-from mock import patch
+from unittest.mock import patch
 
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
@@ -35,6 +35,7 @@ class MockResponse:
         self.response_text = response_text
 
     def json(self):
+        """Return JSON of response."""
         return json.loads(self.response_text)
 
 
