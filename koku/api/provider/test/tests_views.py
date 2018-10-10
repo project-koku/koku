@@ -75,6 +75,34 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))
 
+    def test_create_provider_shared_arn_bucket(self):
+        """Test that a provider can reuse bucket and arn."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, 201)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, 201)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
     def test_list_provider(self):
         """Test list providers."""
         iam_arn1 = 'arn:aws:s3:::my_s3_bucket'

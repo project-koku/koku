@@ -149,7 +149,47 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         manager.remove(other_user)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+        auth_count = ProviderAuthentication.objects.count()
+        billing_count = ProviderBillingSource.objects.count()
         self.assertFalse(provider_query)
+        self.assertEqual(auth_count, 0)
+        self.assertEqual(billing_count, 0)
+
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_remove_aws_auth_billing_remain(self, mock_delete_report):
+        """Remove aws provider."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
+        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
+        provider = Provider.objects.create(name='awsprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
+        provider2 = Provider.objects.create(name='awsprovidername2',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
+        provider_uuid = provider2.uuid
+
+        new_user_dict = self._create_user_data()
+        request_context = self._create_request_context(self.current_customer_data,
+                                                       new_user_dict, False)
+        user_serializer = UserSerializer(data=new_user_dict, context=request_context)
+        other_user = None
+        if user_serializer.is_valid(raise_exception=True):
+            other_user = user_serializer.save()
+
+        manager = ProviderManager(provider_uuid)
+        manager.remove(other_user)
+        auth_count = ProviderAuthentication.objects.count()
+        billing_count = ProviderBillingSource.objects.count()
+        provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+
+        self.assertFalse(provider_query)
+        self.assertEqual(auth_count, 1)
+        self.assertEqual(billing_count, 1)
 
     @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
     def test_remove_ocp(self, mock_delete_report):
