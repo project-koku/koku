@@ -21,7 +21,6 @@ from unittest.mock import patch
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 
-from api.iam.models import (Customer, User)
 from api.iam.serializers import (UserSerializer,
                                  create_schema_name)
 from api.iam.test.iam_test_case import IamTestCase

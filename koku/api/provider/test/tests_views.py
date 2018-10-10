@@ -23,7 +23,6 @@ from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 
@@ -129,7 +128,8 @@ class ProviderViewTest(IamTestCase):
         response = client.get(url, **headers)
         self.assertEqual(response.status_code, 404)
 
-    def test_remove_provider_with_regular_user(self):
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_remove_provider_with_regular_user(self, mock_delete_reports):
         """Test removing a provider with the user account that created it."""
         # Create a Provider as a regular user
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -153,7 +153,8 @@ class ProviderViewTest(IamTestCase):
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, 204)
 
-    def test_remove_provider_with_remove_exception(self):
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_remove_provider_with_remove_exception(self, mock_delete_reports):
         """Test removing a provider with a database error."""
         # Create Provider with customer owner token
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
