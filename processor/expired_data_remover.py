@@ -45,7 +45,7 @@ class ExpiredDataRemover():
     """
 
     def __init__(self, customer_schema, provider,
-                 num_of_months_to_keep=Config.MASU_RETAIN_NUM_MONTHS):
+                 num_of_months_to_keep=None):
         """
         Initializer.
 
@@ -56,6 +56,8 @@ class ExpiredDataRemover():
         self._schema = customer_schema
         self._provider = provider
         self._months_to_keep = num_of_months_to_keep
+        if self._months_to_keep is None:
+            self._months_to_keep = Config.MASU_RETAIN_NUM_MONTHS
         self._expiration_date = self._calculate_expiration_date()
         try:
             self._cleaner = self._set_cleaner()
@@ -109,7 +111,7 @@ class ExpiredDataRemover():
         LOG.info(msg)
         return expiration_date
 
-    def remove(self, simulate=False):
+    def remove(self, simulate=False, provider_id=None):
         """
         Remove expired data based on the retention policy.
 
@@ -120,6 +122,15 @@ class ExpiredDataRemover():
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        expiration_date = self._calculate_expiration_date()
-        removed_data = self._cleaner.purge_expired_report_data(expiration_date, simulate)
+        if provider_id is not None:
+            removed_data = self._cleaner.purge_expired_report_data(
+                simulate=simulate,
+                provider_id=provider_id
+            )
+        else:
+            expiration_date = self._calculate_expiration_date()
+            removed_data = self._cleaner.purge_expired_report_data(
+                expired_date=expiration_date,
+                simulate=simulate
+            )
         return removed_data

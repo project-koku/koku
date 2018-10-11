@@ -255,6 +255,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dictionary['start_date'] = date_time
             report_dictionary['assembly_id'] = assembly_id
             report_dictionary['manifest_id'] = manifest_id
+            report_dictionary['provider_id'] = self._provider_id
 
             cur_reports.append(report_dictionary)
         return cur_reports

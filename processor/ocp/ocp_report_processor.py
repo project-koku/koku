@@ -62,7 +62,7 @@ class ProcessedOCPReport:
 class OCPReportProcessor(ReportProcessorBase):
     """OCP Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression):
+    def __init__(self, schema_name, report_path, compression, provider_id):
         """Initialize the report processor.
 
         Args:
@@ -72,7 +72,12 @@ class OCPReportProcessor(ReportProcessorBase):
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
-        super().__init__(schema_name=schema_name, report_path=report_path, compression=compression)
+        super().__init__(
+            schema_name=schema_name,
+            report_path=report_path,
+            compression=compression,
+            provider_id=provider_id
+        )
 
         self._report_name = path.basename(report_path)
         self._cluster_id = report_path.split('/')[-2]
