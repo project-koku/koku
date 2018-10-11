@@ -16,7 +16,7 @@
 #
 """Test the Report Queries."""
 import random
-from collections import OrderedDict
+from collections import Iterable, OrderedDict
 from datetime import timedelta
 from decimal import Decimal
 
@@ -228,6 +228,7 @@ class QueryFilterCollectionTest(TestCase):
                           parameter=self.fake.word())
         qf_coll = QueryFilterCollection([qf1])
         self.assertNotIn(qf2, qf_coll)
+        self.assertFalse(qf2 in qf_coll)
 
     def test_delete_filter(self):
         """Test the delete() method works with QueryFilters."""
@@ -240,6 +241,21 @@ class QueryFilterCollectionTest(TestCase):
         qf_coll.delete(qf1)
         self.assertEqual([qf2], qf_coll._filters)
         self.assertNotIn(qf1, qf_coll)
+
+    def test_delete_fail(self):
+        """Test the delete() method works with QueryFilters."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        q_dict = {'table': self.fake.word(),
+                  'field': self.fake.word(),
+                  'parameter': self.fake.word()}
+
+        with self.assertRaises(AttributeError):
+            qf_coll.delete(qf1, **q_dict)
 
     def test_delete_params(self):
         """Test the delete() method works with parameters."""
@@ -266,6 +282,29 @@ class QueryFilterCollectionTest(TestCase):
                                 'field': self.fake.word(),
                                 'parameter': self.fake.word()})
         self.assertIsNone(response)
+
+    def test_iterable(self):
+        """Test the __iter__() method returns an iterable."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        self.assertIsInstance(qf_coll.__iter__(), Iterable)
+
+    def test_indexing(self):
+        """Test that __getitem__() allows array slicing."""
+        qf1 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf2 = QueryFilter(table=self.fake.word(), field=self.fake.word(),
+                          parameter=self.fake.word())
+        qf_coll = QueryFilterCollection([qf1, qf2])
+
+        self.assertEqual(qf_coll[0], qf1)
+        self.assertEqual(qf_coll[1], qf2)
+        self.assertEqual(qf_coll[-1], qf2)
+        self.assertEqual(qf_coll[-2], qf1)
 
 
 class ReportQueryUtilsTest(TestCase):
