@@ -27,7 +27,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
+from api.models import User
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
@@ -42,12 +42,6 @@ class ReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data,
-                                                            create_tenant=True)
-        self.headers = self.request_context['request'].META
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -129,12 +123,6 @@ class ReportViewTest(IamTestCase):
                 'units': 'GB-Mo'
             }
         }
-
-    def tearDown(self):
-        """Tear down user tests."""
-        super().tearDown()
-        Customer.objects.all().delete()
-        User.objects.all().delete()
 
     def test_get_costs_customer_owner(self):
         """Test costs reports runs with a customer owner."""

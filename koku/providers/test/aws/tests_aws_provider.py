@@ -37,14 +37,6 @@ def _mock_boto3_exception():
 class AWSProviderTestCase(TestCase):
     """Parent Class for AWSProvider test cases."""
 
-    def setup(self):
-        """Create test case objects."""
-        pass
-
-    def tearDown(self):
-        """Tear down test case objects."""
-        pass
-
     def test_get_name(self):
         """Get name of provider."""
         provider = AWSProvider()

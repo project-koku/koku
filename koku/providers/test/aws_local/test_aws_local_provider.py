@@ -35,6 +35,7 @@ class AWSLocalProviderTestCase(TestCase):
     def tearDown(self):
         """Tear down test case objects."""
         os.rmdir(self.cur_source)
+        super().tearDown()
 
     def test_get_name(self):
         """Get name of provider."""
