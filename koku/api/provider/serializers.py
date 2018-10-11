@@ -21,7 +21,6 @@ from django.db import transaction
 from django.utils.translation import ugettext as _
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
@@ -47,9 +46,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
     uuid = serializers.UUIDField(read_only=True)
     provider_resource_name = serializers.CharField(
-        required=True, allow_null=True, allow_blank=True,
-        validators=[UniqueValidator(
-            queryset=ProviderAuthentication.objects.all())])
+        required=True, allow_null=True, allow_blank=True)
 
     class Meta:
         """Metadata for the serializer."""
@@ -124,11 +121,9 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         bill = None
         if bucket:
-            bill = ProviderBillingSource.objects.create(**billing_source)
-            bill.save()
+            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
 
-        auth = ProviderAuthentication.objects.create(**authentication)
-        auth.save()
+        auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer

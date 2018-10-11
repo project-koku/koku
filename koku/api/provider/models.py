@@ -70,11 +70,11 @@ class Provider(models.Model):
     type = models.CharField(max_length=50, null=False,
                             choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
     authentication = models.ForeignKey('ProviderAuthentication', null=True,
-                                       on_delete=models.CASCADE)
+                                       on_delete=models.DO_NOTHING)
     billing_source = models.ForeignKey('ProviderBillingSource', null=True,
-                                       on_delete=models.CASCADE, blank=True)
+                                       on_delete=models.DO_NOTHING, blank=True)
     customer = models.ForeignKey('Customer', null=True,
-                                 on_delete=models.CASCADE)
+                                 on_delete=models.PROTECT)
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
