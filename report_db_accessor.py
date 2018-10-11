@@ -69,6 +69,13 @@ class ReportDBAccessor(ReportDBAccessorBase):
             .filter_by(billing_period_start=start_date)\
             .first()
 
+    # pylint: disable=invalid-name
+    def get_cost_entry_bills_query_by_provider(self, provider_id):
+        """Return all cost entry bills for the specified provider."""
+        table_name = AWS_CUR_TABLE_MAP['bill']
+        return self._get_db_obj_query(table_name)\
+            .filter_by(provider_id=provider_id)
+
     def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""
         table_name = AWS_CUR_TABLE_MAP['bill']
