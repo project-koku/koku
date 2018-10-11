@@ -48,6 +48,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     report_path = report_dict.get('file')
     compression = report_dict.get('compression')
     manifest_id = report_dict.get('manifest_id')
+    provider_id = report_dict.get('provider_id')
     stmt = ('Processing Report:'
             ' schema_name: {},'
             ' report_path: {},'
@@ -74,6 +75,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
                                 report_path=report_path,
                                 compression=compression,
                                 provider=provider,
+                                provider_id=provider_id,
                                 manifest_id=manifest_id)
 
     processor.process()

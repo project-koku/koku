@@ -67,7 +67,7 @@ class ProcessedReport:
 class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression):
+    def __init__(self, schema_name, report_path, compression, provider_id):
         """Initialize the report processor.
 
         Args:
@@ -77,7 +77,12 @@ class AWSReportProcessor(ReportProcessorBase):
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
-        super().__init__(schema_name=schema_name, report_path=report_path, compression=compression)
+        super().__init__(
+            schema_name=schema_name,
+            report_path=report_path,
+            compression=compression,
+            provider_id=provider_id
+        )
 
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
@@ -367,6 +372,8 @@ class AWSReportProcessor(ReportProcessorBase):
             return self.current_bill.id
 
         data = self._get_data_for_table(row, table_name)
+
+        data['provider_id'] = self._provider_id
 
         bill_id = self.report_db.insert_on_conflict_do_nothing(
             table_name,

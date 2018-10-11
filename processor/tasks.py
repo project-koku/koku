@@ -130,7 +130,7 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
 
 
 @celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
-def remove_expired_data(schema_name, provider, simulate):
+def remove_expired_data(schema_name, provider, simulate, provider_id=None):
     """
     Remove expired report data.
 
@@ -143,7 +143,17 @@ def remove_expired_data(schema_name, provider, simulate):
         None
 
     """
-    _remove_expired_data(schema_name, provider, simulate)
+    stmt = ('remove_expired_data called with args:\n'
+            ' schema_name: {},\n'
+            ' provider: {},\n'
+            ' simulate: {},\n'
+            ' provider_id: {}')
+    stmt = stmt.format(schema_name,
+                       provider,
+                       simulate,
+                       provider_id)
+    LOG.info(stmt)
+    _remove_expired_data(schema_name, provider, simulate, provider_id)
 
 
 @celery.task(name='masu.processor.tasks.update_summary_tables',

@@ -21,7 +21,7 @@ import logging
 
 from flask import jsonify, request
 
-from masu.processor.tasks import update_summary_tables
+from masu.processor.tasks import remove_expired_data, update_summary_tables
 from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -65,5 +65,45 @@ def report_data():
     else:
         async_result = update_summary_tables.delay(schema_name, provider,
                                                    start_date)
+
+    return jsonify({'Report Data Task ID': str(async_result)})
+
+
+@application_route('/report_data/', API_V1_ROUTES, methods=('DELETE',))
+def remove_report_data():
+    """Update report summary tables in the database."""
+    params = request.args
+
+    schema_name = params.get('schema')
+    provider = params.get('provider')
+    provider_id = params.get('provider_id')
+    simulate = params.get('simulate')
+
+    if schema_name is None:
+        errmsg = 'schema is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    if provider is None:
+        errmsg = 'provider is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    if provider_id is None:
+        errmsg = 'provider_id is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    if simulate is not None and simulate.lower() not in ('true', 'false'):
+        errmsg = 'simulate must be a boolean.'
+        return jsonify({'Error': errmsg}), 400
+
+    # pylint: disable=simplifiable-if-statement
+    if simulate is not None and simulate.lower() == 'true':
+        simulate = True
+    else:
+        simulate = False
+
+    LOG.info('Calling remove_expired_data async task.')
+
+    async_result = remove_expired_data.delay(schema_name, provider, simulate,
+                                             provider_id)
 
     return jsonify({'Report Data Task ID': str(async_result)})

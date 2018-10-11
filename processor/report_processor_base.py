@@ -27,7 +27,7 @@ class ReportProcessorBase():
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, schema_name, report_path, compression):
+    def __init__(self, schema_name, report_path, compression, provider_id):
         """Initialize the report processor base class.
 
         Args:
@@ -44,3 +44,4 @@ class ReportProcessorBase():
         self._schema_name = schema_name
         self._report_path = report_path
         self._compression = compression.upper()
+        self._provider_id = provider_id

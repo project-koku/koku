@@ -24,6 +24,12 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 LOG = logging.getLogger(__name__)
 
 
+class AWSReportDBCleanerError(Exception):
+    """Raise an error during AWS report cleaning."""
+
+    pass
+
+
 # pylint: disable=too-few-public-methods
 class AWSReportDBCleaner():
     """Class to remove report data."""
@@ -37,18 +43,29 @@ class AWSReportDBCleaner():
         self._accessor = ReportDBAccessor(schema,
                                           ReportingCommonDBAccessor().column_map)
 
-    def purge_expired_report_data(self, expired_date, simulate=False):
+    def purge_expired_report_data(self, expired_date=None, provider_id=None,
+                                  simulate=False):
         """Remove report data with a billing start period before specified date.
 
         Args:
             expired_date (datetime.datetime): The cutoff date for removing data.
+            provider_id (str): The DB id of the provider to purge data for.
+            simulate (bool): Whether to simluate the removal.
 
         Returns:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
+        if ((expired_date is None and provider_id is None) or
+                (expired_date is not None and provider_id is not None)):
+            err = 'This method must be called with either expired_date or provider_id'
+            raise AWSReportDBCleanerError(err)
         removed_items = []
-        bill_objects = self._accessor.get_bill_query_before_date(expired_date)
+
+        if expired_date is not None:
+            bill_objects = self._accessor.get_bill_query_before_date(expired_date)
+        else:
+            bill_objects = self._accessor.get_cost_entry_bills_query_by_provider(provider_id)
         for bill in bill_objects.all():
             bill_id = bill.id
             removed_payer_account_id = bill.payer_account_id
