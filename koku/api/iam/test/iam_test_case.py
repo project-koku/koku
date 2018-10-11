@@ -51,6 +51,7 @@ class IamTestCase(TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        """Tear down the class."""
         connection.set_schema_to_public()
         cls.tenant.delete()
         super().tearDownClass()

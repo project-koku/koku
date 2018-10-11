@@ -23,7 +23,6 @@ from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 

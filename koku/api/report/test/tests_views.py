@@ -27,7 +27,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
+from api.models import User
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
