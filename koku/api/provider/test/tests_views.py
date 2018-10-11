@@ -70,14 +70,33 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))
 
-    def test_create_provider_no_duplicate(self):
-        """Test create a provider should catch duplicate PRN."""
+    def test_create_provider_shared_arn_bucket(self):
+        """Test that a provider can reuse bucket and arn."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
         self.assertEqual(response.status_code, 201)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
+
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get('uuid'))
+        self.assertIsNotNone(json_result.get('customer'))
+        self.assertEqual(json_result.get('customer').get('account_id'),
+                         self.customer_data.get('account_id'))
+        self.assertIsNotNone(json_result.get('created_by'))
+        self.assertEqual(json_result.get('created_by').get('username'),
+                         self.user_data.get('username'))
 
     def test_list_provider(self):
         """Test list providers."""
@@ -132,7 +151,8 @@ class ProviderViewTest(IamTestCase):
         response = client.get(url, **headers)
         self.assertEqual(response.status_code, 404)
 
-    def test_remove_provider_with_regular_user(self):
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_remove_provider_with_regular_user(self, mock_delete_reports):
         """Test removing a provider with the user account that created it."""
         # Create a Provider as a regular user
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -156,7 +176,8 @@ class ProviderViewTest(IamTestCase):
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, 204)
 
-    def test_remove_provider_with_remove_exception(self):
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_remove_provider_with_remove_exception(self, mock_delete_reports):
         """Test removing a provider with a database error."""
         # Create Provider with customer owner token
         iam_arn = 'arn:aws:s3:::my_s3_bucket'

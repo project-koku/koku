@@ -84,6 +84,7 @@ objects:
     aws-access-key-id: ${AWS_ACCESS_KEY_ID}
     aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
 - apiVersion: v1
+  kind: ConfigMap
   metadata:
     name: koku-env
     labels:
@@ -94,6 +95,8 @@ objects:
     database-service-name: POSTGRES_SQL
     postgres-sql-service-host: ${NAME}-pgsql.${NAMESPACE}.svc
     postgres-sql-service-port: "5432"
+    masu-service-host: ${MASU}.${NAMESPACE}.svc
+    masu-service-port: "8080"
     app-config: ${APP_CONFIG}
     app-home: ${APP_HOME}
     app-module: ${APP_MODULE}
@@ -102,7 +105,6 @@ objects:
     email-service-host: ${EMAIL_HOST}
     email-service-port: ${EMAIL_PORT}
     email-service-host-user: ${EMAIL_HOST_USER}
-  kind: ConfigMap
 - apiVersion: v1
   kind: Service
   metadata:
@@ -333,6 +335,18 @@ objects:
                   name: koku-env
                   key: email-service-host-user
                   optional: false
+            - name: MASU_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: masu-service-host
+                  optional: false
+            - name: MASU_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: masu-service-port
+                  optional: false
             - name: APP_NAMESPACE
               valueFrom:
                 configMapKeyRef:
@@ -520,6 +534,11 @@ parameters:
   name: NAMESPACE
   required: true
   value: project-koku
+- description: The name for the masu service
+  displayName: Masu
+  name: MASU
+  required: true
+  value: masu
 - description: Initial amount of memory the build container will request.
   displayName: Build Memory Request
   name: BUILD_MEMORY_REQUEST

@@ -15,11 +15,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Provider views."""
+import json
+import logging
+from unittest.mock import patch
+
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
+
+
+class MockResponse:
+    """A mock response that can convert response text to json."""
+
+    def __init__(self, status_code, response_text):
+        """Initialize the response."""
+        self.status_code = status_code
+        self.response_text = response_text
+
+    def json(self):
+        """Return JSON of response."""
+        return json.loads(self.response_text)
 
 
 class ProviderManagerTest(IamTestCase):
@@ -106,7 +123,8 @@ class ProviderManagerTest(IamTestCase):
         with self.assertRaises(ProviderManagerError):
             ProviderManager(uuid='abc')
 
-    def test_remove_aws(self):
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_remove_aws(self, mock_delete_report):
         """Remove aws provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
@@ -129,9 +147,51 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         manager.remove(other_user)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+        auth_count = ProviderAuthentication.objects.count()
+        billing_count = ProviderBillingSource.objects.count()
         self.assertFalse(provider_query)
+        self.assertEqual(auth_count, 0)
+        self.assertEqual(billing_count, 0)
 
-    def test_remove_ocp(self):
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_remove_aws_auth_billing_remain(self, mock_delete_report):
+        """Remove aws provider."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
+        provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
+        provider = Provider.objects.create(name='awsprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
+        provider2 = Provider.objects.create(name='awsprovidername2',
+                                            created_by=self.user,
+                                            customer=self.customer,
+                                            authentication=provider_authentication,
+                                            billing_source=provider_billing)
+        provider_uuid = provider2.uuid
+
+        self.assertNotEqual(provider.uuid, provider2.uuid)
+        new_user_dict = self._create_user_data()
+        request_context = self._create_request_context(self.customer_data,
+                                                       new_user_dict, False)
+        user_serializer = UserSerializer(data=new_user_dict, context=request_context)
+        other_user = None
+        if user_serializer.is_valid(raise_exception=True):
+            other_user = user_serializer.save()
+
+        manager = ProviderManager(provider_uuid)
+        manager.remove(other_user)
+        auth_count = ProviderAuthentication.objects.count()
+        billing_count = ProviderBillingSource.objects.count()
+        provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+
+        self.assertFalse(provider_query)
+        self.assertEqual(auth_count, 1)
+        self.assertEqual(billing_count, 1)
+
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_remove_ocp(self, mock_delete_report):
         """Remove ocp provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
@@ -153,3 +213,30 @@ class ProviderManagerTest(IamTestCase):
         manager.remove(other_user)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
+
+    @patch('api.provider.provider_manager.requests.delete')
+    def test_delete_report_data(self, mock_delete):
+        """Test that the masu API call returns a response."""
+        logging.disable(logging.NOTSET)
+
+        response = MockResponse(200, '{"Response": "OK"}')
+        mock_delete.return_value = response
+        expected_message = f'INFO:api.provider.provider_manager:Response: {response.json()}'
+
+        provider_authentication = ProviderAuthentication.objects.create(
+            provider_resource_name='arn:aws:iam::2:role/mg'
+        )
+        provider_billing = ProviderBillingSource.objects.create(
+            bucket='my_s3_bucket'
+        )
+        provider = Provider.objects.create(name='awsprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,
+                                           billing_source=provider_billing)
+        provider_uuid = provider.uuid
+        manager = ProviderManager(provider_uuid)
+
+        with self.assertLogs('api.provider.provider_manager', level='INFO') as logger:
+            manager._delete_report_data()
+            self.assertIn(expected_message, logger.output)
