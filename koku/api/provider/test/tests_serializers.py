@@ -34,10 +34,6 @@ class ProviderSerializerTest(IamTestCase):
     def setUp(self):
         """Create test case objects."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
         request = self.request_context['request']
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
