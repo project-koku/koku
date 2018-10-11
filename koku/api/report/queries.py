@@ -135,27 +135,44 @@ class QueryFilter(UserDict):
             raise TypeError(message)
         return self
 
+    def __eq__(self, other):
+        """Exact comparison."""
+        return self.data == other.data
+
     def __repr__(self):
         """Return string representation."""
         return str(self.composed_Q())
 
 
 class QueryFilterCollection(object):
-    """Object representing a set of filters for a query."""
+    """Object representing a set of filters for a query.
+
+    This object behaves in list-like ways.
+    """
 
     def __init__(self, filters=None):
-        """Constructor."""
+        """Constructor.
+
+        Args:
+            filters (list) a list of QueryFilter instances.
+        """
         if filters is None:
             self._filters = list()    # a list of QueryFilter objects
         else:
-            for item in filters:
-                if not isinstance(item, QueryFilter):
-                    message = 'Filters list must be instances of QueryFilter.'
-                    raise TypeError(message)
+            if not isinstance(filters, list):
+                raise TypeError('filters must be a list')
+
+            if not all(isinstance(item, QueryFilter) for item in filters):
+                raise TypeError('Filters list must contain QueryFilters.')
+
             self._filters = filters
 
-    def add(self, query_filter=None, table=None, field=None, operation=None, parameter=None):
+    def add(self, query_filter=None, table=None, field=None,
+            operation=None, parameter=None):
         """Add a query filter to the collection.
+
+        QueryFilterCollection does try to maintain filter uniqueness. A new
+        object will not be added to the collection if it already exists.
 
         Args:
             query_filter (QueryFilter) a QueryFilter object
@@ -172,13 +189,14 @@ class QueryFilterCollection(object):
         if query_filter and (table or field or operation or parameter):
             raise AttributeError(error_message)
 
-        if query_filter:
+        if query_filter and query_filter not in self:
             self._filters.append(query_filter)
 
         if (table or field or operation or parameter):
             qf = QueryFilter(table=table, field=field, operation=operation,
                              parameter=parameter)
-            self._filters.append(qf)
+            if qf not in self:
+                self._filters.append(qf)
 
     def compose(self):
         """Compose filters into a dict for submitting to Django's ORM."""
@@ -202,12 +220,110 @@ class QueryFilterCollection(object):
 
         return composed_query
 
+    def __contains__(self, item):
+        """Return a boolean about whether `item` is in the collection.
+
+        This will do both an exact and a fuzzy match. Exact matches are
+        preferred over fuzzy matches. However, if there is no exact match,
+        __contains__ will return `True` if there is an object that contains all
+        of the same properties as `item`, even if additional properties are
+        set on the object in our collection. (See: `QueryFilterCollection.get()`)
+
+        Args:
+            item (QueryFilter or dict) object to search for.
+
+        Returns:
+            (bool) Whether a matching object was found.
+
+        """
+        if isinstance(item, QueryFilter):
+            return item in self._filters
+        if isinstance(item, dict) and self.get(item):
+            return True
+        return False
+
+    def __iter__(self):
+        """Return an iterable of the collection."""
+        return self._filters.__iter__()
+
+    def __getitem__(self, key):
+        """Return object identified by key.
+
+        Args:
+            key (int) the index of the QueryFilter to return.
+        """
+        return self._filters[key]
+
     def __repr__(self):
         """Return string representation."""
         out = f'{self.__class__}: '
         for filt in self._filters:
             out += filt.__repr__() + ', '
         return out
+
+    def delete(self, query_filter=None, table=None, field=None,
+               operation=None, parameter=None):
+        """Delete a query filter from the collection.
+
+        Args:
+            query_filter (QueryFilter) a QueryFilter object
+
+            - or -
+
+            table (str)  db table name
+            field (str)  db field/row name
+            operation (str) db operation
+            parameter (object) query object
+
+        """
+        error_message = 'query_filter can not be defined with other parameters'
+        if query_filter and (table or field or operation or parameter):
+            raise AttributeError(error_message)
+
+        if query_filter and query_filter in self:
+            self._filters.remove(query_filter)
+
+        if (table or field or operation or parameter):
+            qf = QueryFilter(table=table, field=field, operation=operation,
+                             parameter=parameter)
+            if qf in self:
+                self._filters.remove(qf)
+
+    def get(self, search):
+        """Retrieve the first matching filter in the collection.
+
+        This is a "fuzzy" search. This method looks for an object that matches
+        all key-value pairs of `search` with an object in the collection. The
+        matched object may have additional properties set to a non-None value.
+
+        Args:
+            search (dict) A dictionary of filter parameters to search for.
+
+        Example:
+
+            These examples are in order of least-specific (most likely to have
+            more than one result) to most-specific (most likely to have exactly
+            one result).
+
+            QueryFilterCollection.get({'operation': 'contains'})
+
+            QueryFilterCollection.get({'table': 'mytable', 'operation': 'gte'})
+
+            QueryFilterCollection.get({'table': 'mytable',
+                                       'field': 'myfield',
+                                       'operation': 'in'})
+
+        """
+        for idx, filt in enumerate(self._filters):
+            filter_values = [filt.get(key) for key in search.keys()
+                             if filt.get(key)]
+            search_values = [search.get(key) for key in search.keys()
+                             if search.get(key)]
+            filter_values.sort()
+            search_values.sort()
+            if search_values == filter_values:
+                return (idx, filt)
+        return None
 
 
 class ReportQueryHandler(object):
@@ -574,9 +690,9 @@ class ReportQueryHandler(object):
             start = self.start_datetime
             end = self.end_datetime
 
-        start_filter = QueryFilter(table='usage_start', operation='gte',
+        start_filter = QueryFilter(field='usage_start', operation='gte',
                                    parameter=start)
-        end_filter = QueryFilter(table='usage_end', operation='lte',
+        end_filter = QueryFilter(field='usage_end', operation='lte',
                                  parameter=end)
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
