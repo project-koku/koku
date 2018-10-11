@@ -972,6 +972,61 @@ class ReportDBAccessorTest(MasuTestCase):
     @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
     @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
     @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
+    def test_update_summary_tables_new_bill_last_month(self, mock_daily,
+                                                       mock_summary, mock_agg):
+        """Test that summary tables are run for the month of the manifest."""
+        billing_start = datetime.datetime.utcnow().replace(day=1)
+        billing_start.replace(month=(billing_start.month - 1))
+        manifest_dict = {
+            'assembly_id': '1234',
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 2,
+            'provider_id': 1
+        }
+        self.manifest_accessor.delete(self.manifest)
+        self.manifest_accessor.commit()
+        self.manifest = self.manifest_accessor.add(self.manifest_dict)
+        self.manifest_accessor.commit()
+
+        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_id = self.manifest.id
+        self.manifest_accessor.commit()
+
+        start_date = datetime.datetime.utcnow()
+        end_date = start_date + datetime.timedelta(days=1)
+        bill_date = billing_start.date()
+
+        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
+
+        last_day_of_month = calendar.monthrange(
+                    bill_date.year,
+                    bill_date.month
+                )[1]
+
+        expected_start_date = bill_date.strftime('%Y-%m-%d')
+        expected_end_date = bill_date.replace(day=last_day_of_month)\
+            .strftime('%Y-%m-%d')
+
+        self.assertIsNone(bill.summary_data_creation_datetime)
+        self.assertIsNone(bill.summary_data_updated_datetime)
+
+        self.accessor.update_summary_tables(
+            'AWS',
+            start_date,
+            end_date,
+            manifest_id
+        )
+
+        mock_daily.assert_called_with(expected_start_date, expected_end_date)
+        mock_summary.assert_called_with(expected_start_date, expected_end_date)
+        mock_agg.assert_called()
+
+        self.assertIsNotNone(bill.summary_data_creation_datetime)
+        self.assertIsNotNone(bill.summary_data_updated_datetime)
+
+    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
+    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
+    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
     def test_update_summary_tables_new_bill_not_done_processing(self,
                                                                 mock_daily,
                                                                 mock_summary,
