@@ -80,7 +80,7 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
         self.assertEqual(json_result.get('customer').get('account_id'),
-                         self.customer.get('account_id'))
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))
@@ -93,7 +93,7 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
         self.assertEqual(json_result.get('customer').get('account_id'),
-                         self.customer.get('account_id'))
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))

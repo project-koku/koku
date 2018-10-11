@@ -173,7 +173,7 @@ class ProviderManagerTest(IamTestCase):
 
         self.assertNotEqual(provider.uuid, provider2.uuid)
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.current_customer_data,
+        request_context = self._create_request_context(self.customer_data,
                                                        new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
