@@ -28,12 +28,10 @@ class ProviderManagerTest(IamTestCase):
     def setUp(self):
         """Set up the provider manager tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.current_customer_data = self._create_customer_data()
-        self.request_context = self._create_request_context(self.current_customer_data,
-                                                            self.user_data)
-        self.customer = Customer.objects.get(account_id=self.current_customer_data['account_id'],
-                                             org_id=self.current_customer_data['org_id'])
+        self.customer = Customer.objects.get(
+            account_id=self.customer_data['account_id'],
+            org_id=self.customer_data['org_id']
+        )
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             self.user = serializer.save()
@@ -121,7 +119,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.current_customer_data,
+        request_context = self._create_request_context(self.customer_data,
                                                        new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
@@ -144,7 +142,7 @@ class ProviderManagerTest(IamTestCase):
         provider_uuid = provider.uuid
 
         new_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.current_customer_data,
+        request_context = self._create_request_context(self.customer_data,
                                                        new_user_dict, False)
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None

@@ -259,12 +259,6 @@ class ReportQueryTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.current_month_total = Decimal(0)
-
-        customer = self._create_customer_data()
-        new_customer = self._create_customer(customer['account_id'],
-                                             customer['org_id'],
-                                             create_tenant=True)
-        self.tenant = Tenant.objects.get(schema_name=new_customer.schema_name)
         self.add_data_to_tenant()
 
     def create_hourly_instance_usage(self, payer_account_id, bill,
@@ -895,7 +889,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
-        for _ in range(0, random.randint(3, 10)):
+        for _ in range(3):
             self.add_data_to_tenant()
 
         query_params = {'filter':
@@ -1337,7 +1331,7 @@ class ReportQueryTest(IamTestCase):
                   'data_start': dh.last_month_start,
                   'data_end': dh.last_month_start + timedelta(days=1)}
 
-        for _ in range(0, random.randint(3, 5)):
+        for _ in range(0, 3):
             # add some current data.
             self.add_data_to_tenant(account_id=account_id,
                                     account_alias=account_alias)
@@ -1397,7 +1391,7 @@ class ReportQueryTest(IamTestCase):
         expected_delta_percent = Decimal(0)
 
         query_params = {
-            'filter': {'time_scope_value': -10},
+            'filter': {'time_scope_value': -1},
             'delta': True
         }
 
@@ -1426,7 +1420,7 @@ class ReportQueryTest(IamTestCase):
                   'data_start': DateHelper().last_month_start,
                   'data_end': DateHelper().last_month_start + timedelta(days=1)}
 
-        for _ in range(0, random.randint(3, 5)):
+        for _ in range(0, 3):
             # add some current data.
             self.add_data_to_tenant(rate=Decimal(random.random()),
                                     account_id=account_id)
@@ -1501,7 +1495,7 @@ class ReportQueryTest(IamTestCase):
         """Test execute_query when account alias is avaiable."""
         # generate test data
         expected = {self.account_alias: self.payer_account_id}
-        for _ in range(0, random.randint(3, 5)):
+        for _ in range(0, 3):
             account_id = self.fake.ean(length=13)
             account_alias = self.fake.company()
             expected[account_alias] = account_id

@@ -33,23 +33,48 @@ class IamTestCase(TestCase):
 
     fake = Faker()
 
-    def _create_customer_data(self):
+    @classmethod
+    def setUpClass(cls):
+        """Set up each test class."""
+        super().setUpClass()
+
+        cls.customer_data = cls._create_customer_data()
+        cls.user_data = cls._create_user_data()
+        cls.request_context = cls._create_request_context(
+            cls.customer_data,
+            cls.user_data
+        )
+        cls.schema_name = cls.customer_data.get('schema_name')
+        cls.tenant = Tenant(schema_name=cls.schema_name)
+        cls.tenant.save()
+        cls.headers = cls.request_context['request'].META
+
+    @classmethod
+    def tearDownClass(cls):
+        connection.set_schema_to_public()
+        cls.tenant.delete()
+        super().tearDownClass()
+
+    @classmethod
+    def _create_customer_data(cls):
         """Create customer data."""
-        account = self.fake.ean8()
-        org = self.fake.ean8()
+        account = cls.fake.ean8()
+        org = cls.fake.ean8()
         schema = f'acct{account}org{org}'
         customer = {'account_id': account,
                     'org_id': org,
                     'schema_name': schema}
         return customer
 
-    def _create_user_data(self):
+    @classmethod
+    def _create_user_data(cls):
         """Create user data."""
-        user_data = {'username': self.fake.user_name(),
-                     'email': self.fake.email()}
+        user_data = {'username': cls.fake.user_name(),
+                     'email': cls.fake.email()}
         return user_data
 
-    def _create_customer(self, account, org, create_tenant=False):
+    @classmethod
+    def _create_customer(cls, account, org, create_tenant=False):
         """Create a customer.
 
         Args:
@@ -69,14 +94,19 @@ class IamTestCase(TestCase):
             tenant.save()
         return customer
 
-    def _create_request_context(self, customer_data, user_data,
+    @classmethod
+    def _create_request_context(cls, customer_data, user_data,
                                 create_customer=True, create_tenant=False):
         """Create the request context for a user."""
         customer = customer_data
         account = customer.get('account_id')
         org = customer.get('org_id')
         if create_customer:
-            self._create_customer(account, org, create_tenant=create_tenant)
+            cls.customer = cls._create_customer(
+                account,
+                org,
+                create_tenant=create_tenant
+            )
         identity = {
             'identity': {
                 'org_id': org,
