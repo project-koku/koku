@@ -244,14 +244,22 @@ class ReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 
+        # Default to this month's bill
         bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
             .replace(day=1).date()
         bill = self.get_cost_entry_bill_by_date(bill_date)
 
         if manifest_id is not None:
+            manifest_accessor = ReportManifestDBAccessor()
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            manifest_accessor.close_session()
+            # Override the bill date to correspond with the manifest
+            bill_date = manifest.billing_period_start_datetime.date()
+            bill = self.get_cost_entry_bill_by_date(bill_date)
+
             do_month_update = _determine_if_full_summary_update_needed(
                 bill,
-                manifest_id
+                manifest
             )
             if do_month_update:
                 last_day_of_month = calendar.monthrange(
@@ -278,14 +286,11 @@ class ReportDBAccessor(ReportDBAccessorBase):
             self.date_accessor.today_with_timezone('UTC')
 
 
-def _determine_if_full_summary_update_needed(bill, manifest_id):
+def _determine_if_full_summary_update_needed(bill, manifest):
     """Decide whether to update summary tables for full billing period."""
     now_utc = DateAccessor().today_with_timezone('UTC')
-    manifest_accessor = ReportManifestDBAccessor()
-    manifest = manifest_accessor.get_manifest_by_id(manifest_id)
     processed_files = manifest.num_processed_files
     total_files = manifest.num_total_files
-    manifest_accessor.close_session()
 
     summary_creation = bill.summary_data_creation_datetime
     finalized_datetime = bill.finalized_datetime
