@@ -23,7 +23,6 @@ from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Customer, User
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 
@@ -34,20 +33,9 @@ class ProviderViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
-        self.headers = self.request_context['request'].META
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-
-    def tearDown(self):
-        """Tear down user tests."""
-        super().tearDown()
-        Customer.objects.all().delete()
-        User.objects.all().delete()
 
     def create_provider(self, bucket_name, iam_arn, headers=None):
         """Create a provider and return response."""
@@ -77,7 +65,7 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
         self.assertEqual(json_result.get('customer').get('account_id'),
-                         self.customer.get('account_id'))
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))
@@ -157,7 +145,7 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
         self.assertEqual(json_result.get('customer').get('account_id'),
-                         self.customer.get('account_id'))
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data['username'])
@@ -181,7 +169,7 @@ class ProviderViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
         self.assertEqual(json_result.get('customer').get('account_id'),
-                         self.customer.get('account_id'))
+                         self.customer_data.get('account_id'))
         self.assertIsNotNone(json_result.get('created_by'))
         self.assertEqual(json_result.get('created_by').get('username'),
                          self.user_data.get('username'))

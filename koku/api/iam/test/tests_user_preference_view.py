@@ -33,11 +33,6 @@ class UserPreferenceViewTest(IamTestCase):
     def setUp(self):
         """Set up the user view tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
-        self.headers = self.request_context['request'].META
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -77,7 +72,7 @@ class UserPreferenceViewTest(IamTestCase):
     def test_get_preference_detail_auth_other(self):
         """Test that an authed non-owner cannot retrieve preference details."""
         a_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer,
+        request_context = self._create_request_context(self.customer_data,
                                                        a_user_dict, False)
         serializer = UserSerializer(data=a_user_dict, context=request_context)
         if serializer.is_valid(raise_exception=True):
@@ -142,7 +137,7 @@ class UserPreferenceViewTest(IamTestCase):
     def test_delete_preference_auth_other(self):
         """Test that an authed non-owner cannot delete unowned preferences."""
         a_user_dict = self._create_user_data()
-        request_context = self._create_request_context(self.customer,
+        request_context = self._create_request_context(self.customer_data,
                                                        a_user_dict, False)
         serializer = UserSerializer(data=a_user_dict, context=request_context)
         if serializer.is_valid(raise_exception=True):
