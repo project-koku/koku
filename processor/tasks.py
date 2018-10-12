@@ -22,7 +22,6 @@
 import datetime
 import os
 
-import pytz
 from celery.utils.log import get_task_logger
 
 from masu.celery import celery
@@ -83,9 +82,8 @@ def get_report_files(customer_name,
 
         # Skip processing if already in progress.
         if started_date and not completed_date:
-            expired_start_date = (started_date + datetime.timedelta(hours=2))\
-                .replace(tzinfo=pytz.UTC)
-            if DateAccessor().today().replace(tzinfo=pytz.UTC) < expired_start_date:
+            expired_start_date = started_date + datetime.timedelta(hours=2)
+            if DateAccessor().today_with_timezone('UTC') < expired_start_date:
                 LOG.info('Skipping processing task for %s since it was started at: %s.',
                          file_name, str(started_date))
                 continue

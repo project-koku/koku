@@ -47,7 +47,7 @@ class ProcessedReport:
 
     def __init__(self):
         """Initialize new cost entry containers."""
-        self.bill_id = None
+        self.bills = {}
         self.cost_entries = {}
         self.line_items = []
         self.products = {}
@@ -56,6 +56,7 @@ class ProcessedReport:
 
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
+        self.bills = {}
         self.cost_entries = {}
         self.line_items = []
         self.products = {}
@@ -107,7 +108,7 @@ class AWSReportProcessor(ReportProcessorBase):
         self.hasher = Hasher(hash_function='sha256')
         self.hash_columns = self._get_line_item_hash_columns()
 
-        self.current_bill = self.report_db.get_current_cost_entry_bill()
+        self.existing_bill_map = self.report_db.get_cost_entry_bills()
         self.existing_cost_entry_map = self.report_db.get_cost_entries()
         self.existing_product_map = self.report_db.get_products()
         self.existing_pricing_map = self.report_db.get_pricing()
@@ -360,16 +361,15 @@ class AWSReportProcessor(ReportProcessorBase):
         """
         table_name = AWS_CUR_TABLE_MAP['bill']
         start_date = row.get('bill/BillingPeriodStartDate')
+        bill_type = row.get('bill/BillType')
+        payer_account_id = row.get('bill/PayerAccountId')
 
-        current_start = None
-        if self.current_bill is not None:
-            current_start = self.current_bill.billing_period_start.strftime(
-                self._datetime_format
-            )
+        key = (bill_type, payer_account_id, start_date)
+        if key in self.processed_report.bills:
+            return self.processed_report.bills[key]
 
-        if current_start is not None and start_date == current_start:
-            self.processed_report.bill_id = self.current_bill.id
-            return self.current_bill.id
+        if key in self.existing_bill_map:
+            return self.existing_bill_map[key]
 
         data = self._get_data_for_table(row, table_name)
 
@@ -379,7 +379,8 @@ class AWSReportProcessor(ReportProcessorBase):
             table_name,
             data
         )
-        self.processed_report.bill_id = bill_id
+
+        self.processed_report.bills[key] = bill_id
 
         return bill_id
 
