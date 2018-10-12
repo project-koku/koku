@@ -158,6 +158,9 @@ class ProviderManagerTest(IamTestCase):
         """Remove aws provider."""
         # Create Provider
         provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='arn:aws:iam::2:role/mg')
+        provider_authentication2 = ProviderAuthentication.objects.create(
+            provider_resource_name='arn:aws:iam::3:role/mg'
+        )
         provider_billing = ProviderBillingSource.objects.create(bucket='my_s3_bucket')
         provider = Provider.objects.create(name='awsprovidername',
                                            created_by=self.user,
@@ -167,7 +170,7 @@ class ProviderManagerTest(IamTestCase):
         provider2 = Provider.objects.create(name='awsprovidername2',
                                             created_by=self.user,
                                             customer=self.customer,
-                                            authentication=provider_authentication,
+                                            authentication=provider_authentication2,
                                             billing_source=provider_billing)
         provider_uuid = provider2.uuid
 
