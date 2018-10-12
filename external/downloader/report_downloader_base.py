@@ -15,7 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report Downloader."""
+import logging
 from tempfile import mkdtemp
+
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+
+LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-few-public-methods
@@ -38,3 +43,33 @@ class ReportDownloaderBase():
             self.download_path = download_path
         else:
             self.download_path = mkdtemp(prefix='masu')
+        self._provider_id = None
+        if 'provider_id' in kwargs:
+            self._provider_id = kwargs['provider_id']
+
+    def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
+        """Insert or update the manifest DB record."""
+        LOG.info(f'Inserting manifest database record: ')
+
+        manifest_accessor = ReportManifestDBAccessor()
+        manifest_entry = manifest_accessor.get_manifest(
+            assembly_id,
+            self._provider_id
+        )
+
+        if not manifest_entry:
+            manifest_dict = {
+                'assembly_id': assembly_id,
+                'billing_period_start_datetime': billing_start,
+                'num_total_files': num_of_files,
+                'provider_id': self._provider_id
+            }
+            manifest_entry = manifest_accessor.add(manifest_dict)
+
+        manifest_accessor.commit()
+        manifest_accessor.mark_manifest_as_updated(manifest_entry)
+        manifest_accessor.commit()
+        manifest_id = manifest_entry.id
+        manifest_accessor.close_session()
+
+        return manifest_id

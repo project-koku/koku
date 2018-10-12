@@ -115,3 +115,6 @@ class Config:
 
     # Override the initial ingest requirement to allow INITIAL_INGEST_NUM_MONTHS
     INGEST_OVERRIDE = False if os.getenv('INITIAL_INGEST_OVERRIDE', 'False') == 'False' else True
+
+    # Insights Kafka messaging address
+    INSIGHTS_KAFKA_ADDRESS = os.getenv('INSIGHTS_KAFKA_ADDRESS', 'localhost:29092')
