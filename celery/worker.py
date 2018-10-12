@@ -17,7 +17,10 @@
 """Celery worker entry-point."""
 from masu import create_app
 from masu.celery import celery, update_celery_config
+from masu.external.kafka_msg_handler import initialize_kafka_handler
 
 MASU = create_app()
 MASU.app_context().push()
 update_celery_config(celery, MASU)
+
+initialize_kafka_handler()

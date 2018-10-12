@@ -14,12 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""OCP Local Report Downloader."""
+"""OCP Report Downloader."""
 
-# pylint: skip-file
-# Having trouble disabling the lint warning for duplicate-code (OCPReportDownloader..)
-# Disabling pylint on this file since OCPLocalReportDownloader is a DEBUG feature.
-
+import datetime
 import hashlib
 import logging
 import os
@@ -37,9 +34,11 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 
 LOG = logging.getLogger(__name__)
 
+# pylint: skip-file
 
-class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
-    """OCP-local Cost and Usage Report Downloader."""
+
+class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
+    """OCP Cost and Usage Report Downloader."""
 
     def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
@@ -54,14 +53,20 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        LOG.debug('Connecting to OCP-local service provider...')
+        LOG.debug('Connecting to OCP service provider...')
 
         self.customer_name = customer_name.replace(' ', '_')
         self.report_name = report_name
         self.cluster_id = auth_credential
-        self.provider_id = None
-        if 'provider_id' in kwargs:
-            self.provider_id = kwargs['provider_id']
+        self.temp_dir = None
+        self.bucket = bucket
+
+    def _get_manifest(self, date_time):
+        dates = utils.month_date_range(date_time)
+        directory = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, dates)
+        LOG.info('Looking for manifest at %s', directory)
+        report_meta = utils.get_report_details(directory)
+        return report_meta
 
     def get_report_for(self, date_time):
         """
@@ -78,13 +83,20 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.debug('Looking for cluster %s report for date %s', self.cluster_id, str(dates))
         directory = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, dates)
 
+        manifest = self._get_manifest(date_time)
+        LOG.info('manifest found: %s', str(manifest))
+        latest_uuid = manifest.get('uuid')
+
         reports = []
         try:
-            for file in os.listdir(directory):
-                if file.endswith('.csv'):
-                    report_full_path = os.path.join(directory, file)
-                    LOG.info('Found file %s', report_full_path)
-                    reports.append(report_full_path)
+            if latest_uuid:
+                for file in os.listdir(directory):
+                    if file.startswith(latest_uuid):
+                        report_full_path = os.path.join(directory, file)
+                        LOG.info('Found file %s', report_full_path)
+                        reports.append(report_full_path)
+            else:
+                LOG.error('Current UUID for report could not be found.')
         except OSError as error:
             LOG.error('Unable to get report. Error: %s', str(error))
         return reports
@@ -102,7 +114,7 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         local_filename = utils.get_local_file_name(key)
 
-        directory_path = f'{DATA_DIR}/{self.customer_name}/ocp-local/{self.cluster_id}'
+        directory_path = f'{DATA_DIR}/{self.customer_name}/ocp/{self.cluster_id}'
         full_file_path = f'{directory_path}/{local_filename}'
 
         # Make sure the data directory exists
@@ -127,22 +139,44 @@ class OCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ([{}]) List of dictionaries containing file path and compression.
 
         """
+        LOG.info('Attempting to get OCP manifest for %s...', str(date_time))
+        manifest = self._get_manifest(date_time)
+        assembly_id = None
+        manifest_id = None
+        if manifest:
+            assembly_id = manifest['uuid']
+            manifest_id = self._prepare_db_manifest_record(manifest)
+
         reports = self.get_report_for(date_time)
 
         cur_reports = []
         for report in reports:
             report_dictionary = {}
             local_file_name = utils.get_local_file_name(report)
-            stats_recorder = ReportStatsDBAccessor(local_file_name, None)
+            stats_recorder = ReportStatsDBAccessor(local_file_name, manifest_id)
             stored_etag = stats_recorder.get_etag()
             LOG.info('Downloading %s for cluster ID: %s', report, self.cluster_id)
             file_name, etag = self.download_file(report, stored_etag)
             stats_recorder.update(etag=etag)
             stats_recorder.commit()
+            stats_recorder.close_session()
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = UNCOMPRESSED
             report_dictionary['start_date'] = date_time
+            report_dictionary['assembly_id'] = assembly_id
+            report_dictionary['manifest_id'] = manifest_id
 
             cur_reports.append(report_dictionary)
         return cur_reports
+
+    def _prepare_db_manifest_record(self, manifest):
+        """Prepare to insert or update the manifest DB record."""
+        assembly_id = manifest.get('uuid')
+
+        date_range = utils.month_date_range(manifest.get('date'))
+        billing_str = date_range.split('-')[0]
+        billing_start = datetime.datetime.strptime(billing_str, '%Y%m%d')
+
+        num_of_files = 1  # Update this when we package more then 1
+        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)

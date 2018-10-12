@@ -286,7 +286,7 @@ class OCPReportProcessor(ReportProcessorBase):
 
         self.processed_report.remove_processed_rows()
 
-    def remove_temp_cur_files(self, report_path):
+    def remove_temp_cur_files(self, report_path, manifest_id):
         """Remove temporary cost usage report files."""
         LOG.info('Cleaning up temporary report files for %s', self._report_name)
         return []
