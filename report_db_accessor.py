@@ -232,6 +232,10 @@ class ReportDBAccessor(ReportDBAccessorBase):
             None
 
         """
+        if provider != 'AWS':
+            LOG.info('Skipping Summary for %s.  Not yet implemented.', provider)
+            return
+
         LOG.info('Starting report data summarization.')
 
         # Validate dates as strings
