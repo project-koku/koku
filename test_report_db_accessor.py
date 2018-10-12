@@ -604,13 +604,17 @@ class ReportDBAccessorTest(MasuTestCase):
         result = self.accessor._convert_value(value, float)
         self.assertIsNone(result)
 
-    def test_get_current_cost_entry_bill(self):
-        """Test that the most recent cost entry bill is returned."""
+    def test_get_cost_entry_bills(self):
+        """Test that bills are returned in a dict."""
         table_name = AWS_CUR_TABLE_MAP['bill']
-        bill_id = self.accessor._get_db_obj_query(table_name).first().id
-        bill = self.accessor.get_current_cost_entry_bill()
+        bill = self.accessor._get_db_obj_query(table_name).first()
+        expected_key = (bill.bill_type, bill.payer_account_id, bill.billing_period_start)
+        # expected = {expected_key: bill.id}
 
-        self.assertEqual(bill_id, bill.id)
+        bill_map = self.accessor.get_cost_entry_bills()
+
+        self.assertIn(expected_key, bill_map)
+        self.assertEqual(bill_map[expected_key], bill.id)
 
     def test_get_cost_entry_bill_by_date(self):
         table_name = AWS_CUR_TABLE_MAP['bill']
