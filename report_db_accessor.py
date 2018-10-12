@@ -48,19 +48,15 @@ class ReportDBAccessor(ReportDBAccessorBase):
         self._schema_name = schema
         self.date_accessor = DateAccessor()
 
-    def get_current_cost_entry_bill(self, bill_id=None):
-        """Get the most recent cost entry bill object."""
+    def get_cost_entry_bills(self):
+        """Get all cost entry bill objects."""
         table_name = AWS_CUR_TABLE_MAP['bill']
-        billing_start = getattr(
-            getattr(self.report_schema, table_name),
-            'billing_period_start'
-        )
-        if bill_id is not None:
-            return self._get_db_obj_query(table_name).filter(id=bill_id).first()
 
-        return self._get_db_obj_query(table_name)\
-            .order_by(billing_start.desc())\
-            .first()
+        columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start']
+        bills = self._get_db_obj_query(table_name, columns=columns).all()
+
+        return {(bill.bill_type, bill.payer_account_id, bill.billing_period_start): bill.id
+                for bill in bills}
 
     def get_cost_entry_bill_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
