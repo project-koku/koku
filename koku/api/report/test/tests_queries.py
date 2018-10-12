@@ -424,11 +424,12 @@ class ReportQueryTest(IamTestCase):
     def _create_bill(self, account, bill_start, bill_end,
                      bill_type='Anniversary'):
         """Create an AWSCostEntryBill."""
-        bill = AWSCostEntryBill(bill_type='Anniversary',
-                                payer_account_id=account,
-                                billing_period_start=bill_start,
-                                billing_period_end=bill_end)
-        bill.save()
+        bill, _ = AWSCostEntryBill.objects.get_or_create(
+            bill_type='Anniversary',
+            payer_account_id=account,
+            billing_period_start=bill_start,
+            billing_period_end=bill_end
+        )
         return bill
 
     def _create_pricing(self, term='OnDemand', unit='Hrs'):
