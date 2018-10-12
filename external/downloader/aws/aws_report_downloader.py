@@ -29,7 +29,6 @@ import boto3
 from botocore.exceptions import ClientError
 
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProviderError
 from masu.external.downloader.downloader_interface import DownloaderInterface
@@ -96,11 +95,6 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 report_name = report_names[0]
         self.report_name = report_name
         self.bucket = bucket
-
-        self._provider_id = None
-        if 'provider_id' in kwargs:
-            self._provider_id = kwargs['provider_id']
-
         report_defs = defs.get('ReportDefinitions', [])
         report = [rep for rep in report_defs
                   if rep['ReportName'] == self.report_name]
@@ -226,13 +220,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             ([{}]) List of dictionaries containing file path and compression.
 
         """
-        LOG.info('Current date is %s.  Attempting to get manifest...', str(date_time))
+        LOG.info('Attempting to get AWS manifest for %s...', str(date_time))
         manifest = self._get_manifest(date_time)
         assembly_id = None
         manifest_id = None
         if manifest != self.empty_manifest:
             assembly_id = manifest.get('assemblyId')
-            manifest_id = self._process_manifest_db_record(manifest)
+            manifest_id = self._prepare_db_manifest_record(manifest)
 
         reports = manifest.get('reportKeys')
 
@@ -260,36 +254,13 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             cur_reports.append(report_dictionary)
         return cur_reports
 
-    def _process_manifest_db_record(self, manifest):
-        """Insert or update the manifest DB record."""
-        LOG.info(f'Upserting manifest database record: ')
-
+    def _prepare_db_manifest_record(self, manifest):
+        """Prepare to insert or update the manifest DB record."""
         assembly_id = manifest.get('assemblyId')
-
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest_entry = manifest_accessor.get_manifest(
-            assembly_id,
-            self._provider_id
+        billing_str = manifest.get('billingPeriod', {}).get('start')
+        billing_start = datetime.datetime.strptime(
+            billing_str,
+            self.manifest_date_format
         )
-
-        if not manifest_entry:
-            billing_str = manifest.get('billingPeriod', {}).get('start')
-            billing_start = datetime.datetime.strptime(
-                billing_str,
-                self.manifest_date_format
-            )
-            manifest_dict = {
-                'assembly_id': assembly_id,
-                'billing_period_start_datetime': billing_start,
-                'num_total_files': len(manifest.get('reportKeys', [])),
-                'provider_id': self._provider_id
-            }
-            manifest_entry = manifest_accessor.add(manifest_dict)
-
-        manifest_accessor.commit()
-        manifest_accessor.mark_manifest_as_updated(manifest_entry)
-        manifest_accessor.commit()
-        manifest_id = manifest_entry.id
-        manifest_accessor.close_session()
-
-        return manifest_id
+        num_of_files = len(manifest.get('reportKeys', []))
+        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)

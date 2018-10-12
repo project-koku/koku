@@ -16,11 +16,48 @@
 #
 """OCP utility functions."""
 
+import json
 import logging
 
+from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
 LOG = logging.getLogger(__name__)
+
+
+def get_report_details(report_directory):
+    """
+    Get OCP usage report details from manifest file.
+
+    Date range is aligned on the first day of the current
+    month and ends on the first day of the next month from the
+    specified date.
+
+    Args:
+        report_directory (String): base directory for report.
+
+    Returns:
+        (Dict): keys: value
+            "file: String,
+             cluster_id: String,
+             payload_date: DateTime,
+             manifest_path: String,
+             uuid: String,
+             manifest_path: String"
+
+    """
+    manifest_path = '{}/{}'.format(report_directory, 'manifest.json')
+
+    payload_dict = {}
+    try:
+        with open(manifest_path) as file:
+            payload_dict = json.load(file)
+            payload_dict['date'] = parser.parse(payload_dict['date'])
+            payload_dict['manifest_path'] = manifest_path
+    except (OSError, IOError, KeyError):
+        LOG.error('Unable to extract manifest data')
+
+    return payload_dict
 
 
 def month_date_range(for_date_time):
