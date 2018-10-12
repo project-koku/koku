@@ -16,9 +16,8 @@
 #
 """Downloader for cost usage reports."""
 
-from datetime import datetime
-
 from masu.database.koku_database_access import KokuDBAccess
+from masu.external.date_accessor import DateAccessor
 
 
 class ReportStatsDBAccessor(KokuDBAccess):
@@ -123,7 +122,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Returns:
             None
         """
-        self._obj.last_started_datetime = datetime.now()
+        self._obj.last_started_datetime = DateAccessor().today_with_timezone('UTC')
 
     def log_last_completed_datetime(self):
         """
@@ -134,7 +133,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Returns:
             None
         """
-        self._obj.last_completed_datetime = datetime.now()
+        self._obj.last_completed_datetime = DateAccessor().today_with_timezone('UTC')
 
     def get_etag(self):
         """
