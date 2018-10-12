@@ -51,6 +51,12 @@ class Provider(models.Model):
     Used for modeling cost providers like AWS Accounts.
     """
 
+    class Meta:
+        """Meta for Provider."""
+
+        ordering = ['name']
+        unique_together = ('authentication', 'billing_source')
+
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
     if settings.DEBUG:
@@ -78,8 +84,3 @@ class Provider(models.Model):
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
-
-    class Meta:
-        """Metadata for the model."""
-
-        ordering = ['name']

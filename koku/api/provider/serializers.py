@@ -77,7 +77,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
     authentication = ProviderAuthenticationSerializer()
-    billing_source = ProviderBillingSourceSerializer(required=False)
+    billing_source = ProviderBillingSourceSerializer(default={'bucket': ''})
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
 
@@ -106,24 +106,30 @@ class ProviderSerializer(serializers.ModelSerializer):
             key = 'created_by'
             message = 'Requesting user could not be found.'
             raise serializers.ValidationError(error_obj(key, message))
-
         if 'billing_source' in validated_data:
             billing_source = validated_data.pop('billing_source')
             bucket = billing_source.get('bucket')
         else:
-            bucket = None
-
+            # Because of a unique together constraint, this is done
+            # to allow for this field to be non-required for OCP
+            # but will still have a blank no-op entry in the DB
+            billing_source = {'bucket': ''}
         authentication = validated_data.pop('authentication')
         provider_resource_name = authentication.get('provider_resource_name')
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
         interface.cost_usage_source_ready(provider_resource_name, bucket)
 
-        bill = None
-        if bucket:
-            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+        bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
 
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
+
+        # We can re-use a billing source or a auth, but not the same combination.
+        unique_count = Provider.objects.filter(authentication=auth)\
+            .filter(billing_source=bill).count()
+        if unique_count != 0:
+            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+            raise serializers.ValidationError(error)
 
         provider = Provider.objects.create(**validated_data)
         provider.customer = customer
