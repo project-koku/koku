@@ -117,4 +117,10 @@ class Config:
     INGEST_OVERRIDE = False if os.getenv('INITIAL_INGEST_OVERRIDE', 'False') == 'False' else True
 
     # Insights Kafka messaging address
-    INSIGHTS_KAFKA_ADDRESS = os.getenv('INSIGHTS_KAFKA_ADDRESS', 'localhost:29092')
+    INSIGHTS_KAFKA_HOST = os.getenv('INSIGHTS_KAFKA_HOST', 'localhost')
+
+    # Insights Kafka messaging address
+    INSIGHTS_KAFKA_PORT = os.getenv('INSIGHTS_KAFKA_PORT', '29092')
+
+    # Insights Kafka server address
+    INSIGHTS_KAFKA_ADDRESS = f'{INSIGHTS_KAFKA_HOST}:{INSIGHTS_KAFKA_PORT}'
