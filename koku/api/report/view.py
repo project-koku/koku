@@ -164,14 +164,11 @@ def _convert_units(converter, data, to_unit):
     return data
 
 
-def _generic_report(request, aggregate_key, units_key, **kwargs):
+def _generic_report(request, **kwargs):
     """Generically query for reports.
 
     Args:
         request (Request): The HTTP request object
-        aggregate_key (str): The report metric to be aggregated
-            e.g. 'usage_amount' or 'unblended_cost'
-        units_key (str): The field used to establish the reporting unit
 
     Returns:
         (Response): The report in a Response object
@@ -196,8 +193,6 @@ def _generic_report(request, aggregate_key, units_key, **kwargs):
     handler = ReportQueryHandler(params,
                                  url_data,
                                  tenant,
-                                 aggregate_key,
-                                 units_key,
                                  **kwargs)
     output = handler.execute_query()
 
@@ -306,7 +301,7 @@ def costs(request):
 
     """
     extras = {'report_type': 'costs'}
-    return _generic_report(request, 'unblended_cost', 'currency_code', **extras)
+    return _generic_report(request, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -436,12 +431,8 @@ def instance_type(request):
                    Concat('cost_entry_product__instance_type', Value(''))}
     extras = {'annotations': annotations,
               'group_by': ['instance_type'],
-              'count': 'resource_id',
               'report_type': 'instance_type'}
-    return _generic_report(request,
-                           'usage_amount',
-                           'cost_entry_pricing__unit',
-                           **extras)
+    return _generic_report(request, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -560,7 +551,4 @@ def storage(request):
 
     """
     extras = {'report_type': 'storage'}
-    return _generic_report(request,
-                           'usage_amount',
-                           'cost_entry_pricing__unit',
-                           **extras)
+    return _generic_report(request, **extras)

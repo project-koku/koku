@@ -57,6 +57,168 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'blended_cost', 'tax_type']
 
 
+class ProviderMap(object):
+    """Data structure mapping between API params and DB Model names.
+
+    The idea here is that reports ought to be operating on largely similar
+    data - counts, costs, etc. The only variable is determining which
+    DB tables and fields are supplying the requested data.
+
+    ProviderMap supplies ReportQueryHandler with the appropriate model
+    references.
+    """
+
+    # main mapping data structure
+    # this data should be considered static and read-only.
+    mapping = [{
+        'provider': 'AWS',
+        'operation': {
+            OPERATION_SUM: {
+                'alias': 'account_alias__account_alias',
+                'annotations': {'account': 'usage_account_id',
+                                'service': 'product_code',
+                                'avail_zone': 'availability_zone'},
+                'end_date': 'usage_end',
+                'filters': {
+                    'account': {'field': 'account_alias__account_alias',
+                                'operation': 'icontains'},
+                    'service': {'field': 'product_code',
+                                'operation': 'icontains'},
+                    'avail_zone': {'field': 'availability_zone',
+                                   'operation': 'icontains'},
+                    'region': {'field': 'availability_zone',
+                               'operation': 'icontains'}
+                },
+                'report_type': {
+                    'costs': {
+                        'aggregate_key': 'unblended_cost',
+                        'count': None,
+                        'filter': {},
+                        'units_key': 'currency_code',
+                    },
+                    'instance_type': {
+                        'aggregate_key': 'usage_amount',
+                        'count': 'resource_count',
+                        'filter': {
+                            'field': 'instance_type',
+                            'operation': 'isnull',
+                            'parameter': False
+                        },
+                        'units_key': 'unit',
+                    },
+                    'storage': {
+                        'aggregate_key': 'usage_amount',
+                        'count': None,
+                        'filter': {
+                            'field': 'product_family',
+                            'operation': 'contains',
+                            'parameter': 'Storage'
+                        },
+                        'units_key': 'unit',
+                    }
+                },
+                'start_date': 'usage_start',
+                'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
+                           'query': AWSCostEntryLineItemDailySummary,
+                           'total': AWSCostEntryLineItemAggregates},
+            },
+            OPERATION_NONE: {
+                'alias': 'account_alias__account_alias',
+                'annotations': {'account': 'usage_account_id',
+                                'service': 'product_code',
+                                'avail_zone': 'availability_zone',
+                                'region': 'cost_entry_product__region'},
+                'end_date': 'usage_end',
+                'filters': {
+                    'account': {'field': 'account_alias__account_alias',
+                                'operation': 'icontains'},
+                    'service': {'field': 'product_code',
+                                'operation': 'icontains'},
+                    'avail_zone': {'field': 'availability_zone',
+                                   'operation': 'icontains'},
+                    'region': {'field': 'availability_zone',
+                               'operation': 'icontains',
+                               'table': 'cost_entry_product'}
+                },
+                'report_type': {
+                    'costs': {
+                        'aggregate_key': 'unblended_cost',
+                        'count': None,
+                        'filter': {},
+                        'units_key': 'currency_code',
+                    },
+                    'instance_type': {
+                        'aggregate_key': 'usage_amount',
+                        'count': 'resource_id',
+                        'filter': {
+                            'field': 'instance_type',
+                            'table': 'cost_entry_product',
+                            'operation': 'isnull',
+                            'parameter': False
+                        },
+                        'units_key': 'cost_entry_pricing__unit',
+                    },
+                    'storage': {
+                        'aggregate_key': 'usage_amount',
+                        'count': None,
+                        'filter': {
+                            'field': 'product_family',
+                            'table': 'cost_entry_product',
+                            'operation': 'contains',
+                            'parameter': 'Storage'
+                        },
+                        'units_key': 'cost_entry_pricing__unit',
+                    },
+                },
+                'start_date': 'usage_start',
+                'tables': {'query': AWSCostEntryLineItem,
+                           'previous_query': AWSCostEntryLineItem,
+                           'total': AWSCostEntryLineItemAggregates},
+            }
+        },
+    }]
+
+    @staticmethod
+    def provider_data(provider):
+        """Return provider portion of map structure."""
+        for item in ProviderMap.mapping:
+            if provider in item.get('provider'):
+                return item
+
+    @staticmethod
+    def operation_data(operation, provider):
+        """Return operation portion of map structure."""
+        prov = ProviderMap.provider_data(provider)
+        return prov.get('operation').get(operation)
+
+    @staticmethod
+    def report_type_data(report_type, operation, provider):
+        """Return report_type portion of map structure."""
+        op_data = ProviderMap.operation_data(operation, provider)
+        return op_data.get('report_type').get(report_type)
+
+    def __init__(self, provider, operation, report_type):
+        """Constructor."""
+        self._provider = provider
+        self._operation = operation
+        self._report_type = report_type
+
+        self._map = ProviderMap.mapping
+        self._provider_map = ProviderMap.provider_data(provider)
+        self._operation_map = ProviderMap.operation_data(operation, provider)
+        self._report_type_map = ProviderMap.report_type_data(report_type, operation, provider)
+
+    @property
+    def count(self):
+        """Return the count property."""
+        return self._report_type_map.get('count')
+
+    @property
+    def units_key(self):
+        """Return the units_key property."""
+        return self._report_type_map.get('units_key')
+
+
 class TruncDayString(TruncDay):
     """Class to handle string formated day truncation."""
 
@@ -217,7 +379,6 @@ class QueryFilterCollection(object):
                 composed_query = or_filter
             else:
                 composed_query = composed_query & or_filter
-
         return composed_query
 
     def __contains__(self, item):
@@ -332,22 +493,19 @@ class ReportQueryHandler(object):
     default_ordering = {'total': 'desc'}
 
     def __init__(self, query_parameters, url_data,
-                 tenant, aggregate_key, units_key, **kwargs):
+                 tenant, **kwargs):
         """Establish report query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
             url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
-            aggregate_key   (String): the key to aggregate on
-            units_key   (String): the key defining the units
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
         self._accept_type = None
         self._annotations = None
-        self._count = None
         self._group_by = None
         self.end_datetime = None
         self.resolution = None
@@ -356,16 +514,16 @@ class ReportQueryHandler(object):
         self.time_scope_units = None
         self.time_scope_value = None
 
-        self.aggregate_key = aggregate_key
         self.query_parameters = query_parameters
         self.tenant = tenant
         self.url_data = url_data
 
+        self.provider_name = self.query_parameters.get('provider', 'AWS')
         self.operation = self.query_parameters.get('operation', OPERATION_SUM)
+
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
         self._get_timeframe()
-        self.units_key = units_key
         self.query_delta = {'value': None, 'percent': None}
 
         if kwargs:
@@ -375,14 +533,13 @@ class ReportQueryHandler(object):
                 if key in elements:
                     setattr(self, f'_{key}', value)
 
-            # don't override the property by using setattr
-            if 'count' in kwargs:
-                self.count = kwargs['count']
-
-        self.query_filter = self._get_filter()
-
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
+
+        self._mapper = ProviderMap(provider=self.provider_name,
+                                   operation=self.operation,
+                                   report_type=self._report_type)
+        self.query_filter = self._get_filter()
 
     @property
     def is_sum(self):
@@ -393,30 +550,6 @@ class ReportQueryHandler(object):
 
         """
         return self.operation == OPERATION_SUM
-
-    @property
-    def units_key(self):
-        """Return the unit used in this query."""
-        return self._units_key
-
-    @units_key.setter
-    def units_key(self, value):
-        """Set the units_key."""
-        self._units_key = value
-        if self.is_sum:
-            self._units_key = value.replace('cost_entry_pricing__', '')
-
-    @property
-    def count(self):
-        """Return the count property."""
-        return self._count
-
-    @count.setter
-    def count(self, value):
-        """Set the count property."""
-        self._count = value
-        if self.is_sum:
-            self._count = 'resource_count'
 
     @staticmethod
     def has_wildcard(in_list):
@@ -623,23 +756,8 @@ class ReportQueryHandler(object):
         Returns:
             (QueryFilterCollection): populated collection of query filters
         """
-        # the summary table mirrors many of the fields in the cost_entry_product table.
-        cep_table = 'cost_entry_product'
-        if self.is_sum:
-            cep_table = None
-
         # define filter parameters using API query params.
-        fields = {'account': {'field': 'account_alias__account_alias',
-                              'operation': 'icontains'},
-                  'service': {'field': 'product_code',
-                              'operation': 'icontains'},
-                  'avail_zone': {'field': 'availability_zone',
-                                 'operation': 'icontains'},
-                  'region': {'field': 'availability_zone',
-                             'operation': 'icontains',
-                             'table': cep_table
-                             }
-                  }
+        fields = self._mapper._operation_map.get('filters')
         for q_param, filt in fields.items():
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
@@ -650,7 +768,7 @@ class ReportQueryHandler(object):
                     filters.add(q_filter)
 
         composed_filters = filters.compose()
-        LOG.debug(f'Filters: {composed_filters}')
+        LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
 
     def _get_filter(self, delta=False):
@@ -664,18 +782,8 @@ class ReportQueryHandler(object):
         """
         filters = QueryFilterCollection()
 
-        # the summary table mirrors many of the fields in the cost_entry_product table.
-        cep_table = 'cost_entry_product'
-        if self.is_sum:
-            cep_table = None
-
         # set up filters for instance-type and storage queries.
-        if self._report_type == 'instance_type':
-            filters.add(table=cep_table, field='instance_type',
-                        operation='isnull', parameter=False)
-        elif self._report_type == 'storage':
-            filters.add(table=cep_table, field='product_family',
-                        operation='contains', parameter='Storage')
+        filters.add(**self._mapper._report_type_map.get('filter'))
 
         if delta:
             if self.time_scope_value in [-1, -2]:
@@ -700,7 +808,7 @@ class ReportQueryHandler(object):
         # define filter parameters using API query params.
         composed_filters = self._get_search_filter(filters)
 
-        LOG.debug(f'Filters: {composed_filters}')
+        LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
     def _get_group_by(self):
@@ -731,20 +839,14 @@ class ReportQueryHandler(object):
         """
         annotations = {
             'date': self.date_trunc('usage_start'),
-            'units': Concat(self.units_key, Value(''))
+            'units': Concat(self._mapper.units_key, Value(''))
         }
         if self._annotations and not self.is_sum:
             annotations.update(self._annotations)
 
         # { query_param: database_field_name }
         if not fields:
-            fields = {'account': 'usage_account_id',
-                      'service': 'product_code',
-                      'avail_zone': 'availability_zone'}
-
-            if not self.is_sum:
-                # The summary table has region built-in
-                fields['region'] = 'cost_entry_product__region'
+            fields = self._mapper._operation_map.get('annotations')
 
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
@@ -897,8 +999,9 @@ class ReportQueryHandler(object):
         query_sum = {'value': 0}
         data = []
 
+        q_table = self._mapper._operation_map.get('tables').get('query')
         with tenant_context(self.tenant):
-            query = AWSCostEntryLineItemDailySummary.objects.filter(self.query_filter)
+            query = q_table.objects.filter(self.query_filter)
 
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
@@ -909,17 +1012,18 @@ class ReportQueryHandler(object):
             if self.order_field != 'delta':
                 query_order_by += (self.order,)
 
+            aggregate_key = self._mapper._report_type_map.get('aggregate_key')
             query_data = query_data.values(*query_group_by)\
-                .annotate(total=Sum(self.aggregate_key))\
-                .annotate(units=Max(self.units_key))
+                .annotate(total=Sum(aggregate_key))\
+                .annotate(units=Max(self._mapper.units_key))
 
             if 'account' in query_group_by:
-                query_data = query_data.annotate(account_alias=F('account_alias__account_alias'))
+                query_data = query_data.annotate(account_alias=F(self._mapper._operation_map.get('alias')))
 
-            if self.count:
+            if self._mapper.count:
                 # This is a sum because the summary table already
                 # has already performed counts
-                query_data = query_data.annotate(count=Sum(self.count))
+                query_data = query_data.annotate(count=Sum(self._mapper.count))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
@@ -935,7 +1039,8 @@ class ReportQueryHandler(object):
                 query_data = query_data.order_by(*query_order_by)
 
             if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
+                units_value = query.values(self._mapper.units_key)\
+                                   .first().get(self._mapper.units_key)
                 query_sum = self.calculate_total(units_value)
 
             if self._delta:
@@ -968,8 +1073,9 @@ class ReportQueryHandler(object):
         query_sum = {'value': 0}
         data = []
 
+        q_table = self._mapper._operation_map.get('tables').get('query')
         with tenant_context(self.tenant):
-            query = AWSCostEntryLineItem.objects.filter(self.query_filter)
+            query = q_table.objects.filter(self.query_filter)
 
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
@@ -983,7 +1089,8 @@ class ReportQueryHandler(object):
             data = list(query_data.values(*values_out))
 
             if query.exists():
-                units_value = query.values(self.units_key).first().get(self.units_key)
+                units_value = query.values(self._mapper.units_key)\
+                                   .first().get(self._mapper.units_key)
                 query_sum = self.calculate_total(units_value)
 
         self.query_sum = query_sum
@@ -1020,11 +1127,11 @@ class ReportQueryHandler(object):
 
         """
         delta_group_by = ['date'] + self._get_group_by()
-        previous_query = self._create_previous_query()
-        previous_dict = self._create_previous_totals(
-            previous_query,
-            delta_group_by
-        )
+        delta_filter = self._get_filter(delta=True)
+        q_table = self._mapper._operation_map.get('tables').get('previous_query')
+        previous_query = q_table.objects.filter(delta_filter)
+        previous_dict = self._create_previous_totals(previous_query,
+                                                     delta_group_by)
 
         for row in query_data:
             key = tuple((row[key] for key in delta_group_by))
@@ -1035,7 +1142,8 @@ class ReportQueryHandler(object):
 
         # Calculate the delta on the total aggregate
         current_total_sum = Decimal(query_sum.get('value') or 0)
-        prev_total_sum = previous_query.aggregate(value=Sum(self.aggregate_key))
+        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
+        prev_total_sum = previous_query.aggregate(value=Sum(aggregate_key))
         prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
 
         total_delta = current_total_sum - prev_total_sum
@@ -1053,24 +1161,6 @@ class ReportQueryHandler(object):
                                 key=lambda x: x['delta_percent'],
                                 reverse=reverse)
         return query_data
-
-    def _create_previous_query(self):
-        """Get totals from the time period previous to the current report.
-
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        delta_filter = self._get_filter(delta=True)
-
-        if self.is_sum:
-            previous_query = AWSCostEntryLineItemDailySummary.objects.filter(
-                delta_filter
-            )
-        else:
-            previous_query = AWSCostEntryLineItem.objects.filter(delta_filter)
-
-        return previous_query
 
     def _create_previous_totals(self, previous_query, query_group_by):
         """Get totals from the time period previous to the current report.
@@ -1092,9 +1182,10 @@ class ReportQueryHandler(object):
         # e.g. date, account, region, availability zone, et cetera
         query_annotations = self._get_annotations()
         previous_sums = previous_query.annotate(**query_annotations)
+        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
         previous_sums = previous_sums\
             .values(*query_group_by)\
-            .annotate(total=Sum(self.aggregate_key))
+            .annotate(total=Sum(aggregate_key))
 
         previous_dict = OrderedDict()
         for row in previous_sums:
@@ -1119,30 +1210,30 @@ class ReportQueryHandler(object):
         filt_collection = QueryFilterCollection()
         total_filter = self._get_search_filter(filt_collection)
 
-        time_scope_value = self.get_query_param_data(
-            'filter',
-            'time_scope_value',
-            -10
-        )
-        time_and_report_filter = Q(time_scope_value=time_scope_value) & Q(report_type=self._report_type)
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value',
+                                                     -10)
+        time_and_report_filter = Q(time_scope_value=time_scope_value) & \
+            Q(report_type=self._report_type)
+
         if total_filter is None:
             total_filter = time_and_report_filter
         else:
             total_filter = total_filter & time_and_report_filter
 
-        total_query = AWSCostEntryLineItemAggregates.objects.filter(
-            total_filter
-        )
+        q_table = self._mapper._operation_map.get('tables').get('total')
+        total_query = q_table.objects.filter(total_filter)
 
-        if self.count:
+        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
+        if self._mapper.count:
             query_sum = total_query.aggregate(
-                value=Sum(self.aggregate_key),
+                value=Sum(aggregate_key),
                 # This is a sum because the summary table already
                 # has already performed counts
-                count=Sum(self.count)
+                count=Sum(self._mapper.count)
             )
         else:
-            query_sum = total_query.aggregate(value=Sum(self.aggregate_key))
+            query_sum = total_query.aggregate(value=Sum(aggregate_key))
         query_sum['units'] = units_value
 
         return query_sum
