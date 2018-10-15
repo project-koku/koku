@@ -27,7 +27,7 @@ pytz = "==2018.5"
 
 [dev-packages]
 
-pylint = "==2.0.1"
+pylint = "==2.1.1"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"
 tox = ">=3.0.0"
