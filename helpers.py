@@ -139,13 +139,22 @@ class ReportObjectCreator:
 
         return row
 
-    def create_ocp_report_period(self):
+    def create_ocp_report_period(self, period_date=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
         data = {'cluster_id': self.fake.pystr()[:8],
+                'provider_id': 1,
                 'report_period_start': self.stringify_datetime(self.fake.past_datetime()),
                 'report_period_end': self.stringify_datetime(self.fake.past_datetime())}
+
+        if period_date:
+            period_start = period_date.replace(day=1).date()
+            period_end = period_start + relativedelta.relativedelta(months=1)
+
+            data['report_period_start'] = period_start
+            data['report_period_end'] = period_end
+
         row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor._session.add(row)
@@ -153,13 +162,17 @@ class ReportObjectCreator:
 
         return row
 
-    def create_ocp_report(self, reporting_period):
+    def create_ocp_report(self, reporting_period, report_datetime=None):
         """Create an OCP reporting period database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report']
 
-        data = {'report_period_id': reporting_period.id,
-                'interval_start': self.stringify_datetime(self.fake.past_datetime()),
-                'interval_end': self.stringify_datetime(self.fake.past_datetime())}
+        data = {'report_period_id': reporting_period.id}
+        if report_datetime:
+            start_datetime = report_datetime
+        else:
+            start_datetime = self.fake.past_datetime(start_date='-60d')
+        data['interval_start'] = start_datetime
+        data['interval_end'] = start_datetime
         row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor._session.add(row)

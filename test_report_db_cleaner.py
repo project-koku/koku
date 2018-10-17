@@ -19,7 +19,7 @@
 import datetime
 
 from masu.database import AWS_CUR_TABLE_MAP
-from masu.database.report_db_accessor import ReportDBAccessor
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
@@ -34,7 +34,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         """Set up the test class with required objects."""
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
-        cls.accessor = ReportDBAccessor(
+        cls.accessor = AWSReportDBAccessor(
             schema='acct10001org20002',
             column_map=cls.column_map
         )

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the ReportDBAccessor utility object."""
+"""Test the AWSReportDBAccessor utility object."""
 import calendar
 import datetime
 from decimal import Decimal, InvalidOperation
@@ -33,7 +33,7 @@ from sqlalchemy.sql import func
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportSchema
-from masu.database.report_db_accessor import ReportDBAccessor
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -49,7 +49,7 @@ class ReportSchemaTest(MasuTestCase):
         """Set up the test class with required objects."""
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
-        cls.accessor = ReportDBAccessor(
+        cls.accessor = AWSReportDBAccessor(
             schema='acct10001org20002',
             column_map=cls.column_map
         )
@@ -65,6 +65,7 @@ class ReportSchemaTest(MasuTestCase):
     def tearDownClass(cls):
         """Close the DB session."""
         cls.common_accessor.close_session()
+        cls.accessor.close_connections()
         cls.accessor.close_session()
 
     def test_init(self):
@@ -114,7 +115,7 @@ class ReportDBAccessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
-        cls.accessor = ReportDBAccessor(
+        cls.accessor = AWSReportDBAccessor(
             schema='acct10001org20002',
             column_map=cls.column_map
         )
@@ -149,7 +150,7 @@ class ReportDBAccessorTest(MasuTestCase):
             self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
         if self.accessor._cursor.closed:
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
-        today = datetime.datetime.utcnow()
+        today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_cost_entry_bill(today)
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
@@ -616,14 +617,14 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertIn(expected_key, bill_map)
         self.assertEqual(bill_map[expected_key], bill.id)
 
-    def test_get_cost_entry_bill_by_date(self):
+    def test_get_cost_entry_bills_by_date(self):
         table_name = AWS_CUR_TABLE_MAP['bill']
         today = datetime.datetime.utcnow()
         bill_start = today.replace(day=1).date()
         bill_id = self.accessor._get_db_obj_query(table_name).first().id
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_start)
+        bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
 
-        self.assertEqual(bill_id, bill.id)
+        self.assertEqual(bill_id, bills[0].id)
 
     def test_get_bill_query_before_date(self):
         """Test that gets a query for cost entry bills before a date."""
@@ -842,7 +843,7 @@ class ReportDBAccessorTest(MasuTestCase):
         expected_time_scope_values = [-1, -2, -10, -30]
         expected_report_types = ['storage', 'instance_type', 'costs']
 
-        today = datetime.datetime.utcnow()
+        today = DateAccessor().today_with_timezone('UTC')
         last_month = today - relativedelta.relativedelta(months=1)
 
         for cost_entry_date in (today, last_month):
@@ -892,298 +893,3 @@ class ReportDBAccessorTest(MasuTestCase):
             self.assertIn(val, time_scope_values)
         for report in expected_report_types:
             self.assertIn(report, report_types)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_with_manifest(self, mock_daily, mock_summary,
-                                                 mock_agg):
-        """Test that summary tables are properly run."""
-        self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-        bill.summary_data_creation_datetime = start_date
-        self.accessor.commit()
-
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_new_bill(self, mock_daily, mock_summary,
-                                            mock_agg):
-        """Test that summary tables are run for a full month."""
-
-        self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-
-        last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-
-        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
-        expected_end_date = end_date.replace(day=last_day_of_month)\
-            .strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_creation_datetime)
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_new_bill_last_month(self, mock_daily,
-                                                       mock_summary, mock_agg):
-        """Test that summary tables are run for the month of the manifest."""
-        billing_start = datetime.datetime.utcnow().replace(day=1)
-        billing_start.replace(month=(billing_start.month - 1))
-        manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': 1
-        }
-        self.manifest_accessor.delete(self.manifest)
-        self.manifest_accessor.commit()
-        self.manifest = self.manifest_accessor.add(self.manifest_dict)
-        self.manifest_accessor.commit()
-
-        self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = billing_start.date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-
-        last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-
-        expected_start_date = bill_date.strftime('%Y-%m-%d')
-        expected_end_date = bill_date.replace(day=last_day_of_month)\
-            .strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_creation_datetime)
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_new_bill_not_done_processing(self,
-                                                                mock_daily,
-                                                                mock_summary,
-                                                                mock_agg):
-        """Test that summary tables are not run for a full month."""
-
-        manifest_id = self.manifest.id
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-
-        last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_creation_datetime)
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_finalized_bill(self, mock_daily, mock_summary,
-                                                  mock_agg):
-        """Test that summary tables are run for a full month."""
-        self.manifest.num_processed_files = self.manifest.num_total_files
-        manifest_id = self.manifest.id
-        self.manifest_accessor.commit()
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-        bill.finalized_datetime = start_date
-        self.accessor.commit()
-
-        last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-
-        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
-        expected_end_date = end_date.replace(day=last_day_of_month)\
-            .strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_creation_datetime)
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_finalized_bill_not_done_proc(self,
-                                                                mock_daily,
-                                                                mock_summary,
-                                                                mock_agg):
-        """Test that summary tables are run for a full month."""
-        manifest_id = self.manifest.id
-
-        start_date = datetime.datetime.utcnow()
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-        bill.finalized_datetime = start_date
-        self.accessor.commit()
-
-        last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
-
-        self.assertIsNone(bill.summary_data_creation_datetime)
-        self.assertIsNone(bill.summary_data_updated_datetime)
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date,
-            manifest_id
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertIsNotNone(bill.summary_data_updated_datetime)
-
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_aggregate_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_summary_table')
-    @patch('masu.database.report_db_accessor.ReportDBAccessor.populate_line_item_daily_table')
-    def test_update_summary_tables_without_manifest(self, mock_daily, mock_summary,
-                                                    mock_agg):
-        """Test that summary tables are properly run without a manifest."""
-
-        start_date = DateAccessor().today_with_timezone('UTC')
-        end_date = start_date + datetime.timedelta(days=1)
-        bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bill_by_date(bill_date)
-        bill.summary_data_updated_datetime = start_date
-        self.accessor.commit()
-
-        expected_start_date = start_date.strftime('%Y-%m-%d')
-        expected_end_date = end_date.strftime('%Y-%m-%d')
-
-        self.accessor.update_summary_tables(
-            'AWS',
-            start_date,
-            end_date
-        )
-
-        mock_daily.assert_called_with(expected_start_date, expected_end_date)
-        mock_summary.assert_called_with(expected_start_date, expected_end_date)
-        mock_agg.assert_called()
-
-        self.assertIsNotNone(bill.summary_data_creation_datetime)
-        self.assertGreater(bill.summary_data_updated_datetime, start_date)

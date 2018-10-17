@@ -33,6 +33,7 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external.date_accessor import DateAccessor
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 
@@ -135,6 +136,35 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(current_report_period.report_period_start)
         self.assertIsNotNone(current_report_period.report_period_end)
 
+    def test_get_usage_periods_by_date(self):
+        """Test that report periods are returned by date filter."""
+        period_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
+        prev_period_start = period_start - relativedelta.relativedelta(months=1)
+        reporting_period = self.creator.create_ocp_report_period(period_start)
+        prev_reporting_period = self.creator.create_ocp_report_period(
+            prev_period_start
+        )
+        periods = self.accessor.get_usage_periods_by_date(period_start.date())
+        self.assertIn(reporting_period, periods)
+        periods = self.accessor.get_usage_periods_by_date(prev_period_start.date())
+        self.assertIn(prev_reporting_period, periods)
+
+    def test_get_usage_period_query_by_provider(self):
+        """Test that periods are returned filtered by provider."""
+        provider_id = 1
+
+        period_query = self.accessor.get_usage_period_query_by_provider(
+            provider_id
+        )
+
+        periods = period_query.all()
+
+        self.assertGreater(len(periods), 0)
+
+        period = periods[0]
+
+        self.assertEqual(period.provider_id, provider_id)
+
     def test_get_lineitem_query_for_reportid(self):
         """Test that the line item data is returned given a report_id."""
         current_report = self.accessor.get_current_usage_report()
@@ -144,7 +174,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         line_item_query = self.accessor.get_lineitem_query_for_reportid(report_id)
         self.assertEqual(line_item_query.count(), 1)
         self.assertEqual(line_item_query.first().report_id, report_id)
-        
+
         query_report = line_item_query.first()
         self.assertIsNotNone(query_report.namespace)
         self.assertIsNotNone(query_report.pod)
@@ -155,3 +185,86 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(query_report.pod_usage_memory_byte_seconds)
         self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
         self.assertIsNotNone(query_report.pod_limit_memory_bytes)
+
+    def test_populate_line_item_daily_table(self):
+        """Test that the line item daily table populates."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        daily_table = getattr(self.accessor.report_schema, daily_table_name)
+
+        start_date = DateAccessor().today_with_timezone('UTC')
+
+
+        period = self.creator.create_ocp_report_period(start_date)
+        report = self.creator.create_ocp_report(period, start_date)
+        for _ in range(25):
+            self.creator.create_ocp_usage_line_item(period, report)
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(daily_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        result_start_date, result_end_date = self.accessor._session.query(
+            func.min(daily_table.usage_start),
+            func.max(daily_table.usage_start)
+        ).first()
+
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+    def test_populate_line_item_aggregates_table(self):
+        """Test that the aggregates table is populated."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        agg_table_name = OCP_REPORT_TABLE_MAP['line_item_aggregates']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        agg_table = getattr(self.accessor.report_schema, agg_table_name)
+
+        expected_time_scope_values = [-1, -2, -10, -30]
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for start_date in (today, last_month):
+            period = self.creator.create_ocp_report_period(start_date)
+            report = self.creator.create_ocp_report(period, start_date)
+            self.creator.create_ocp_usage_line_item(
+                period,
+                report
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(agg_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_aggregate_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        time_scope_values = self.accessor._session\
+            .query(agg_table.time_scope_value)\
+            .group_by(agg_table.time_scope_value)\
+            .all()
+        time_scope_values = [val[0] for val in time_scope_values]
+
+        for val in expected_time_scope_values:
+            self.assertIn(val, time_scope_values)
