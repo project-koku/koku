@@ -394,9 +394,20 @@ class OCPUsageReportPeriod(models.Model):
 
     """
 
+    class Meta:
+        """Meta for OCPUsageReportPeriod."""
+
+        unique_together = ('cluster_id', 'report_period_start')
+
     cluster_id = models.CharField(max_length=50, null=False)
     report_period_start = models.DateTimeField(null=False)
     report_period_end = models.DateTimeField(null=False)
+
+    summary_data_creation_datetime = models.DateTimeField(null=True)
+    summary_data_updated_datetime = models.DateTimeField(null=True)
+    # provider_id is intentionally not a foreign key
+    # to prevent masu complication
+    provider_id = models.IntegerField(null=True)
 
 
 class OCPUsageReport(models.Model):
@@ -408,6 +419,8 @@ class OCPUsageReport(models.Model):
 
     class Meta:
         """Meta for OCPUsageReport."""
+
+        unique_together = ('report_period', 'interval_start')
 
         indexes = [
             models.Index(
@@ -516,6 +529,8 @@ class OCPUsageLineItemDaily(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
+    cluster_id = models.CharField(max_length=50, null=True)
+
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
@@ -563,41 +578,23 @@ class OCPUsageLineItemDaily(models.Model):
     )
 
 
-class OCPUsageLineItemDailySummary(models.Model):
-    """A daily aggregation of line items.
+class OCPUsageLineItemAggregates(models.Model):
+    """Total aggregates for OCP usage.
 
-    This table is aggregated by namespace, pod, and node, and does not
-    have a breakdown by resource or tags. The contents of this table
-    should be considered ephemeral. It will be regularly deleted from
-    and repopulated.
+    This table is aggregated by namespace, pod, and node.
+    The contents of this table should be considered ephemeral.
+    It will be regularly deleted from and repopulated.
 
     """
 
     class Meta:
         """Meta for OCPUsageLineItemDailySummary."""
 
-        db_table = 'reporting_ocpusagelineitem_daily_summary'
+        db_table = 'reporting_ocpusagelineitem_aggregates'
 
-        indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='summary_ocp_usage_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='summary_namespace_idx',
-            ),
-            models.Index(
-                fields=['pod'],
-                name='summary_pod_idx',
-            ),
-            models.Index(
-                fields=['node'],
-                name='summary_node_idx',
-            ),
-        ]
+    time_scope_value = models.IntegerField()
 
-    id = models.BigAutoField(primary_key=True)
+    cluster_id = models.CharField(max_length=50, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -605,9 +602,6 @@ class OCPUsageLineItemDailySummary(models.Model):
     pod = models.CharField(max_length=253, null=False)
 
     node = models.CharField(max_length=253, null=False)
-
-    usage_start = models.DateTimeField(null=False)
-    usage_end = models.DateTimeField(null=False)
 
     pod_usage_cpu_core_seconds = models.DecimalField(
         max_digits=17,
