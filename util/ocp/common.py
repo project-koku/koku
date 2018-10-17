@@ -84,21 +84,13 @@ def month_date_range(for_date_time):
 
 def get_local_file_name(file_path):
     """
-    Return the local file name for a given cost usage report key.
-
-    If an assemblyID is present in the key, it will prepend it to the filename.
+    Return the local file name for a given report path.
 
     Args:
-        cur_key (String): reportKey value from manifest file.
-        example:
-        With AssemblyID: /koku/20180701-20180801/882083b7-ea62-4aab-aa6a-f0d08d65ee2b/koku-1.csv.gz
-        Without AssemblyID: /koku/20180701-20180801/koku-Manifest.json
+        file_path (String): report file path from manifest.
 
     Returns:
-        (String): file name for the local file,
-                example:
-                With AssemblyID: "882083b7-ea62-4aab-aa6a-f0d08d65ee2b-koku-1.csv.gz"
-                Without AssemblyID: "koku-Manifest.json"
+        (String): file name for the local file.
 
     """
     filename = file_path.split('/')[-1]

@@ -16,8 +16,11 @@
 #
 """Provider external interface for koku to consume."""
 
+import logging
+
 from dateutil.relativedelta import relativedelta
 
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            OCP_LOCAL_SERVICE_PROVIDER,
@@ -26,6 +29,9 @@ from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+
+
+LOG = logging.getLogger(__name__)
 
 
 class ReportDownloaderError(Exception):
@@ -109,7 +115,47 @@ class ReportDownloader:
             current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
             for month in reversed(range(number_of_months)):
                 calculated_month = current_month + relativedelta(months=-month)
-                reports = reports + self._downloader.download_report(calculated_month)
+                reports = reports + self.download_report(calculated_month)
         except Exception as err:
             raise ReportDownloaderError(str(err))
         return reports
+
+    def download_report(self, date_time):
+        """
+        Download CUR for a given date.
+
+        Args:
+            date_time (DateTime): The starting datetime object
+
+        Returns:
+            ([{}]) List of dictionaries containing file path and compression.
+
+        """
+        LOG.info('Attempting to get %s manifest for %s...', self.provider_type, str(date_time))
+        report_context = self._downloader.get_report_context_for_date(date_time)
+        manifest_id = report_context.get('manifest_id')
+        reports = report_context.get('files')
+
+        cur_reports = []
+        for report in reports:
+            report_dictionary = {}
+            local_file_name = self._downloader.get_local_file_for_report(report)
+            stats_recorder = ReportStatsDBAccessor(
+                local_file_name,
+                manifest_id
+            )
+            stored_etag = stats_recorder.get_etag()
+            file_name, etag = self._downloader.download_file(report, stored_etag)
+            stats_recorder.update(etag=etag)
+            stats_recorder.commit()
+            stats_recorder.close_session()
+
+            report_dictionary['file'] = file_name
+            report_dictionary['compression'] = report_context.get('compression')
+            report_dictionary['start_date'] = date_time
+            report_dictionary['assembly_id'] = report_context.get('assembly_id')
+            report_dictionary['manifest_id'] = manifest_id
+            report_dictionary['provider_id'] = self.provider_id
+
+            cur_reports.append(report_dictionary)
+        return cur_reports

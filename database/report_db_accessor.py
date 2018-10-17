@@ -232,7 +232,7 @@ class ReportDBAccessor(ReportDBAccessorBase):
             None
 
         """
-        if provider != 'AWS':
+        if provider not in ('AWS', 'AWS-local'):
             LOG.info('Skipping Summary for %s.  Not yet implemented.', provider)
             return
 
