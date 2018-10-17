@@ -28,8 +28,6 @@ import logging
 from datetime import datetime
 from os import path
 
-import pytz
-
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -100,7 +98,6 @@ class OCPReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        self.current_usage_report_period = self.report_db.get_current_usage_period()
         self.existing_report_periods_map = self.report_db.get_report_periods()
         self.existing_report_map = self.report_db.get_reports()
 
@@ -154,11 +151,12 @@ class OCPReportProcessor(ReportProcessorBase):
         start = datetime.strptime(row.get('interval_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('interval_end'), Config.OCP_DATETIME_STR_FORMAT)
 
-        if start in self.processed_report.reports:
-            return self.processed_report.reports[start]
+        key = (report_period_id, start)
+        if key in self.processed_report.reports:
+            return self.processed_report.reports[key]
 
-        if row.get('interval_start') in self.existing_report_map:
-            return self.existing_report_map[row.get('interval_start')]
+        if key in self.existing_report_map:
+            return self.existing_report_map[key]
 
         data = {
             'report_period_id': report_period_id,
@@ -170,7 +168,7 @@ class OCPReportProcessor(ReportProcessorBase):
             data
         )
 
-        self.processed_report.reports[start] = report_id
+        self.processed_report.reports[key] = report_id
 
         return report_id
 
@@ -189,31 +187,26 @@ class OCPReportProcessor(ReportProcessorBase):
         start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
 
-        current_start = None
-        if self.current_usage_report_period is not None:
-            current_start = self.current_usage_report_period.report_period_start
+        key = (cluster_id, start)
+        if key in self.processed_report.report_periods:
+            return self.processed_report.report_periods[key]
 
-        if current_start is not None and start.replace(tzinfo=pytz.UTC) == current_start:
-            self.processed_report.report_periods[start] = self.current_usage_report_period.id
-            return self.current_usage_report_period.id
-
-        if start in self.processed_report.report_periods:
-            return self.processed_report.report_periods[start]
-
-        if row.get('report_period_start') in self.existing_report_periods_map:
-            return self.existing_report_periods_map[row.get('report_period_start')]
+        if key in self.existing_report_periods_map:
+            return self.existing_report_periods_map[key]
 
         data = {
             'cluster_id': cluster_id,
             'report_period_start': start,
-            'report_period_end': end
+            'report_period_end': end,
+            'provider_id': self._provider_id
         }
+
         report_period_id = self.report_db.insert_on_conflict_do_nothing(
             table_name,
             data
         )
 
-        self.processed_report.report_periods[start] = report_period_id
+        self.processed_report.report_periods[key] = report_period_id
 
         return report_period_id
 
