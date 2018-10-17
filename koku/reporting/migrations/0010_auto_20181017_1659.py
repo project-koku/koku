@@ -13,61 +13,61 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_limit_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_limit_memory_bytes',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_request_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_request_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_usage_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemaggregates',
             name='pod_usage_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_limit_cpu_cores',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_limit_memory_bytes',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_request_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_request_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_usage_cpu_core_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
         migrations.AlterField(
             model_name='ocpusagelineitemdaily',
             name='pod_usage_memory_byte_seconds',
-            field=models.DecimalField(decimal_places=6, max_digits=20, null=True),
+            field=models.DecimalField(decimal_places=6, max_digits=24, null=True),
         ),
     ]
