@@ -24,15 +24,48 @@ class DownloaderInterface(ABC):
     """Masu interface definition to download cost usage reports."""
 
     @abstractmethod
-    def download_report(self, date_time):
+    def get_report_context_for_date(self, date_time):
         """
-        Download CUR for a given date.
+        Get the report context for a provided date.
 
         Args:
             date_time (DateTime): The starting datetime object
 
         Returns:
-            ([{}]) List of dictionaries containing file path, bill start date and compression.
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([]): List of report files.
+
+        """
+        pass
+
+    @abstractmethod
+    def get_local_file_for_report(self, report):
+        """
+        Return the temporary volume full file path for a report file.
+
+        Args:
+            report (String): Report file from manifest.
+
+        Returns:
+            (String) Full path to report file.
+
+        """
+        pass
+
+    @abstractmethod
+    def download_file(self, key, stored_etag=None):
+        """
+        Download a report file given a provider-specific key.
+
+        Args:
+            key (String): A key that can locate a report file.
+            stored_etag (String): ReportStatsDBAccessor file identifier.
+
+        Returns:
+            (String, String) Full local file path to report, etag value.
 
         """
         pass

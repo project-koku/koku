@@ -29,7 +29,6 @@ import re
 import shutil
 
 from masu.config import Config
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.aws import common as utils
@@ -40,6 +39,8 @@ LOG = logging.getLogger(__name__)
 
 class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Local Cost and Usage Report Downloader."""
+
+    empty_manifest = {'reportKeys': []}
 
     def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
         """
@@ -173,47 +174,39 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.copy2(key, full_file_path)
         return full_file_path, s3_etag
 
-    def download_report(self, date_time):
+    def get_report_context_for_date(self, date_time):
         """
-        Download CUR for a given date.
+        Get the report context for a provided date.
 
         Args:
             date_time (DateTime): The starting datetime object
 
         Returns:
-            ([{}]) List of dictionaries containing file path and compression.
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([]): List of report files.
 
         """
-        LOG.info('Attempting to get AWS manifest for %s...', str(date_time))
+        report_dict = {}
         manifest = self._get_manifest(date_time)
-        assembly_id = manifest.get('assemblyId')
-        manifest_id = self._prepare_db_manifest_record(manifest)
+        manifest_id = None
+        if manifest != self.empty_manifest:
+            manifest_id = self._prepare_db_manifest_record(manifest)
 
-        reports = manifest.get('reportKeys')
-
-        cur_reports = []
-        for report in reports:
-            report_dictionary = {}
-            local_s3_filename = utils.get_local_file_name(report)
-            stats_recorder = ReportStatsDBAccessor(
-                local_s3_filename,
-                manifest_id
-            )
-            stored_etag = stats_recorder.get_etag()
+        report_dict['manifest_id'] = manifest_id
+        report_dict['assembly_id'] = manifest.get('assemblyId')
+        report_dict['compression'] = 'GZIP'
+        report_dict['files'] = []
+        for report in manifest.get('reportKeys'):
             report_path = self.bucket_path + '/' + report
-            LOG.info('Downloading %s with credential %s', report_path, self.credential)
-            file_name, etag = self.download_file(report_path, stored_etag)
-            stats_recorder.update(etag=etag)
-            stats_recorder.commit()
+            report_dict['files'].append(report_path)
+        return report_dict
 
-            report_dictionary['file'] = file_name
-            report_dictionary['compression'] = 'GZIP'
-            report_dictionary['start_date'] = date_time
-            report_dictionary['assembly_id'] = assembly_id
-            report_dictionary['manifest_id'] = manifest_id
-
-            cur_reports.append(report_dictionary)
-        return cur_reports
+    def get_local_file_for_report(self, report):
+        """Get full path for local report file."""
+        return utils.get_local_file_name(report)
 
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
