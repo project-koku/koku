@@ -25,13 +25,12 @@ import os
 from celery.utils.log import get_task_logger
 
 from masu.celery import celery
-from masu.database.report_db_accessor import ReportDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
+from masu.processor.report_summary_updater import ReportSummaryUpdater
 
 LOG = get_task_logger(__name__)
 
@@ -184,12 +183,5 @@ def update_summary_tables(schema_name, provider, start_date, end_date=None,
                        manifest_id)
     LOG.info(stmt)
 
-    report_common_db = ReportingCommonDBAccessor()
-    column_map = report_common_db.column_map
-    report_common_db.close_session()
-    report_db = ReportDBAccessor(schema=schema_name, column_map=column_map)
-
-    report_db.update_summary_tables(provider, start_date, end_date, manifest_id)
-    report_db.commit()
-    report_db.close_connections()
-    report_db.close_session()
+    updater = ReportSummaryUpdater(schema_name, provider)
+    updater.update_summary_tables(start_date, end_date, manifest_id)

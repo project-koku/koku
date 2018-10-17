@@ -15,8 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
+# pylint: skip-file
 
 import logging
+import pkgutil
+import uuid
 
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -64,6 +67,20 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             .order_by(report_period_start.desc())\
             .first()
 
+    def get_usage_periods_by_date(self, start_date):
+        """Return all report period entries for the specified start date."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        return self._get_db_obj_query(table_name)\
+            .filter_by(report_period_start=start_date)\
+            .all()
+
+    # pylint: disable=invalid-name
+    def get_usage_period_query_by_provider(self, provider_id):
+        """Return all report periods for the specified provider."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        return self._get_db_obj_query(table_name)\
+            .filter_by(provider_id=provider_id)
+
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -76,29 +93,68 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         return line_item_query
 
     def get_report_periods(self):
-        """Make a mapping of report periods by time."""
+        """Get all usage period objects."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        report_period_start = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_start'
-        )
-        report_period = self._get_db_obj_query(table_name)\
-            .order_by(report_period_start.desc())\
-            .all()
 
-        return {entry.report_period_start.strftime(self._datetime_format): entry.id
-                for entry in report_period}
+        columns = ['id', 'cluster_id', 'report_period_start']
+        periods = self._get_db_obj_query(table_name, columns=columns).all()
+
+        return {(p.cluster_id, p.report_period_start): p.id
+                for p in periods}
 
     def get_reports(self):
         """Make a mapping of reports by time."""
         table_name = OCP_REPORT_TABLE_MAP['report']
-        interval_start = getattr(
-            getattr(self.report_schema, table_name),
-            'interval_start'
-        )
-        report = self._get_db_obj_query(table_name)\
-            .order_by(interval_start.desc())\
-            .all()
 
-        return {entry.interval_start.strftime(self._datetime_format): entry.id
-                for entry in report}
+        reports = self._get_db_obj_query(table_name).all()
+
+        return {(entry.report_period_id, entry.interval_start.strftime(self._datetime_format)): entry.id
+                for entry in reports}
+
+    # pylint: disable=duplicate-code
+    def populate_line_item_daily_table(self, start_date, end_date):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
+
+        daily_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpusagelineitem_daily.sql'
+        )
+        daily_sql = daily_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        LOG.info(f'Updating %s from %s to %s.',
+                 table_name, start_date, end_date)
+        self._cursor.execute(daily_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
+    # pylint: disable=invalid-name,duplicate-code
+    def populate_line_item_aggregate_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_aggregates']
+
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            f'sql/reporting_ocpusagelineitem_aggregates.sql'
+        )
+        agg_sql = agg_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_')
+        )
+        LOG.info('Updating %s.', table_name)
+        self._cursor.execute(agg_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating %s.', table_name)

@@ -18,7 +18,7 @@
 
 import logging
 
-from masu.database.report_db_accessor import ReportDBAccessor
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -40,8 +40,8 @@ class AWSReportDBCleaner():
         Args:
             schema (str): The customer schema to associate with
         """
-        self._accessor = ReportDBAccessor(schema,
-                                          ReportingCommonDBAccessor().column_map)
+        self._accessor = AWSReportDBAccessor(schema,
+                                             ReportingCommonDBAccessor().column_map)
 
     def purge_expired_report_data(self, expired_date=None, provider_id=None,
                                   simulate=False):

@@ -27,7 +27,7 @@ from os import listdir, path, remove
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
-from masu.database.report_db_accessor import ReportDBAccessor
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
@@ -96,8 +96,8 @@ class AWSReportProcessor(ReportProcessorBase):
         self.column_map = self.report_common_db.column_map
         self.report_common_db.close_session()
 
-        self.report_db = ReportDBAccessor(schema=self._schema_name,
-                                          column_map=self.column_map)
+        self.report_db = AWSReportDBAccessor(schema=self._schema_name,
+                                             column_map=self.column_map)
         self.report_schema = self.report_db.report_schema
 
         self.temp_table = self.report_db.create_temp_table(
@@ -399,11 +399,12 @@ class AWSReportProcessor(ReportProcessorBase):
         interval = row.get('identity/TimeInterval')
         start, end = self._get_cost_entry_time_interval(interval)
 
-        if start in self.processed_report.cost_entries:
-            return self.processed_report.cost_entries[start]
+        key = (bill_id, start)
+        if key in self.processed_report.cost_entries:
+            return self.processed_report.cost_entries[key]
 
-        if start in self.existing_cost_entry_map:
-            return self.existing_cost_entry_map[start]
+        if key in self.existing_cost_entry_map:
+            return self.existing_cost_entry_map[key]
 
         data = {
             'bill_id': bill_id,
@@ -415,7 +416,7 @@ class AWSReportProcessor(ReportProcessorBase):
             table_name,
             data
         )
-        self.processed_report.cost_entries[start] = cost_entry_id
+        self.processed_report.cost_entries[key] = cost_entry_id
 
         return cost_entry_id
 
