@@ -23,7 +23,6 @@ import os
 import shutil
 
 from masu.config import Config
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -33,8 +32,6 @@ DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 
 LOG = logging.getLogger(__name__)
-
-# pylint: skip-file
 
 
 class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -48,7 +45,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             customer_name    (String) Name of the customer
             auth_credential  (String) OpenShift cluster ID
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            bucket           (String) Not used for OCP
 
         """
         super().__init__(**kwargs)
@@ -128,47 +125,36 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.copy2(key, full_file_path)
         return full_file_path, ocp_etag
 
-    def download_report(self, date_time):
+    def get_report_context_for_date(self, date_time):
         """
-        Download CUR for a given date.
+        Get the report context for a provided date.
 
         Args:
             date_time (DateTime): The starting datetime object
 
         Returns:
-            ([{}]) List of dictionaries containing file path and compression.
+            ({}) Dictionary containing the following keys:
+                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
+                assembly_id - (String): UUID identifying report file
+                compression - (String): Report compression format
+                files       - ([]): List of report files.
 
         """
-        LOG.info('Attempting to get OCP manifest for %s...', str(date_time))
+        report_dict = {}
         manifest = self._get_manifest(date_time)
-        assembly_id = None
         manifest_id = None
-        if manifest:
-            assembly_id = manifest['uuid']
+        if manifest != {}:
             manifest_id = self._prepare_db_manifest_record(manifest)
 
-        reports = self.get_report_for(date_time)
+        report_dict['manifest_id'] = manifest_id
+        report_dict['assembly_id'] = manifest.get('uuid')
+        report_dict['compression'] = UNCOMPRESSED
+        report_dict['files'] = self.get_report_for(date_time)
+        return report_dict
 
-        cur_reports = []
-        for report in reports:
-            report_dictionary = {}
-            local_file_name = utils.get_local_file_name(report)
-            stats_recorder = ReportStatsDBAccessor(local_file_name, manifest_id)
-            stored_etag = stats_recorder.get_etag()
-            LOG.info('Downloading %s for cluster ID: %s', report, self.cluster_id)
-            file_name, etag = self.download_file(report, stored_etag)
-            stats_recorder.update(etag=etag)
-            stats_recorder.commit()
-            stats_recorder.close_session()
-
-            report_dictionary['file'] = file_name
-            report_dictionary['compression'] = UNCOMPRESSED
-            report_dictionary['start_date'] = date_time
-            report_dictionary['assembly_id'] = assembly_id
-            report_dictionary['manifest_id'] = manifest_id
-
-            cur_reports.append(report_dictionary)
-        return cur_reports
+    def get_local_file_for_report(self, report):
+        """Get full path for local report file."""
+        return utils.get_local_file_name(report)
 
     def _prepare_db_manifest_record(self, manifest):
         """Prepare to insert or update the manifest DB record."""
