@@ -542,38 +542,38 @@ class OCPUsageLineItemDaily(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     pod_usage_cpu_core_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_request_cpu_core_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_limit_cpu_cores = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_usage_memory_byte_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_request_memory_byte_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_limit_memory_bytes = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
@@ -604,37 +604,37 @@ class OCPUsageLineItemAggregates(models.Model):
     node = models.CharField(max_length=253, null=False)
 
     pod_usage_cpu_core_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_request_cpu_core_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_limit_cpu_cores = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_usage_memory_byte_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_request_memory_byte_seconds = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
 
     pod_limit_memory_bytes = models.DecimalField(
-        max_digits=17,
-        decimal_places=5,
+        max_digits=24,
+        decimal_places=6,
         null=True
     )
