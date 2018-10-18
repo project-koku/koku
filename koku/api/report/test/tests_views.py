@@ -294,11 +294,7 @@ class ReportViewTest(IamTestCase):
         django_request.GET = qd
         request = Request(django_request)
         request.user = user
-        response = _generic_report(
-            request,
-            'usage_amount',
-            'cost_entry_pricing__unit'
-        )
+        response = _generic_report(request)
         self.assertIsInstance(response, Response)
 
     @patch('api.report.view.ReportQueryHandler')
@@ -327,7 +323,7 @@ class ReportViewTest(IamTestCase):
         request.user = user
 
         with self.assertRaises(ValidationError):
-            _generic_report(request, 'usage_amount', 'cost_entry_pricing__unit')
+            _generic_report(request)
 
     def test_find_unit_list(self):
         """Test that the correct unit is returned."""
