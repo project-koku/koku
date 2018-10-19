@@ -37,6 +37,12 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
+class AWSReportDownloaderNoFileError(Exception):
+    """AWS Report Downloader error for missing file."""
+
+    pass
+
+
 class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """Local Cost and Usage Report Downloader."""
 
@@ -122,7 +128,11 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = '{}/{}-Manifest.json'.format(self._get_report_path(date_time),
                                                 self.report_name)
 
-        manifest_file, _ = self.download_file(manifest)
+        try:
+            manifest_file, _ = self.download_file(manifest)
+        except AWSReportDownloaderNoFileError as err:
+            LOG.error('Unable to get report manifest. Reason: %s', str(err))
+            return self.empty_manifest
 
         manifest_json = None
         with open(manifest_file, 'r') as manifest_file_handle:
@@ -162,6 +172,10 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         directory_path = f'{DATA_DIR}/{self.customer_name}/aws-local/{self.bucket}'
         full_file_path = f'{directory_path}/{local_s3_filename}'
+
+        if not os.path.isfile(key):
+            log_msg = 'Unable to locate {} in {}'.format(key, self.bucket_path)
+            raise AWSReportDownloaderNoFileError(log_msg)
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
