@@ -577,6 +577,90 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
+    total_seconds = models.IntegerField()
+
+
+class OCPUsageLineItemDailySummary(models.Model):
+    """A daily aggregation of line items.
+
+    This table is aggregated by OCP resource.
+
+    """
+
+    class Meta:
+        """Meta for OCPUsageLineItemDailySummary."""
+
+        db_table = 'reporting_ocpusagelineitem_daily_summary'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='summary_ocp_usage_idx',
+            ),
+            models.Index(
+                fields=['namespace'],
+                name='summary_namespace_idx',
+            ),
+            models.Index(
+                fields=['pod'],
+                name='summary_pod_idx',
+            ),
+            models.Index(
+                fields=['node'],
+                name='summary_node_idx',
+            ),
+        ]
+
+    id = models.BigAutoField(primary_key=True)
+
+    cluster_id = models.CharField(max_length=50, null=True)
+
+    # Kubernetes objects by convention have a max name length of 253 chars
+    namespace = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=False)
+
+    node = models.CharField(max_length=253, null=False)
+
+    usage_start = models.DateTimeField(null=False)
+    usage_end = models.DateTimeField(null=False)
+
+    pod_usage_cpu_core_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_request_cpu_core_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_limit_cpu_cores = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_usage_memory_gigabytes = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_request_memory_gigabytes = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_limit_memory_gigabytes = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
 
 class OCPUsageLineItemAggregates(models.Model):
     """Total aggregates for OCP usage.
@@ -603,13 +687,13 @@ class OCPUsageLineItemAggregates(models.Model):
 
     node = models.CharField(max_length=253, null=False)
 
-    pod_usage_cpu_core_seconds = models.DecimalField(
+    pod_usage_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_request_cpu_core_seconds = models.DecimalField(
+    pod_request_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
@@ -621,19 +705,19 @@ class OCPUsageLineItemAggregates(models.Model):
         null=True
     )
 
-    pod_usage_memory_byte_seconds = models.DecimalField(
+    pod_usage_memory_gigabytes = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_request_memory_byte_seconds = models.DecimalField(
+    pod_request_memory_gigabytes = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_limit_memory_bytes = models.DecimalField(
+    pod_limit_memory_gigabytes = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
