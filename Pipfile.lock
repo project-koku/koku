@@ -760,10 +760,10 @@
         },
         "responses": {
             "hashes": [
-                "sha256:c6082710f4abfb60793899ca5f21e7ceb25aabf321560cc0726f8b59006811c9",
-                "sha256:f23a29dca18b815d9d64a516b4a0abb1fbdccff6141d988ad8100facb81cf7b3"
+                "sha256:f171f3cc74a6550b68c600c89f913e59337360ac7c1e563cee44a980833a0354",
+                "sha256:9a165718944c0ac3215e2507f4d63b5a6a44da883df8949a7ae659516f4ef883"
             ],
-            "version": "==0.9.0"
+            "version": "==0.10.1"
         },
         "s3transfer": {
             "hashes": [
