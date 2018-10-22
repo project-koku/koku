@@ -493,11 +493,10 @@
         },
         "faker": {
             "hashes": [
-                "sha256:74b32991f8e08e4f2f84858b919eca253becfaec4b3fa5fcff7fdbd70d5d78b1",
-                "sha256:c2ce42dd8361e6d392276006d757532562463c8642b1086709584200b7fd7758"
+                "sha256:5ed822d31bd2d6edf10944d176d30dc9c886afdd381eefb7ba8b7aad86171646",
+                "sha256:2621643b80a10b91999925cfd20f64d2b36f20bf22136bbdc749bb57d6ffe124"
             ],
-            "index": "pypi",
-            "version": "==0.9.1"
+            "version": "==0.9.2"
         },
         "future": {
             "hashes": [
