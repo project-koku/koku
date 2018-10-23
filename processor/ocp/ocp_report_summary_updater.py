@@ -108,6 +108,8 @@ class OCPReportSummaryUpdater:
                  self._schema_name, start_date, end_date)
 
         self._accessor.populate_line_item_daily_table(start_date, end_date)
+        self._accessor.populate_line_item_daily_summary_table(start_date,
+                                                              end_date)
         self._accessor.populate_line_item_aggregate_table()
 
         for period in report_periods:
