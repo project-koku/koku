@@ -196,7 +196,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         start_date = DateAccessor().today_with_timezone('UTC')
 
-
         period = self.creator.create_ocp_report_period(start_date)
         report = self.creator.create_ocp_report(period, start_date)
         for _ in range(25):
@@ -221,6 +220,46 @@ class OCPReportDBAccessorTest(MasuTestCase):
         result_start_date, result_end_date = self.accessor._session.query(
             func.min(daily_table.usage_start),
             func.max(daily_table.usage_start)
+        ).first()
+
+        self.assertEqual(result_start_date, start_date)
+        self.assertEqual(result_end_date, end_date)
+
+    def test_populate_line_item_daily_summary_table(self):
+        """Test that the line item daily summary table populates."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+
+        start_date = DateAccessor().today_with_timezone('UTC')
+
+        period = self.creator.create_ocp_report_period(start_date)
+        report = self.creator.create_ocp_report(period, start_date)
+        for _ in range(25):
+            self.creator.create_ocp_usage_line_item(period, report)
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date)
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        result_start_date, result_end_date = self.accessor._session.query(
+            func.min(summary_table.usage_start),
+            func.max(summary_table.usage_start)
         ).first()
 
         self.assertEqual(result_start_date, start_date)
