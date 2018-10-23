@@ -33,14 +33,14 @@ from rest_framework.serializers import ValidationError
 from rest_framework.settings import api_settings
 
 from api.models import Tenant, User
-from api.report.queries import ReportQueryHandler
+from api.report.aws.queries import AWSReportQueryHandler
 from api.report.serializers import QueryParamSerializer
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
 
-def process_query_parameters(url_data):
+def process_query_parameters(url_data, provider_serializer):
     """Process query parameters and raise any validation errors.
 
     Args:
@@ -51,7 +51,7 @@ def process_query_parameters(url_data):
     """
     output = None
     query_params = parser.parse(url_data)
-    qps = QueryParamSerializer(data=query_params)
+    qps = provider_serializer(data=query_params)
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
@@ -164,7 +164,7 @@ def _convert_units(converter, data, to_unit):
     return data
 
 
-def _generic_report(request, **kwargs):
+def _generic_report(request, provider_parameter_serializer, provider_query_hdlr, **kwargs):
     """Generically query for reports.
 
     Args:
@@ -177,7 +177,7 @@ def _generic_report(request, **kwargs):
     LOG.info(f'API: {request.path} USER: {request.user.username}')
 
     url_data = request.GET.urlencode()
-    validation, params = process_query_parameters(url_data)
+    validation, params = process_query_parameters(url_data, provider_parameter_serializer)
     if not validation:
         return Response(
             data=params,
@@ -190,10 +190,10 @@ def _generic_report(request, **kwargs):
     else:
         kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
 
-    handler = ReportQueryHandler(params,
-                                 url_data,
-                                 tenant,
-                                 **kwargs)
+    handler = provider_query_hdlr(params,
+                                  url_data,
+                                  tenant,
+                                  **kwargs)
     output = handler.execute_query()
 
     if 'units' in params:
@@ -301,7 +301,7 @@ def costs(request):
 
     """
     extras = {'report_type': 'costs'}
-    return _generic_report(request, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -432,7 +432,7 @@ def instance_type(request):
     extras = {'annotations': annotations,
               'group_by': ['instance_type'],
               'report_type': 'instance_type'}
-    return _generic_report(request, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -551,4 +551,4 @@ def storage(request):
 
     """
     extras = {'report_type': 'storage'}
-    return _generic_report(request, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
