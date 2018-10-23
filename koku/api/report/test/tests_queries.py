@@ -28,7 +28,8 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
+from api.report.aws.queries import AWSReportQueryHandler
+from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
@@ -312,17 +313,17 @@ class ReportQueryUtilsTest(TestCase):
 
     def test_has_wildcard_yes(self):
         """Test a list has a wildcard."""
-        result = ReportQueryHandler.has_wildcard(['abc', '*'])
+        result = AWSReportQueryHandler.has_wildcard(['abc', '*'])
         self.assertTrue(result)
 
     def test_has_wildcard_no(self):
         """Test a list doesn't have a wildcard."""
-        result = ReportQueryHandler.has_wildcard(['abc', 'def'])
+        result = AWSReportQueryHandler.has_wildcard(['abc', 'def'])
         self.assertFalse(result)
 
     def test_has_wildcard_none(self):
         """Test an empty list doesn't have a wildcard."""
-        result = ReportQueryHandler.has_wildcard([])
+        result = AWSReportQueryHandler.has_wildcard([])
         self.assertFalse(result)
 
     def test_group_data_by_list(self):
@@ -333,7 +334,7 @@ class ReportQueryUtilsTest(TestCase):
                 {'account': 'a2', 'service': 's1', 'units': 'USD', 'total': 6},
                 {'account': 'a2', 'service': 's2', 'units': 'USD', 'total': 5},
                 {'account': 'a1', 'service': 's3', 'units': 'USD', 'total': 5}]
-        out_data = ReportQueryHandler._group_data_by_list(group_by, 0, data)
+        out_data = AWSReportQueryHandler._group_data_by_list(group_by, 0, data)
         expected = {'a1':
                     {'s1': [{'account': 'a1', 'service': 's1', 'units': 'USD', 'total': 4}],
                      's2': [{'account': 'a1', 'service': 's2', 'units': 'USD', 'total': 5}],
@@ -350,7 +351,7 @@ class ReportQueryUtilsTest(TestCase):
         data = [{'date': '2018-07-22', 'units': '', 'instance_type': 't2.micro', 'total': 30.0, 'count': 0},
                 {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.small', 'total': 17.0, 'count': 0},
                 {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.micro', 'total': 1.0, 'count': 0}]
-        out_data = ReportQueryHandler._group_data_by_list(group_by, 0, data)
+        out_data = AWSReportQueryHandler._group_data_by_list(group_by, 0, data)
         print(out_data)
         expected = {'t2.micro': [
             {'date': '2018-07-22', 'units': 'Hrs', 'instance_type': 't2.micro', 'total': 1.0, 'count': 0},
@@ -606,100 +607,100 @@ class ReportQueryTest(IamTestCase):
 
     def test_has_filter_no_filter(self):
         """Test the has_filter method with no filter in the query params."""
-        handler = ReportQueryHandler({}, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler({}, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertFalse(handler.check_query_params('filter', 'time_scope_value'))
 
     def test_has_filter_with_filter(self):
         """Test the has_filter method with filter in the query params."""
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertIsNotNone(handler.check_query_params('filter', 'time_scope_value'))
 
     def test_get_group_by_no_data(self):
         """Test the get_group_by_data method with no data in the query params."""
-        handler = ReportQueryHandler({}, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler({}, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertFalse(handler.get_query_param_data('group_by', 'service'))
 
     def test_get_group_by_with_service_list(self):
         """Test the get_group_by_data method with no data in the query params."""
         expected = ['a', 'b']
         query_string = '?group_by[service]=a&group_by[service]=b'
-        handler = ReportQueryHandler({'group_by':
-                                      {'service': expected}},
-                                     query_string,
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler({'group_by':
+                                        {'service': expected}},
+                                        query_string,
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         service = handler.get_query_param_data('group_by', 'service')
         self.assertEqual(expected, service)
 
     def test_get_resolution_empty_default(self):
         """Test get_resolution returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'daily')
         self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_resolution_empty_month_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'monthly')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'day')
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
     def test_get_time_scope_units_empty_month_time_scope(self):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -1}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'month')
 
     def test_get_time_scope_units_empty_day_time_scope(self):
         """Test get_time_scope_units returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -10)
         self.assertEqual(handler.get_time_scope_value(), -10)
 
     def test_get_time_scope_value_empty_month_time_scope(self):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -1)
 
     def test_get_time_scope_value_empty_day_time_scope(self):
         """Test get_time_scope_value returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -10)
 
     def test_get_time_frame_filter_current_month(self):
@@ -708,8 +709,8 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -724,8 +725,8 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -2,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -740,8 +741,8 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -10,
                          'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         dh = DateHelper()
         ten_days_ago = dh.n_days_ago(dh.today, 10)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -758,8 +759,8 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'daily',
                          'time_scope_value': -30,
                          'time_scope_units': 'day'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         dh = DateHelper()
         thirty_days_ago = dh.n_days_ago(dh.today, 30)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -773,8 +774,8 @@ class ReportQueryTest(IamTestCase):
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
         query_params = {}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -786,8 +787,8 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'daily', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -800,8 +801,8 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'}}
-        handler = ReportQueryHandler(query_params, '', self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -815,9 +816,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'service': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[service]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -843,9 +844,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'service': ['AmazonEC2']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -871,9 +872,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'service': ['eC2']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=eC2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[service]=eC2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -899,9 +900,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -929,9 +930,9 @@ class ReportQueryTest(IamTestCase):
                         'group_by': {'account': ['*'],
                                      'service': ['*']}}
         query_string = '?group_by[account]=*&group_by[service]=AmazonEC2'
-        handler = ReportQueryHandler(query_params, query_string,
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, query_string,
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -974,9 +975,9 @@ class ReportQueryTest(IamTestCase):
                   'group_by': ['instance_type'],
                   'annotations': annotations,
                   'filter': {'instance_type__isnull': False}}
-        handler = ReportQueryHandler(query_params, query_string,
-                                     self.tenant,
-                                     **extras)
+        handler = AWSReportQueryHandler(query_params, query_string,
+                                        self.tenant,
+                                        **extras)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1002,9 +1003,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month', 'limit': 2},
                         'group_by': {'account': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1035,9 +1036,9 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'order_by': {'total': 'asc'}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1073,9 +1074,9 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'order_by': {'account': 'asc'}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1106,9 +1107,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'region': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[region]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[region]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1135,9 +1136,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'region': ['us-east-2']}}
-        handler = ReportQueryHandler(query_params, '?group_by[region]=us-east-2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[region]=us-east-2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1163,9 +1164,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'avail_zone': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=*',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[avail_zone]=*',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1192,9 +1193,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'avail_zone': ['us-east-1a']}}
-        handler = ReportQueryHandler(query_params, '?group_by[avail_zone]=us-east-1a',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[avail_zone]=us-east-1a',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1221,9 +1222,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'account': [self.account_alias]}}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1245,9 +1246,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'service': ['AmazonEC2']}}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -1271,9 +1272,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'region': ['us-east-2']}}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1295,9 +1296,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'avail_zone': ['us-east-1a']}}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1319,10 +1320,10 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'avail_zone': ['us-east-1a']}}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'accept_type': 'text/csv',
-                                        'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'accept_type': 'text/csv',
+                                            'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1343,9 +1344,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'operation': 'none'}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -1368,10 +1369,10 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'operation': 'none'}
-        handler = ReportQueryHandler(query_params, '',
-                                     self.tenant,
-                                     **{'accept_type': 'text/csv',
-                                        'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '',
+                                        self.tenant,
+                                        **{'accept_type': 'text/csv',
+                                            'report_type': 'costs'})
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -1399,10 +1400,10 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month', 'limit': 2},
                         'group_by': {'account': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                     self.tenant,
-                                     **{'accept_type': 'text/csv',
-                                        'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                        self.tenant,
+                                        **{'accept_type': 'text/csv',
+                                            'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1463,10 +1464,10 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'delta': True}
-        handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&delta=True',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params,
+                                        '?group_by[account]=*&delta=True',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
 
         # test the calculations
         query_output = handler.execute_query()
@@ -1495,10 +1496,10 @@ class ReportQueryTest(IamTestCase):
             'delta': True
         }
 
-        handler = ReportQueryHandler(query_params,
-                                     '?filter[time_scope_value]=-10&delta=True',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params,
+                                        '?filter[time_scope_value]=-10&delta=True',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1543,10 +1544,10 @@ class ReportQueryTest(IamTestCase):
                         'order_by': {'delta': 'asc'},
                         'group_by': {'account': ['*']},
                         'delta': True}
-        handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&order_by[delta]=asc&delta=True',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params,
+                                        '?group_by[account]=*&order_by[delta]=asc&delta=True',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1575,10 +1576,10 @@ class ReportQueryTest(IamTestCase):
                          'limit': 2},
                         'group_by': {'account': ['*']},
                         'delta': 'month'}
-        handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=*&filter[limit]=2&delta=month',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params,
+                                        '?group_by[account]=*&filter[limit]=2&delta=month',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -1606,10 +1607,10 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'order_by': {'account_alias': 'asc'}}
-        handler = ReportQueryHandler(query_params,
-                                     '?group_by[account]=[*]&order_by[account_alias]=asc',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params,
+                                        '?group_by[account]=[*]&order_by[account_alias]=asc',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -1631,7 +1632,7 @@ class ReportQueryTest(IamTestCase):
                 'time_scope_units': 'month'
             }
         }
-        handler = ReportQueryHandler(
+        handler = AWSReportQueryHandler(
             query_params,
             '',
             self.tenant,
@@ -1647,7 +1648,7 @@ class ReportQueryTest(IamTestCase):
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
         args = [{}, '', self.tenant]
-        rqh = ReportQueryHandler(*args, **{'report_type': 'costs'})
+        rqh = AWSReportQueryHandler(*args, **{'report_type': 'costs'})
         self.assertEqual(rqh._percent_delta(10, 5), 100)
 
     def test_rank_list(self):
@@ -1656,9 +1657,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month', 'limit': 2},
                         'group_by': {'account': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         data_list = [
             {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
             {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
@@ -1679,9 +1680,9 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month', 'limit': 2},
                         'group_by': {'service': ['*']}}
-        handler = ReportQueryHandler(query_params, '?group_by[service]=*&filter[limit]=2',
-                                     self.tenant,
-                                     **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(query_params, '?group_by[service]=*&filter[limit]=2',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
         data_list = [
             {'service': '1', 'total': 5, 'rank': 1},
             {'service': '2', 'total': 4, 'rank': 2},
