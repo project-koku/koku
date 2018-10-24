@@ -124,9 +124,8 @@ class UserSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and hasattr(request, 'META'):
             json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
-            if (json_rh_auth and 'identity' in json_rh_auth and
-                'account_number' in json_rh_auth['identity'] and
-                    'org_id' in json_rh_auth['identity']):
+            if (json_rh_auth and 'identity' in json_rh_auth and 'account_number' in
+                    json_rh_auth['identity'] and 'org_id' in json_rh_auth['identity']):
                 account = json_rh_auth['identity']['account_number']
                 org = json_rh_auth['identity']['org_id']
             if account and org:
