@@ -29,7 +29,7 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.aws.queries import AWSReportQueryHandler
-from api.report.serializers import QueryParamSerializer
+from api.report.aws.serializers import QueryParamSerializer
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,

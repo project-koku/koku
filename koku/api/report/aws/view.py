@@ -26,7 +26,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.aws.queries import AWSReportQueryHandler
-from api.report.serializers import QueryParamSerializer
+from api.report.aws.serializers import QueryParamSerializer
 from api.report.view import _generic_report
 
 
