@@ -275,7 +275,7 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
 
-    @patch('api.report.view.AWSReportQueryHandler')
+    @patch('api.report.aws.queries.AWSReportQueryHandler')
     def test_generic_report_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in generic report."""
         mock_handler.return_value.execute_query.return_value = self.report
@@ -301,7 +301,7 @@ class ReportViewTest(IamTestCase):
         response = _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
         self.assertIsInstance(response, Response)
 
-    @patch('api.report.view.AWSReportQueryHandler')
+    @patch('api.report.aws.queries.AWSReportQueryHandler')
     def test_generic_report_with_units_fails_well(self, mock_handler):
         """Test that validation error is thrown for bad unit conversion."""
         mock_handler.return_value.execute_query.return_value = self.report
