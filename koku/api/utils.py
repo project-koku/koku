@@ -217,7 +217,7 @@ class UnitConverter:
         """
         try:
             getattr(self.unit_registry, str(unit))
-        except (AttributeError, UndefinedUnitError) as err:
+        except (AttributeError, UndefinedUnitError):
             try:
                 getattr(self.unit_registry, str(unit.lower()))
             except (AttributeError, UndefinedUnitError) as err:
