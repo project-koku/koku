@@ -188,7 +188,7 @@ class FilterSerializer(serializers.Serializer):
 
         if time_scope_units and time_scope_value:
             msg = 'Valid values are {} when time_scope_units is {}'
-            if (time_scope_units == 'day' and
+            if (time_scope_units == 'day' and  # noqa: W504
                     (time_scope_value == '-1' or time_scope_value == '-2')):
                 valid_values = ['-10', '-30']
                 valid_vals = ', '.join(valid_values)
@@ -199,7 +199,7 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ', '.join(valid_values)
                 error = {'resolution': msg.format(valid_vals, 'day')}
                 raise serializers.ValidationError(error)
-            if (time_scope_units == 'month' and
+            if (time_scope_units == 'month' and  # noqa: W504
                     (time_scope_value == '-10' or time_scope_value == '-30')):
                 valid_values = ['-1', '-2']
                 valid_vals = ', '.join(valid_values)
@@ -291,7 +291,7 @@ class QueryParamSerializer(serializers.Serializer):
         unit_converter = UnitConverter()
         try:
             unit_converter.validate_unit(value)
-        except (AttributeError, UndefinedUnitError) as err:
+        except (AttributeError, UndefinedUnitError):
             error = {'units': f'{value} is not a supported unit'}
             raise serializers.ValidationError(error)
 

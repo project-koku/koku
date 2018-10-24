@@ -575,7 +575,7 @@ class ReportQueryHandler(object):
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return (self.query_parameters and key in self.query_parameters and
+        return (self.query_parameters and key in self.query_parameters and  # noqa: W504
                 in_key in self.query_parameters.get(key))
 
     def get_query_param_data(self, dictkey, key, default=None):

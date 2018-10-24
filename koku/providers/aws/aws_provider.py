@@ -137,8 +137,7 @@ class AWSProvider(ProviderInterface):
         """Verify that the S3 bucket exists and is reachable."""
         access_key_id, secret_access_key, session_token = _get_sts_access(
             credential_name)
-        if (access_key_id is None or access_key_id is None or
-                session_token is None):
+        if (access_key_id is None or access_key_id is None or session_token is None):
             key = 'provider_resource_name'
             message = 'Unable to obtain credentials with using {}.'.format(
                 credential_name)
