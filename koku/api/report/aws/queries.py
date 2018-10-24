@@ -326,8 +326,7 @@ class AWSReportQueryHandler(object):
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return (self.query_parameters and key in self.query_parameters and
-                in_key in self.query_parameters.get(key))
+        return (self.query_parameters and key in self.query_parameters and in_key in self.query_parameters.get(key))
 
     def get_query_param_data(self, dictkey, key, default=None):
         """Extract the value from a query parameter dictionary or return None.
