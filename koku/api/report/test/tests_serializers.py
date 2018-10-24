@@ -19,10 +19,10 @@ from unittest import TestCase
 
 from rest_framework import serializers
 
-from api.report.serializers import (FilterSerializer,
-                                    GroupBySerializer,
-                                    OrderBySerializer,
-                                    QueryParamSerializer)
+from api.report.aws.serializers import (FilterSerializer,
+                                        GroupBySerializer,
+                                        OrderBySerializer,
+                                        QueryParamSerializer)
 
 
 class FilterSerializerTest(TestCase):
