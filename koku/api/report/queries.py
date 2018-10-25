@@ -65,7 +65,7 @@ class ProviderMap(object):
     data - counts, costs, etc. The only variable is determining which
     DB tables and fields are supplying the requested data.
 
-    ProviderMap supplies AWSReportQueryHandler with the appropriate model
+    ProviderMap supplies ReportQueryHandler with the appropriate model
     references.
     """
 
@@ -238,7 +238,7 @@ class TruncMonthString(TruncMonth):
         return value.strftime('%Y-%m')
 
 
-class AWSReportQueryHandler(object):
+class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
     default_ordering = {'total': 'desc'}
@@ -326,7 +326,8 @@ class AWSReportQueryHandler(object):
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return (self.query_parameters and key in self.query_parameters and in_key in self.query_parameters.get(key))
+        return (self.query_parameters and key in self.query_parameters and  # noqa: W504
+                in_key in self.query_parameters.get(key))
 
     def get_query_param_data(self, dictkey, key, default=None):
         """Extract the value from a query parameter dictionary or return None.
@@ -512,7 +513,7 @@ class AWSReportQueryHandler(object):
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
-            if list_ and not AWSReportQueryHandler.has_wildcard(list_):
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
@@ -622,9 +623,9 @@ class AWSReportQueryHandler(object):
 
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
-            grouped = AWSReportQueryHandler._group_data_by_list(group_by_list,
-                                                                (group_index + 1),
-                                                                grouped)
+            grouped = ReportQueryHandler._group_data_by_list(group_by_list,
+                                                             (group_index + 1),
+                                                             grouped)
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
                 out_data[key].update(grouped)
@@ -696,8 +697,8 @@ class AWSReportQueryHandler(object):
             if self._limit:
                 data = self._ranked_list(data_list)
             group_by = self._get_group_by()
-            grouped = AWSReportQueryHandler._group_data_by_list(group_by, 0,
-                                                                data)
+            grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
+                                                             data)
             bucket_by_date[date] = grouped
         return bucket_by_date
 

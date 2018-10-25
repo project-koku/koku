@@ -9,4 +9,5 @@ Removing a Provider
 A provider can be removed by the user that created the provider or the customer owner.
 
 .. include:: providers/aws.rst
+.. include:: providers/ocp.rst
 .. include:: providers/local.rst
