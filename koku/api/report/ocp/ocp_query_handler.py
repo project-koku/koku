@@ -201,7 +201,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 .annotate(cpu_requests_core_hours=Sum(cpu_request))\
                 .annotate(cpu_limit=Sum(cpu_limit))
 
-        elif self._report_type == 'memory':
+        elif self._report_type == 'mem':
             mem_usage = self._mapper._report_type_map.get('mem_usage')
             mem_request = self._mapper._report_type_map.get('mem_request')
             query_data = query_data.values(*query_group_by)\
@@ -226,7 +226,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query = q_table.objects.filter(self.query_filter)
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
-
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
 
@@ -315,7 +314,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             cpu_request_sum = total_query.aggregate(cpu_request=Sum(cpu_request_key))
             total_dict['cpu_usage_core_hours'] = cpu_usage_sum.get('cpu_usage')
             total_dict['cpu_requests_core_hours'] = cpu_request_sum.get('cpu_request')
-        elif self._report_type == 'memory':
+        elif self._report_type == 'mem':
             mem_usage_key = self._mapper._report_type_map.get('mem_usage')
             mem_request_key = self._mapper._report_type_map.get('mem_request')
             mem_usage_sum = total_query.aggregate(mem_usage=Sum(mem_usage_key))
