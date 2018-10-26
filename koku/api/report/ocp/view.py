@@ -33,10 +33,102 @@ from api.report.view import _generic_report
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def memory(request):
-    """Get memory usage data.
+    """Get OCP memory usage data.
 
-    @api {get} /api/v1/reports/ocp/memory/ Get memory data
+    @api {get} /api/v1/reports/ocp/memory Get memory usage data
+    @apiName getInventoryStorageData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP memory usage data.
 
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP/1.1 200 OK
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-1",
+                "time_scope_units": "month"
+            },
+            "data": [
+                {
+                    "date": "2018-10",
+                    "projects": [
+                        {
+                            "project": "default",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "default",
+                                    "memory_usage_gigabytes": 0.162249,
+                                    "memory_requests_gigabytes": 1.063302
+                                }
+                            ]
+                        },
+                        {
+                            "project": "metering",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "metering",
+                                    "memory_usage_gigabytes": 5.899788,
+                                    "memory_requests_gigabytes": 7.007081
+                                }
+                            ]
+                        },
+                        {
+                            "project": "monitoring",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "monitoring",
+                                    "memory_usage_gigabytes": 3.178287,
+                                    "memory_requests_gigabytes": 4.153526
+                                }
+                            ]
+                        },
+                        {
+                            "project": "openshift-web-console",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "openshift-web-console",
+                                    "memory_usage_gigabytes": 0.068988,
+                                    "memory_requests_gigabytes": 0.207677
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "pod_usage_memory_gigabytes": 9.309312,
+                "pod_request_memory_gigabytes": 12.431585
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        cpu_limit,cpu_requests_core_hours,cpu_usage_core_hours,date,project
+        ,9.506666,0.119385,2018-10,default
+        ,53.985832,4.464511,2018-10,metering
+        ,17.920067,7.861343,2018-10,monitoring
+        ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
     extras = {'report_type': 'mem'}  # These shouldn't be necessary for OCP
@@ -47,11 +139,107 @@ def memory(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def cpu(request):
-    """Get cpu usage data.
+    """Get OCP cpu usage data.
 
-    @api {get} /api/v1/reports/ocp/cpu/ Get cpu data
+    @api {get} /api/v1/reports/ocp/cpu Get cpu usage data
+    @apiName getInventoryStorageData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP cpu usage data.
 
-    http://localhost:8000/api/v1/reports/ocp/cpu/?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&group_by[cluster]=*
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP/1.1 200 OK
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-1",
+                "time_scope_units": "month"
+            },
+            "data": [
+                {
+                    "date": "2018-10",
+                    "projects": [
+                        {
+                            "project": "default",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "default",
+                                    "cpu_limit": null,
+                                    "cpu_usage_core_hours": 0.119385,
+                                    "cpu_requests_core_hours": 9.506666
+                                }
+                            ]
+                        },
+                        {
+                            "project": "metering",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "metering",
+                                    "cpu_limit": null,
+                                    "cpu_usage_core_hours": 4.464511,
+                                    "cpu_requests_core_hours": 53.985832
+                                }
+                            ]
+                        },
+                        {
+                            "project": "monitoring",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "monitoring",
+                                    "cpu_limit": null,
+                                    "cpu_usage_core_hours": 7.861343,
+                                    "cpu_requests_core_hours": 17.920067
+                                }
+                            ]
+                        },
+                        {
+                            "project": "openshift-web-console",
+                            "values": [
+                                {
+                                    "date": "2018-10",
+                                    "project": "openshift-web-console",
+                                    "cpu_limit": null,
+                                    "cpu_usage_core_hours": 0.862687,
+                                    "cpu_requests_core_hours": 4.753333
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "pod_usage_cpu_core_hours": 13.307928,
+                "pod_request_cpu_core_hours": 86.165898
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        cpu_limit,cpu_requests_core_hours,cpu_usage_core_hours,date,project
+        ,9.506666,0.119385,2018-10,default
+        ,53.985832,4.464511,2018-10,metering
+        ,17.920067,7.861343,2018-10,monitoring
+        ,4.753333,0.862687,2018-10,openshift-web-console
+
     """
     extras = {'report_type': 'cpu'}  # These shouldn't be necessary for OCP
     return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerCPU, **extras)
