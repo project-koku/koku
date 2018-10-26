@@ -83,13 +83,13 @@ class StringOrListField(serializers.ListField):
 
 class GroupBySerializer(serializers.Serializer):
     """Serializer for handling query parameter group_by."""
+
     cluster = StringOrListField(child=serializers.CharField(),
                                 required=False)
     project = StringOrListField(child=serializers.CharField(),
                                 required=False)
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
-
 
     def validate(self, data):
         """Validate incoming data.
@@ -156,7 +156,6 @@ class FilterSerializer(serializers.Serializer):
     pod = StringOrListField(child=serializers.CharField(),
                             required=False)
 
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -175,8 +174,8 @@ class FilterSerializer(serializers.Serializer):
 
         if time_scope_units and time_scope_value:
             msg = 'Valid values are {} when time_scope_units is {}'
-            if (time_scope_units == 'day' and
-                    (time_scope_value == '-1' or time_scope_value == '-2')):
+            if (time_scope_units == 'day' and  # noqa: W504
+                (time_scope_value == '-1' or time_scope_value == '-2')):
                 valid_values = ['-10', '-30']
                 valid_vals = ', '.join(valid_values)
                 error = {'time_scope_value': msg.format(valid_vals, 'day')}
@@ -186,7 +185,7 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ', '.join(valid_values)
                 error = {'resolution': msg.format(valid_vals, 'day')}
                 raise serializers.ValidationError(error)
-            if (time_scope_units == 'month' and
+            if (time_scope_units == 'month' and  # noqa: W504
                     (time_scope_value == '-10' or time_scope_value == '-30')):
                 valid_values = ['-1', '-2']
                 valid_vals = ', '.join(valid_values)
@@ -278,7 +277,7 @@ class OCPQueryParamSerializer(serializers.Serializer):
         unit_converter = UnitConverter()
         try:
             unit_converter.validate_unit(value)
-        except (AttributeError, UndefinedUnitError) as err:
+        except (AttributeError, UndefinedUnitError):
             error = {'units': f'{value} is not a supported unit'}
             raise serializers.ValidationError(error)
 

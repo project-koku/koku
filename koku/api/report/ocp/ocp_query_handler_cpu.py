@@ -16,18 +16,17 @@
 #
 """OCP Query Handling for Reports."""
 from django.db.models import (F,
-                              Max,
-                              Q,
                               Sum,
                               Window)
 from django.db.models.functions import DenseRank
 from tenant_schemas.utils import tenant_context
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.query_filter import QueryFilterCollection
+
 
 class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
     """Handles report queries and responses for AWS."""
+
     default_ordering = {'pod_usage_cpu_core_hours': 'desc'}
 
     def __init__(self, query_parameters, url_data,
@@ -43,16 +42,6 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.default_ordering, **kwargs)
 
-    def _build_query(self, query_data, query_group_by):
-        cpu_usage = self._mapper._report_type_map.get('cpu_usage')
-        cpu_request = self._mapper._report_type_map.get('cpu_request')
-        cpu_limit = self._mapper._report_type_map.get('cpu_limit')
-        query_data = query_data.values(*query_group_by)\
-            .annotate(cpu_usage_core_hours=Sum(cpu_usage))\
-            .annotate(cpu_requests_core_hours=Sum(cpu_request))\
-            .annotate(cpu_limit=Sum(cpu_limit))
-        return query_data
-
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
@@ -60,7 +49,6 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-
         query_sum = {'value': 0}
         data = []
 
@@ -73,9 +61,15 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
             query_group_by = ['date'] + group_by_value
 
             query_order_by = ('-date', )
-            # if self.order_field != 'delta':
-                # query_order_by += (self.order,)
-            query_data = self._build_query(query_data, query_group_by)
+
+            cpu_usage = self._mapper._report_type_map.get('cpu_usage')
+            cpu_request = self._mapper._report_type_map.get('cpu_request')
+            cpu_limit = self._mapper._report_type_map.get('cpu_limit')
+            query_data = query_data.values(*query_group_by)\
+                .annotate(cpu_usage_core_hours=Sum(cpu_usage))\
+                .annotate(cpu_requests_core_hours=Sum(cpu_request))\
+                .annotate(cpu_limit=Sum(cpu_limit))
+
             if self._mapper.count:
                 # This is a sum because the summary table already
                 # has already performed counts
@@ -95,11 +89,10 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
                 query_data = query_data.order_by(*query_order_by)
 
             if query.exists():
-                query_sum = self.calculate_total()
+                query_sum = self.calculate_total(cpu_usage, cpu_request)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
             if is_csv_output:
@@ -113,39 +106,3 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
-
-    def calculate_total(self):
-        """Calculate aggregated totals for the query.
-
-        Args:
-            units_value (str): The unit of the reported total
-
-        Returns:
-            (dict) The aggregated totals for the query
-
-        """
-        filt_collection = QueryFilterCollection()
-        total_filter = self._get_search_filter(filt_collection)
-
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     -10)
-        time_and_report_filter = Q(time_scope_value=time_scope_value)
-
-        if total_filter is None:
-            total_filter = time_and_report_filter
-        else:
-            total_filter = total_filter & time_and_report_filter
-
-        q_table = self._mapper._operation_map.get('tables').get('total')
-        total_query = q_table.objects.filter(total_filter)
-
-        total_dict = {}
-        cpu_usage_key = self._mapper._report_type_map.get('cpu_usage')
-        cpu_request_key = self._mapper._report_type_map.get('cpu_request')
-        cpu_usage_sum = total_query.aggregate(cpu_usage=Sum(cpu_usage_key))
-        cpu_request_sum = total_query.aggregate(cpu_request=Sum(cpu_request_key))
-        total_dict['cpu_usage_core_hours'] = cpu_usage_sum.get('cpu_usage')
-        total_dict['cpu_requests_core_hours'] = cpu_request_sum.get('cpu_request')
-        
-        return total_dict

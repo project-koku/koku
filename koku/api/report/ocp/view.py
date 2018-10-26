@@ -17,8 +17,6 @@
 
 """View for Reports."""
 
-from django.db.models import Value
-from django.db.models.functions import Concat
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
@@ -41,8 +39,9 @@ def memory(request):
 
 
     """
-    extras = {'report_type': 'mem'}
+    extras = {'report_type': 'mem'}  # These shouldn't be necessary for OCP
     return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerMem, **extras)
+
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
@@ -54,5 +53,5 @@ def cpu(request):
 
     http://localhost:8000/api/v1/reports/ocp/cpu/?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&group_by[cluster]=*
     """
-    extras = {'report_type': 'cpu'}
+    extras = {'report_type': 'cpu'}  # These shouldn't be necessary for OCP
     return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerCPU, **extras)

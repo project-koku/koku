@@ -21,13 +21,10 @@ from collections import OrderedDict
 from decimal import Decimal
 
 from dateutil import relativedelta
-from django.db.models import (F,
-                              Max,
-                              Q,
+from django.db.models import (Q,
                               Sum,
-                              Window)
-from django.db.models.functions import DenseRank
-from tenant_schemas.utils import tenant_context
+                              Value)
+from django.db.models.functions import Concat
 
 from api.report.queries import ReportQueryHandler
 from api.report.query_filter import QueryFilterCollection
@@ -52,6 +49,32 @@ class OCPReportQueryHandler(ReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, default_ordering,
                          self.group_by_options, **kwargs)
+
+    def _get_annotations(self, fields=None):
+        """Create dictionary for query annotations.
+
+        Args:
+            fields (dict): Fields to create annotations for
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {
+            'date': self.date_trunc('usage_start'),
+            # 'units': Concat(self._mapper.units_key, Value(''))  Try and generalize this
+        }
+        if self._annotations and not self.is_sum:
+            annotations.update(self._annotations)
+
+        # { query_param: database_field_name }
+        if not fields:
+            fields = self._mapper._operation_map.get('annotations')
+
+        for q_param, db_field in fields.items():
+            annotations[q_param] = Concat(db_field, Value(''))
+
+        return annotations
 
     def _ranked_list(self, data_list):
         """Get list of ranked items less than top.
@@ -206,7 +229,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         return self.execute_sum_query()
 
-    def calculate_total(self):
+    def calculate_total(self, usage_key, request_key):
         """Calculate aggregated totals for the query.
 
         Args:
@@ -216,4 +239,26 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        pass
+        filt_collection = QueryFilterCollection()
+        total_filter = self._get_search_filter(filt_collection)
+
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value',
+                                                     -10)
+        time_and_report_filter = Q(time_scope_value=time_scope_value)
+
+        if total_filter is None:
+            total_filter = time_and_report_filter
+        else:
+            total_filter = total_filter & time_and_report_filter
+
+        q_table = self._mapper._operation_map.get('tables').get('total')
+        total_query = q_table.objects.filter(total_filter)
+
+        total_dict = {}
+        cpu_usage_sum = total_query.aggregate(usage=Sum(usage_key))
+        cpu_request_sum = total_query.aggregate(request=Sum(request_key))
+        total_dict[usage_key] = cpu_usage_sum.get('usage')
+        total_dict[request_key] = cpu_request_sum.get('request')
+
+        return total_dict

@@ -16,17 +16,17 @@
 #
 """OCP Query Handling for Reports."""
 from django.db.models import (F,
-                              Max,
-                              Q,
                               Sum,
                               Window)
 from django.db.models.functions import DenseRank
 from tenant_schemas.utils import tenant_context
+
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.query_filter import QueryFilterCollection
+
 
 class OCPReportQueryHandlerMem(OCPReportQueryHandler):
     """Handles report queries and responses for AWS."""
+
     default_ordering = {'pod_usage_memory_gigabytes': 'desc'}
 
     def __init__(self, query_parameters, url_data,
@@ -42,14 +42,6 @@ class OCPReportQueryHandlerMem(OCPReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.default_ordering, **kwargs)
 
-    def _build_query(self, query_data, query_group_by):
-        mem_usage = self._mapper._report_type_map.get('mem_usage')
-        mem_request = self._mapper._report_type_map.get('mem_request')
-        query_data = query_data.values(*query_group_by)\
-            .annotate(memory_usage_gigabytes=Sum(mem_usage))\
-            .annotate(memory_requests_gigabytes=Sum(mem_request))
-        return query_data
-
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
@@ -57,7 +49,6 @@ class OCPReportQueryHandlerMem(OCPReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-
         query_sum = {'value': 0}
         data = []
 
@@ -70,9 +61,13 @@ class OCPReportQueryHandlerMem(OCPReportQueryHandler):
             query_group_by = ['date'] + group_by_value
 
             query_order_by = ('-date', )
-            # if self.order_field != 'delta':
-                # query_order_by += (self.order,)
-            query_data = self._build_query(query_data, query_group_by)
+
+            mem_usage = self._mapper._report_type_map.get('mem_usage')
+            mem_request = self._mapper._report_type_map.get('mem_request')
+            query_data = query_data.values(*query_group_by)\
+                .annotate(memory_usage_gigabytes=Sum(mem_usage))\
+                .annotate(memory_requests_gigabytes=Sum(mem_request))
+
             if self._mapper.count:
                 # This is a sum because the summary table already
                 # has already performed counts
@@ -92,7 +87,7 @@ class OCPReportQueryHandlerMem(OCPReportQueryHandler):
                 query_data = query_data.order_by(*query_order_by)
 
             if query.exists():
-                query_sum = self.calculate_total()
+                query_sum = self.calculate_total(mem_usage, mem_request)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -110,39 +105,3 @@ class OCPReportQueryHandlerMem(OCPReportQueryHandler):
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
-
-    def calculate_total(self):
-        """Calculate aggregated totals for the query.
-
-        Args:
-            units_value (str): The unit of the reported total
-
-        Returns:
-            (dict) The aggregated totals for the query
-
-        """
-        filt_collection = QueryFilterCollection()
-        total_filter = self._get_search_filter(filt_collection)
-
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     -10)
-        time_and_report_filter = Q(time_scope_value=time_scope_value)
-
-        if total_filter is None:
-            total_filter = time_and_report_filter
-        else:
-            total_filter = total_filter & time_and_report_filter
-
-        q_table = self._mapper._operation_map.get('tables').get('total')
-        total_query = q_table.objects.filter(total_filter)
-
-        total_dict = {}
-        mem_usage_key = self._mapper._report_type_map.get('mem_usage')
-        mem_request_key = self._mapper._report_type_map.get('mem_request')
-        mem_usage_sum = total_query.aggregate(mem_usage=Sum(mem_usage_key))
-        mem_request_sum = total_query.aggregate(mem_request=Sum(mem_request_key))
-        total_dict['memory_usage_gigabytes'] = mem_usage_sum.get('mem_usage')
-        total_dict['memory_requests_gigabytes'] = mem_request_sum.get('mem_request')
-        
-        return total_dict

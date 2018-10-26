@@ -22,9 +22,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import Value
-from django.db.models.functions import (Concat,
-                                        TruncDay,
+from django.db.models.functions import (TruncDay,
                                         TruncMonth)
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
@@ -32,9 +30,8 @@ from api.utils import DateHelper
 from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
-                              OCPUsageLineItem,
-                              OCPUsageLineItemDailySummary,
-                              OCPUsageLineItemAggregates)
+                              OCPUsageLineItemAggregates,
+                              OCPUsageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
 WILDCARD = '*'
@@ -161,8 +158,7 @@ class ProviderMap(object):
                            'total': AWSCostEntryLineItemAggregates},
             }
         },
-    },
-    {
+    }, {
         'provider': 'OCP',
         'operation': {
             OPERATION_SUM: {
@@ -178,7 +174,7 @@ class ProviderMap(object):
                     'cluster': {'field': 'cluster_id',
                                 'operation': 'icontains'},
                     'pod': {'field': 'pod',
-                                   'operation': 'icontains'},
+                            'operation': 'icontains'},
                 },
                 'report_type': {
                     'cpu': {
@@ -193,7 +189,7 @@ class ProviderMap(object):
                     'mem': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
                         'mem_usage': 'pod_usage_memory_gigabytes',
-                        'mem_request' : 'pod_request_memory_gigabytes',
+                        'mem_request': 'pod_request_memory_gigabytes',
                         'count': None,
                         'filter': {},
                         'units_key': 'unit',
@@ -613,21 +609,7 @@ class ReportQueryHandler(object):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            'date': self.date_trunc('usage_start'),
-            # 'units': Concat(self._mapper.units_key, Value(''))
-        }
-        if self._annotations and not self.is_sum:
-            annotations.update(self._annotations)
-
-        # { query_param: database_field_name }
-        if not fields:
-            fields = self._mapper._operation_map.get('annotations')
-
-        for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(''))
-
-        return annotations
+        pass
 
     @staticmethod
     def _group_data_by_list(group_by_list, group_index, data):

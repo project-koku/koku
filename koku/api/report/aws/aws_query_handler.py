@@ -25,8 +25,10 @@ from django.db.models import (F,
                               Max,
                               Q,
                               Sum,
+                              Value,
                               Window)
-from django.db.models.functions import DenseRank
+from django.db.models.functions import (Concat,
+                                        DenseRank)
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -65,6 +67,32 @@ class AWSReportQueryHandler(ReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.default_ordering,
                          self.group_by_options, **kwargs)
+
+    def _get_annotations(self, fields=None):
+        """Create dictionary for query annotations.
+
+        Args:
+            fields (dict): Fields to create annotations for
+
+        Returns:
+            (Dict): query annotations dictionary
+
+        """
+        annotations = {
+            'date': self.date_trunc('usage_start'),
+            'units': Concat(self._mapper.units_key, Value(''))
+        }
+        if self._annotations and not self.is_sum:
+            annotations.update(self._annotations)
+
+        # { query_param: database_field_name }
+        if not fields:
+            fields = self._mapper._operation_map.get('annotations')
+
+        for q_param, db_field in fields.items():
+            annotations[q_param] = Concat(db_field, Value(''))
+
+        return annotations
 
     def _ranked_list(self, data_list):
         """Get list of ranked items less than top.
