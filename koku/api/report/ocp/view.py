@@ -25,7 +25,8 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.ocp.ocp_query_handler_cpu import OCPReportQueryHandlerCPU
+from api.report.ocp.ocp_query_handler_mem import OCPReportQueryHandlerMem
 from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.view import _generic_report
 
@@ -41,7 +42,7 @@ def memory(request):
 
     """
     extras = {'report_type': 'mem'}
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
+    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerMem, **extras)
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
@@ -54,4 +55,4 @@ def cpu(request):
     http://localhost:8000/api/v1/reports/ocp/cpu/?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=5&group_by[cluster]=*
     """
     extras = {'report_type': 'cpu'}
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
+    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerCPU, **extras)
