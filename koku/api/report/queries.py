@@ -188,6 +188,7 @@ class ProviderMap(object):
                         'cpu_limit': 'pod_limit_cpu_cores',
                         'count': None,
                         'filter': {},
+                        'units_key': 'unit',
                     },
                     'mem': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
@@ -195,6 +196,7 @@ class ProviderMap(object):
                         'mem_request' : 'pod_request_memory_gigabytes',
                         'count': None,
                         'filter': {},
+                        'units_key': 'unit',
                     }
                 },
                 'start_date': 'usage_start',
@@ -613,7 +615,7 @@ class ReportQueryHandler(object):
         """
         annotations = {
             'date': self.date_trunc('usage_start'),
-            'units': Concat(self._mapper.units_key, Value(''))
+            # 'units': Concat(self._mapper.units_key, Value(''))
         }
         if self._annotations and not self.is_sum:
             annotations.update(self._annotations)
