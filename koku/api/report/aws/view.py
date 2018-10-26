@@ -25,8 +25,8 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
+from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.queries import ReportQueryHandler
 from api.report.view import _generic_report
 
 
@@ -119,7 +119,7 @@ def costs(request):
 
     """
     extras = {'report_type': 'costs'}
-    return _generic_report(request, QueryParamSerializer, ReportQueryHandler, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -250,7 +250,7 @@ def instance_type(request):
     extras = {'annotations': annotations,
               'group_by': ['instance_type'],
               'report_type': 'instance_type'}
-    return _generic_report(request, QueryParamSerializer, ReportQueryHandler, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -369,4 +369,4 @@ def storage(request):
 
     """
     extras = {'report_type': 'storage'}
-    return _generic_report(request, QueryParamSerializer, ReportQueryHandler, **extras)
+    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
