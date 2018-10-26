@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Reports."""
+"""View for OCP Usage Reports."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,

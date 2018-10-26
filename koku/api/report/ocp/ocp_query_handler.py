@@ -31,18 +31,19 @@ from api.report.query_filter import QueryFilterCollection
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
-    """Handles report queries and responses for AWS."""
+    """Handles report queries and responses for OCP."""
 
     group_by_options = ['cluster', 'project', 'node']
 
     def __init__(self, query_parameters, url_data,
                  tenant, default_ordering, **kwargs):
-        """Establish AWS report query handler.
+        """Establish OCP report query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
             url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
+            default_ordering (String): ordering parameter when none is specified
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         kwargs['provider'] = 'OCP'
@@ -107,8 +108,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by = self._get_group_by()
             for group in group_by:
                 other[group] = 'Other'
-            if 'account' in group_by:
-                other['account_alias'] = 'Other'
             ranked_list.append(other)
 
         return ranked_list
@@ -214,6 +213,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
+        Must be implemented by subclass.
+
         Returns:
             (Dict): Dictionary response of query params, data, and total
 
@@ -233,7 +234,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate aggregated totals for the query.
 
         Args:
-            units_value (str): The unit of the reported total
+            usage_key (str): Usage key value (memory or cpu)
+            request_key (str): Request key value (memory or cpu)
 
         Returns:
             (dict) The aggregated totals for the query
