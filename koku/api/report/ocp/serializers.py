@@ -109,6 +109,10 @@ class OrderBySerializer(serializers.Serializer):
     """Serializer for handling query parameter order_by."""
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
+    usage = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
+    requests = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
     project = serializers.ChoiceField(choices=ORDER_CHOICES,

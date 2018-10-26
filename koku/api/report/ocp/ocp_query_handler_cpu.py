@@ -27,7 +27,7 @@ from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    default_ordering = {'pod_usage_cpu_core_hours': 'desc'}
+    default_ordering = {'cpu_usage_core_hours': 'desc'}
 
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
@@ -41,6 +41,17 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
         """
         super().__init__(query_parameters, url_data,
                          tenant, self.default_ordering, **kwargs)
+
+    @property
+    def order_field(self):
+        """Order-by field name.
+
+        The default is 'cpu_usage_core_hours'
+        """
+        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        if 'usage' in order_by:
+            return 'cpu_usage_core_hours'
+        return 'cpu_requests_core_hours'
 
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
@@ -61,6 +72,8 @@ class OCPReportQueryHandlerCPU(OCPReportQueryHandler):
             query_group_by = ['date'] + group_by_value
 
             query_order_by = ('-date', )
+            if self.order_field != 'delta':
+                query_order_by += (self.order,)
 
             cpu_usage = self._mapper._report_type_map.get('cpu_usage')
             cpu_request = self._mapper._report_type_map.get('cpu_request')
