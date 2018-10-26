@@ -224,7 +224,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         q_table = self._mapper._operation_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
-            import pdb; pdb.set_trace()
             query_annotations = self._get_annotations()
             query_data = query.annotate(**query_annotations)
 
@@ -234,9 +233,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ('-date', )
             # if self.order_field != 'delta':
                 # query_order_by += (self.order,)
-
             query_data = self._build_query(query_data, query_group_by)
-
             if self._mapper.count:
                 # This is a sum because the summary table already
                 # has already performed counts

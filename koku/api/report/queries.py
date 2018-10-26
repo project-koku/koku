@@ -181,16 +181,20 @@ class ProviderMap(object):
                                    'operation': 'icontains'},
                 },
                 'report_type': {
-                    'cpu_mem': {
+                    'cpu': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
                         'cpu_usage': 'pod_usage_cpu_core_hours',
                         'cpu_request': 'pod_request_cpu_core_hours',
                         'cpu_limit': 'pod_limit_cpu_cores',
+                        'count': None,
+                        'filter': {},
+                    },
+                    'mem': {
+                        'aggregate_key': 'pod_usage_cpu_core_hours',
                         'mem_usage': 'pod_usage_memory_gigabytes',
                         'mem_request' : 'pod_request_memory_gigabytes',
                         'count': None,
                         'filter': {},
-                        'units_key': 'unit',
                     }
                 },
                 'start_date': 'usage_start',
@@ -554,7 +558,6 @@ class ReportQueryHandler(object):
         filters = QueryFilterCollection()
 
         # set up filters for instance-type and storage queries.
-        import pdb; pdb.set_trace()
         filters.add(**self._mapper._report_type_map.get('filter'))
 
         if delta:
