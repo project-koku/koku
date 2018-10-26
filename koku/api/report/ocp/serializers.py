@@ -155,6 +155,8 @@ class FilterSerializer(serializers.Serializer):
                                 required=False)
     pod = StringOrListField(child=serializers.CharField(),
                             required=False)
+    node = StringOrListField(child=serializers.CharField(),
+                            required=False)
 
     def validate(self, data):
         """Validate incoming data.
