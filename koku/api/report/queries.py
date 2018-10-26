@@ -31,8 +31,10 @@ from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
-                              AWSCostEntryLineItemDailySummary)
-
+                              AWSCostEntryLineItemDailySummary,
+                              OCPUsageLineItem,
+                              OCPUsageLineItemDailySummary,
+                              OCPUsageLineItemAggregates)
 
 LOG = logging.getLogger(__name__)
 WILDCARD = '*'
@@ -159,6 +161,44 @@ class ProviderMap(object):
                            'total': AWSCostEntryLineItemAggregates},
             }
         },
+    },
+    {
+        'provider': 'OCP',
+        'operation': {
+            OPERATION_SUM: {
+                'annotations': {'cluster': 'cluster_id',
+                                'project': 'namespace',
+                                'cpu_usage': 'pod_usage_cpu_core_hours',
+                                'cpu_request': 'pod_request_cpu_core_hours',
+                                'cpu_limit': 'pod_limit_cpu_cores'},
+                'end_date': 'usage_end',
+                'filters': {
+                    'project': {'field': 'namespace',
+                                'operation': 'icontains'},
+                    'cluster': {'field': 'cluster_id',
+                                'operation': 'icontains'},
+                    'pod': {'field': 'pod',
+                                   'operation': 'icontains'},
+                },
+                'report_type': {
+                    'cpu_mem': {
+                        'aggregate_key': 'pod_usage_cpu_core_hours',
+                        'cpu_usage': 'pod_usage_cpu_core_hours',
+                        'cpu_request': 'pod_request_cpu_core_hours',
+                        'cpu_limit': 'pod_limit_cpu_cores',
+                        'mem_usage': 'pod_usage_memory_gigabytes',
+                        'mem_request' : 'pod_request_memory_gigabytes',
+                        'count': None,
+                        'filter': {},
+                        'units_key': 'unit',
+                    }
+                },
+                'start_date': 'usage_start',
+                'tables': {'previous_query': OCPUsageLineItemDailySummary,
+                           'query': OCPUsageLineItemDailySummary,
+                           'total': OCPUsageLineItemAggregates},
+            },
+        },
     }]
 
     @staticmethod
@@ -267,7 +307,6 @@ class ReportQueryHandler(object):
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
-
         self._mapper = ProviderMap(provider=kwargs.get('provider'),
                                    operation=self.operation,
                                    report_type=self._report_type)
@@ -515,6 +554,7 @@ class ReportQueryHandler(object):
         filters = QueryFilterCollection()
 
         # set up filters for instance-type and storage queries.
+        import pdb; pdb.set_trace()
         filters.add(**self._mapper._report_type_map.get('filter'))
 
         if delta:

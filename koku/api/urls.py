@@ -20,7 +20,9 @@ from rest_framework.routers import DefaultRouter
 from api.views import (ProviderViewSet,
                        UserPreferenceViewSet,
                        costs,
+                       cpu,
                        instance_type,
+                       memory,
                        status,
                        storage)
 
@@ -34,5 +36,7 @@ urlpatterns = [
     url(r'^reports/costs/$', costs, name='reports-costs'),
     url(r'^reports/inventory/instance-type/$', instance_type, name='reports-instance-type'),
     url(r'^reports/inventory/storage/$', storage, name='reports-storage'),
+    url(r'^reports/ocp/memory/$', memory, name='reports-ocp-memory'),
+    url(r'^reports/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^', include(ROUTER.urls)),
 ]
