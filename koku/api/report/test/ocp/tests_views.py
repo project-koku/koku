@@ -21,23 +21,15 @@ from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
-from rest_framework_csv.renderers import CSVRenderer
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler_cpu import OCPReportQueryHandlerCPU
 from api.report.ocp.ocp_query_handler_mem import OCPReportQueryHandlerMem
-from api.report.view import (_convert_units,
-                             _fill_in_missing_units,
-                             _find_unit,
-                             _generic_report,
-                             process_query_parameters)
-from api.utils import UnitConverter
+from api.report.view import _generic_report
 
 
 class OCPReportViewTest(IamTestCase):
@@ -51,141 +43,141 @@ class OCPReportViewTest(IamTestCase):
             serializer.save()
 
         self.report_ocp_cpu = {
-            "group_by": {
-                "project": [
-                    "*"
+            'group_by': {
+                'project': [
+                    '*'
                 ]
             },
-            "filter": {
-                "resolution": "monthly",
-                "time_scope_value": "-1",
-                "time_scope_units": "month"
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': '-1',
+                'time_scope_units': 'month'
             },
-            "data": [
+            'data': [
                 {
-                    "date": "2018-10",
-                    "projects": [
+                    'date': '2018-10',
+                    'projects': [
                         {
-                            "project": "default",
-                            "values": [
+                            'project': 'default',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "default",
-                                    "cpu_limit": 'null',
-                                    "cpu_usage_core_hours": 0.119385,
-                                    "cpu_requests_core_hours": 9.506666
+                                    'date': '2018-10',
+                                    'project': 'default',
+                                    'cpu_limit': 'null',
+                                    'cpu_usage_core_hours': 0.119385,
+                                    'cpu_requests_core_hours': 9.506666
                                 }
                             ]
                         },
                         {
-                            "project": "metering",
-                            "values": [
+                            'project': 'metering',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "metering",
-                                    "cpu_limit": 'null',
-                                    "cpu_usage_core_hours": 4.464511,
-                                    "cpu_requests_core_hours": 53.985832
+                                    'date': '2018-10',
+                                    'project': 'metering',
+                                    'cpu_limit': 'null',
+                                    'cpu_usage_core_hours': 4.464511,
+                                    'cpu_requests_core_hours': 53.985832
                                 }
                             ]
                         },
                         {
-                            "project": "monitoring",
-                            "values": [
+                            'project': 'monitoring',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "monitoring",
-                                    "cpu_limit": 'null',
-                                    "cpu_usage_core_hours": 7.861343,
-                                    "cpu_requests_core_hours": 17.920067
+                                    'date': '2018-10',
+                                    'project': 'monitoring',
+                                    'cpu_limit': 'null',
+                                    'cpu_usage_core_hours': 7.861343,
+                                    'cpu_requests_core_hours': 17.920067
                                 }
                             ]
                         },
                         {
-                            "project": "openshift-web-console",
-                            "values": [
+                            'project': 'openshift-web-console',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "openshift-web-console",
-                                    "cpu_limit": 'null',
-                                    "cpu_usage_core_hours": 0.862687,
-                                    "cpu_requests_core_hours": 4.753333
+                                    'date': '2018-10',
+                                    'project': 'openshift-web-console',
+                                    'cpu_limit': 'null',
+                                    'cpu_usage_core_hours': 0.862687,
+                                    'cpu_requests_core_hours': 4.753333
                                 }
                             ]
                         }
                     ]
                 }
             ],
-            "total": {
-                "pod_usage_cpu_core_hours": 13.307928,
-                "pod_request_cpu_core_hours": 86.165898
+            'total': {
+                'pod_usage_cpu_core_hours': 13.307928,
+                'pod_request_cpu_core_hours': 86.165898
             }
         }
         self.report_ocp_mem = {
-            "group_by": {
-                "project": [
-                    "*"
+            'group_by': {
+                'project': [
+                    '*'
                 ]
             },
-            "filter": {
-                "resolution": "monthly",
-                "time_scope_value": "-1",
-                "time_scope_units": "month"
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': '-1',
+                'time_scope_units': 'month'
             },
-            "data": [
+            'data': [
                 {
-                    "date": "2018-10",
-                    "projects": [
+                    'date': '2018-10',
+                    'projects': [
                         {
-                            "project": "default",
-                            "values": [
+                            'project': 'default',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "default",
-                                    "memory_usage_gigabytes": 0.162249,
-                                    "memory_requests_gigabytes": 1.063302
+                                    'date': '2018-10',
+                                    'project': 'default',
+                                    'memory_usage_gigabytes': 0.162249,
+                                    'memory_requests_gigabytes': 1.063302
                                 }
                             ]
                         },
                         {
-                            "project": "metering",
-                            "values": [
+                            'project': 'metering',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "metering",
-                                    "memory_usage_gigabytes": 5.899788,
-                                    "memory_requests_gigabytes": 7.007081
+                                    'date': '2018-10',
+                                    'project': 'metering',
+                                    'memory_usage_gigabytes': 5.899788,
+                                    'memory_requests_gigabytes': 7.007081
                                 }
                             ]
                         },
                         {
-                            "project": "monitoring",
-                            "values": [
+                            'project': 'monitoring',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "monitoring",
-                                    "memory_usage_gigabytes": 3.178287,
-                                    "memory_requests_gigabytes": 4.153526
+                                    'date': '2018-10',
+                                    'project': 'monitoring',
+                                    'memory_usage_gigabytes': 3.178287,
+                                    'memory_requests_gigabytes': 4.153526
                                 }
                             ]
                         },
                         {
-                            "project": "openshift-web-console",
-                            "values": [
+                            'project': 'openshift-web-console',
+                            'values': [
                                 {
-                                    "date": "2018-10",
-                                    "project": "openshift-web-console",
-                                    "memory_usage_gigabytes": 0.068988,
-                                    "memory_requests_gigabytes": 0.207677
+                                    'date': '2018-10',
+                                    'project': 'openshift-web-console',
+                                    'memory_usage_gigabytes': 0.068988,
+                                    'memory_requests_gigabytes': 0.207677
                                 }
                             ]
                         }
                     ]
                 }
             ],
-            "total": {
-                "pod_usage_memory_gigabytes": 9.309312,
-                "pod_request_memory_gigabytes": 12.431585
+            'total': {
+                'pod_usage_memory_gigabytes': 9.309312,
+                'pod_request_memory_gigabytes': 12.431585
             }
         }
 
@@ -215,7 +207,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertIsInstance(response, Response)
 
     @patch('api.report.ocp.ocp_query_handler_mem.OCPReportQueryHandlerMem')
-    def test_generic_report_ocp_cpu_success(self, mock_handler):
+    def test_generic_report_ocp_mem_success(self, mock_handler):
         """Test OCP memory generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
         params = {
@@ -247,7 +239,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_execute_query_ocp_memory(self):
-        """Test that OCP Mem endpoint works"""
+        """Test that OCP Mem endpoint works."""
         url = reverse('reports-ocp-memory')
         client = APIClient()
         response = client.get(url, **self.headers)
