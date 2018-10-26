@@ -28,7 +28,8 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.queries import QueryFilter, QueryFilterCollection, ReportQueryHandler
+from api.report.queries import ReportQueryHandler
+from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
@@ -629,7 +630,7 @@ class ReportQueryTest(IamTestCase):
         expected = ['a', 'b']
         query_string = '?group_by[service]=a&group_by[service]=b'
         handler = ReportQueryHandler({'group_by':
-                                      {'service': expected}},
+                                     {'service': expected}},
                                      query_string,
                                      self.tenant,
                                      **{'report_type': 'costs'})

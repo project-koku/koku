@@ -28,6 +28,8 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.report.aws.serializers import QueryParamSerializer
+from api.report.queries import ReportQueryHandler
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
@@ -160,7 +162,7 @@ class ReportViewTest(IamTestCase):
     def test_process_query_parameters(self):
         """Test processing of valid parameters."""
         qs = 'group_by%5Baccount%5D=account1&filter%5Bresolution%5D=daily'
-        valid, query_dict = process_query_parameters(qs)
+        valid, query_dict = process_query_parameters(qs, QueryParamSerializer)
         self.assertTrue(valid)
         self.assertEqual(query_dict.get('group_by'), {'account': ['account1']})
         self.assertEqual(query_dict.get('filter'), {'resolution': 'daily'})
@@ -168,7 +170,7 @@ class ReportViewTest(IamTestCase):
     def test_process_query_parameters_invalid(self):
         """Test processing of invalid parameters."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        valid, _ = process_query_parameters(qs)
+        valid, _ = process_query_parameters(qs, QueryParamSerializer)
         self.assertFalse(valid)
 
     def test_get_costs_invalid_query_param(self):
@@ -273,7 +275,7 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
 
-    @patch('api.report.view.ReportQueryHandler')
+    @patch('api.report.queries.ReportQueryHandler')
     def test_generic_report_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in generic report."""
         mock_handler.return_value.execute_query.return_value = self.report
@@ -294,10 +296,12 @@ class ReportViewTest(IamTestCase):
         django_request.GET = qd
         request = Request(django_request)
         request.user = user
-        response = _generic_report(request)
+
+        extras = {'report_type': 'costs'}
+        response = _generic_report(request, QueryParamSerializer, ReportQueryHandler, **extras)
         self.assertIsInstance(response, Response)
 
-    @patch('api.report.view.ReportQueryHandler')
+    @patch('api.report.queries.ReportQueryHandler')
     def test_generic_report_with_units_fails_well(self, mock_handler):
         """Test that validation error is thrown for bad unit conversion."""
         mock_handler.return_value.execute_query.return_value = self.report
@@ -323,7 +327,8 @@ class ReportViewTest(IamTestCase):
         request.user = user
 
         with self.assertRaises(ValidationError):
-            _generic_report(request)
+            extras = {'report_type': 'costs'}
+            _generic_report(request, QueryParamSerializer, mock_handler, **extras)
 
     def test_find_unit_list(self):
         """Test that the correct unit is returned."""
