@@ -503,7 +503,7 @@ paths:
         200:
           description: A report object
           schema:
-            $ref: '#/definitions/ReportOCPMemory'
+            $ref: '#/definitions/ReportOCPmemory'
         401:
           description: Unauthorized
         500:
@@ -688,6 +688,40 @@ definitions:
         type: array
         items:
           type: string
+  ReportFilterOCP:
+    type: object
+    properties:
+      limit:
+        type: integer
+        description: Limits the data points returns and aggregates remaining data.
+        example: 5
+      resolution:
+        $ref: '#/definitions/ReportResolution'
+      time_scope_value:
+        $ref: '#/definitions/ReportTimeScopeValue'
+      time_scope_units:
+        $ref: '#/definitions/ReportTimeScopeUnits'
+      resource_scope:
+        type: array
+        items:
+          $ref: '#/definitions/ReportResourceScope'
+        example: []
+      project:
+        type: array
+        items:
+          type: string
+      cluster:
+        type: array
+        items:
+          type: string
+      pod:
+        type: array
+        items:
+          type: string
+      node:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
@@ -717,6 +751,23 @@ definitions:
           type: string
     example: {'account': ['*']}
     description: The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable.
+    ReportOCPGrouping:
+    type: object
+    properties:
+      cluster:
+        type: array
+        items:
+          type: string
+      project:
+        type: array
+        items:
+          type: string
+      noce:
+        type: array
+        items:
+          type: string
+    example: {'project': ['*']}
+    description: The grouping to apply to the report. No grouping by default.
   ReportOrdering:
     type: object
     properties:
@@ -751,6 +802,26 @@ definitions:
           - asc
           - desc
     example: { 'total': 'asc' }
+    description: The ordering to apply to the report. Default is ascending order for the data.
+  ReportOrderingOCP:
+    type: object
+    properties:
+      cluster:
+        type: string
+        enum:
+          - asc
+          - desc
+      project:
+        type: string
+        enum:
+          - asc
+          - desc
+      node:
+        type: string
+        enum:
+          - asc
+          - desc
+    example: { 'cluster': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
     type: object
@@ -804,6 +875,56 @@ definitions:
         $ref: '#/definitions/ReportOrdering'
       filter:
         $ref: '#/definitions/ReportFilter'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
+  ReportOCPcpu:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportOrderingOCP'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
+  ReportOCPmemory:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportOrderingOCP'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
       operation:
         description: 'The report operation; default is sum.'
         type: string
