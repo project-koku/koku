@@ -21,10 +21,10 @@ from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from django.db.models import (DecimalField, ExpressionWrapper, F,
                               IntegerField, Max, Sum, Value)
-from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import (OCPUsageLineItem,
                               OCPUsageLineItemAggregates,
@@ -41,29 +41,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        cls.fake = Faker()
         cls.dh = DateHelper()
 
-        cls.today = cls.dh.today
-        cls.one_month_ago = cls.today - relativedelta(months=1)
-
-        cls.last_month = cls.dh.last_month_start
-
-        cls.period_ranges = [
-            (cls.dh.last_month_start, cls.dh.last_month_end),
-            (cls.dh.this_month_start, cls.dh.this_month_end),
-        ]
-
-        if cls.one_month_ago.day >= 10:
-            cls.report_ranges = [
-                (cls.one_month_ago - relativedelta(days=i) for i in range(10)),
-                (cls.today - relativedelta(days=i) for i in range(10)),
-            ]
-        else:
-            cls.report_ranges = [
-                (cls.one_month_ago - relativedelta(days=i) for i in range(10)),
-                (cls.today + relativedelta(days=i) for i in range(10)),
-            ]
+        cls.data_generator = OCPReportDataGenerator(cls.tenant)
 
         cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
         cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 10)}
@@ -74,198 +54,5 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        # self.current_totals = defaultdict(Decimal)
 
-        self.cluster_id = self.fake.word()
-        self.namespace = self.fake.word()
-        self.nodes = [self.fake.word() for _ in range(2)]
-        self.line_items = [
-            {
-                'namespace': self.namespace,
-                'node': random.choice(self.nodes),
-                'pod': self.fake.word()
-            }
-            for _ in range(2)
-        ]
-        self.add_data_to_tenant()
-
-    def add_data_to_tenant(self):
-        """Populate tenant with data."""
-        with tenant_context(self.tenant):
-            for i, period in enumerate(self.period_ranges):
-                report_period = self.create_ocp_report_period(period)
-
-                for report_date in self.report_ranges[i]:
-                    report = self.create_ocp_report(
-                        report_period,
-                        report_date
-                    )
-                    self.create_line_items(report_period, report)
-
-            self._populate_daily_table()
-            self._populate_daily_summary_table()
-            self._populate_aggregates_table()
-
-    def create_ocp_report_period(self, period):
-        """Create the OCP report period DB rows."""
-        data = {
-            'cluster_id': self.cluster_id,
-            'report_period_start': period[0],
-            'report_period_end': period[1],
-            'summary_data_creation_datetime': self.dh._now,
-            'summary_data_updated_datetime': self.dh._now,
-            'provider_id': 1
-        }
-        report_period = OCPUsageReportPeriod(**data)
-        report_period.save()
-        return report_period
-
-    def create_ocp_report(self, period, interval_start):
-        """Create the OCP report DB rows."""
-        data = {
-            'interval_start': interval_start,
-            'interval_end': interval_start,
-            'report_period': period
-        }
-
-        report = OCPUsageReport(**data)
-        report.save()
-        return report
-
-    def create_line_items(self, report_period, report):
-        """Create OCP hourly usage line items."""
-        for row in self.line_items:
-            data = {
-                'report_period': report_period,
-                'report': report,
-                'namespace': row.get('namespace'),
-                'pod': row.get('pod'),
-                'node': row.get('node'),
-                'pod_usage_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
-                'pod_request_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
-                'pod_limit_cpu_cores': random.randint(1, 4),
-                'pod_usage_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
-                'pod_request_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
-                'pod_limit_memory_bytes': random.randint(4, 32) * 1e9,
-            }
-            line_item = OCPUsageLineItem(**data)
-            line_item.save()
-
-    def _populate_daily_table(self):
-        """Populate the daily table."""
-        included_fields = [
-            'namespace',
-            'pod',
-            'node',
-        ]
-        annotations = {
-            'usage_start': F('report__interval_start'),
-            'usage_end': F('report__interval_start'),
-            'pod_usage_cpu_core_seconds': Sum('pod_usage_cpu_core_seconds'),
-            'pod_request_cpu_core_seconds': Sum('pod_request_cpu_core_seconds'),
-            'pod_limit_cpu_cores': Max('pod_limit_cpu_cores'),
-            'pod_usage_memory_byte_seconds': Sum('pod_usage_memory_byte_seconds'),
-            'pod_request_memory_byte_seconds': Sum('pod_request_memory_byte_seconds'),
-            'pod_limit_memory_bytes': Max('pod_limit_memory_bytes'),
-            'cluster_id': F('report_period__cluster_id')
-        }
-        entries = OCPUsageLineItem.objects\
-            .values(*included_fields)\
-            .annotate(**annotations)
-        for entry in entries:
-            entry['total_seconds'] = 3600
-            daily = OCPUsageLineItemDaily(**entry)
-            daily.save()
-
-    def _populate_daily_summary_table(self):
-        """Populate the daily summary table."""
-        included_fields = [
-            'usage_start',
-            'usage_end',
-            'namespace',
-            'pod',
-            'node',
-            'pod_limit_cpu_cores',
-            'cluster_id'
-        ]
-        annotations = {
-            'pod_usage_cpu_core_hours': Sum(
-                ExpressionWrapper(
-                    F('pod_usage_cpu_core_seconds') / 3600,
-                    output_field=DecimalField()
-                )
-            ),
-            'pod_request_cpu_core_hours': Sum(
-                ExpressionWrapper(
-                    F('pod_request_cpu_core_seconds') / 3600,
-                    output_field=DecimalField()
-                )
-            ),
-            'pod_usage_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_usage_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_request_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_request_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_limit_memory_gigabytes': ExpressionWrapper(
-                F('pod_limit_memory_bytes') * 1e-9,
-                output_field=DecimalField()
-            ),
-        }
-
-        entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
-        for entry in entries:
-            summary = OCPUsageLineItemDailySummary(**entry)
-            summary.save()
-
-    def _populate_aggregates_table(self):
-        """Populate the aggregates table."""
-        time_scopes = [
-            (-1, self.this_month_filter),
-            (-2, self.last_month_filter),
-            (-10, self.ten_day_filter),
-            (-30, self.thirty_day_filter)
-        ]
-        included_fields = [
-            'cluster_id',
-            'namespace',
-            'pod',
-            'node'
-        ]
-        annotations = {
-            'pod_usage_cpu_core_hours': Sum('pod_usage_cpu_core_seconds') / 3600,
-            'pod_request_cpu_core_hours': Sum('pod_request_cpu_core_seconds') / 3600,
-            'pod_limit_cpu_cores': Max('pod_limit_cpu_cores'),
-            'pod_usage_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_usage_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_request_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_request_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_limit_memory_gigabytes': Max('pod_limit_memory_bytes') * 1e-9
-        }
-
-        for value, query_filter in time_scopes:
-            annotations.update(
-                {'time_scope_value': Value(value, IntegerField())}
-            )
-
-            entries = OCPUsageLineItemDaily.objects\
-                .filter(**query_filter)\
-                .values(*included_fields)\
-                .annotate(**annotations)
-            for entry in entries:
-                agg = OCPUsageLineItemAggregates(**entry)
-                agg.save()
+        self.data_generator.add_data_to_tenant()
