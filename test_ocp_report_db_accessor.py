@@ -307,3 +307,56 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for val in expected_time_scope_values:
             self.assertIn(val, time_scope_values)
+
+    def test_get_usage_period_before_date(self):
+        """Test that gets a query for usage report periods before a date."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        query = self.accessor._get_db_obj_query(table_name)
+        first_entry = query.first()
+
+        # Verify that the result is returned for cutoff_date == report_period_start
+        cutoff_date = first_entry.report_period_start
+        usage_period = self.accessor.get_usage_period_before_date(cutoff_date)
+        self.assertEqual(usage_period.count(), 1)
+        self.assertEqual(usage_period.first().report_period_start, cutoff_date)
+
+        # Verify that the result is returned for a date later than cutoff_date
+        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1, day=15)
+        usage_period = self.accessor.get_usage_period_before_date(later_cutoff)
+        self.assertEqual(usage_period.count(), 1)
+        self.assertEqual(usage_period.first().report_period_start, cutoff_date)
+
+        # Verify that no results are returned for a date earlier than cutoff_date
+        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1, day=15)
+        usage_period = self.accessor.get_usage_period_before_date(earlier_cutoff)
+        self.assertEqual(usage_period.count(), 0)
+
+    def test_get_item_query_report_period_id(self):
+        """Test that gets a usage report line item query given a report period id."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+
+        # Verify that the line items for the test report_period_id are returned
+        report_period_id = self.accessor._get_db_obj_query(table_name).first().id
+        line_item_query = self.accessor.get_item_query_report_period_id(report_period_id)
+        self.assertEqual(line_item_query.count(), 1)
+        self.assertEqual(line_item_query.first().report_period_id, report_period_id)
+
+        # Verify that no line items are returned for a missing report_period_id
+        wrong_report_period_id = report_period_id + 1
+        line_item_query = self.accessor.get_item_query_report_period_id(wrong_report_period_id)
+        self.assertEqual(line_item_query.count(), 0)
+
+    def test_get_report_query_report_period_id(self):
+        """Test that gets a usage report item query given a report period id."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+
+        # Verify that the line items for the test report_period_id are returned
+        report_period_id = self.accessor._get_db_obj_query(table_name).first().id
+        usage_report_query = self.accessor.get_report_query_report_period_id(report_period_id)
+        self.assertEqual(usage_report_query.count(), 1)
+        self.assertEqual(usage_report_query.first().report_period_id, report_period_id)
+
+        # Verify that no line items are returned for a missing report_period_id
+        wrong_report_period_id = report_period_id + 1
+        usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
+        self.assertEqual(usage_report_query.count(), 0)
