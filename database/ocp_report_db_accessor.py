@@ -74,6 +74,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             .filter_by(report_period_start=start_date)\
             .all()
 
+    def get_usage_period_before_date(self, date):
+        """Get the usage report period objects before provided date."""
+        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        report_start = getattr(
+            getattr(self.report_schema, table_name),
+            'report_period_start'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        usage_period_query = base_query.filter(report_start <= date)
+        return usage_period_query
+
     # pylint: disable=invalid-name
     def get_usage_period_query_by_provider(self, provider_id):
         """Return all report periods for the specified provider."""
@@ -91,6 +102,28 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         base_query = self._get_db_obj_query(table_name)
         line_item_query = base_query.filter(query_report_id == report_id)
         return line_item_query
+
+    def get_item_query_report_period_id(self, report_period_id):
+        """Get the usage report line item for a report id query."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item']
+        period_id = getattr(
+            getattr(self.report_schema, table_name),
+            'report_period_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        line_item_query = base_query.filter(report_period_id == period_id)
+        return line_item_query
+
+    def get_report_query_report_period_id(self, report_period_id):
+        """Get the usage report line item for a report id query."""
+        table_name = OCP_REPORT_TABLE_MAP['report']
+        period_id = getattr(
+            getattr(self.report_schema, table_name),
+            'report_period_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        usage_report_query = base_query.filter(report_period_id == period_id)
+        return usage_report_query
 
     def get_report_periods(self):
         """Get all usage period objects."""

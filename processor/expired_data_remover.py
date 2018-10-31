@@ -15,6 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Remove expired report data."""
+# pylint: skip-file
+# Skipping entire file for now since we are unable to disable duplicate-code lint
+# on the masu.external provider name import line.
+# See issue https://github.com/PyCQA/pylint/issues/214
 
 import logging
 from datetime import (datetime, timedelta)
@@ -22,9 +26,13 @@ from datetime import (datetime, timedelta)
 import pytz
 
 from masu.config import Config
-from masu.external import (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER)
+from masu.external import (AMAZON_WEB_SERVICES,
+                           AWS_LOCAL_SERVICE_PROVIDER,
+                           OCP_LOCAL_SERVICE_PROVIDER,
+                           OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
+from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 
 LOG = logging.getLogger(__name__)
 
@@ -82,6 +90,10 @@ class ExpiredDataRemover():
         """
         if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return AWSReportDBCleaner(self._schema)
+
+        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
+                              OCP_LOCAL_SERVICE_PROVIDER):
+            return OCPReportDBCleaner(self._schema)
 
         return None
 

@@ -67,9 +67,7 @@ class AWSReportSummaryUpdater:
             end_date = end_date.strftime('%Y-%m-%d')
         elif end_date is None:
             # Run for 1 day
-            start = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-            end_date = start + datetime.timedelta(days=1)
-            end_date = end_date.date().strftime('%Y-%m-%d')
+            end_date = start_date
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 
@@ -138,7 +136,7 @@ class AWSReportSummaryUpdater:
 
         # Do a full month update if we just finished processing a finalized
         # bill or we just finished processing a bill for the first time
-        if ((is_done_processing and is_newly_finalized) or
+        if ((is_done_processing and is_newly_finalized) or  # noqa: W504
                 (is_done_processing and is_new_bill)):
             return True
 

@@ -66,9 +66,7 @@ class OCPReportSummaryUpdater:
             end_date = end_date.strftime('%Y-%m-%d')
         elif end_date is None:
             # Run for 1 day
-            start = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-            end_date = start + datetime.timedelta(days=1)
-            end_date = end_date.date().strftime('%Y-%m-%d')
+            end_date = start_date
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 
