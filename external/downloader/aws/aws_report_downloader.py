@@ -95,8 +95,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.report_name = report_name
         self.bucket = bucket
         report_defs = defs.get('ReportDefinitions', [])
-        report = [rep for rep in report_defs
-                  if rep['ReportName'] == self.report_name]
+        report = [rep for rep in report_defs if rep['ReportName'] == self.report_name]
 
         if not report:
             raise MasuProviderError('Cost and Usage Report definition not found.')

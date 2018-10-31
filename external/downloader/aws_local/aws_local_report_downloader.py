@@ -97,7 +97,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String, String) report_prefix, report_name
 
         """
-        daterange = '\d{8}-\d{8}'
+        daterange = '\d{8}-\d{8}'  # noqa: W605
         full_path = ''
         for item in os.walk(bucket, followlinks=True):
             if not item[2]:
