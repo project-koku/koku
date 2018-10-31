@@ -67,7 +67,7 @@ class OCPReportDataGenerator:
         self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 10)}
         self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 30)}
         self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
-                                 'usage_end__lte': self.dh.last_month_end}
+                                  'usage_end__lte': self.dh.last_month_end}
 
         self.cluster_id = self.fake.word()
         self.namespace = self.fake.word()

@@ -15,23 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCPReportQueryHandler base class."""
-import random
-from decimal import Decimal
-
-from dateutil.relativedelta import relativedelta
-from django.db.models import (DecimalField, ExpressionWrapper, F,
-                              IntegerField, Max, Sum, Value)
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
-from reporting.models import (OCPUsageLineItem,
-                              OCPUsageLineItemAggregates,
-                              OCPUsageLineItemDaily,
-                              OCPUsageLineItemDailySummary,
-                              OCPUsageReport,
-                              OCPUsageReportPeriod)
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
