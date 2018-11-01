@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Query Handling for Reports."""
+import copy
 import datetime
 import logging
 from collections import OrderedDict
@@ -104,7 +105,6 @@ class ProviderMap(object):
                         },
                         'units_key': 'unit',
                         'sum_columns': ['total'],
-                    }
                         'default_ordering': {'total': 'desc'},
                     },
                 },
@@ -190,10 +190,13 @@ class ProviderMap(object):
                 },
                 'report_type': {
                     'cpu': {
-                        'aggregate_key': 'pod_usage_cpu_core_hours',
                         'usage_label': 'pod_usage_cpu_core_hours',
                         'request_label': 'pod_request_cpu_core_hours',
-                        'default_ordering': {'pod_usage_cpu_core_hours': 'desc'},
+                        'default_ordering': {'usage': 'desc'},
+                        'order_field': {
+                            'usage': 'usage',
+                            'requests': 'request'
+                        },
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
@@ -204,10 +207,13 @@ class ProviderMap(object):
                         'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
                     },
                     'mem': {
-                        'aggregate_key': 'pod_usage_cpu_core_hours',
                         'usage_label': 'pod_usage_memory_gigabytes',
                         'request_label': 'pod_request_memory_gigabytes',
-                        'default_ordering': {'pod_usage_memory_gigabytes': 'desc'},
+                        'default_ordering': {'usage': 'desc'},
+                        'order_field': {
+                            'usage': 'usage',
+                            'requests': 'request'
+                        },
                         'annotations': {
                             'usage': Sum('pod_usage_memory_gigabytes'),
                             'request': Sum('pod_request_memory_gigabytes'),
@@ -738,3 +744,39 @@ class ReportQueryHandler(object):
             return Decimal((a - b) / b * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return Decimal(0)
+
+    def _ranked_list(self, data_list):
+        """Get list of ranked items less than top.
+
+        Args:
+            data_list (List(Dict)): List of ranked data points from the same bucket
+        Returns:
+            List(Dict): List of data points meeting the rank criteria
+        """
+        ranked_list = []
+        others_list = []
+        other = None
+        other_sums  = {column: 0 for column in self._mapper.sum_columns}
+        for data in data_list:
+            if other is None:
+                other = copy.deepcopy(data)
+            rank = data.get('rank')
+            if rank <= self._limit:
+                del data['rank']
+                ranked_list.append(data)
+            else:
+                others_list.append(data)
+                for column in self._mapper.sum_columns:
+                    other_sums[column] += data.get(column) if data.get(column) else 0
+
+        if other is not None and others_list:
+            other.update(other_sums)
+            del other['rank']
+            group_by = self._get_group_by()
+            for group in group_by:
+                other[group] = 'Other'
+            if 'account' in group_by:
+                other['account_alias'] = 'Other'
+            ranked_list.append(other)
+
+        return ranked_list

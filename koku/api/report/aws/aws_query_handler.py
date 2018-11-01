@@ -92,43 +92,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
-    def _ranked_list(self, data_list):
-        """Get list of ranked items less than top.
-
-        Args:
-            data_list (List(Dict)): List of ranked data points from the same bucket
-        Returns:
-            List(Dict): List of data points meeting the rank criteria
-        """
-        ranked_list = []
-        others_list = []
-        other = None
-        other_sum = 0
-        for data in data_list:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                del data['rank']
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                total = data.get('total')
-                if total:
-                    other_sum += total
-
-        if other is not None and others_list:
-            other['total'] = other_sum
-            del other['rank']
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = 'Other'
-            if 'account' in group_by:
-                other['account_alias'] = 'Other'
-            ranked_list.append(other)
-
-        return ranked_list
-
     def _format_query_response(self):
         """Format the query response with data.
 

@@ -53,6 +53,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.group_by_options, **kwargs)
 
+    @property
+    def order_field(self):
+        """Order-by field name."""
+        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        key = list(order_by.keys()).pop()
+        if order_by == self.default_ordering:
+            return key
+        return self._mapper._report_type_map['order_field'][key]
+
     def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.
 
@@ -78,40 +87,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations[q_param] = Concat(db_field, Value(''))
 
         return annotations
-
-    def _ranked_list(self, data_list):
-        """Get list of ranked items less than top.
-
-        Args:
-            data_list (List(Dict)): List of ranked data points from the same bucket
-        Returns:
-            List(Dict): List of data points meeting the rank criteria
-        """
-        ranked_list = []
-        others_list = []
-        other = None
-        other_sums  = {column: 0 for column in self._mapper.sum_columns}
-        for data in data_list:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                del data['rank']
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) if data.get(column) else 0
-
-        if other is not None and others_list:
-            other.update(other_sums)
-            del other['rank']
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = 'Other'
-            ranked_list.append(other)
-
-        return ranked_list
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -230,13 +205,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ['date'] + group_by_value
 
             query_order_by = ('-date', )
+            if self.order_field != 'delta':
+                query_order_by += (self.order,)
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-
-            if self._mapper.count:
-                # This is a sum because the summary table already
-                # has already performed counts
-                query_data = query_data.annotate(count=Sum(self._mapper.count))
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
@@ -314,7 +286,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             request=Sum(request_key)
         )
         # cpu_request_sum = total_query.aggregate(request=Sum(request_key))
-        total_dict[usage_key] = cpu_sum.get('usage')
-        total_dict[request_key] = cpu_sum.get('request')
+        total_dict['usage'] = cpu_sum.get('usage')
+        total_dict['request'] = cpu_sum.get('request')
 
         return total_dict
