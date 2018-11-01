@@ -21,10 +21,14 @@ from collections import OrderedDict
 from decimal import Decimal
 
 from dateutil import relativedelta
-from django.db.models import (Q,
+from django.db.models import (F,
+                              Q,
                               Sum,
-                              Value)
+                              Value,
+                              Window)
 from django.db.models.functions import Concat
+from django.db.models.functions import DenseRank
+from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
 from api.report.query_filter import QueryFilterCollection
@@ -36,20 +40,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
     group_by_options = ['cluster', 'project', 'node']
 
     def __init__(self, query_parameters, url_data,
-                 tenant, default_ordering, **kwargs):
+                 tenant, **kwargs):
         """Establish OCP report query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
             url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
-            default_ordering (String): ordering parameter when none is specified
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         kwargs['provider'] = 'OCP'
         super().__init__(query_parameters, url_data,
-                         tenant, default_ordering,
-                         self.group_by_options, **kwargs)
+                         tenant, self.group_by_options, **kwargs)
 
     def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.
@@ -213,13 +215,63 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
-        Must be implemented by subclass.
-
         Returns:
             (Dict): Dictionary response of query params, data, and total
 
         """
-        pass
+        query_sum = {'value': 0}
+        data = []
+
+        q_table = self._mapper._operation_map.get('tables').get('query')
+        with tenant_context(self.tenant):
+            query = q_table.objects.filter(self.query_filter)
+            query_annotations = self._get_annotations()
+            query_data = query.annotate(**query_annotations)
+            group_by_value = self._get_group_by()
+            query_group_by = ['date'] + group_by_value
+
+            query_order_by = ('-date', )
+            annotations = self._mapper._report_type_map.get('annotations')
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            if self._mapper.count:
+                # This is a sum because the summary table already
+                # has already performed counts
+                query_data = query_data.annotate(count=Sum(self._mapper.count))
+
+            if self._limit and group_by_value:
+                rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
+                dense_rank_by_total = Window(
+                    expression=DenseRank(),
+                    partition_by=F('date'),
+                    order_by=rank_order
+                )
+                query_data = query_data.annotate(rank=dense_rank_by_total)
+                query_order_by = query_order_by + ('rank',)
+
+            if self.order_field != 'delta':
+                query_data = query_data.order_by(*query_order_by)
+
+            if query.exists():
+                usage = self._mapper._report_type_map.get('usage_label')
+                request = self._mapper._report_type_map.get('request_label')
+                query_sum = self.calculate_total(usage, request)
+
+            if self._delta:
+                query_data = self.add_deltas(query_data, query_sum)
+            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+
+            if is_csv_output:
+                if self._limit:
+                    data = self._ranked_list(list(query_data))
+                else:
+                    data = list(query_data)
+            else:
+                data = self._apply_group_by(list(query_data))
+                data = self._transform_data(query_group_by, 0, data)
+        self.query_sum = query_sum
+        self.query_data = data
+        return self._format_query_response()
 
     def execute_query(self):
         """Execute query and return provided data.

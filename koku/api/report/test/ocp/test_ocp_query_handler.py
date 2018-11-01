@@ -14,32 +14,50 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the OCPReportQueryHandler base class."""
+"""Test the Report Queries."""
+from decimal import Decimal
 
-from api.iam.test.iam_test_case import IamTestCase
-from api.report.test.ocp.helpers import OCPReportDataGenerator
-from api.utils import DateHelper
+from django.db.models import Sum
+from tenant_schemas.utils import tenant_context
+
+from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.test.ocp.test_ocp_query_handler_base import OCPReportQueryHandlerBaseTest
+from reporting.models import OCPUsageLineItemDaily
 
 
-class OCPReportQueryHandlerTest(IamTestCase):
+class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
     """Tests for the report query handler."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up the test class."""
-        super().setUpClass()
-        cls.dh = DateHelper()
+    def get_totals_by_time_scope(self, filter=None):
+        """Return the total aggregates for a time period."""
+        if filter is None:
+            filter = self.ten_day_filter
+        with tenant_context(self.tenant):
+            totals = OCPUsageLineItemDaily.objects\
+                .filter(**filter)\
+                .aggregate(
+                    pod_usage_cpu_core_hours=Sum('pod_usage_cpu_core_seconds') / 3600,
+                    pod_request_cpu_core_hours=Sum('pod_request_cpu_core_seconds') / 3600
+                )
 
-        cls.data_generator = OCPReportDataGenerator(cls.tenant)
+        return {key: total.quantize(Decimal('.000001'))
+                for key, total in totals.items()}
 
-        cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
-        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 10)}
-        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 30)}
-        cls.last_month_filter = {'usage_start__gte': cls.dh.last_month_start,
-                                 'usage_end__lte': cls.dh.last_month_end}
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-
-        self.data_generator.add_data_to_tenant()
+    def test_execute_sum_query(self):
+        """Test that the sum query runs properly."""
+        current_totals = self.get_totals_by_time_scope()
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertEqual(total.get('pod_usage_cpu_core_hours'),
+                         current_totals.get('pod_usage_cpu_core_hours'))
+        self.assertEqual(total.get('pod_request_cpu_core_hours'),
+                         current_totals.get('pod_request_cpu_core_hours'))

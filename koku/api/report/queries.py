@@ -22,6 +22,8 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
+from django.db.models import (Max,
+                              Sum)
 from django.db.models.functions import (TruncDay,
                                         TruncMonth)
 
@@ -77,6 +79,7 @@ class ProviderMap(object):
                         'count': None,
                         'filter': {},
                         'units_key': 'currency_code',
+                        'default_ordering': {'total': 'desc'},
                     },
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
@@ -87,6 +90,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'unit',
+                        'default_ordering': {'total': 'desc'},
                     },
                     'storage': {
                         'aggregate_key': 'usage_amount',
@@ -97,7 +101,8 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'unit',
-                    }
+                        'default_ordering': {'total': 'desc'},
+                    },
                 },
                 'start_date': 'usage_start',
                 'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
@@ -179,20 +184,26 @@ class ProviderMap(object):
                 'report_type': {
                     'cpu': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
-                        'cpu_usage': 'pod_usage_cpu_core_hours',
-                        'cpu_request': 'pod_request_cpu_core_hours',
-                        'cpu_limit': 'pod_limit_cpu_cores',
-                        'count': None,
+                        'usage_label': 'pod_usage_cpu_core_hours',
+                        'request_label': 'pod_request_cpu_core_hours',
+                        'default_ordering': {'pod_usage_cpu_core_hours': 'desc'},
+                        'annotations': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'limit': Max('pod_limit_cpu_cores'),
+                        },
                         'filter': {},
-                        'units_key': 'unit',
                     },
                     'mem': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
-                        'mem_usage': 'pod_usage_memory_gigabytes',
-                        'mem_request': 'pod_request_memory_gigabytes',
-                        'count': None,
+                        'usage_label': 'pod_usage_memory_gigabytes',
+                        'request_label': 'pod_request_memory_gigabytes',
+                        'default_ordering': {'pod_usage_memory_gigabytes': 'desc'},
+                        'annotations': {
+                            'usage': Sum('pod_usage_memory_gigabytes'),
+                            'request': Sum('pod_request_memory_gigabytes'),
+                        },
                         'filter': {},
-                        'units_key': 'unit',
                     }
                 },
                 'start_date': 'usage_start',
@@ -266,7 +277,7 @@ class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
     def __init__(self, query_parameters, url_data,
-                 tenant, default_ordering, group_by_options, **kwargs):
+                 tenant, group_by_options, **kwargs):
         """Establish report query handler.
 
         Args:
@@ -277,7 +288,6 @@ class ReportQueryHandler(object):
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
-        self.default_ordering = default_ordering
         self.group_by_options = group_by_options
         self._accept_type = None
         self._annotations = None
@@ -312,6 +322,7 @@ class ReportQueryHandler(object):
         self._mapper = ProviderMap(provider=kwargs.get('provider'),
                                    operation=self.operation,
                                    report_type=self._report_type)
+        self.default_ordering = self._mapper._report_type_map.get('default_ordering')
         self.query_filter = self._get_filter()
 
     @property

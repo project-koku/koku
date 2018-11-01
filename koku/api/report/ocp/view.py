@@ -23,8 +23,7 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
-from api.report.ocp.ocp_query_handler_cpu import OCPReportQueryHandlerCPU
-from api.report.ocp.ocp_query_handler_mem import OCPReportQueryHandlerMem
+from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.view import _generic_report
 
@@ -131,8 +130,8 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    extras = {'report_type': 'mem'}  # These shouldn't be necessary for OCP
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerMem, **extras)
+    extras = {'report_type': 'mem'}
+    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -241,5 +240,5 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    extras = {'report_type': 'cpu'}  # These shouldn't be necessary for OCP
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandlerCPU, **extras)
+    extras = {'report_type': 'cpu'}
+    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
