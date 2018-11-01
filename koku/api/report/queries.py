@@ -487,11 +487,11 @@ class ReportQueryHandler(object):
         else:
             if time_scope_value == -10:
                 # get last 10 days
-                start = dh.n_days_ago(dh.this_hour, 10)
+                start = dh.n_days_ago(dh.this_hour, 9)
                 end = dh.this_hour
             else:
                 # get last 30 days
-                start = dh.n_days_ago(dh.this_hour, 30)
+                start = dh.n_days_ago(dh.this_hour, 29)
                 end = dh.this_hour
 
         self.start_datetime = start
