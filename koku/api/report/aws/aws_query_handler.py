@@ -49,7 +49,6 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    default_ordering = {'total': 'desc'}
     group_by_options = ['service', 'account', 'region', 'avail_zone']
 
     def __init__(self, query_parameters, url_data,
@@ -65,8 +64,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         kwargs['provider'] = 'AWS'
 
         super().__init__(query_parameters, url_data,
-                         tenant, self.default_ordering,
-                         self.group_by_options, **kwargs)
+                         tenant, self.group_by_options, **kwargs)
 
     def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.

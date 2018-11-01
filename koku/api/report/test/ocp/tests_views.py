@@ -28,8 +28,7 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.ocp.ocp_query_handler_cpu import OCPReportQueryHandlerCPU
-from api.report.ocp.ocp_query_handler_mem import OCPReportQueryHandlerMem
+from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.utils import DateHelper
@@ -192,12 +191,7 @@ class OCPReportViewTest(IamTestCase):
             }
         }
 
-    # def tearDown(self):
-    #     """Tear down the test."""
-    #     self.data_generator.remove_data_from_tenant()
-    #     super().tearDown()
-
-    @patch('api.report.ocp.ocp_query_handler_cpu.OCPReportQueryHandlerCPU')
+    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_cpu_success(self, mock_handler):
         """Test OCP cpu generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
@@ -219,10 +213,10 @@ class OCPReportViewTest(IamTestCase):
         request.user = user
 
         extras = {'report_type': 'cpu'}
-        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandlerCPU, **extras)
+        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandler, **extras)
         self.assertIsInstance(response, Response)
 
-    @patch('api.report.ocp.ocp_query_handler_mem.OCPReportQueryHandlerMem')
+    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_mem_success(self, mock_handler):
         """Test OCP memory generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
@@ -244,7 +238,7 @@ class OCPReportViewTest(IamTestCase):
         request.user = user
 
         extras = {'report_type': 'mem'}
-        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandlerMem, **extras)
+        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandler, **extras)
         self.assertIsInstance(response, Response)
 
     def test_execute_query_ocp_cpu(self):
