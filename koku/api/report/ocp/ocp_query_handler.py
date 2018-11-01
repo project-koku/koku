@@ -88,7 +88,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ranked_list = []
         others_list = []
         other = None
-        other_sum = 0
+        other_sums  = {column: 0 for column in self._mapper.sum_columns}
         for data in data_list:
             if other is None:
                 other = copy.deepcopy(data)
@@ -98,12 +98,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 ranked_list.append(data)
             else:
                 others_list.append(data)
-                total = data.get('total')
-                if total:
-                    other_sum += total
+                for column in self._mapper.sum_columns:
+                    other_sums[column] += data.get(column) if data.get(column) else 0
 
         if other is not None and others_list:
-            other['total'] = other_sum
+            other.update(other_sums)
             del other['rank']
             group_by = self._get_group_by()
             for group in group_by:
@@ -258,9 +257,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_query = q_table.objects.filter(total_filter)
 
         total_dict = {}
-        cpu_usage_sum = total_query.aggregate(usage=Sum(usage_key))
-        cpu_request_sum = total_query.aggregate(request=Sum(request_key))
-        total_dict[usage_key] = cpu_usage_sum.get('usage')
-        total_dict[request_key] = cpu_request_sum.get('request')
+        cpu_sum = total_query.aggregate(
+            usage=Sum(usage_key),
+            request=Sum(request_key)
+        )
+        # cpu_request_sum = total_query.aggregate(request=Sum(request_key))
+        total_dict[usage_key] = cpu_sum.get('usage')
+        total_dict[request_key] = cpu_sum.get('request')
 
         return total_dict

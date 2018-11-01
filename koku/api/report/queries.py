@@ -77,6 +77,7 @@ class ProviderMap(object):
                         'count': None,
                         'filter': {},
                         'units_key': 'currency_code',
+                        'sum_columns': ['total'],
                     },
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
@@ -87,6 +88,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'unit',
+                        'sum_columns': ['total'],
                     },
                     'storage': {
                         'aggregate_key': 'usage_amount',
@@ -97,6 +99,7 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'unit',
+                        'sum_columns': ['total'],
                     }
                 },
                 'start_date': 'usage_start',
@@ -128,6 +131,7 @@ class ProviderMap(object):
                         'count': None,
                         'filter': {},
                         'units_key': 'currency_code',
+                        'sum_columns': ['total'],
                     },
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
@@ -139,6 +143,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'sum_columns': ['total'],
                     },
                     'storage': {
                         'aggregate_key': 'usage_amount',
@@ -150,6 +155,7 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'sum_columns': ['total'],
                     },
                 },
                 'start_date': 'usage_start',
@@ -184,7 +190,8 @@ class ProviderMap(object):
                         'cpu_limit': 'pod_limit_cpu_cores',
                         'count': None,
                         'filter': {},
-                        'units_key': 'unit',
+                        'units_key': 'core_hours',
+                        'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
                     },
                     'mem': {
                         'aggregate_key': 'pod_usage_cpu_core_hours',
@@ -192,7 +199,8 @@ class ProviderMap(object):
                         'mem_request': 'pod_request_memory_gigabytes',
                         'count': None,
                         'filter': {},
-                        'units_key': 'unit',
+                        'units_key': 'GB',
+                        'sum_columns': ['mem_limit', 'memory_usage_gigabytes', 'memory_requests_gigabytes'],
                     }
                 },
                 'start_date': 'usage_start',
@@ -242,6 +250,11 @@ class ProviderMap(object):
     def units_key(self):
         """Return the units_key property."""
         return self._report_type_map.get('units_key')
+
+    @property
+    def sum_columns(self):
+        """Return the sum column list for the report type."""
+        return self._report_type_map.get('sum_columns')
 
 
 class TruncDayString(TruncDay):
