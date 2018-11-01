@@ -73,9 +73,9 @@ class OCPReportViewTest(IamTestCase):
                                 {
                                     'date': '2018-10',
                                     'project': 'default',
-                                    'cpu_limit': 'null',
-                                    'cpu_usage_core_hours': 0.119385,
-                                    'cpu_requests_core_hours': 9.506666
+                                    'limit': 'null',
+                                    'usage': 0.119385,
+                                    'request': 9.506666
                                 }
                             ]
                         },
@@ -85,9 +85,9 @@ class OCPReportViewTest(IamTestCase):
                                 {
                                     'date': '2018-10',
                                     'project': 'metering',
-                                    'cpu_limit': 'null',
-                                    'cpu_usage_core_hours': 4.464511,
-                                    'cpu_requests_core_hours': 53.985832
+                                    'limit': 'null',
+                                    'usage': 4.464511,
+                                    'request': 53.985832
                                 }
                             ]
                         },
@@ -97,9 +97,9 @@ class OCPReportViewTest(IamTestCase):
                                 {
                                     'date': '2018-10',
                                     'project': 'monitoring',
-                                    'cpu_limit': 'null',
-                                    'cpu_usage_core_hours': 7.861343,
-                                    'cpu_requests_core_hours': 17.920067
+                                    'limit': 'null',
+                                    'usage': 7.861343,
+                                    'request': 17.920067
                                 }
                             ]
                         },
@@ -109,9 +109,9 @@ class OCPReportViewTest(IamTestCase):
                                 {
                                     'date': '2018-10',
                                     'project': 'openshift-web-console',
-                                    'cpu_limit': 'null',
-                                    'cpu_usage_core_hours': 0.862687,
-                                    'cpu_requests_core_hours': 4.753333
+                                    'limit': 'null',
+                                    'usage': 0.862687,
+                                    'request': 4.753333
                                 }
                             ]
                         }
@@ -260,9 +260,9 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('cpu_limit' in values)
-                self.assertTrue('cpu_usage_core_hours' in values)
-                self.assertTrue('cpu_requests_core_hours' in values)
+                self.assertTrue('limit' in values)
+                self.assertTrue('usage' in values)
+                self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -285,9 +285,9 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('cpu_limit' in values)
-                self.assertTrue('cpu_usage_core_hours' in values)
-                self.assertTrue('cpu_requests_core_hours' in values)
+                self.assertTrue('limit' in values)
+                self.assertTrue('usage' in values)
+                self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_this_month(self):
         """Test that data is returned for the full month"""
@@ -309,9 +309,9 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(dates[0], expected_date)
 
         values = data.get('data')[0].get('values')[0]
-        self.assertTrue('cpu_limit' in values)
-        self.assertTrue('cpu_usage_core_hours' in values)
-        self.assertTrue('cpu_requests_core_hours' in values)
+        self.assertTrue('limit' in values)
+        self.assertTrue('usage' in values)
+        self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_this_month_daily(self):
         """Test that data is returned for the full month"""
@@ -337,9 +337,9 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('cpu_limit' in values)
-                self.assertTrue('cpu_usage_core_hours' in values)
-                self.assertTrue('cpu_requests_core_hours' in values)
+                self.assertTrue('limit' in values)
+                self.assertTrue('usage' in values)
+                self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_last_month(self):
         """Test that data is returned for the last month"""
@@ -361,9 +361,9 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(dates[0], expected_date)
 
         values = data.get('data')[0].get('values')[0]
-        self.assertTrue('cpu_limit' in values)
-        self.assertTrue('cpu_usage_core_hours' in values)
-        self.assertTrue('cpu_requests_core_hours' in values)
+        self.assertTrue('limit' in values)
+        self.assertTrue('usage' in values)
+        self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_last_month_daily(self):
         """Test that data is returned for the full month"""
@@ -389,9 +389,9 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('cpu_limit' in values)
-                self.assertTrue('cpu_usage_core_hours' in values)
-                self.assertTrue('cpu_requests_core_hours' in values)
+                self.assertTrue('limit' in values)
+                self.assertTrue('usage' in values)
+                self.assertTrue('request' in values)
 
     def test_execute_query_ocp_memory(self):
         """Test that OCP Mem endpoint works."""

@@ -22,7 +22,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.test_ocp_query_handler_base import OCPReportQueryHandlerBaseTest
-from reporting.models import OCPUsageLineItemDaily
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
@@ -33,15 +33,12 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
         if filter is None:
             filter = self.ten_day_filter
         with tenant_context(self.tenant):
-            totals = OCPUsageLineItemDaily.objects\
+            return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\
                 .aggregate(
-                    pod_usage_cpu_core_hours=Sum('pod_usage_cpu_core_seconds') / 3600,
-                    pod_request_cpu_core_hours=Sum('pod_request_cpu_core_seconds') / 3600
+                    usage=Sum('pod_usage_cpu_core_hours'),
+                    request=Sum('pod_request_cpu_core_hours')
                 )
-
-        return {key: total.quantize(Decimal('.000001'))
-                for key, total in totals.items()}
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
@@ -57,7 +54,7 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertEqual(total.get('pod_usage_cpu_core_hours'),
-                         current_totals.get('pod_usage_cpu_core_hours'))
-        self.assertEqual(total.get('pod_request_cpu_core_hours'),
-                         current_totals.get('pod_request_cpu_core_hours'))
+        self.assertEqual(total.get('usage'),
+                         current_totals.get('usage'))
+        self.assertEqual(total.get('request'),
+                         current_totals.get('request'))
