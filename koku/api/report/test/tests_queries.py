@@ -744,14 +744,14 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         dh = DateHelper()
-        ten_days_ago = dh.n_days_ago(dh.today, 10)
+        nine_days_ago = dh.n_days_ago(dh.today, 9)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
-        self.assertEqual(start, ten_days_ago)
+        self.assertEqual(start, nine_days_ago)
         self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
-        self.assertTrue(len(interval) == 11)
+        self.assertTrue(len(interval) == 10)
 
     def test_get_time_frame_filter_last_thirty(self):
         """Test _get_time_frame_filter for last thirty days."""
@@ -762,14 +762,14 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         dh = DateHelper()
-        thirty_days_ago = dh.n_days_ago(dh.today, 30)
+        twenty_nine_days_ago = dh.n_days_ago(dh.today, 29)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
-        self.assertEqual(start, thirty_days_ago)
+        self.assertEqual(start, twenty_nine_days_ago)
         self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
-        self.assertTrue(len(interval) == 31)
+        self.assertTrue(len(interval) == 30)
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
