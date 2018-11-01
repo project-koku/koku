@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
+from urllib.parse import urlencode, quote_plus
 from unittest.mock import patch
 
 from django.http import HttpRequest, QueryDict
@@ -29,15 +30,25 @@ from api.models import User
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler_cpu import OCPReportQueryHandlerCPU
 from api.report.ocp.ocp_query_handler_mem import OCPReportQueryHandlerMem
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
+from api.utils import DateHelper
 
 
 class OCPReportViewTest(IamTestCase):
     """Tests the report view."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class."""
+        super().setUpClass()
+        cls.dh = DateHelper()
+
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+        self.data_generator = OCPReportDataGenerator(self.tenant)
+        self.data_generator.add_data_to_tenant()
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -181,6 +192,11 @@ class OCPReportViewTest(IamTestCase):
             }
         }
 
+    # def tearDown(self):
+    #     """Tear down the test."""
+    #     self.data_generator.remove_data_from_tenant()
+    #     super().tearDown()
+
     @patch('api.report.ocp.ocp_query_handler_cpu.OCPReportQueryHandlerCPU')
     def test_generic_report_ocp_cpu_success(self, mock_handler):
         """Test OCP cpu generic report."""
@@ -236,7 +252,152 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-ocp-cpu')
         client = APIClient()
         response = client.get(url, **self.headers)
+
+        expected_end_date = self.dh.today
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 10)
+        expected_end_date = str(expected_end_date.date())
+        expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_start_date)
+        self.assertEqual(dates[-1], expected_end_date)
+
+        for item in data.get('data'):
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('cpu_limit' in values)
+                self.assertTrue('cpu_usage_core_hours' in values)
+                self.assertTrue('cpu_requests_core_hours' in values)
+
+    def test_execute_query_ocp_cpu_last_thirty_days(self):
+        """Test that OCP CPU endpoint works."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {'filter[time_scope_value]': '-30'}
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+
+        expected_end_date = self.dh.today
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 30)
+        expected_end_date = str(expected_end_date.date())
+        expected_start_date = str(expected_start_date.date())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_start_date)
+        self.assertEqual(dates[-1], expected_end_date)
+
+        for item in data.get('data'):
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('cpu_limit' in values)
+                self.assertTrue('cpu_usage_core_hours' in values)
+                self.assertTrue('cpu_requests_core_hours' in values)
+
+    def test_execute_query_ocp_cpu_this_month(self):
+        """Test that data is returned for the full month"""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+
+        expected_date = self.dh.today.strftime('%Y-%m')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_date)
+
+        values = data.get('data')[0].get('values')[0]
+        self.assertTrue('cpu_limit' in values)
+        self.assertTrue('cpu_usage_core_hours' in values)
+        self.assertTrue('cpu_requests_core_hours' in values)
+
+    def test_execute_query_ocp_cpu_this_month_daily(self):
+        """Test that data is returned for the full month"""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+
+        expected_start_date = self.dh.this_month_start.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.this_month_end.strftime('%Y-%m-%d')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_start_date)
+        self.assertEqual(dates[-1], expected_end_date)
+
+        for item in data.get('data'):
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('cpu_limit' in values)
+                self.assertTrue('cpu_usage_core_hours' in values)
+                self.assertTrue('cpu_requests_core_hours' in values)
+
+    def test_execute_query_ocp_cpu_last_month(self):
+        """Test that data is returned for the last month"""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-2',
+            'filter[time_scope_units]': 'month'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+
+        expected_date = self.dh.last_month_start.strftime('%Y-%m')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_date)
+
+        values = data.get('data')[0].get('values')[0]
+        self.assertTrue('cpu_limit' in values)
+        self.assertTrue('cpu_usage_core_hours' in values)
+        self.assertTrue('cpu_requests_core_hours' in values)
+
+    def test_execute_query_ocp_cpu_last_month_daily(self):
+        """Test that data is returned for the full month"""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-2',
+            'filter[time_scope_units]': 'month'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+
+        expected_start_date = self.dh.last_month_start.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.last_month_end.strftime('%Y-%m-%d')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_start_date)
+        self.assertEqual(dates[-1], expected_end_date)
+
+        for item in data.get('data'):
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('cpu_limit' in values)
+                self.assertTrue('cpu_usage_core_hours' in values)
+                self.assertTrue('cpu_requests_core_hours' in values)
 
     def test_execute_query_ocp_memory(self):
         """Test that OCP Mem endpoint works."""

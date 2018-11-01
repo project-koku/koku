@@ -54,13 +54,13 @@ class OCPReportDataGenerator:
 
         if self.one_month_ago.day >= 10:
             self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(10)),
-                (self.today - relativedelta(days=i) for i in range(10)),
+                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
+                (self.today - relativedelta(days=i) for i in range(11)),
             ]
         else:
             self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(10)),
-                (self.today + relativedelta(days=i) for i in range(10)),
+                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
+                (self.today + relativedelta(days=i) for i in range(11)),
             ]
 
         self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
@@ -69,6 +69,8 @@ class OCPReportDataGenerator:
         self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
                                   'usage_end__lte': self.dh.last_month_end}
 
+    def add_data_to_tenant(self):
+        """Populate tenant with data."""
         self.cluster_id = self.fake.word()
         self.namespace = self.fake.word()
         self.nodes = [self.fake.word() for _ in range(2)]
@@ -80,9 +82,6 @@ class OCPReportDataGenerator:
             }
             for _ in range(2)
         ]
-
-    def add_data_to_tenant(self):
-        """Populate tenant with data."""
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):
                 report_period = self.create_ocp_report_period(period)
@@ -97,6 +96,17 @@ class OCPReportDataGenerator:
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
+
+    def remove_data_from_tenant(self):
+        """Remove the added data."""
+        with tenant_context(self.tenant):
+            for table in (OCPUsageLineItem,
+                        OCPUsageLineItemAggregates,
+                        OCPUsageLineItemDaily,
+                        OCPUsageLineItemDailySummary,
+                        OCPUsageReport,
+                        OCPUsageReportPeriod):
+                table.objects.all().delete()
 
     def create_ocp_report_period(self, period):
         """Create the OCP report period DB rows."""

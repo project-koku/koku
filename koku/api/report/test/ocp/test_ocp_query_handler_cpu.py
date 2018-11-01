@@ -39,9 +39,7 @@ class OCPReportQueryHandlerCPUTest(OCPReportQueryHandlerTest):
                     pod_usage_cpu_core_hours=Sum('pod_usage_cpu_core_seconds') / 3600,
                     pod_request_cpu_core_hours=Sum('pod_request_cpu_core_seconds') / 3600
                 )
-
-        return {key: total.quantize(Decimal('.000001'))
-                for key, total in totals.items()}
+        return {key: round(total, 6) for key, total in totals.items()}
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
