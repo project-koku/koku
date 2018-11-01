@@ -112,7 +112,7 @@ class OrderBySerializer(serializers.Serializer):
     usage = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
     requests = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                    required=False)
+                                       required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
     project = serializers.ChoiceField(choices=ORDER_CHOICES,

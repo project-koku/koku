@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
-from urllib.parse import urlencode, quote_plus
 from unittest.mock import patch
+from urllib.parse import quote_plus, urlencode
 
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
@@ -290,7 +290,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_this_month(self):
-        """Test that data is returned for the full month"""
+        """Test that data is returned for the full month."""
         url = reverse('reports-ocp-cpu')
         client = APIClient()
         params = {
@@ -314,7 +314,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_this_month_daily(self):
-        """Test that data is returned for the full month"""
+        """Test that data is returned for the full month."""
         url = reverse('reports-ocp-cpu')
         client = APIClient()
         params = {
@@ -342,7 +342,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_last_month(self):
-        """Test that data is returned for the last month"""
+        """Test that data is returned for the last month."""
         url = reverse('reports-ocp-cpu')
         client = APIClient()
         params = {
@@ -366,7 +366,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue('request' in values)
 
     def test_execute_query_ocp_cpu_last_month_daily(self):
-        """Test that data is returned for the full month"""
+        """Test that data is returned for the full month."""
         url = reverse('reports-ocp-cpu')
         client = APIClient()
         params = {

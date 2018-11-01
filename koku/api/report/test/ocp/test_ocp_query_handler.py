@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-from decimal import Decimal
 
 from django.db.models import Sum
 from tenant_schemas.utils import tenant_context

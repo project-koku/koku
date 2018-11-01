@@ -101,11 +101,11 @@ class OCPReportDataGenerator:
         """Remove the added data."""
         with tenant_context(self.tenant):
             for table in (OCPUsageLineItem,
-                        OCPUsageLineItemAggregates,
-                        OCPUsageLineItemDaily,
-                        OCPUsageLineItemDailySummary,
-                        OCPUsageReport,
-                        OCPUsageReportPeriod):
+                          OCPUsageLineItemAggregates,
+                          OCPUsageLineItemDaily,
+                          OCPUsageLineItemDailySummary,
+                          OCPUsageReport,
+                          OCPUsageReportPeriod):
                 table.objects.all().delete()
 
     def create_ocp_report_period(self, period):

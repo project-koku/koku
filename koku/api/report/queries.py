@@ -756,7 +756,7 @@ class ReportQueryHandler(object):
         ranked_list = []
         others_list = []
         other = None
-        other_sums  = {column: 0 for column in self._mapper.sum_columns}
+        other_sums = {column: 0 for column in self._mapper.sum_columns}
         for data in data_list:
             if other is None:
                 other = copy.deepcopy(data)
