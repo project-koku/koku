@@ -442,7 +442,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/ocp/cpu/:
+  /reports/ocp/inventory/cpu/:
     get:
       tags:
         - Report
@@ -477,7 +477,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/ocp/memory/:
+  /reports/ocp/inventory/memory/:
     get:
       tags:
         - Report
