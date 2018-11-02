@@ -20,6 +20,8 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from koku.reporting.rate import Rate
+
 
 class AWSCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
