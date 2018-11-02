@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from decimal import Decimal
 
 from django.db.models import Sum
 from tenant_schemas.utils import tenant_context
@@ -53,7 +54,7 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertEqual(total.get('usage'),
-                         current_totals.get('usage'))
-        self.assertEqual(total.get('request'),
-                         current_totals.get('request'))
+        self.assertEqual(total.get('usage').quantize(Decimal('0.001')),
+                         current_totals.get('usage').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('request').quantize(Decimal('0.001')),
+                         current_totals.get('request').quantize(Decimal('0.001')))

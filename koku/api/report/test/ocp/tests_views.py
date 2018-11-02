@@ -248,7 +248,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 10)
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
@@ -273,7 +273,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 30)
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 29)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
