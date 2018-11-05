@@ -72,15 +72,15 @@ class OCPReportDataGenerator:
     def add_data_to_tenant(self):
         """Populate tenant with data."""
         self.cluster_id = self.fake.word()
-        self.namespace = self.fake.word()
+        self.namespaces = [self.fake.word() for _ in range(2)]
         self.nodes = [self.fake.word() for _ in range(2)]
         self.line_items = [
             {
-                'namespace': self.namespace,
-                'node': random.choice(self.nodes),
+                'namespace': random.choice(self.namespaces),
+                'node': node,
                 'pod': self.fake.word()
             }
-            for _ in range(2)
+            for node in self.nodes
         ]
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):

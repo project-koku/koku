@@ -399,3 +399,25 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_memory_group_by_limit(self):
+        """Test that OCP Mem endpoint works with limits."""
+        url = reverse('reports-ocp-memory')
+        client = APIClient()
+        params = {
+            'group_by[node]': '*',
+            'filter[limit]': '1',
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        data = response.json()
+
+        self.assertIn('nodes', data.get('data')[0])
+        import pdb; pdb.set_trace()
+
+        for item in data.get('data'):
+            if item.get('nodes'):
+                projects = item.get('nodes')
+                print(projects)
+                self.assertEqual(len(projects), 2)
+                self.assertEqual(projects[1].get('node'), 'Other')
