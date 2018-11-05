@@ -390,7 +390,7 @@ class ReportViewTest(IamTestCase):
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = 'Invalid'
-        expected = f'"{bad_delta}" is not a valid boolean.'
+        expected = 'Must be a valid boolean.'
         qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
