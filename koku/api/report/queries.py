@@ -175,10 +175,7 @@ class ProviderMap(object):
         'operation': {
             OPERATION_SUM: {
                 'annotations': {'cluster': 'cluster_id',
-                                'project': 'namespace',
-                                'cpu_usage': 'pod_usage_cpu_core_hours',
-                                'cpu_request': 'pod_request_cpu_core_hours',
-                                'cpu_limit': 'pod_limit_cpu_cores'},
+                                'project': 'namespace',},
                 'end_date': 'usage_end',
                 'filters': {
                     'project': {'field': 'namespace',
@@ -577,6 +574,17 @@ class ReportQueryHandler(object):
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
 
+    def _get_date_delta(self):
+        """Return a time delta."""
+
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
+        else:
+            date_delta = datetime.timedelta(days=10)
+        return date_delta
+
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
 
@@ -592,12 +600,7 @@ class ReportQueryHandler(object):
         filters.add(**self._mapper._report_type_map.get('filter'))
 
         if delta:
-            if self.time_scope_value in [-1, -2]:
-                date_delta = relativedelta.relativedelta(months=1)
-            elif self.time_scope_value == -30:
-                date_delta = datetime.timedelta(days=30)
-            else:
-                date_delta = datetime.timedelta(days=10)
+            date_delta = self._get_date_delta()
             start = self.start_datetime - date_delta
             end = self.end_datetime - date_delta
         else:
