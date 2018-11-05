@@ -413,7 +413,6 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
 
         self.assertIn('nodes', data.get('data')[0])
-        import pdb; pdb.set_trace()
 
         for item in data.get('data'):
             if item.get('nodes'):
