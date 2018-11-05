@@ -23,39 +23,23 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import (F,
-                              Max,
-                              Q,
-                              Sum,
-                              Value,
-                              Window)
-from django.db.models.functions import (Concat,
-                                        DenseRank,
-                                        TruncDay,
+from django.db.models import (Max,
+                              Sum)
+from django.db.models.functions import (TruncDay,
                                         TruncMonth)
-from tenant_schemas.utils import tenant_context
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
-                              AWSCostEntryLineItemDailySummary)
-
+                              AWSCostEntryLineItemDailySummary,
+                              OCPUsageLineItemAggregates,
+                              OCPUsageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
 WILDCARD = '*'
 OPERATION_SUM = 'sum'
 OPERATION_NONE = 'none'
-EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
-                  'cost_entry_product_id', 'cost_entry_pricing_id',
-                  'cost_entry_reservation_id', 'tags',
-                  'invoice_id', 'line_item_type', 'usage_account_id',
-                  'usage_start', 'usage_end', 'product_code',
-                  'usage_type', 'operation', 'availability_zone',
-                  'usage_amount', 'normalization_factor',
-                  'normalized_usage_amount', 'currency_code',
-                  'unblended_rate', 'unblended_cost', 'blended_rate',
-                  'blended_cost', 'tax_type']
 
 
 class ProviderMap(object):
@@ -96,6 +80,8 @@ class ProviderMap(object):
                         'count': None,
                         'filter': {},
                         'units_key': 'currency_code',
+                        'sum_columns': ['total'],
+                        'default_ordering': {'total': 'desc'},
                     },
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
@@ -106,6 +92,8 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'unit',
+                        'sum_columns': ['total'],
+                        'default_ordering': {'total': 'desc'},
                     },
                     'storage': {
                         'aggregate_key': 'usage_amount',
@@ -116,7 +104,9 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'unit',
-                    }
+                        'sum_columns': ['total'],
+                        'default_ordering': {'total': 'desc'},
+                    },
                 },
                 'start_date': 'usage_start',
                 'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
@@ -147,6 +137,7 @@ class ProviderMap(object):
                         'count': None,
                         'filter': {},
                         'units_key': 'currency_code',
+                        'sum_columns': ['total'],
                     },
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
@@ -158,6 +149,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'sum_columns': ['total'],
                     },
                     'storage': {
                         'aggregate_key': 'usage_amount',
@@ -169,6 +161,7 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'sum_columns': ['total'],
                     },
                 },
                 'start_date': 'usage_start',
@@ -176,6 +169,62 @@ class ProviderMap(object):
                            'previous_query': AWSCostEntryLineItem,
                            'total': AWSCostEntryLineItemAggregates},
             }
+        },
+    }, {
+        'provider': 'OCP',
+        'operation': {
+            OPERATION_SUM: {
+                'annotations': {'cluster': 'cluster_id',
+                                'project': 'namespace'},
+                'end_date': 'usage_end',
+                'filters': {
+                    'project': {'field': 'namespace',
+                                'operation': 'icontains'},
+                    'cluster': {'field': 'cluster_id',
+                                'operation': 'icontains'},
+                    'pod': {'field': 'pod',
+                            'operation': 'icontains'},
+                },
+                'report_type': {
+                    'cpu': {
+                        'usage_label': 'pod_usage_cpu_core_hours',
+                        'request_label': 'pod_request_cpu_core_hours',
+                        'default_ordering': {'usage': 'desc'},
+                        'order_field': {
+                            'usage': 'usage',
+                            'requests': 'request'
+                        },
+                        'annotations': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'limit': Max('pod_limit_cpu_cores'),
+                        },
+                        'filter': {},
+                        'units_key': 'core_hours',
+                        'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
+                    },
+                    'mem': {
+                        'usage_label': 'pod_usage_memory_gigabytes',
+                        'request_label': 'pod_request_memory_gigabytes',
+                        'default_ordering': {'usage': 'desc'},
+                        'order_field': {
+                            'usage': 'usage',
+                            'requests': 'request'
+                        },
+                        'annotations': {
+                            'usage': Sum('pod_usage_memory_gigabytes'),
+                            'request': Sum('pod_request_memory_gigabytes'),
+                        },
+                        'filter': {},
+                        'units_key': 'GB',
+                        'sum_columns': ['mem_limit', 'memory_usage_gigabytes', 'memory_requests_gigabytes'],
+                    }
+                },
+                'start_date': 'usage_start',
+                'tables': {'previous_query': OCPUsageLineItemDailySummary,
+                           'query': OCPUsageLineItemDailySummary,
+                           'total': OCPUsageLineItemAggregates},
+            },
         },
     }]
 
@@ -219,6 +268,11 @@ class ProviderMap(object):
         """Return the units_key property."""
         return self._report_type_map.get('units_key')
 
+    @property
+    def sum_columns(self):
+        """Return the sum column list for the report type."""
+        return self._report_type_map.get('sum_columns')
+
 
 class TruncDayString(TruncDay):
     """Class to handle string formated day truncation."""
@@ -241,10 +295,8 @@ class TruncMonthString(TruncMonth):
 class ReportQueryHandler(object):
     """Handles report queries and responses."""
 
-    default_ordering = {'total': 'desc'}
-
     def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
+                 tenant, group_by_options, **kwargs):
         """Establish report query handler.
 
         Args:
@@ -255,6 +307,7 @@ class ReportQueryHandler(object):
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
+        self.group_by_options = group_by_options
         self._accept_type = None
         self._annotations = None
         self._group_by = None
@@ -269,7 +322,6 @@ class ReportQueryHandler(object):
         self.tenant = tenant
         self.url_data = url_data
 
-        self.provider_name = self.query_parameters.get('provider', 'AWS')
         self.operation = self.query_parameters.get('operation', OPERATION_SUM)
 
         self._delta = self.query_parameters.get('delta')
@@ -286,10 +338,10 @@ class ReportQueryHandler(object):
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
-
-        self._mapper = ProviderMap(provider=self.provider_name,
+        self._mapper = ProviderMap(provider=kwargs.get('provider'),
                                    operation=self.operation,
                                    report_type=self._report_type)
+        self.default_ordering = self._mapper._report_type_map.get('default_ordering')
         self.query_filter = self._get_filter()
 
     @property
@@ -522,6 +574,16 @@ class ReportQueryHandler(object):
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
 
+    def _get_date_delta(self):
+        """Return a time delta."""
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
+        else:
+            date_delta = datetime.timedelta(days=10)
+        return date_delta
+
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
 
@@ -537,12 +599,7 @@ class ReportQueryHandler(object):
         filters.add(**self._mapper._report_type_map.get('filter'))
 
         if delta:
-            if self.time_scope_value in [-1, -2]:
-                date_delta = relativedelta.relativedelta(months=1)
-            elif self.time_scope_value == -30:
-                date_delta = datetime.timedelta(days=30)
-            else:
-                date_delta = datetime.timedelta(days=10)
+            date_delta = self._get_date_delta()
             start = self.start_datetime - date_delta
             end = self.end_datetime - date_delta
         else:
@@ -565,8 +622,7 @@ class ReportQueryHandler(object):
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
-        group_by_options = ['service', 'account', 'region', 'avail_zone']
-        for item in group_by_options:
+        for item in self.group_by_options:
             group_data = self.get_query_param_data('group_by', item)
             if group_data:
                 group_pos = self.url_data.index(item)
@@ -588,21 +644,7 @@ class ReportQueryHandler(object):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            'date': self.date_trunc('usage_start'),
-            'units': Concat(self._mapper.units_key, Value(''))
-        }
-        if self._annotations and not self.is_sum:
-            annotations.update(self._annotations)
-
-        # { query_param: database_field_name }
-        if not fields:
-            fields = self._mapper._operation_map.get('annotations')
-
-        for q_param, db_field in fields.items():
-            annotations[q_param] = Concat(db_field, Value(''))
-
-        return annotations
+        pass
 
     @staticmethod
     def _group_data_by_list(group_by_list, group_index, data):
@@ -635,43 +677,6 @@ class ReportQueryHandler(object):
                 out_data[key] = grouped
         return out_data
 
-    def _ranked_list(self, data_list):
-        """Get list of ranked items less than top.
-
-        Args:
-            data_list (List(Dict)): List of ranked data points from the same bucket
-        Returns:
-            List(Dict): List of data points meeting the rank criteria
-        """
-        ranked_list = []
-        others_list = []
-        other = None
-        other_sum = 0
-        for data in data_list:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                del data['rank']
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                total = data.get('total')
-                if total:
-                    other_sum += total
-
-        if other is not None and others_list:
-            other['total'] = other_sum
-            del other['rank']
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = 'Other'
-            if 'account' in group_by:
-                other['account_alias'] = 'Other'
-            ranked_list.append(other)
-
-        return ranked_list
-
     def _apply_group_by(self, query_data):
         """Group data by date for given time interval then group by list.
 
@@ -702,22 +707,6 @@ class ReportQueryHandler(object):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
-    def _format_query_response(self):
-        """Format the query response with data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        output = copy.deepcopy(self.query_parameters)
-        output['data'] = self.query_data
-        output['total'] = self.query_sum
-
-        if self._delta:
-            output['delta'] = self.query_delta
-
-        return output
-
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         groups_len = len(groups)
@@ -740,114 +729,6 @@ class ReportQueryHandler(object):
 
         return out_data
 
-    def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        query_sum = {'value': 0}
-        data = []
-
-        q_table = self._mapper._operation_map.get('tables').get('query')
-        with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
-
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-
-            query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
-
-            aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-            query_data = query_data.values(*query_group_by)\
-                .annotate(total=Sum(aggregate_key))\
-                .annotate(units=Max(self._mapper.units_key))
-
-            if 'account' in query_group_by:
-                query_data = query_data.annotate(account_alias=F(self._mapper._operation_map.get('alias')))
-
-            if self._mapper.count:
-                # This is a sum because the summary table already
-                # has already performed counts
-                query_data = query_data.annotate(count=Sum(self._mapper.count))
-
-            if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                dense_rank_by_total = Window(
-                    expression=DenseRank(),
-                    partition_by=F('date'),
-                    order_by=rank_order
-                )
-                query_data = query_data.annotate(rank=dense_rank_by_total)
-                query_order_by = query_order_by + ('rank',)
-
-            if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
-
-            if query.exists():
-                units_value = query.values(self._mapper.units_key)\
-                                   .first().get(self._mapper.units_key)
-                query_sum = self.calculate_total(units_value)
-
-            if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
-            if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
-            else:
-                data = self._apply_group_by(list(query_data))
-                data = self._transform_data(query_group_by, 0, data)
-
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
-
-    def execute_query(self):
-        """Execute query and return provided data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        if self.is_sum:
-            return self.execute_sum_query()
-
-        query_sum = {'value': 0}
-        data = []
-
-        q_table = self._mapper._operation_map.get('tables').get('query')
-        with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
-
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-            query_group_by_with_units = query_group_by + ['units']
-
-            query_order_by = ('-date',)
-            query_data = query_data.order_by(*query_order_by)
-            values_out = query_group_by_with_units + EXPORT_COLUMNS
-            data = list(query_data.values(*values_out))
-
-            if query.exists():
-                units_value = query.values(self._mapper.units_key)\
-                                   .first().get(self._mapper.units_key)
-                query_sum = self.calculate_total(units_value)
-
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
-
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
 
@@ -866,125 +747,38 @@ class ReportQueryHandler(object):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return Decimal(0)
 
-    def add_deltas(self, query_data, query_sum):
-        """Calculate and add cost deltas to a result set.
+    def _ranked_list(self, data_list):
+        """Get list of ranked items less than top.
 
         Args:
-            query_data (list) The existing query data from execute_query
-            query_sum (list) The sum returned by calculate_totals
-
+            data_list (List(Dict)): List of ranked data points from the same bucket
         Returns:
-            (dict) query data with new with keys "value" and "percent"
-
+            List(Dict): List of data points meeting the rank criteria
         """
-        delta_group_by = ['date'] + self._get_group_by()
-        delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper._operation_map.get('tables').get('previous_query')
-        previous_query = q_table.objects.filter(delta_filter)
-        previous_dict = self._create_previous_totals(previous_query,
-                                                     delta_group_by)
+        ranked_list = []
+        others_list = []
+        other = None
+        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        for data in data_list:
+            if other is None:
+                other = copy.deepcopy(data)
+            rank = data.get('rank')
+            if rank <= self._limit:
+                del data['rank']
+                ranked_list.append(data)
+            else:
+                others_list.append(data)
+                for column in self._mapper.sum_columns:
+                    other_sums[column] += data.get(column) if data.get(column) else 0
 
-        for row in query_data:
-            key = tuple((row[key] for key in delta_group_by))
-            previous_total = previous_dict.get(key, 0)
-            current_total = row.get('total', 0)
-            row['delta_value'] = current_total - previous_total
-            row['delta_percent'] = self._percent_delta(current_total, previous_total)
+        if other is not None and others_list:
+            other.update(other_sums)
+            del other['rank']
+            group_by = self._get_group_by()
+            for group in group_by:
+                other[group] = 'Other'
+            if 'account' in group_by:
+                other['account_alias'] = 'Other'
+            ranked_list.append(other)
 
-        # Calculate the delta on the total aggregate
-        current_total_sum = Decimal(query_sum.get('value') or 0)
-        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-        prev_total_sum = previous_query.aggregate(value=Sum(aggregate_key))
-        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
-
-        total_delta = current_total_sum - prev_total_sum
-        total_delta_percent = self._percent_delta(current_total_sum,
-                                                  prev_total_sum)
-
-        self.query_delta = {
-            'value': total_delta,
-            'percent': total_delta_percent
-        }
-
-        if self.order_field == 'delta':
-            reverse = True if self.order_direction == 'desc' else False
-            query_data = sorted(list(query_data),
-                                key=lambda x: x['delta_percent'],
-                                reverse=reverse)
-        return query_data
-
-    def _create_previous_totals(self, previous_query, query_group_by):
-        """Get totals from the time period previous to the current report.
-
-        Args:
-            previous_query (Query): A Django ORM query
-            query_group_by (dict): The group by dict for the current report
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
-        else:
-            date_delta = datetime.timedelta(days=10)
-        # Added deltas for each grouping
-        # e.g. date, account, region, availability zone, et cetera
-        query_annotations = self._get_annotations()
-        previous_sums = previous_query.annotate(**query_annotations)
-        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-        previous_sums = previous_sums\
-            .values(*query_group_by)\
-            .annotate(total=Sum(aggregate_key))
-
-        previous_dict = OrderedDict()
-        for row in previous_sums:
-            date = self.string_to_date(row['date'])
-            date = date + date_delta
-            row['date'] = self.date_to_string(date)
-            key = tuple((row[key] for key in query_group_by))
-            previous_dict[key] = row['total']
-
-        return previous_dict
-
-    def calculate_total(self, units_value):
-        """Calculate aggregated totals for the query.
-
-        Args:
-            units_value (str): The unit of the reported total
-
-        Returns:
-            (dict) The aggregated totals for the query
-
-        """
-        filt_collection = QueryFilterCollection()
-        total_filter = self._get_search_filter(filt_collection)
-
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     -10)
-        time_and_report_filter = Q(time_scope_value=time_scope_value) & \
-            Q(report_type=self._report_type)
-
-        if total_filter is None:
-            total_filter = time_and_report_filter
-        else:
-            total_filter = total_filter & time_and_report_filter
-
-        q_table = self._mapper._operation_map.get('tables').get('total')
-        total_query = q_table.objects.filter(total_filter)
-
-        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-        if self._mapper.count:
-            query_sum = total_query.aggregate(
-                value=Sum(aggregate_key),
-                # This is a sum because the summary table already
-                # has already performed counts
-                count=Sum(self._mapper.count)
-            )
-        else:
-            query_sum = total_query.aggregate(value=Sum(aggregate_key))
-        query_sum['units'] = units_value
-
-        return query_sum
+        return ranked_list
