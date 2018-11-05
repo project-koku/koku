@@ -631,6 +631,12 @@ class OCPUsageLineItemDailySummary(models.Model):
         null=True
     )
 
+    pod_usage_cpu_charge = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
     pod_request_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
@@ -644,6 +650,12 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
 
     pod_usage_memory_gigabytes = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_usage_memory_charge = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
