@@ -1,7 +1,7 @@
 -i https://pypi.python.org/simple
 boto3==1.7.78
 botocore==1.10.84
-certifi==2018.8.24
+certifi==2018.10.15
 chardet==3.0.4
 django-cors-headers==2.4.0
 django-environ==0.4.5
@@ -9,21 +9,21 @@ django-filter==2.0.0
 django-tenant-schemas==1.9.0
 django==2.1.2
 djangorestframework-csv==2.1.0
-djangorestframework==3.8.2
+djangorestframework==3.9.0
 docutils==0.14
-drf-nested-routers==0.90.2
+drf-nested-routers==0.91
 gunicorn==19.9.0
 idna==2.7
 jmespath==0.9.3
 pint==0.8.1
 psycopg2-binary==2.7.5
 psycopg2==2.7.5
-python-dateutil==2.7.3; python_version >= '2.7'
+python-dateutil==2.7.5; python_version >= '2.7'
 pytz==2018.5
 querystring-parser==1.2.3
-requests==2.19.1
+requests==2.20.0
 s3transfer==0.1.13
 six==1.11.0
 unicodecsv==0.14.1
-urllib3==1.23
+urllib3==1.24.1; python_version != '3.0.*'
 whitenoise==4.1
