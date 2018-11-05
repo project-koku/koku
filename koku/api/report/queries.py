@@ -175,7 +175,7 @@ class ProviderMap(object):
         'operation': {
             OPERATION_SUM: {
                 'annotations': {'cluster': 'cluster_id',
-                                'project': 'namespace',},
+                                'project': 'namespace'},
                 'end_date': 'usage_end',
                 'filters': {
                     'project': {'field': 'namespace',
@@ -576,7 +576,6 @@ class ReportQueryHandler(object):
 
     def _get_date_delta(self):
         """Return a time delta."""
-
         if self.time_scope_value in [-1, -2]:
             date_delta = relativedelta.relativedelta(months=1)
         elif self.time_scope_value == -30:
