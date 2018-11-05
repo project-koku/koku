@@ -18,7 +18,7 @@ jmespath==0.9.3
 pint==0.8.1
 psycopg2-binary==2.7.5
 psycopg2==2.7.5
-python-dateutil==2.7.3; python_version >= '2.7'
+python-dateutil==2.7.5; python_version >= '2.7'
 pytz==2018.5
 querystring-parser==1.2.3
 requests==2.19.1
