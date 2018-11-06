@@ -17,8 +17,6 @@
 
 """Models for identity and access management."""
 
-from uuid import uuid4
-
 from django.db import models
 
 
@@ -28,10 +26,12 @@ class Rate(models.Model):
     A rate is (price * metric_usage / timeunit).
     """
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
-    name = models.CharField(max_length=255, null=False)
+    class Meta:
+        """Meta for Rate."""
+        unique_together = ('metric', 'price', 'timeunit')
+
     description = models.TextField()
-    timeunit = models.CharField(max_length=100, null=False)
-    price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
     metric = models.CharField(max_length=100, null=False)
+    name = models.CharField(max_length=255, null=False)
+    price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
+    timeunit = models.CharField(max_length=100, null=False)
