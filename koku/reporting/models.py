@@ -16,9 +16,12 @@
 #
 
 """Models for cost entry tables."""
+# pylint: disable=unused-import
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+
+from reporting.rate.models import Rate   # noqa: F401
 
 
 class AWSCostEntryBill(models.Model):
