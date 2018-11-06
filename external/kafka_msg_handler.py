@@ -37,6 +37,7 @@ EVENT_LOOP = asyncio.get_event_loop()
 MSG_PENDING_QUEUE = asyncio.Queue()
 HCCM_TOPIC = 'platform.upload.hccm'
 AVAILABLE_TOPIC = 'platform.upload.available'
+VALIDATION_TOPIC = 'platform.upload.validation'
 SUCCESS_CONFIRM_STATUS = 'success'
 FAILURE_CONFIRM_STATUS = 'failure'
 
@@ -159,7 +160,7 @@ async def send_confirmation(file_hash, status):  # pragma: no cover
             'validation': status
         }
         msg = bytes(json.dumps(validation), 'utf-8')
-        await producer.send_and_wait('uploadvalidation', msg)
+        await producer.send_and_wait(VALIDATION_TOPIC, msg)
     finally:
         await producer.stop()
 
