@@ -21,7 +21,7 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
-from koku.reporting.rate import Rate   # noqa: F401
+from reporting.rate.models import Rate   # noqa: F401
 
 
 class AWSCostEntryBill(models.Model):
