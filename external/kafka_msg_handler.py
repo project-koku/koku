@@ -35,8 +35,8 @@ from masu.util.ocp import common as utils
 LOG = logging.getLogger(__name__)
 EVENT_LOOP = asyncio.get_event_loop()
 MSG_PENDING_QUEUE = asyncio.Queue()
-HCCM_TOPIC = 'hccm'
-AVAILABLE_TOPIC = 'available'
+HCCM_TOPIC = 'platform.upload.hccm'
+AVAILABLE_TOPIC = 'platform.upload.available'
 SUCCESS_CONFIRM_STATUS = 'success'
 FAILURE_CONFIRM_STATUS = 'failure'
 
@@ -134,7 +134,7 @@ async def send_confirmation(file_hash, status):  # pragma: no cover
 
     When a new file lands for topic 'hccm' we must validate it
     so that it will be made perminenantly available to other
-    apps listening on the 'available' topic.
+    apps listening on the 'platform.upload.available' topic.
 
     Args:
         file_hash (String): Hash for file being confirmed.
@@ -168,7 +168,8 @@ def handle_message(msg):
     """
     Handle messages from message pending queue.
 
-    Handle's messages with topics: 'hccm', and 'available'.
+    Handle's messages with topics: 'platform.upload.hccm',
+    and 'platform.upload.available'.
 
     The OCP cost usage payload will land on topic hccm.
     These messages will be extracted into the local report
