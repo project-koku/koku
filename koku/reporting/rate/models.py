@@ -28,6 +28,7 @@ class Rate(models.Model):
 
     class Meta:
         """Meta for Rate."""
+
         unique_together = ('metric', 'price', 'timeunit')
 
     description = models.TextField()
