@@ -16,6 +16,7 @@
 #
 
 """Models for cost entry tables."""
+# pylint: disable=unused-import
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models

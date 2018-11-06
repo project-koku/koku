@@ -19,15 +19,15 @@
 
 from uuid import uuid4
 
-from django.contrib.postgres.fields import JSONField
 from django.db import models
-from tenant_schemas.models import TenantMixin
+
 
 class Rate(models.Model):
-    """ A rate for calculating costs.
+    """A rate for calculating costs.
 
-    A rate is (price * metric_usage / timeunit)
+    A rate is (price * metric_usage / timeunit).
     """
+
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     name = models.CharField(max_length=255, null=False)
@@ -35,4 +35,3 @@ class Rate(models.Model):
     timeunit = models.CharField(max_length=100, null=False)
     price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
     metric = models.CharField(max_length=100, null=False)
-
