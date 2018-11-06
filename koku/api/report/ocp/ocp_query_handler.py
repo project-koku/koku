@@ -220,12 +220,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_query = q_table.objects.filter(total_filter)
 
         total_dict = {}
-        cpu_sum = total_query.aggregate(
+        metric_sum = total_query.aggregate(
             usage=Sum(usage_key),
             request=Sum(request_key)
         )
-        # cpu_request_sum = total_query.aggregate(request=Sum(request_key))
-        total_dict['usage'] = cpu_sum.get('usage')
-        total_dict['request'] = cpu_sum.get('request')
 
+        total_dict['usage'] = metric_sum.get('usage')
+        total_dict['request'] = metric_sum.get('request')
         return total_dict
