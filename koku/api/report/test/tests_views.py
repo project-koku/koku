@@ -28,8 +28,8 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.queries import ReportQueryHandler
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
@@ -275,7 +275,7 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
 
-    @patch('api.report.queries.ReportQueryHandler')
+    @patch('api.report.aws.aws_query_handler.AWSReportQueryHandler')
     def test_generic_report_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in generic report."""
         mock_handler.return_value.execute_query.return_value = self.report
@@ -298,10 +298,10 @@ class ReportViewTest(IamTestCase):
         request.user = user
 
         extras = {'report_type': 'costs'}
-        response = _generic_report(request, QueryParamSerializer, ReportQueryHandler, **extras)
+        response = _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
         self.assertIsInstance(response, Response)
 
-    @patch('api.report.queries.ReportQueryHandler')
+    @patch('api.report.aws.aws_query_handler.AWSReportQueryHandler')
     def test_generic_report_with_units_fails_well(self, mock_handler):
         """Test that validation error is thrown for bad unit conversion."""
         mock_handler.return_value.execute_query.return_value = self.report
@@ -390,7 +390,7 @@ class ReportViewTest(IamTestCase):
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = 'Invalid'
-        expected = f'"{bad_delta}" is not a valid boolean.'
+        expected = 'Must be a valid boolean.'
         qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
