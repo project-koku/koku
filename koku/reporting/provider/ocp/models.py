@@ -17,6 +17,7 @@
 
 """Models for OCP cost entry tables."""
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -128,6 +129,32 @@ class OCPUsageLineItem(models.Model):
         null=True
     )
 
+    node_capacity_cpu_cores = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_cpu_core_seconds = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_bytes = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_byte_seconds = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    pod_labels = JSONField(null=True)
+
 
 class OCPUsageLineItemDaily(models.Model):
     """A daily aggregation of line items.
@@ -210,7 +237,33 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
+    node_capacity_cpu_cores = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_cpu_core_seconds = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_bytes = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_byte_seconds = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
     total_seconds = models.IntegerField()
+
+    pod_labels = JSONField(null=True)
 
 
 class OCPUsageLineItemDailySummary(models.Model):
@@ -294,6 +347,30 @@ class OCPUsageLineItemDailySummary(models.Model):
         null=True
     )
 
+    node_capacity_cpu_cores = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_cpu_core_hours = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_bytes = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_byte_hours = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
 
 class OCPUsageLineItemAggregates(models.Model):
     """Total aggregates for OCP usage.
@@ -352,6 +429,30 @@ class OCPUsageLineItemAggregates(models.Model):
 
     pod_limit_memory_gigabytes = models.DecimalField(
         max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_cpu_cores = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_cpu_core_hours = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_bytes = models.DecimalField(
+        max_digits=20,
+        decimal_places=6,
+        null=True
+    )
+
+    node_capacity_memory_byte_hours = models.DecimalField(
+        max_digits=20,
         decimal_places=6,
         null=True
     )
