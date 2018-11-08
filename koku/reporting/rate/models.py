@@ -19,6 +19,14 @@
 
 from django.db import models
 
+TIMEUNITS = (('hour', 'hour'),
+             ('minute', 'minute'),
+             ('second', 'second'),
+             ('day', 'day'),
+             ('month', 'month'),
+             ('year', 'year'),
+             ('onetime', 'onetime'),
+             ('nil', 'nil'))
 
 class Rate(models.Model):
     """A rate for calculating costs.
@@ -35,4 +43,5 @@ class Rate(models.Model):
     metric = models.CharField(max_length=100, null=False)
     name = models.CharField(max_length=255, null=False)
     price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
-    timeunit = models.CharField(max_length=100, null=False)
+    timeunit = models.CharField(max_length=100, null=False, choices=TIMEUNITS,
+                                default=TIMEUNITS[[0][0]])

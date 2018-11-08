@@ -18,6 +18,7 @@ from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
+                       RateViewSet,
                        UserPreferenceViewSet,
                        costs,
                        cpu,
@@ -29,6 +30,7 @@ from api.views import (ProviderViewSet,
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
+ROUTER.register(r'rates', RateViewSet, base_name='rates')
 
 # pylint: disable=invalid-name
 urlpatterns = [

@@ -14,13 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Rate serializer."""
+from rest_framework import serializers
 
-"""API views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.views import status
-from api.iam.view.user_preference import UserPreferenceViewSet
-from api.provider.view import ProviderViewSet
-from api.report.aws.view import costs, instance_type, storage
-from api.report.ocp.view import cpu, memory
-from api.report.rate.view import RateViewSet
+from reporting.rate.models import Rate
+
+class RateSerializer(serializers.ModelSerializer):
+    """Rate Serializer."""
+
+    class Meta:
+        """Metadata for the serializer."""
+
+        model = Rate
+        fields = '__all__'
