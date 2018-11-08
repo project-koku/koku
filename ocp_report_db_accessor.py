@@ -174,6 +174,58 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
+    def populate_cpu_charge(self, cpu_rate):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            cpu_rate (Float) CPU-hour rate.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        daily_charge_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpusagelineitem_daily_cpu_charge.sql'
+        )
+        daily_charge_sql = daily_charge_sql.decode('utf-8').format(
+            cpu_rate=str(cpu_rate)
+        )
+        LOG.info(f'Updating %s with cpu_rate: %s.',
+                 table_name, cpu_rate)
+        self._cursor.execute(daily_charge_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
+    def populate_memory_charge(self, mem_rate):
+        """Populate the daily aggregate of line items table.
+
+        Args:
+            mem_rate (Float) Memory-hour rate.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        daily_charge_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocp_usage_lineitem_daily_mem_charge.sql'
+        )
+        daily_charge_sql = daily_charge_sql.decode('utf-8').format(
+            mem_rate=str(mem_rate)
+        )
+        LOG.info(f'Updating %s with mem_rate: %s.',
+                 table_name, mem_rate)
+        self._cursor.execute(daily_charge_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
     def populate_line_item_daily_summary_table(self, start_date, end_date):
         """Populate the daily aggregate of line items table.
 
