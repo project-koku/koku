@@ -82,5 +82,35 @@
         "database_table":"reporting_ocpusagelineitem",
         "provider_column_name":"pod_limit_memory_bytes",
         "provider_type":"OCP"
+    },
+    {
+        "database_column":"node_capacity_cpu_cores",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"node_capacity_cpu_cores",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"node_capacity_cpu_core_seconds",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"node_capacity_cpu_core_seconds",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"node_capacity_memory_bytes",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"node_capacity_memory_bytes",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"node_capacity_memory_byte_seconds",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"node_capacity_memory_byte_seconds",
+        "provider_type":"OCP"
+    },
+    {
+        "database_column":"pod_labels",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"pod_labels",
+        "provider_type":"OCP"
     }
 ]
