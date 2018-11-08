@@ -30,7 +30,9 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
+from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+
 
 LOG = get_task_logger(__name__)
 
@@ -185,3 +187,31 @@ def update_summary_tables(schema_name, provider, start_date, end_date=None,
 
     updater = ReportSummaryUpdater(schema_name, provider)
     updater.update_summary_tables(start_date, end_date, manifest_id)
+    update_charge_info.delay(
+        schema_name,
+        provider
+    )
+
+
+@celery.task(name='masu.processor.tasks.update_charge_info',
+             queue_name='reporting')
+def update_charge_info(schema_name, provider):
+    """Update usage charge information.
+
+    Args:
+        schema_name (str) The DB schema name.
+        provider    (str) The provider type.
+
+    Returns
+        None
+
+    """
+    stmt = ('update_charge_info called with args:\n'
+            ' schema_name: {},\n'
+            ' provider: {}')
+    stmt = stmt.format(schema_name,
+                       provider)
+    LOG.info(stmt)
+
+    updater = ReportChargeUpdater(schema_name, provider)
+    updater.update_charge_info()
