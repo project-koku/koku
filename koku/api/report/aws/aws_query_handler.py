@@ -27,7 +27,8 @@ from django.db.models import (F,
                               Sum,
                               Value,
                               Window)
-from django.db.models.functions import (Concat,
+from django.db.models.functions import (Coalesce,
+                                        Concat,
                                         DenseRank)
 from tenant_schemas.utils import tenant_context
 
@@ -219,7 +220,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 .annotate(units=Max(self._mapper.units_key))
 
             if 'account' in query_group_by:
-                query_data = query_data.annotate(account_alias=F(self._mapper._operation_map.get('alias')))
+                query_data = query_data.annotate(account_alias=Coalesce(
+                    F(self._mapper._operation_map.get('alias')), 'usage_account_id'))
 
             if self._mapper.count:
                 # This is a sum because the summary table already
