@@ -143,10 +143,12 @@ class ReportObjectCreator:
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
+        period_start = self.fake.past_datetime()
+        period_end = period_start + relativedelta.relativedelta(days=random.randint(1, 15))
         data = {'cluster_id': self.fake.pystr()[:8],
                 'provider_id': 1,
-                'report_period_start': self.stringify_datetime(self.fake.past_datetime()),
-                'report_period_end': self.stringify_datetime(self.fake.past_datetime())}
+                'report_period_start': self.stringify_datetime(period_start),
+                'report_period_end': self.stringify_datetime(period_end)}
 
         if period_date:
             period_start = period_date.replace(day=1).date()
@@ -172,7 +174,7 @@ class ReportObjectCreator:
         else:
             start_datetime = self.fake.past_datetime(start_date='-60d')
         data['interval_start'] = start_datetime
-        data['interval_end'] = start_datetime
+        data['interval_end'] = start_datetime + relativedelta.relativedelta(hours=+1)
         row = self.db_accessor.create_db_object(table_name, data)
 
         self.db_accessor._session.add(row)
@@ -241,3 +243,20 @@ class ReportObjectCreator:
     def datetimeify_string(self, value):
         """Convert datetime string to datetime with AWS formatting."""
         return datetime.datetime.strptime(value, Config.AWS_DATETIME_STR_FORMAT)
+
+    def create_rate(self, metric, price, timeunit):
+        """Create an OCP rate database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP['rate']
+        
+        data = {'description': self.fake.pystr()[:8],
+                'metric': metric,
+                'name': self.fake.pystr()[:8],
+                'price': price,
+                'timeunit': timeunit}
+
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
+
+        return row
