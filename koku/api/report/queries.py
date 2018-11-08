@@ -198,6 +198,7 @@ class ProviderMap(object):
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
                             'limit': Max('pod_limit_cpu_cores'),
+                            'charge': Sum('pod_charge_cpu_cores'),
                         },
                         'filter': {},
                         'units_key': 'core_hours',
@@ -214,6 +215,7 @@ class ProviderMap(object):
                         'annotations': {
                             'usage': Sum('pod_usage_memory_gigabytes'),
                             'request': Sum('pod_request_memory_gigabytes'),
+                            'charge': Sum('pod_charge_memory_gigabytes'),
                         },
                         'filter': {},
                         'units_key': 'GB',
