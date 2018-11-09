@@ -28,6 +28,7 @@ TIMEUNITS = (('hour', 'hour'),
              ('onetime', 'onetime'),
              ('nil', 'nil'))
 
+
 class Rate(models.Model):
     """A rate for calculating costs.
 

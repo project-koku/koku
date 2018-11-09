@@ -19,6 +19,7 @@ from rest_framework import serializers
 
 from reporting.rate.models import Rate
 
+
 class RateSerializer(serializers.ModelSerializer):
     """Rate Serializer."""
 

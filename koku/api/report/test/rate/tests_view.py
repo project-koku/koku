@@ -26,8 +26,8 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.rate.serializers import RateSerializer
-from api.report.rate.view import RateViewSet
 from reporting.rate.models import Rate, TIMEUNITS
+
 
 class RateViewTests(IamTestCase):
     """Test the Rate view."""
@@ -36,7 +36,7 @@ class RateViewTests(IamTestCase):
         """Set up the rate view tests."""
         super().setUp()
         self.fake_data = {'name': self.fake.word(),
-                          'description' : self.fake.text(),
+                          'description': self.fake.text(),
                           'price': round(Decimal(random.random()), 6),
                           'timeunit': random.choice(TIMEUNITS)[0],
                           'metric': self.fake.word()}
@@ -54,7 +54,7 @@ class RateViewTests(IamTestCase):
     def test_create_rate_success(self):
         """Test that we can create a rate."""
         test_data = {'name': self.fake.word(),
-                     'description' : self.fake.text(),
+                     'description': self.fake.text(),
                      'price': round(Decimal(random.random()), 6),
                      'timeunit': random.choice(TIMEUNITS)[0],
                      'metric': self.fake.word()}
@@ -81,7 +81,7 @@ class RateViewTests(IamTestCase):
     def test_create_rate_invalid(self):
         """Test that creating an invalid rate returns an error."""
         test_data = {'name': self.fake.word(),
-                     'description' : self.fake.text(),
+                     'description': self.fake.text(),
                      'price': round(Decimal(random.random()), 6),
                      'timeunit': 'jiffy',
                      'metric': self.fake.word()}
@@ -118,7 +118,7 @@ class RateViewTests(IamTestCase):
     def test_update_rate_success(self):
         """Test that we can update an existing rate."""
         test_data = {'name': self.fake.word(),
-                     'description' : self.fake.text(),
+                     'description': self.fake.text(),
                      'price': round(Decimal(random.random()), 6),
                      'timeunit': random.choice(TIMEUNITS)[0],
                      'metric': self.fake.word()}
@@ -141,7 +141,7 @@ class RateViewTests(IamTestCase):
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
         test_data = {'name': self.fake.word(),
-                     'description' : self.fake.text(),
+                     'description': self.fake.text(),
                      'price': round(Decimal(random.random()), 6),
                      'timeunit': random.choice(TIMEUNITS)[0],
                      'metric': self.fake.word()}
@@ -189,4 +189,3 @@ class RateViewTests(IamTestCase):
         self.assertEqual(self.fake_data['price'], Decimal(rate.get('price')))
         self.assertEqual(self.fake_data['timeunit'], rate.get('timeunit'))
         self.assertEqual(self.fake_data['metric'], rate.get('metric'))
-

@@ -26,15 +26,17 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.rate.serializers import RateSerializer
 from reporting.rate.models import TIMEUNITS
 
+
 class RateSerializerTest(IamTestCase):
     """Rate serializer tests."""
 
     fake = faker.Faker()
 
     def setUp(self):
+        """Set up the tests."""
         super().setUp()
         self.fake_data = {'name': self.fake.word(),
-                          'description' : self.fake.text(),
+                          'description': self.fake.text(),
                           'price': round(Decimal(random.random()), 6),
                           'timeunit': random.choice(TIMEUNITS)[0],
                           'metric': self.fake.word()}

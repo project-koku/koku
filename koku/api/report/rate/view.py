@@ -16,12 +16,10 @@
 #
 
 """View for Rates."""
-from rest_framework import exceptions, mixins, viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
-from tenant_schemas.utils import tenant_context
 
 from api.report.rate.serializers import RateSerializer
-from api.report.view import get_tenant
 from reporting.rate.models import Rate
 
 
