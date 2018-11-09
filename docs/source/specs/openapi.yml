@@ -398,7 +398,7 @@ paths:
     delete:
       tags:
         - Rate
-      summary: Delete a rate preference
+      summary: Delete a rate
       operationId: deleteRate
       produces:
       - 'application/json'
