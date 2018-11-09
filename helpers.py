@@ -211,6 +211,11 @@ class ReportObjectCreator:
                 data[column] = self.fake.pyint()
             elif col_type == float:
                 data[column] = self.fake.pyfloat()
+            elif col_type == dict:
+                data[column] = {
+                    'label_one': self.fake.pystr()[:8],
+                    'label_two': self.fake.pystr()[:8]
+                }
             elif col_type == datetime.datetime:
                 data[column] = self.stringify_datetime(
                     self.fake.past_datetime()
@@ -247,7 +252,7 @@ class ReportObjectCreator:
     def create_rate(self, metric, price, timeunit):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['rate']
-        
+
         data = {'description': self.fake.pystr()[:8],
                 'metric': metric,
                 'name': self.fake.pystr()[:8],
