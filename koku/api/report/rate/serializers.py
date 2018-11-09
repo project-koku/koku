@@ -27,3 +27,4 @@ class RateSerializer(serializers.ModelSerializer):
 
         model = Rate
         fields = '__all__'
+        ordering = ['-id']

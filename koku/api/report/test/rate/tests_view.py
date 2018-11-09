@@ -46,33 +46,147 @@ class RateViewTests(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-    def test_create_rate(self):
+    def tearDown(self):
+        """Tear down rate view tests."""
+        with tenant_context(self.tenant):
+            Rate.objects.all().delete()
+
+    def test_create_rate_success(self):
+        """Test that we can create a rate."""
+        test_data = {'name': self.fake.word(),
+                     'description' : self.fake.text(),
+                     'price': round(Decimal(random.random()), 6),
+                     'timeunit': random.choice(TIMEUNITS)[0],
+                     'metric': self.fake.word()}
+
+        # create a rate
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # test that we can retrieve the rate
+        url = reverse('rates-detail', kwargs={'pk': response.data.get('id')})
+        response = client.get(url, **self.headers)
+
+        self.assertIsNotNone(response.data.get('id'))
+        self.assertEqual(test_data['name'], response.data.get('name'))
+        self.assertEqual(test_data['description'],
+                         response.data.get('description'))
+        self.assertEqual(test_data['price'],
+                         Decimal(response.data.get('price')))
+        self.assertEqual(test_data['timeunit'], response.data.get('timeunit'))
+        self.assertEqual(test_data['metric'], response.data.get('metric'))
+
+    def test_create_rate_invalid(self):
+        """Test that creating an invalid rate returns an error."""
+        test_data = {'name': self.fake.word(),
+                     'description' : self.fake.text(),
+                     'price': round(Decimal(random.random()), 6),
+                     'timeunit': 'jiffy',
+                     'metric': self.fake.word()}
+
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_read_rate_success(self):
+        """Test that we can read a rate."""
+        rate = Rate.objects.first()
+        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get('id'))
+        self.assertEqual(self.fake_data['name'], response.data.get('name'))
+        self.assertEqual(self.fake_data['description'],
+                         response.data.get('description'))
+        self.assertEqual(self.fake_data['price'],
+                         Decimal(response.data.get('price')))
+        self.assertEqual(self.fake_data['timeunit'], response.data.get('timeunit'))
+        self.assertEqual(self.fake_data['metric'], response.data.get('metric'))
+
+    def test_read_rate_invalid(self):
+        """Test that reading an invalid rate returns an error."""
+        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_update_rate_success(self):
+        """Test that we can update an existing rate."""
+        test_data = {'name': self.fake.word(),
+                     'description' : self.fake.text(),
+                     'price': round(Decimal(random.random()), 6),
+                     'timeunit': random.choice(TIMEUNITS)[0],
+                     'metric': self.fake.word()}
+
+        rate = Rate.objects.first()
+        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        client = APIClient()
+        response = client.put(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(rate.id, response.data.get('id'))
+        self.assertEqual(test_data['name'], response.data.get('name'))
+        self.assertEqual(test_data['description'],
+                         response.data.get('description'))
+        self.assertEqual(test_data['price'],
+                         Decimal(response.data.get('price')))
+        self.assertEqual(test_data['timeunit'], response.data.get('timeunit'))
+        self.assertEqual(test_data['metric'], response.data.get('metric'))
+
+    def test_update_rate_invalid(self):
+        """Test that updating an invalid rate returns an error."""
+        test_data = {'name': self.fake.word(),
+                     'description' : self.fake.text(),
+                     'price': round(Decimal(random.random()), 6),
+                     'timeunit': random.choice(TIMEUNITS)[0],
+                     'metric': self.fake.word()}
+
+        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        client = APIClient()
+        response = client.put(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_rate_success(self):
+        """Test that we can delete an existing rate."""
+        rate = Rate.objects.first()
+        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # verify the rate no longer exists
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_rate_invalid(self):
+        """Test that deleting an invalid rate returns an error."""
+        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_read_rate_list_success(self):
+        """Test that we can read a list of rates."""
         url = reverse('rates-list')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        # TODO: check response contents
 
-    def test_read_rate(self):
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'id': rate.id})
-        client = APIClient()
-        response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # TODO: check response contents
+        for keyname in ['count', 'next', 'previous', 'results']:
+            self.assertIn(keyname, response.data)
+        self.assertIsInstance(response.data.get('results'), list)
+        self.assertEqual(len(response.data.get('results')), 1)
 
-    def test_update_rate(self):
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'id': rate.id})
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # TODO: check response contents
+        rate = response.data.get('results')[0]
+        self.assertIsNotNone(rate.get('id'))
+        self.assertEqual(self.fake_data['name'], rate.get('name'))
+        self.assertEqual(self.fake_data['description'], rate.get('description'))
+        self.assertEqual(self.fake_data['price'], Decimal(rate.get('price')))
+        self.assertEqual(self.fake_data['timeunit'], rate.get('timeunit'))
+        self.assertEqual(self.fake_data['metric'], rate.get('metric'))
 
-    def test_delete_rate(self):
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'id': rate.id})
-        client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        # TODO: check response contents
