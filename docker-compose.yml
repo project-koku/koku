@@ -1,13 +1,40 @@
 version: '3'
 
 services:
+  server:
+      build:
+          context: .
+          dockerfile: dockerfile-env
+      working_dir: /koku
+      entrypoint:
+        - /koku/run_migrations.sh
+      environment:
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=koku
+        - DATABASE_HOST=db
+        - DATABASE_PORT=5432
+        - DATABASE_USER=kokuadmin
+        - DATABASE_PASSWORD=admin123
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DJANGO_READ_DOT_ENV_FILE=True
+        - DEVELOPMENT=True
+      ports:
+          - "8050:8000"
+      volumes:
+        - '.:/koku/'
+      links:
+        - db
+      depends_on:
+          - db
+
   db:
     image: centos/postgresql-96-centos7
     environment:
-    - POSTGRESQL_DATABASE=postgres
-    - POSTGRESQL_USER=postgres
-    - POSTGRESQL_PASSWORD=postgres
-    - POSTGRESQL_ADMIN_PASSWORD=postgres
+    - POSTGRESQL_DATABASE=koku
+    - POSTGRESQL_USER=kokuadmin
+    - POSTGRESQL_PASSWORD=admin123
+    - POSTGRESQL_ADMIN_PASSWORD=admin123
     ports:
       - "15432:5432"
     volumes:

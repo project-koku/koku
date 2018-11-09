@@ -1,0 +1,8 @@
+FROM python:3.6
+ADD Pipfile /Pipfile
+ADD Pipfile.lock /Pipfile.lock
+RUN pip install --upgrade pip
+RUN pip install pipenv
+RUN pip install pipenv-to-requirements
+RUN pipenv run pipenv_to_requirements -f
+RUN pip install -r requirements.txt
