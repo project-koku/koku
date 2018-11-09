@@ -95,7 +95,7 @@ class OCPReportDataGenerator:
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
-            self._populate_aggregates_table()
+            # self._populate_aggregates_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""

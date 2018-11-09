@@ -54,6 +54,7 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
+        import pdb; pdb.set_trace()
         self.assertEqual(total.get('usage').quantize(Decimal('0.001')),
                          current_totals.get('usage').quantize(Decimal('0.001')))
         self.assertEqual(total.get('request').quantize(Decimal('0.001')),
