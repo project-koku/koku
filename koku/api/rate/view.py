@@ -19,8 +19,8 @@
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
-from api.report.rate.serializers import RateSerializer
-from reporting.rate.models import Rate
+from api.rate.serializers import RateSerializer
+from .models import Rate
 
 
 class RateViewSet(mixins.CreateModelMixin,
@@ -38,7 +38,8 @@ class RateViewSet(mixins.CreateModelMixin,
 
     queryset = Rate.objects.all()
     serializer_class = RateSerializer
-    permission_classes = (AllowAny,)  # FIXME: probably incorrect
+    permission_classes = (AllowAny,)
+    lookup_field = 'uuid'
 
     def create(self, request, *args, **kwargs):
         """Create a rate.
@@ -65,7 +66,7 @@ class RateViewSet(mixins.CreateModelMixin,
                 "timeunit": "hour"
             }
 
-        @apiSuccess {String} id Rate identifier
+        @apiSuccess {String} uuid Rate unique identifier
         @apiSuccess {String} name Rate name
         @apiSuccess {String} description Rate description
         @apiSuccess {String} price Rate price
@@ -74,7 +75,7 @@ class RateViewSet(mixins.CreateModelMixin,
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 201 CREATED
             {
-                "id": 1,
+                "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "name": "My Rate",
                 "description": "This is an example rate.",
                 "price": "0.001",
@@ -110,7 +111,7 @@ class RateViewSet(mixins.CreateModelMixin,
                 'previous': None,
                 'results': [
                                 {
-                                    "id": 1,
+                                    "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                                     "name": "My Rate",
                                     "description": "This is an example rate.",
                                     "price": "0.001",
@@ -118,7 +119,7 @@ class RateViewSet(mixins.CreateModelMixin,
                                     "timeunit": "hour"
                                 },
                                 {
-                                    "id": 2,
+                                    "uuid": "20ecdcd0-397c-4ede-8940-f3439bf40212",
                                     "name": "My Other Rate",
                                     "description": "This is another example rate.",
                                     "price": "0.002",
@@ -134,7 +135,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a rate.
 
-        @api {get} /api/v1/rates/:id   Get a rate
+        @api {get} /api/v1/rates/:uuid   Get a rate
         @apiName getRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -144,7 +145,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
         @apiParam (Query) {String} id Rate unique identifier.
 
-        @apiSuccess {String} id Rate identifier
+        @apiSuccess {String} uuid Rate unique identifier
         @apiSuccess {String} name Rate name
         @apiSuccess {String} description Rate description
         @apiSuccess {String} price Rate price
@@ -153,7 +154,7 @@ class RateViewSet(mixins.CreateModelMixin,
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": 1,
+                "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "name": "My Rate",
                 "description": "This is an example rate.",
                 "price": "0.001",
@@ -166,7 +167,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a rate.
 
-        @api {delete} /api/v1/rates/:id   Get a rate
+        @api {delete} /api/v1/rates/:uuid   Get a rate
         @apiName deleteRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -174,7 +175,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
         @apiHeader {String} token User authorization token
 
-        @apiParam (Query) {String} id Rate unique identifier
+        @apiParam (Query) {String} uuid Rate unique identifier
 
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 204 NO CONTENT
@@ -184,7 +185,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a rate.
 
-        @api {post} /api/v1/rates/:id   Update a rate
+        @api {post} /api/v1/rates/:uuid   Update a rate
         @apiName updateRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -194,7 +195,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
         @apiParam (Query) {String} id Rate unique identifier
 
-        @apiSuccess {String} id Rate identifier
+        @apiSuccess {String} uuid Rate unique identifier
         @apiSuccess {String} name Rate name
         @apiSuccess {String} description Rate description
         @apiSuccess {String} price Rate price
@@ -203,7 +204,7 @@ class RateViewSet(mixins.CreateModelMixin,
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "id": 1,
+                "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "name": "My Rate",
                 "description": "This is an example rate.",
                 "price": "0.001",

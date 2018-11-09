@@ -820,19 +820,19 @@ definitions:
     properties:
       name:
         type: string
-        example: my-preference-name
+        example: my-rate-name
       description:
         type: string
-        example: my long preference description
+        example: my long rate description
       price:
-        type: string
-        example: "0.000001"
+        type: float
+        example: 0.000001
       timeunit:
         type: string
         example: hour
       metric:
         type: string
-        example: pod_usage_cpu_core_seconds
+        example: memory
   RateIn:
     allOf:
       - $ref: '#/definitions/Rate'
@@ -844,19 +844,19 @@ definitions:
     properties:
       name:
         type: string
-        example: my-preference-name
+        example: my-rate-name
       description:
         type: string
-        example: my long preference description
+        example: my long rate description
       price:
-        type: string
-        example: "0.000001"
+        type: float
+        example: 0.000001
       timeunit:
         type: string
         example: hour
       metric:
         type: string
-        example: pod_usage_cpu_core_seconds
+        example: cpu
   RatePagination:
     allOf:
       - $ref: '#/definitions/ListPagination'

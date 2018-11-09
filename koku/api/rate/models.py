@@ -16,17 +16,18 @@
 #
 
 """Models for identity and access management."""
+from uuid import uuid4
 
 from django.db import models
 
-TIMEUNITS = (('hour', 'hour'),
+TIMEUNITS = (('nil', 'nil'),
+             ('hour', 'hour'),
              ('minute', 'minute'),
              ('second', 'second'),
              ('day', 'day'),
              ('month', 'month'),
              ('year', 'year'),
-             ('onetime', 'onetime'),
-             ('nil', 'nil'))
+             ('onetime', 'onetime'))
 
 
 class Rate(models.Model):
@@ -46,3 +47,5 @@ class Rate(models.Model):
     price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
     timeunit = models.CharField(max_length=100, null=False, choices=TIMEUNITS,
                                 default=TIMEUNITS[[0][0]])
+    uuid = models.UUIDField(default=uuid4, editable=False,
+                            unique=True, null=False)

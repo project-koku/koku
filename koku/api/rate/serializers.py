@@ -17,7 +17,7 @@
 """Rate serializer."""
 from rest_framework import serializers
 
-from reporting.rate.models import Rate
+from .models import Rate
 
 
 class RateSerializer(serializers.ModelSerializer):
@@ -27,5 +27,5 @@ class RateSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Rate
-        fields = '__all__'
-        ordering = ['-id']
+        fields = ('uuid', 'name', 'description', 'price', 'metric', 'timeunit')
+        ordering = ['-name']

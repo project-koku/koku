@@ -18,6 +18,7 @@
 
 import random
 from decimal import Decimal
+from uuid import uuid4
 
 from django.urls import reverse
 from rest_framework import status
@@ -25,8 +26,8 @@ from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.rate.serializers import RateSerializer
-from reporting.rate.models import Rate, TIMEUNITS
+from api.rate.serializers import RateSerializer
+from ..models import Rate, TIMEUNITS
 
 
 class RateViewTests(IamTestCase):
@@ -66,10 +67,10 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # test that we can retrieve the rate
-        url = reverse('rates-detail', kwargs={'pk': response.data.get('id')})
+        url = reverse('rates-detail', kwargs={'uuid': response.data.get('uuid')})
         response = client.get(url, **self.headers)
 
-        self.assertIsNotNone(response.data.get('id'))
+        self.assertIsNotNone(response.data.get('uuid'))
         self.assertEqual(test_data['name'], response.data.get('name'))
         self.assertEqual(test_data['description'],
                          response.data.get('description'))
@@ -94,12 +95,12 @@ class RateViewTests(IamTestCase):
     def test_read_rate_success(self):
         """Test that we can read a rate."""
         rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsNotNone(response.data.get('id'))
+        self.assertIsNotNone(response.data.get('uuid'))
         self.assertEqual(self.fake_data['name'], response.data.get('name'))
         self.assertEqual(self.fake_data['description'],
                          response.data.get('description'))
@@ -110,7 +111,7 @@ class RateViewTests(IamTestCase):
 
     def test_read_rate_invalid(self):
         """Test that reading an invalid rate returns an error."""
-        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -124,12 +125,12 @@ class RateViewTests(IamTestCase):
                      'metric': self.fake.word()}
 
         rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
         client = APIClient()
         response = client.put(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        self.assertEqual(rate.id, response.data.get('id'))
+        self.assertIsNotNone(response.data.get('uuid'))
         self.assertEqual(test_data['name'], response.data.get('name'))
         self.assertEqual(test_data['description'],
                          response.data.get('description'))
@@ -146,7 +147,7 @@ class RateViewTests(IamTestCase):
                      'timeunit': random.choice(TIMEUNITS)[0],
                      'metric': self.fake.word()}
 
-        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.put(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -154,7 +155,7 @@ class RateViewTests(IamTestCase):
     def test_delete_rate_success(self):
         """Test that we can delete an existing rate."""
         rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'pk': rate.id})
+        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -165,7 +166,7 @@ class RateViewTests(IamTestCase):
 
     def test_delete_rate_invalid(self):
         """Test that deleting an invalid rate returns an error."""
-        url = reverse('rates-detail', kwargs={'pk': random.randint(5000, 10000)})
+        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -183,7 +184,7 @@ class RateViewTests(IamTestCase):
         self.assertEqual(len(response.data.get('results')), 1)
 
         rate = response.data.get('results')[0]
-        self.assertIsNotNone(rate.get('id'))
+        self.assertIsNotNone(rate.get('uuid'))
         self.assertEqual(self.fake_data['name'], rate.get('name'))
         self.assertEqual(self.fake_data['description'], rate.get('description'))
         self.assertEqual(self.fake_data['price'], Decimal(rate.get('price')))

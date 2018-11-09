@@ -23,8 +23,8 @@ import faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.rate.serializers import RateSerializer
-from reporting.rate.models import TIMEUNITS
+from api.rate.serializers import RateSerializer
+from ..models import TIMEUNITS
 
 
 class RateSerializerTest(IamTestCase):
@@ -50,6 +50,7 @@ class RateSerializerTest(IamTestCase):
                 instance = serializer.save()
 
             self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
             for key, value in self.fake_data.items():
                 self.assertTrue(hasattr(instance, key))
                 self.assertEqual(self.fake_data.get(key), getattr(instance, key))
