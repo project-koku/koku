@@ -24,6 +24,7 @@
 import csv
 import gzip
 import io
+import json
 import logging
 from datetime import datetime
 from os import path
@@ -228,6 +229,10 @@ class OCPReportProcessor(ReportProcessorBase):
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         data = self._get_data_for_table(row, table_name)
 
+        pod_label_str = '{}'
+        if 'pod_labels' in data:
+            pod_label_str = data.pop('pod_labels')
+
         data = self.report_db.clean_data(
             data,
             table_name
@@ -235,11 +240,37 @@ class OCPReportProcessor(ReportProcessorBase):
 
         data['report_period_id'] = report_period_id
         data['report_id'] = report_id
+        data['pod_labels'] = self._process_pod_labels(pod_label_str)
 
         self.processed_report.line_items.append(data)
 
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
+
+    def _process_pod_labels(self, label_string):
+        """Convert the report string to a JSON dictionary.
+
+        Args:
+            label_string (str): The raw report string of pod labels
+
+        Returns:
+            (dict): The JSON dictionary made from the label string
+
+        """
+        labels = label_string.split('|')
+        label_dict = {}
+
+        for label in labels:
+            try:
+                key, value = label.split(':')
+                key = key.replace('label_', '')
+                label_dict[key] = value
+            except ValueError as err:
+                LOG.warning(err)
+                LOG.warning('%s could not be properly split', label)
+                continue
+
+        return json.dumps(label_dict)
 
     def _write_processed_rows_to_csv(self):
         """Output CSV content to file stream object."""
