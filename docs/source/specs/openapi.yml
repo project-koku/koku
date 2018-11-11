@@ -349,7 +349,7 @@ paths:
         description: 'ID of rate to get'
         required: true
         type: 'string'
-        format: 'integer'
+        format: 'uuid'
       responses:
         200:
           description: A paginated list of rate objects
@@ -377,7 +377,7 @@ paths:
         description: 'ID of rate to get'
         required: true
         type: 'string'
-        format: 'integer'
+        format: 'uuid'
       responses:
         200:
           description: A Rate object
@@ -825,7 +825,8 @@ definitions:
         type: string
         example: my long rate description
       price:
-        type: float
+        type: number
+        format: float
         example: 0.000001
       timeunit:
         type: string
@@ -849,7 +850,8 @@ definitions:
         type: string
         example: my long rate description
       price:
-        type: float
+        type: number
+        format: float
         example: 0.000001
       timeunit:
         type: string
@@ -876,10 +878,10 @@ definitions:
         - timeunit
         - metric
     properties:
-      id:
+      uuid:
         type: string
-        format: integer
-        example: 42
+        format: uuid
+        example: 83ee048e-3c1d-43ef-b945-108225ae52f4
       user:
         $ref: '#/definitions/RateOut'
   ReportFilter:
