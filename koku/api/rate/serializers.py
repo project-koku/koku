@@ -14,25 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Rate serializer."""
+from rest_framework import serializers
 
-"""Models for identity and access management."""
-
-from django.db import models
+from .models import Rate
 
 
-class Rate(models.Model):
-    """A rate for calculating costs.
-
-    A rate is (price * metric_usage / timeunit).
-    """
+class RateSerializer(serializers.ModelSerializer):
+    """Rate Serializer."""
 
     class Meta:
-        """Meta for Rate."""
+        """Metadata for the serializer."""
 
-        unique_together = ('metric', 'price', 'timeunit')
-
-    description = models.TextField()
-    metric = models.CharField(max_length=100, null=False)
-    name = models.CharField(max_length=255, null=False)
-    price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
-    timeunit = models.CharField(max_length=100, null=False)
+        model = Rate
+        fields = ('uuid', 'name', 'description', 'price', 'metric', 'timeunit')
+        ordering = ['-name']
