@@ -37,7 +37,8 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
                 .filter(**filter)\
                 .aggregate(
                     usage=Sum('pod_usage_cpu_core_hours'),
-                    request=Sum('pod_request_cpu_core_hours')
+                    request=Sum('pod_request_cpu_core_hours'),
+                    charge=Sum('pod_charge_cpu_cores')
                 )
 
     def test_execute_sum_query(self):
@@ -54,8 +55,9 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        import pdb; pdb.set_trace()
         self.assertEqual(total.get('usage').quantize(Decimal('0.001')),
                          current_totals.get('usage').quantize(Decimal('0.001')))
         self.assertEqual(total.get('request').quantize(Decimal('0.001')),
                          current_totals.get('request').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
+                         current_totals.get('charge').quantize(Decimal('0.001')))

@@ -33,8 +33,8 @@ class OCPReportQueryHandlerBaseTest(IamTestCase):
         cls.data_generator = OCPReportDataGenerator(cls.tenant)
 
         cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
-        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 10)}
-        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 30)}
+        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 9)}
+        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 29)}
         cls.last_month_filter = {'usage_start__gte': cls.dh.last_month_start,
                                  'usage_end__lte': cls.dh.last_month_end}
 

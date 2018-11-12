@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import (DecimalField, ExpressionWrapper, F,
-                              IntegerField, Max, Sum, Value)
+                              Max, Sum)
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -95,7 +95,7 @@ class OCPReportDataGenerator:
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
-            # self._populate_aggregates_table()
+            self._populate_charge_info()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -226,48 +226,20 @@ class OCPReportDataGenerator:
             summary = OCPUsageLineItemDailySummary(**entry)
             summary.save()
 
-    def _populate_aggregates_table(self):
-        """Populate the aggregates table."""
-        time_scopes = [
-            (-1, self.this_month_filter),
-            (-2, self.last_month_filter),
-            (-10, self.ten_day_filter),
-            (-30, self.thirty_day_filter)
-        ]
-        included_fields = [
-            'cluster_id',
-            'namespace',
-            'pod',
-            'node'
-        ]
-        annotations = {
-            'pod_usage_cpu_core_hours': Sum('pod_usage_cpu_core_seconds') / 3600,
-            'pod_request_cpu_core_hours': Sum('pod_request_cpu_core_seconds') / 3600,
-            'pod_limit_cpu_cores': Max('pod_limit_cpu_cores'),
-            'pod_usage_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_usage_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_request_memory_gigabytes': Sum(
-                ExpressionWrapper(
-                    F('pod_request_memory_byte_seconds') / F('total_seconds'),
-                    output_field=DecimalField()
-                )
-            ) * 1e-9,
-            'pod_limit_memory_gigabytes': Max('pod_limit_memory_bytes') * 1e-9
-        }
+    def _populate_charge_info(self):
+        """Populate the charge information in summary table."""
+        entries = OCPUsageLineItemDailySummary.objects.all()
+        for entry in entries:
+            mem_usage = entry.pod_usage_memory_gigabytes
+            mem_request = entry.pod_request_memory_gigabytes
+            mem_charge = max(float(mem_usage), float(mem_request)) * 0.25
 
-        for value, query_filter in time_scopes:
-            annotations.update(
-                {'time_scope_value': Value(value, IntegerField())}
-            )
+            entry.pod_charge_memory_gigabytes = mem_charge
 
-            entries = OCPUsageLineItemDaily.objects\
-                .filter(**query_filter)\
-                .values(*included_fields)\
-                .annotate(**annotations)
-            for entry in entries:
-                agg = OCPUsageLineItemAggregates(**entry)
-                agg.save()
+            cpu_usage = entry.pod_usage_cpu_core_hours
+            cpu_request = entry.pod_request_cpu_core_hours
+            cpu_charge = max(float(cpu_usage), float(cpu_request)) * 0.50
+
+            entry.pod_charge_cpu_cores = cpu_charge
+
+            entry.save()
