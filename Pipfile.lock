@@ -806,10 +806,10 @@
         },
         "responses": {
             "hashes": [
-                "sha256:682fafb124e799eeee67ec15c9678d955a88affda5613b09788ef80c03987cf0",
-                "sha256:9b1c14871c66329f509711627e3de5779a2ae50bd532ac162297623424288756"
+                "sha256:25df51df9ed5d879160c60129696603b9143a7e1a850616b8c7943ecccc676d3",
+                "sha256:5b99beef28dd177da180604be2e849a16c3a40605bfda7c8d792a9924dd3d60e"
             ],
-            "version": "==0.10.2"
+            "version": "==0.10.3"
         },
         "s3transfer": {
             "hashes": [
