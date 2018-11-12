@@ -757,7 +757,6 @@ class ReportQueryHandler(object):
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
-        ranked_dict = {}
         ranked_list = []
         others_list = []
         other = None
@@ -766,15 +765,14 @@ class ReportQueryHandler(object):
             if other is None:
                 other = copy.deepcopy(data)
             rank = data.get('rank')
-            if rank <= self._limit and ranked_dict.get(rank) is None:
+            if rank <= self._limit:
                 del data['rank']
-                ranked_dict[rank] = data
+                ranked_list.append(data)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
                     other_sums[column] += data.get(column) if data.get(column) else 0
 
-        ranked_list = list(ranked_dict.values())
         if other is not None and others_list:
             num_others = len(others_list)
             others_label = '{} Others'.format(num_others)

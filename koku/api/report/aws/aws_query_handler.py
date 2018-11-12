@@ -29,7 +29,7 @@ from django.db.models import (F,
                               Window)
 from django.db.models.functions import (Coalesce,
                                         Concat,
-                                        DenseRank)
+                                        RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -230,12 +230,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
-                dense_rank_by_total = Window(
-                    expression=DenseRank(),
+                rank_by_total = Window(
+                    expression=RowNumber(),
                     partition_by=F('date'),
                     order_by=rank_order
                 )
-                query_data = query_data.annotate(rank=dense_rank_by_total)
+                query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by = query_order_by + ('rank',)
 
             if self.order_field != 'delta':
