@@ -419,4 +419,4 @@ class OCPReportViewTest(IamTestCase):
                 projects = item.get('nodes')
                 print(projects)
                 self.assertEqual(len(projects), 2)
-                self.assertEqual(projects[1].get('node'), 'Other')
+                self.assertEqual(projects[1].get('node'), '1 Other')

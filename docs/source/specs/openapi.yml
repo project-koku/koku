@@ -14,6 +14,8 @@ tags:
   description: 'Operations about user preferences'
 - name: 'Provider'
   description: 'Operations about provider interaction'
+- name: 'Rate'
+  description: 'Operations about metered rates'
 - name: 'Report'
   description: 'Operations about report interaction'
 schemes:
@@ -292,6 +294,161 @@ paths:
           description: A Provider object
           schema:
             $ref: '#/definitions/ProviderOut'
+        401:
+          description: Unauthorized
+        404:
+          description: Not Found
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+  /rates/:
+    post:
+      tags:
+        - Rate
+      summary: Create a rate
+      operationId: createRate
+      consumes:
+      - 'application/json'
+      produces:
+      - 'application/json'
+      parameters:
+      - in: 'body'
+        name: 'body'
+        description: Rate to add to a Rate
+        required: true
+        schema:
+          $ref: '#/definitions/RateIn'
+      responses:
+        201:
+          description: An object describing the rate
+          schema:
+            $ref: '#/definitions/RateOut'
+        401:
+          description: Unauthorized
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+    get:
+      tags:
+        - Rate
+      summary: List the rates
+      operationId: listRates
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'rate_id'
+        in: 'path'
+        description: 'ID of rate to get'
+        required: true
+        type: 'string'
+        format: 'uuid'
+      responses:
+        200:
+          description: A paginated list of rate objects
+          schema:
+            $ref: '#/definitions/RatePagination'
+        401:
+          description: Unauthorized
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+  /rates/{rate_id}:
+    get:
+      tags:
+        - Rate
+      summary: Get a rate
+      operationId: getRate
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'rate_id'
+        in: 'path'
+        description: 'ID of rate to get'
+        required: true
+        type: 'string'
+        format: 'uuid'
+      responses:
+        200:
+          description: A Rate object
+          schema:
+            $ref: '#/definitions/RateOut'
+        401:
+          description: Unauthorized
+        404:
+          description: Not Found
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+    delete:
+      tags:
+        - Rate
+      summary: Delete a rate
+      operationId: deleteRate
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'rate_id'
+        in: 'path'
+        description: 'ID of rate to get'
+        required: true
+        type: 'string'
+        format: 'integer'
+      responses:
+        204:
+          description: Rate deleted
+        401:
+          description: Unauthorized
+        404:
+          description: Not Found
+          schema:
+            $ref: '#/definitions/Error'
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+    put:
+      tags:
+        - Rate
+      summary: Update a rate
+      operationId: updateRate
+      consumes:
+      - 'application/json'
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'rate_id'
+        in: 'path'
+        description: 'ID of rate to get'
+        required: true
+        type: 'string'
+        format: 'integer'
+      - in: 'body'
+        name: 'body'
+        description: Update to a Rate
+        required: true
+        schema:
+          $ref: '#/definitions/RateIn'
+      responses:
+        200:
+          description: Rate updated
         401:
           description: Unauthorized
         404:
@@ -654,6 +811,79 @@ definitions:
         type: array
         items:
           $ref: '#/definitions/ProviderOut'
+  Rate:
+    required:
+      - name
+      - price
+      - timeunit
+      - metric
+    properties:
+      name:
+        type: string
+        example: my-rate-name
+      description:
+        type: string
+        example: my long rate description
+      price:
+        type: number
+        format: float
+        example: 0.000001
+      timeunit:
+        type: string
+        example: hour
+      metric:
+        type: string
+        example: memory
+  RateIn:
+    allOf:
+      - $ref: '#/definitions/Rate'
+      - required:
+        - name
+        - price
+        - timeunit
+        - metric
+    properties:
+      name:
+        type: string
+        example: my-rate-name
+      description:
+        type: string
+        example: my long rate description
+      price:
+        type: number
+        format: float
+        example: 0.000001
+      timeunit:
+        type: string
+        example: hour
+      metric:
+        type: string
+        example: cpu
+  RatePagination:
+    allOf:
+      - $ref: '#/definitions/ListPagination'
+      - required:
+          - results
+    properties:
+      results:
+        type: array
+        items:
+          $ref: '#/definitions/RateOut'
+  RateOut:
+    allOf:
+      - $ref: '#/definitions/Rate'
+      - required:
+        - name
+        - price
+        - timeunit
+        - metric
+    properties:
+      uuid:
+        type: string
+        format: uuid
+        example: 83ee048e-3c1d-43ef-b945-108225ae52f4
+      user:
+        $ref: '#/definitions/RateOut'
   ReportFilter:
     type: object
     properties:
@@ -751,7 +981,7 @@ definitions:
           type: string
     example: {'account': ['*']}
     description: The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable.
-    ReportOCPGrouping:
+  ReportOCPGrouping:
     type: object
     properties:
       cluster:
@@ -1172,7 +1402,6 @@ definitions:
                 }
                 ]
             ]
-
   Status:
     required:
       - api_version
