@@ -461,7 +461,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/costs/:
+  /reports/costs/aws/:
     get:
       tags:
         - Report
@@ -507,7 +507,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/inventory/instance-type/:
+  /reports/inventory/aws/instance-type/:
     get:
       tags:
         - Report
@@ -553,7 +553,7 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
-  /reports/inventory/storage/:
+  /reports/inventory/aws/storage/:
     get:
       tags:
         - Report

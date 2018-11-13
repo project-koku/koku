@@ -35,9 +35,9 @@ ROUTER.register(r'rates', RateViewSet, base_name='rates')
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
-    url(r'^reports/costs/$', costs, name='reports-costs'),
-    url(r'^reports/inventory/instance-type/$', instance_type, name='reports-instance-type'),
-    url(r'^reports/inventory/storage/$', storage, name='reports-storage'),
+    url(r'^reports/costs/aws/$', costs, name='reports-costs'),
+    url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-instance-type'),
+    url(r'^reports/inventory/aws/storage/$', storage, name='reports-storage'),
     url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),
     url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^', include(ROUTER.urls)),
