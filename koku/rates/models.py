@@ -31,9 +31,6 @@ class Rate(models.Model):
     METRIC_CPU_CORE_HOUR = 'cpu_core_per_hour'
     METRIC_MEM_GB_HOUR = 'memory_gb_per_hour'
 
-    class Meta:
-        """Meta for Rate."""
-
     METRIC_CHOICES = ((METRIC_CPU_CORE_HOUR, METRIC_CPU_CORE_HOUR),
                       (METRIC_MEM_GB_HOUR, METRIC_MEM_GB_HOUR),)
 
@@ -43,3 +40,8 @@ class Rate(models.Model):
     metric = models.CharField(max_length=256, null=False,
                               choices=METRIC_CHOICES, default=METRIC_CPU_CORE_HOUR)
     rates = JSONField(default=dict)
+
+    class Meta:
+        """Meta for Rate."""
+
+        unique_together = ('provider_uuid', 'metric')
