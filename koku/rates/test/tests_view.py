@@ -21,8 +21,6 @@ from decimal import Decimal
 from uuid import uuid4
 
 from django.urls import reverse
-from rates.models import Rate
-from rates.serializers import RateSerializer
 from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
@@ -31,6 +29,8 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
+from rates.models import Rate
+from rates.serializers import RateSerializer
 
 
 class RateViewTests(IamTestCase):

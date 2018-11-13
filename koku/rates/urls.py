@@ -15,8 +15,9 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
-from rates.views import RateViewSet
 from rest_framework.routers import DefaultRouter
+
+from rates.views import RateViewSet
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'rates', RateViewSet, base_name='rates')

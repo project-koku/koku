@@ -16,10 +16,11 @@
 #
 
 """View for Rates."""
-from rates.models import Rate
-from rates.serializers import RateSerializer
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
+
+from rates.models import Rate
+from rates.serializers import RateSerializer
 
 
 class RateViewSet(mixins.CreateModelMixin,

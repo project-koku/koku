@@ -17,10 +17,10 @@
 """Rate serializer."""
 from decimal import Decimal
 
-from rates.models import Rate
 from rest_framework import serializers
 
 from api.provider.models import (Provider)
+from rates.models import Rate
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 

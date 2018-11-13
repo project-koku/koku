@@ -20,8 +20,6 @@ import random
 from decimal import Decimal
 
 import faker
-from rates.models import Rate
-from rates.serializers import RateSerializer
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
@@ -29,6 +27,8 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
+from rates.models import Rate
+from rates.serializers import RateSerializer
 
 
 class RateSerializerTest(IamTestCase):
