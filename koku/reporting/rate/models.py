@@ -15,37 +15,31 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Models for identity and access management."""
+"""Models for rates."""
 from uuid import uuid4
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
-
-TIMEUNITS = (('nil', 'nil'),
-             ('hour', 'hour'),
-             ('minute', 'minute'),
-             ('second', 'second'),
-             ('day', 'day'),
-             ('month', 'month'),
-             ('year', 'year'),
-             ('onetime', 'onetime'))
 
 
 class Rate(models.Model):
-    """A rate for calculating costs.
+    """A rate for calculating charge.
 
-    A rate is (price * metric_usage / timeunit).
+    Support various types of rates (flat, fixed, tiered, discount).
     """
+
+    METRIC_CPU_CORE_HOUR = 'cpu_core_per_hour'
+    METRIC_MEM_BYTES_HOUR = 'memory_bytes_per_hour'
 
     class Meta:
         """Meta for Rate."""
 
-        unique_together = ('metric', 'price', 'timeunit')
+    METRIC_CHOICES = ((METRIC_CPU_CORE_HOUR, METRIC_CPU_CORE_HOUR),
+                      (METRIC_MEM_BYTES_HOUR, METRIC_MEM_BYTES_HOUR),)
 
-    description = models.TextField()
-    metric = models.CharField(max_length=100, null=False)
-    name = models.CharField(max_length=255, null=False)
-    price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
-    timeunit = models.CharField(max_length=100, null=False, choices=TIMEUNITS,
-                                default=TIMEUNITS[[0][0]])
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+    provider_uuid = models.UUIDField(null=False)
+    metric = models.CharField(max_length=256, null=False,
+                              choices=METRIC_CHOICES, default=METRIC_CPU_CORE_HOUR)
+    rates = JSONField(default=dict)

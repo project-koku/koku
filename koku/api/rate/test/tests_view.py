@@ -25,9 +25,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.models import Provider
+from api.provider.serializers import ProviderSerializer
 from api.rate.serializers import RateSerializer
-from ..models import Rate, TIMEUNITS
+from reporting.rate.models import Rate
 
 
 class RateViewTests(IamTestCase):
@@ -36,12 +39,28 @@ class RateViewTests(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        self.fake_data = {'name': self.fake.word(),
-                          'description': self.fake.text(),
-                          'price': round(Decimal(random.random()), 6),
-                          'timeunit': random.choice(TIMEUNITS)[0],
-                          'metric': self.fake.word()}
+        request = self.request_context['request']
+        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+            request.user = user
 
+        provider_data = {'name': 'test_provider',
+                         'type': Provider.PROVIDER_OCP,
+                         'authentication': {
+                             'provider_resource_name': self.fake.word()
+                         }}
+        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            self.provider = serializer.save()
+
+        self.fake_data = {'provider': self.provider.id,
+                          'metric': Rate.METRIC_MEM_BYTES_HOUR,
+                          'fixed_rate': {
+                              'value': round(Decimal(random.random()), 6),
+                              'unit': 'USD'
+                          }
+                          }
         with tenant_context(self.tenant):
             serializer = RateSerializer(data=self.fake_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
@@ -54,11 +73,13 @@ class RateViewTests(IamTestCase):
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
-        test_data = {'name': self.fake.word(),
-                     'description': self.fake.text(),
-                     'price': round(Decimal(random.random()), 6),
-                     'timeunit': random.choice(TIMEUNITS)[0],
-                     'metric': self.fake.word()}
+        test_data = {'provider': self.provider.id,
+                     'metric': Rate.METRIC_CPU_CORE_HOUR,
+                     'fixed_rate': {
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD'
+                     }
+                     }
 
         # create a rate
         url = reverse('rates-list')
@@ -71,13 +92,9 @@ class RateViewTests(IamTestCase):
         response = client.get(url, **self.headers)
 
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertEqual(test_data['name'], response.data.get('name'))
-        self.assertEqual(test_data['description'],
-                         response.data.get('description'))
-        self.assertEqual(test_data['price'],
-                         Decimal(response.data.get('price')))
-        self.assertEqual(test_data['timeunit'], response.data.get('timeunit'))
+        self.assertIsNotNone(response.data.get('provider_uuid'))
         self.assertEqual(test_data['metric'], response.data.get('metric'))
+        self.assertIsNotNone(response.data.get('fixed_rate'))
 
     def test_create_rate_invalid(self):
         """Test that creating an invalid rate returns an error."""
@@ -101,13 +118,9 @@ class RateViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertEqual(self.fake_data['name'], response.data.get('name'))
-        self.assertEqual(self.fake_data['description'],
-                         response.data.get('description'))
-        self.assertEqual(self.fake_data['price'],
-                         Decimal(response.data.get('price')))
-        self.assertEqual(self.fake_data['timeunit'], response.data.get('timeunit'))
+        self.assertIsNotNone(response.data.get('provider_uuid'))
         self.assertEqual(self.fake_data['metric'], response.data.get('metric'))
+        self.assertIsNotNone(response.data.get('fixed_rate'))
 
     def test_read_rate_invalid(self):
         """Test that reading an invalid rate returns an error."""
@@ -118,11 +131,8 @@ class RateViewTests(IamTestCase):
 
     def test_update_rate_success(self):
         """Test that we can update an existing rate."""
-        test_data = {'name': self.fake.word(),
-                     'description': self.fake.text(),
-                     'price': round(Decimal(random.random()), 6),
-                     'timeunit': random.choice(TIMEUNITS)[0],
-                     'metric': self.fake.word()}
+        test_data = self.fake_data
+        test_data['fixed_rate']['value'] = round(Decimal(random.random()), 6)
 
         rate = Rate.objects.first()
         url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
@@ -131,21 +141,14 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertEqual(test_data['name'], response.data.get('name'))
-        self.assertEqual(test_data['description'],
-                         response.data.get('description'))
-        self.assertEqual(test_data['price'],
-                         Decimal(response.data.get('price')))
-        self.assertEqual(test_data['timeunit'], response.data.get('timeunit'))
+        self.assertEqual(test_data['fixed_rate']['value'],
+                         response.data.get('fixed_rate').get('value'))
         self.assertEqual(test_data['metric'], response.data.get('metric'))
 
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
-        test_data = {'name': self.fake.word(),
-                     'description': self.fake.text(),
-                     'price': round(Decimal(random.random()), 6),
-                     'timeunit': random.choice(TIMEUNITS)[0],
-                     'metric': self.fake.word()}
+        test_data = self.fake_data
+        test_data['fixed_rate']['value'] = round(Decimal(random.random()), 6)
 
         url = reverse('rates-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
@@ -185,8 +188,6 @@ class RateViewTests(IamTestCase):
 
         rate = response.data.get('results')[0]
         self.assertIsNotNone(rate.get('uuid'))
-        self.assertEqual(self.fake_data['name'], rate.get('name'))
-        self.assertEqual(self.fake_data['description'], rate.get('description'))
-        self.assertEqual(self.fake_data['price'], Decimal(rate.get('price')))
-        self.assertEqual(self.fake_data['timeunit'], rate.get('timeunit'))
+        self.assertIsNotNone(rate.get('uuid'))
+        self.assertIsNotNone(rate.get('provider_uuid'))
         self.assertEqual(self.fake_data['metric'], rate.get('metric'))
