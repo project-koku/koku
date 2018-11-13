@@ -42,4 +42,4 @@ This is an example for making authenticated HTTP requests to the Koku API when `
    #!/bin/bash
    HOST='localhost'
    IDENTITY=$(echo '"identity":{"org_id":"20001","account_number":"10001","username":"test_customer","email":"koku-dev@example.com"}' | base64 | tr -d '\n')
-   curl -g -H "HTTP_X_RH_IDENTITY: ${IDENTITY}" 'http://'${HOST}'/api/v1/reports/inventory/instance-type/'
+   curl -g -H "HTTP_X_RH_IDENTITY: ${IDENTITY}" 'http://'${HOST}'/api/v1/reports/inventory/aws/instance-type/'
