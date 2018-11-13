@@ -20,6 +20,8 @@ import random
 from decimal import Decimal
 
 import faker
+from rates.models import Rate
+from rates.serializers import RateSerializer
 from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
@@ -27,8 +29,6 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from api.rate.serializers import RateSerializer
-from reporting.rate.models import Rate
 
 
 class RateSerializerTest(IamTestCase):
@@ -76,7 +76,7 @@ class RateSerializerTest(IamTestCase):
     def test_create_memory_bytes_per_hour_rate(self):
         """Test creating a memory_bytes_per_hour rate."""
         rate = {'provider': self.provider.id,
-                'metric': Rate.METRIC_MEM_BYTES_HOUR,
+                'metric': Rate.METRIC_MEM_GB_HOUR,
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
                     'unit': 'USD'
@@ -95,7 +95,7 @@ class RateSerializerTest(IamTestCase):
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
         rate = {'provider': 999,
-                'metric': Rate.METRIC_MEM_BYTES_HOUR,
+                'metric': Rate.METRIC_MEM_GB_HOUR,
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
                     'unit': 'USD'

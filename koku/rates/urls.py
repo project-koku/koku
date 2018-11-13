@@ -15,28 +15,13 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
+from rates.views import RateViewSet
 from rest_framework.routers import DefaultRouter
 
-from api.views import (ProviderViewSet,
-                       UserPreferenceViewSet,
-                       costs,
-                       cpu,
-                       instance_type,
-                       memory,
-                       status,
-                       storage)
-
 ROUTER = DefaultRouter()
-ROUTER.register(r'providers', ProviderViewSet)
-ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
+ROUTER.register(r'rates', RateViewSet, base_name='rates')
 
 # pylint: disable=invalid-name
 urlpatterns = [
-    url(r'^status/$', status, name='server-status'),
-    url(r'^reports/costs/aws/$', costs, name='reports-costs'),
-    url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-instance-type'),
-    url(r'^reports/inventory/aws/storage/$', storage, name='reports-storage'),
-    url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),
-    url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^', include(ROUTER.urls)),
 ]

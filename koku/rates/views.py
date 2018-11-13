@@ -18,8 +18,4 @@
 """API views for import organization"""
 # flake8: noqa
 # pylint: disable=unused-import
-from api.status.views import status
-from api.iam.view.user_preference import UserPreferenceViewSet
-from api.provider.view import ProviderViewSet
-from api.report.aws.view import costs, instance_type, storage
-from api.report.ocp.view import cpu, memory
+from rates.view import RateViewSet

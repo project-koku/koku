@@ -29,13 +29,13 @@ class Rate(models.Model):
     """
 
     METRIC_CPU_CORE_HOUR = 'cpu_core_per_hour'
-    METRIC_MEM_BYTES_HOUR = 'memory_bytes_per_hour'
+    METRIC_MEM_GB_HOUR = 'memory_gb_per_hour'
 
     class Meta:
         """Meta for Rate."""
 
     METRIC_CHOICES = ((METRIC_CPU_CORE_HOUR, METRIC_CPU_CORE_HOUR),
-                      (METRIC_MEM_BYTES_HOUR, METRIC_MEM_BYTES_HOUR),)
+                      (METRIC_MEM_GB_HOUR, METRIC_MEM_GB_HOUR),)
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
