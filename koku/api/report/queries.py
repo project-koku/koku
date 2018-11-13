@@ -189,6 +189,7 @@ class ProviderMap(object):
                     'cpu': {
                         'usage_label': 'pod_usage_cpu_core_hours',
                         'request_label': 'pod_request_cpu_core_hours',
+                        'charge_label': 'pod_charge_cpu_cores',
                         'default_ordering': {'usage': 'desc'},
                         'order_field': {
                             'usage': 'usage',
@@ -207,6 +208,7 @@ class ProviderMap(object):
                     'mem': {
                         'usage_label': 'pod_usage_memory_gigabytes',
                         'request_label': 'pod_request_memory_gigabytes',
+                        'charge_label': 'pod_charge_memory_gigabytes',
                         'default_ordering': {'usage': 'desc'},
                         'order_field': {
                             'usage': 'usage',
