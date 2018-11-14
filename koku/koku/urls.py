@@ -21,6 +21,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 """
 from django.conf.urls import include, url
 from django.contrib import admin
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 from django.views.generic import RedirectView
 
@@ -37,3 +38,5 @@ urlpatterns = [
         RedirectView.as_view(url='/apidoc/%(path)s', permanent=False),
         name='apidoc'),
 ]
+
+urlpatterns += staticfiles_urlpatterns()

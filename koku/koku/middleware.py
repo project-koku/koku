@@ -136,7 +136,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             request (object): The request object
 
         """
-        if 'status' in request.path:
+        no_auth_list = ['status', 'apidoc']
+        if any(no_auth_path in request.path for no_auth_path in no_auth_list):
             request.user = User('', '')
             return
         try:
