@@ -16,7 +16,6 @@
 #
 """AWS-local service provider implementation to be used by Koku."""
 import logging
-import os
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
@@ -46,11 +45,4 @@ class AWSLocalProvider(ProviderInterface):
         if not storage_resource_name:
             key = 'bucket'
             message = 'Bucket is a required parameter for AWS.'
-            raise serializers.ValidationError(error_obj(key, message))
-
-        if not os.path.isdir(storage_resource_name):
-            key = 'bucket'
-            message = 'Bucket {} could not be found with {}.'.format(
-                storage_resource_name, credential_name)
-            LOG.error(message)
             raise serializers.ValidationError(error_obj(key, message))
