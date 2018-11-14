@@ -19,6 +19,8 @@
 
 import logging
 
+from sqlalchemy.orm.exc import NoResultFound
+
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
@@ -29,49 +31,55 @@ LOG = logging.getLogger(__name__)
 class OCPRateDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
-    def __init__(self, schema, column_map):
+    def __init__(self, schema, provider_uuid, column_map):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+            provider_uuid (str): Provider uuid
         """
         super().__init__(schema, column_map)
+        self.provider_uuid = provider_uuid
         self.column_map = column_map
 
-    def get_cpu_usage_rate(self):
-        """Get cpu usage charge."""
-        cpu_charge = self.get_price('cpu') if self.get_timeunit('cpu') == 'nil' else None
-        LOG.info('OCP CPU usage charge: %s', str(cpu_charge))
-        return cpu_charge
-
-    def get_memory_usage_rate(self):
-        """Get the memory usage charge."""
-        mem_charge = self.get_price('memory') if self.get_timeunit('memory') == 'nil' else None
-        LOG.info('OCP Memory usage charge: %s', str(mem_charge))
-
-        return mem_charge
-
-    def get_price(self, value):
-        """Get the price for a metric."""
+    def _get_base_entry(self, metric_value):
+        """Get base metric query."""
         table_name = OCP_REPORT_TABLE_MAP['rate']
         metric = getattr(
             getattr(self.report_schema, table_name),
             'metric'
         )
-        base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(value == metric)
-        price_obj = line_item_query.first()
-        return price_obj.price if price_obj else None
-
-    def get_timeunit(self, value):
-        """Get the timeunit for a metric."""
-        table_name = OCP_REPORT_TABLE_MAP['rate']
-        metric = getattr(
+        provider = getattr(
             getattr(self.report_schema, table_name),
-            'metric'
+            'provider_uuid'
         )
-        base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(value == metric)
-        timeunit_obj = line_item_query.first()
-        return timeunit_obj.timeunit if timeunit_obj else None
+        base_query = self._get_db_obj_query(table_name).filter(provider == self.provider_uuid)
+        metric_entry = None
+        try:
+            metric_entry = base_query.filter(metric == metric_value).one()
+        except NoResultFound as not_found_error:
+            LOG.error(str(not_found_error))
+        return metric_entry
+
+    def get_metric(self, value):
+        """Get the metric."""
+        metric_entry = self._get_base_entry(value)
+        return metric_entry.metric if metric_entry else None
+
+    def get_rates(self, value):
+        """Get the rates."""
+        rate_entry = self._get_base_entry(value)
+        return rate_entry.rates if rate_entry else None
+
+    def get_cpu_rates(self):
+        """Get cpu rates."""
+        cpu_rates = self.get_rates('cpu_core_per_hour')
+        LOG.info('OCP CPU rates: %s', str(cpu_rates))
+        return cpu_rates
+
+    def get_memory_rates(self):
+        """Get the memory rates."""
+        mem_rates = self.get_rates('memory_gb_per_hour')
+        LOG.info('OCP Memory rates: %s', str(mem_rates))
+        return mem_rates

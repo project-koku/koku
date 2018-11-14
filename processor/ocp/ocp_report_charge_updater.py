@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 class OCPReportChargeUpdater:
     """Class to update OCP report summary data with charge information."""
 
-    def __init__(self, schema):
+    def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
         Args:
@@ -40,8 +40,19 @@ class OCPReportChargeUpdater:
         )
         self._rate_accessor = OCPRateDBAccessor(
             schema,
+            provider_uuid,
             ReportingCommonDBAccessor().column_map
         )
+
+    def _get_cpu_rates(self):
+        """Get CPU rate dictionary."""
+        cpu_rates = self._rate_accessor.get_cpu_rates()
+        return cpu_rates.get('fixed_rate').get('value') if cpu_rates else None
+
+    def _get_memory_rates(self):
+        """Get Memory rate dictionary."""
+        mem_rates = self._rate_accessor.get_memory_rates()
+        return mem_rates.get('fixed_rate').get('value') if mem_rates else None
 
     def update_summary_charge_info(self):
         """Update the OCP summary table with the charge information.
@@ -54,8 +65,8 @@ class OCPReportChargeUpdater:
 
         """
         LOG.info('Starting charge calculation updates.')
-        cpu_charge = self._rate_accessor.get_cpu_usage_rate()
-        mem_charge = self._rate_accessor.get_memory_usage_rate()
+        cpu_charge = self._get_cpu_rates()
+        mem_charge = self._get_memory_rates()
 
         if cpu_charge:
             self._accessor.populate_cpu_charge(cpu_charge)
