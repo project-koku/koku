@@ -78,7 +78,7 @@ remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
 make-migrations:
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common rates
 
 run-migrations:
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
@@ -170,7 +170,7 @@ oc-login-dev:
 
 oc-make-migrations: oc-forward-ports
 	sleep 3
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common rates
 	make oc-stop-forwarding-ports
 
 oc-reinit: oc-delete-all oc-create-koku

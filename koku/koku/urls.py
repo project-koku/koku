@@ -30,6 +30,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     url(r'^api-auth/', include('rest_framework.urls')),
     url(r'^api/v1/', include('api.urls')),
+    url(r'^api/v1/', include('rates.urls')),
 
     # static files (*.css, *.js, *.jpg etc.)
     url(r'^(?!/?apidoc/)(?P<path>.*\..*)$',
