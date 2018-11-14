@@ -15,10 +15,10 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
-                       RateViewSet,
                        UserPreferenceViewSet,
                        charges,
                        costs,
@@ -31,7 +31,6 @@ from api.views import (ProviderViewSet,
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-ROUTER.register(r'rates', RateViewSet, base_name='rates')
 
 # pylint: disable=invalid-name
 urlpatterns = [
@@ -44,3 +43,5 @@ urlpatterns = [
     url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^', include(ROUTER.urls)),
 ]
+
+urlpatterns += staticfiles_urlpatterns()

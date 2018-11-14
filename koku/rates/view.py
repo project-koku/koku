@@ -19,8 +19,8 @@
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
-from api.rate.serializers import RateSerializer
-from .models import Rate
+from rates.models import Rate
+from rates.serializers import RateSerializer
 
 
 class RateViewSet(mixins.CreateModelMixin,

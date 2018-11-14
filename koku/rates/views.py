@@ -14,18 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Rate serializer."""
-from rest_framework import serializers
 
-from .models import Rate
-
-
-class RateSerializer(serializers.ModelSerializer):
-    """Rate Serializer."""
-
-    class Meta:
-        """Metadata for the serializer."""
-
-        model = Rate
-        fields = ('uuid', 'name', 'description', 'price', 'metric', 'timeunit')
-        ordering = ['-name']
+"""API views for import organization"""
+# flake8: noqa
+# pylint: disable=unused-import
+from rates.view import RateViewSet

@@ -105,6 +105,7 @@ objects:
     email-service-host: ${EMAIL_HOST}
     email-service-port: ${EMAIL_PORT}
     email-service-host-user: ${EMAIL_HOST_USER}
+    django-debug: ${DJANGO_DEBUG}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -334,6 +335,12 @@ objects:
                 configMapKeyRef:
                   name: koku-env
                   key: email-service-host-user
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-debug
                   optional: false
             - name: MASU_SERVICE_HOST
               valueFrom:
@@ -684,3 +691,6 @@ parameters:
   description: Whether to upgrade pip to latest
   name: UPGRADE_PIP_TO_LATEST
   value: ''
+- displayName: Django debug flag
+  value: 'False'
+  name: DJANGO_DEBUG
