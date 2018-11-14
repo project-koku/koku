@@ -23,6 +23,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -50,9 +51,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filter is None:
             filter = self.ten_day_filter
         with tenant_context(self.tenant):
+            return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\
                 .aggregate(**aggregates)
 
+    def test_execute_sum_query(self):
+        """Test that the sum query runs properly."""
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
@@ -74,6 +78,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
                          current_totals.get('charge').quantize(Decimal('0.001')))
 
+    def test_execute_sum_query_charge(self):
+        """Test that the sum query runs properly for the charge endpoint."""
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
