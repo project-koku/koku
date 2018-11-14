@@ -47,15 +47,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.group_by_options, **kwargs)
 
-    @property
-    def order_field(self):
-        """Order-by field name."""
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        key = list(order_by.keys()).pop()
-        if order_by == self.default_ordering:
-            return key
-        return self._mapper._report_type_map['order_field'][key]
-
     def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.
 
