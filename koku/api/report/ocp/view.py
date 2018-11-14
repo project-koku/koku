@@ -241,4 +241,81 @@ def cpu(request):
 
     """
     extras = {'report_type': 'cpu'}
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
+@api_view(http_method_names=['GET'])
+@permission_classes([AllowAny])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def charges(request):
+    """Get OCP cpu usage data.
+
+    @api {get} /api/v1/reports/charge/ocp/ Get OCP charge data
+    @apiName getOCPChargeData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP charge data.
+
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP 200 OK
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-1",
+                "time_scope_units": "month"
+            },
+            "data": [
+                {
+                    "date": "2018-11",
+                    "projects": [
+                        {
+                            "project": "monitoring",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "monitoring",
+                                    "charge": 3.2
+                                }
+                            ]
+                        },
+                        {
+                            "project": "metering-hccm",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "metering-hccm",
+                                    "charge": 3.0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "charge": 6.2
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        charge,date,project
+        3.200000,2018-11,monitoring
+        3.000000,2018-11,metering-hccm
+
+    """
+    extras = {'report_type': 'charge'}
+    return _generic_report(request, OCPChargeQueryParamSerializer,
+                           OCPReportQueryHandler, **extras)
