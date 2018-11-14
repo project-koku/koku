@@ -132,6 +132,8 @@ class InventoryOrderBySerializer(OrderBySerializer):
                                     required=False)
     request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
                                       required=False)
+    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
+                                    required=False)
 
 
 class FilterSerializer(serializers.Serializer):
