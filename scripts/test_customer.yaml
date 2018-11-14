@@ -1,13 +1,20 @@
 ---
 customer:
-  bucket: test-bucket
   account_id: 10001
   org_id: 20002
   email: test@example.com
   user: test_customer
-  provider_name: Test Provider
-  provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
-  provider_type: 'AWS'
+  providers:
+    aws_provider:
+      bucket: test-bucket
+      provider_name: Test Provider
+      provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
+      provider_type: 'AWS'
+    ocp_provider:
+      provider_name: OCP Test Provider
+      provider_resource_name: my-ocp-cluster-1
+      provider_type: 'OCP'
+
 koku:
   host: localhost
   port: 8000
