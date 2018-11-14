@@ -123,6 +123,7 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
     update_summary_tables.delay(
         schema_name,
         provider,
+        provider_uuid,
         start_date,
         manifest_id=report_dict.get('manifest_id')
     )
@@ -157,13 +158,14 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
 
 @celery.task(name='masu.processor.tasks.update_summary_tables',
              queue_name='reporting')
-def update_summary_tables(schema_name, provider, start_date, end_date=None,
+def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None,
                           manifest_id=None):
     """Populate the summary tables for reporting.
 
     Args:
         schema_name (str) The DB schema name.
         provider    (str) The provider type.
+        provider_uuid (str) The provider uuid.
         report_dict (dict) The report data dict from previous task.
         start_date  (str) The date to start populating the table.
         end_date    (str) The date to end on.
@@ -189,18 +191,18 @@ def update_summary_tables(schema_name, provider, start_date, end_date=None,
     updater.update_summary_tables(start_date, end_date, manifest_id)
     update_charge_info.delay(
         schema_name,
-        provider
+        provider_uuid
     )
 
 
 @celery.task(name='masu.processor.tasks.update_charge_info',
              queue_name='reporting')
-def update_charge_info(schema_name, provider):
+def update_charge_info(schema_name, provider_uuid):
     """Update usage charge information.
 
     Args:
         schema_name (str) The DB schema name.
-        provider    (str) The provider type.
+        provider_uuid    (str) The provider uuid.
 
     Returns
         None
@@ -208,10 +210,10 @@ def update_charge_info(schema_name, provider):
     """
     stmt = ('update_charge_info called with args:\n'
             ' schema_name: {},\n'
-            ' provider: {}')
+            ' provider_uuid: {}')
     stmt = stmt.format(schema_name,
-                       provider)
+                       provider_uuid)
     LOG.info(stmt)
 
-    updater = ReportChargeUpdater(schema_name, provider)
+    updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info()
