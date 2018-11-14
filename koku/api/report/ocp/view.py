@@ -24,7 +24,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import OCPQueryParamSerializer
+from api.report.ocp.ocp_charge_query_handler import OCPReportQueryHandlerCharge
+from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
+                                        OCPInventoryQueryParamSerializer)
 from api.report.view import _generic_report
 
 
@@ -34,8 +36,8 @@ from api.report.view import _generic_report
 def memory(request):
     """Get OCP memory usage data.
 
-    @api {get} /api/v1/reports/ocp/memory Get memory usage data
-    @apiName getInventoryStorageData
+    @api {get} /api/v1/reports/inventory/ocp/memory Get memory usage data
+    @apiName getOCPInventoryMemoryData
     @apiGroup Report
     @apiVersion 1.0.0
     @apiDescription Get OCP memory usage data.
@@ -131,7 +133,8 @@ def memory(request):
 
     """
     extras = {'report_type': 'mem'}
-    return _generic_report(request, OCPQueryParamSerializer, OCPReportQueryHandler, **extras)
+    return _generic_report(request, OCPInventoryQueryParamSerializer,
+                           OCPReportQueryHandler, **extras)
 
 
 @api_view(http_method_names=['GET'])
@@ -140,8 +143,8 @@ def memory(request):
 def cpu(request):
     """Get OCP cpu usage data.
 
-    @api {get} /api/v1/reports/ocp/cpu Get cpu usage data
-    @apiName getInventoryStorageData
+    @api {get} /api/v1/reports/inventory/ocp/cpu Get cpu usage data
+    @apiName getOCPInventoryCPUData
     @apiGroup Report
     @apiVersion 1.0.0
     @apiDescription Get OCP cpu usage data.
@@ -241,6 +244,9 @@ def cpu(request):
 
     """
     extras = {'report_type': 'cpu'}
+    return _generic_report(request, OCPInventoryQueryParamSerializer,
+                           OCPReportQueryHandler, **extras)
+
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
