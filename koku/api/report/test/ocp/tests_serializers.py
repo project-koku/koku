@@ -21,6 +21,8 @@ from rest_framework import serializers
 
 from api.report.ocp.serializers import (FilterSerializer,
                                         GroupBySerializer,
+                                        OCPChargeQueryParamSerializer,
+                                        OCPInventoryQueryParamSerializer,
                                         OCPQueryParamSerializer,
                                         OrderBySerializer)
 
@@ -144,7 +146,6 @@ class OCPQueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {'group_by': {'project': ['project1']},
-                        'order_by': {'cluster': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
@@ -156,7 +157,6 @@ class OCPQueryParamSerializerTest(TestCase):
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {'group_by': {'account': ['account1']},
-                        'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
@@ -170,7 +170,6 @@ class OCPQueryParamSerializerTest(TestCase):
     def test_query_params_invalid_nested_fields(self):
         """Test parse of query params for invalid nested_fields."""
         query_params = {'group_by': {'invalid': ['invalid']},
-                        'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
@@ -190,5 +189,85 @@ class OCPQueryParamSerializerTest(TestCase):
         """Test failure while parsing units query params."""
         query_params = {'units': 'bites'}
         serializer = OCPQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPInventoryQueryParamSerializerTest(TestCase):
+    """Tests for the handling inventory query parameter parsing serializer."""
+
+    def test_parse_query_params_success(self):
+        """Test parse of an inventory query params successfully."""
+        query_params = {'group_by': {'project': ['project1']},
+                        'order_by': {'usage': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []},
+                        }
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_query_params_invalid_order_by(self):
+        """Test parse of inventory query params for invalid fields."""
+
+        # Pass requests instead of request
+        query_params = {'group_by': {'account': ['account1']},
+                        'order_by': {'requests': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []},
+                        'invalid': 'param'
+                        }
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+
+class OCPChargeQueryParamSerializerTest(TestCase):
+    """Tests for the handling charge query parameter parsing serializer."""
+
+    def test_parse_query_params_success(self):
+        """Test parse of a charge query params successfully."""
+        query_params = {'group_by': {'project': ['project1']},
+                        'order_by': {'charge': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []},
+                        }
+        serializer = OCPChargeQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_query_params_invalid_order_by_request(self):
+        """Test parse of charge query params for invalid fields."""
+
+        # Charge can't order by request or usage
+        query_params = {'group_by': {'account': ['account1']},
+                        'order_by': {'request': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []},
+                        'invalid': 'param'
+                        }
+        serializer = OCPChargeQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_query_params_invalid_order_by_usage(self):
+        """Test parse of charge query params for invalid fields."""
+
+        # Charge can't order by request or usage
+        query_params = {'group_by': {'account': ['account1']},
+                        'order_by': {'usage': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []},
+                        'invalid': 'param'
+                        }
+        serializer = OCPChargeQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
