@@ -24,7 +24,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.ocp.ocp_charge_query_handler import OCPReportQueryHandlerCharge
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.report.view import _generic_report
@@ -246,6 +245,7 @@ def cpu(request):
     extras = {'report_type': 'cpu'}
     return _generic_report(request, OCPInventoryQueryParamSerializer,
                            OCPReportQueryHandler, **extras)
+
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])

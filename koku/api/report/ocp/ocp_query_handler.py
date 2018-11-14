@@ -18,7 +18,6 @@
 import copy
 
 from django.db.models import (F,
-                              Sum,
                               Value,
                               Window)
 from django.db.models.functions import Concat

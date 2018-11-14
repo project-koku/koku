@@ -210,7 +210,6 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
 
     def test_query_params_invalid_order_by(self):
         """Test parse of inventory query params for invalid fields."""
-
         # Pass requests instead of request
         query_params = {'group_by': {'account': ['account1']},
                         'order_by': {'requests': 'asc'},
@@ -242,7 +241,6 @@ class OCPChargeQueryParamSerializerTest(TestCase):
 
     def test_query_params_invalid_order_by_request(self):
         """Test parse of charge query params for invalid fields."""
-
         # Charge can't order by request or usage
         query_params = {'group_by': {'account': ['account1']},
                         'order_by': {'request': 'asc'},
@@ -258,7 +256,6 @@ class OCPChargeQueryParamSerializerTest(TestCase):
 
     def test_query_params_invalid_order_by_usage(self):
         """Test parse of charge query params for invalid fields."""
-
         # Charge can't order by request or usage
         query_params = {'group_by': {'account': ['account1']},
                         'order_by': {'usage': 'asc'},
