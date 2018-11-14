@@ -36,18 +36,18 @@ def update_charge():
     """Update report summary tables in the database."""
     params = request.args
 
-    provider = params.get('provider')
+    provider_uuid = params.get('provider_uuid')
     schema_name = params.get('schema')
 
-    if provider is None or schema_name is None:
-        errmsg = 'provider and schema_name are required parameters.'
+    if provider_uuid is None or schema_name is None:
+        errmsg = 'provider_uuid and schema_name are required parameters.'
         return jsonify({'Error': errmsg}), 400
 
     LOG.info('Calling update_charge_info async task.')
 
     async_result = update_charge_info.delay(
         schema_name,
-        provider,
+        provider_uuid,
     )
 
     return jsonify({'Update Charge Task ID': str(async_result)})

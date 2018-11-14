@@ -18,6 +18,7 @@
 
 import logging
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import (OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
@@ -35,16 +36,17 @@ class ReportChargeUpdaterError(Exception):
 class ReportChargeUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider):
+    def __init__(self, customer_schema, provider_uuid):
         """
         Initializer.
 
         Args:
             customer_schema (str): Schema name for given customer.
-            provider (str): The provider type.
+            provider_uuid (str): The provider uuid.
         """
         self._schema = customer_schema
-        self._provider = provider
+        self._provider_uuid = provider_uuid
+        self._provider = ProviderDBAccessor(provider_uuid).get_type()
         try:
             self._updater = self._set_updater()
         except Exception as err:
@@ -65,7 +67,7 @@ class ReportChargeUpdater:
         """
         if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
                               OCP_LOCAL_SERVICE_PROVIDER):
-            return OCPReportChargeUpdater(self._schema)
+            return OCPReportChargeUpdater(self._schema, self._provider_uuid)
 
         return None
 
