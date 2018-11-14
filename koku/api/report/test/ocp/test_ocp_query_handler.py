@@ -20,30 +20,45 @@ from decimal import Decimal
 from django.db.models import Sum
 from tenant_schemas.utils import tenant_context
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp.test_ocp_query_handler_base import OCPReportQueryHandlerBaseTest
+from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
 
-class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
-    """Tests for the report query handler."""
+class OCPReportQueryHandlerTest(IamTestCase):
+    """Tests for the OCP report query handler."""
 
-    def get_totals_by_time_scope(self, filter=None):
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class."""
+        super().setUpClass()
+        cls.dh = DateHelper()
+
+        cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
+        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 9)}
+        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 29)}
+        cls.last_month_filter = {'usage_start__gte': cls.dh.last_month_start,
+                                 'usage_end__lte': cls.dh.last_month_end}
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        super().setUp()
+        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+
+    def get_totals_by_time_scope(self, aggregates, filter=None):
         """Return the total aggregates for a time period."""
         if filter is None:
             filter = self.ten_day_filter
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\
-                .aggregate(
-                    usage=Sum('pod_usage_cpu_core_hours'),
-                    request=Sum('pod_request_cpu_core_hours'),
-                    charge=Sum('pod_charge_cpu_cores')
-                )
+                .aggregate(**aggregates)
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
-        current_totals = self.get_totals_by_time_scope()
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
@@ -51,6 +66,9 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
             self.tenant,
             **{'report_type': 'cpu'}
         )
+
+        aggregates = handler._mapper._report_type_map.get('aggregates')
+        current_totals = self.get_totals_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -64,7 +82,6 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
 
     def test_execute_sum_query_charge(self):
         """Test that the sum query runs properly for the charge endpoint."""
-        current_totals = self.get_totals_by_time_scope()
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
@@ -72,6 +89,8 @@ class OCPReportQueryHandlerTest(OCPReportQueryHandlerBaseTest):
             self.tenant,
             **{'report_type': 'charge'}
         )
+        aggregates = handler._mapper._report_type_map.get('aggregates')
+        current_totals = self.get_totals_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
