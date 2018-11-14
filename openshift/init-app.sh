@@ -36,6 +36,10 @@ Flags:
         VCS repo branch to build from
         Default: ${REPO_BRANCH}
 
+    -d | --debug
+        Django debug mode
+        Default: ${DJANGO_DEBUG}
+
 EOF
 }
 
@@ -48,6 +52,7 @@ OPENSHIFT_TEMPLATE_PATH='openshift/koku-template.yaml'
 CODE_REPO='https://github.com/project-koku/koku.git'
 REPO_BRANCH='master'
 EMAIL_SERVICE_PASSWORD=$EMAIL_SERVICE_PASSWORD
+DJANGO_DEBUG='False'
 
 # accept cli arguments for params
 PARAMS=""
@@ -85,6 +90,10 @@ while (( "$#" )); do
             REPO_BRANCH=$2
             shift 2
             ;;
+        -d|--debug)
+            DJANGO_DEBUG=$2
+            shift 2
+            ;;
         --) # end argument parsing
             shift
             break
@@ -115,5 +124,6 @@ oc new-app --template ${OPENSHIFT_PROJECT}/$(basename ${OPENSHIFT_TEMPLATE_PATH}
     --param EMAIL_SERVICE_PASSWORD=${EMAIL_SERVICE_PASSWORD} \
     --param AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
     --param AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    --param DJANGO_DEBUG=${DJANGO_DEBUG} \
 
 exit 0

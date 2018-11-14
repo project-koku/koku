@@ -15,24 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Models for identity and access management."""
-
-from django.db import models
-
-
-class Rate(models.Model):
-    """A rate for calculating costs.
-
-    A rate is (price * metric_usage / timeunit).
-    """
-
-    class Meta:
-        """Meta for Rate."""
-
-        unique_together = ('metric', 'price', 'timeunit')
-
-    description = models.TextField()
-    metric = models.CharField(max_length=100, null=False)
-    name = models.CharField(max_length=255, null=False)
-    price = models.DecimalField(max_digits=25, decimal_places=6, null=False)
-    timeunit = models.CharField(max_length=100, null=False)
+"""API views for import organization"""
+# flake8: noqa
+# pylint: disable=unused-import
+from rates.view import RateViewSet

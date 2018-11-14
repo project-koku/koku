@@ -69,27 +69,34 @@ class KokuCustomerOnboarder:
     def create_customer(self):
         """Create Koku Customer."""
         # Customer, User, and Tenant schema are lazy initialized on any API request
-        response = requests.get(self.endpoint_base + 'reports/costs/',
+        response = requests.get(self.endpoint_base + 'reports/costs/aws/',
                                  headers=self.get_headers(self.auth_token))
         print(response.text)
 
     def create_provider_api(self):
         """Create a Koku Provider using the Koku API."""
-        data = {
-            'name': self.customer.get('provider_name'),
-            'type': self.customer.get('provider_type'),
-            'authentication': {
-                'provider_resource_name': self.customer.get('provider_resource_name')
-            },
-            'billing_source': {'bucket': self.customer.get('bucket')}
-        }
+        providers = []
+        providers.append(self.customer.get('providers').get('aws_provider'))
+        providers.append(self.customer.get('providers').get('ocp_provider'))
 
-        response = requests.post(
-            self.endpoint_base + 'providers/',
-            headers=self.get_headers(self.auth_token),
-            json=data
-        )
-        print(response.text)
+        for provider in providers:
+            data = {
+                'name': provider.get('provider_name'),
+                'type': provider.get('provider_type'),
+                'authentication': {
+                    'provider_resource_name': provider.get('provider_resource_name')
+                },
+                'billing_source': {'bucket': provider.get('bucket')}
+            }
+            if provider.get('bucket') is None:
+                del data['billing_source']
+
+            response = requests.post(
+                self.endpoint_base + 'providers/',
+                headers=self.get_headers(self.auth_token),
+                json=data
+            )
+            print(response.text)
         return response
 
     def create_provider_db(self):
@@ -109,9 +116,19 @@ class KokuCustomerOnboarder:
                 INSERT INTO api_providerauthentication (uuid, provider_resource_name)
                     VALUES ('7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6', '{resource}')
                 ;
-            """.format(resource=self.customer.get('provider_resource_name'))
+            """.format(resource=self.customer.get('providers').get('aws_provider').get('provider_resource_name'))
 
             cursor.execute(auth_sql)
+            conn.commit()
+            print('Created provider authentication')
+
+            auth_ocp_sql = """
+                INSERT INTO api_providerauthentication (uuid, provider_resource_name)
+                    VALUES ('5e421052-8e16-4f66-93d4-27223c4673f2', '{resource}')
+                ;
+            """.format(resource=self.customer.get('providers').get('ocp_provider').get('provider_resource_name'))
+
+            cursor.execute(auth_ocp_sql)
             conn.commit()
             print('Created provider authentication')
 
@@ -119,7 +136,7 @@ class KokuCustomerOnboarder:
                 INSERT INTO api_providerbillingsource (uuid, bucket)
                     VALUES ('75b17096-319a-45ec-92c1-18dbd5e78f94', '{bucket}')
                 ;
-            """.format(bucket=self.customer.get('bucket'))
+            """.format(bucket=self.customer.get('providers').get('aws_provider').get('bucket'))
 
             cursor.execute(billing_sql)
             conn.commit()
@@ -129,11 +146,19 @@ class KokuCustomerOnboarder:
             INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id, created_by_id, customer_id, setup_complete)
                     VALUES('6e212746-484a-40cd-bba0-09a19d132d64', '{name}', 'AWS', 1, 1, 1, 1, False)
                 ;
-            """.format(name=self.customer.get('provider_name'))
+            """.format(name=self.customer.get('providers').get('aws_provider').get('provider_name'))
 
             cursor.execute(provider_sql)
+
+            provider_ocp_sql = """
+            INSERT INTO api_provider (uuid, name, type, authentication_id, created_by_id, customer_id, setup_complete)
+                    VALUES('3c6e687e-1a09-4a05-970c-2ccf44b0952e', '{name}', 'OCP', 2, 1, 1, False)
+                ;
+            """.format(name=self.customer.get('providers').get('ocp_provider').get('provider_name'))
+
+            cursor.execute(provider_ocp_sql)
             conn.commit()
-            print('Created provider')
+            print('Created OCP provider')
 
     def get_headers(self, token):
         """returns HTTP Token Auth header"""

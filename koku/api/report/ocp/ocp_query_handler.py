@@ -18,16 +18,14 @@
 import copy
 
 from django.db.models import (F,
-                              Q,
                               Sum,
                               Value,
                               Window)
 from django.db.models.functions import Concat
-from django.db.models.functions import DenseRank
+from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
-from api.report.query_filter import QueryFilterCollection
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -151,21 +149,31 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
-                dense_rank_by_total = Window(
-                    expression=DenseRank(),
+                rank_by_total = Window(
+                    expression=RowNumber(),
                     partition_by=F('date'),
                     order_by=rank_order
                 )
-                query_data = query_data.annotate(rank=dense_rank_by_total)
+                query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by = query_order_by + ('rank',)
 
             if self.order_field != 'delta':
                 query_data = query_data.order_by(*query_order_by)
 
+            query_sum = {}
             if query.exists():
-                usage = self._mapper._report_type_map.get('usage_label')
-                request = self._mapper._report_type_map.get('request_label')
-                query_sum = self.calculate_total(usage, request)
+                usage_key = self._mapper._report_type_map.get('usage_label')
+                request_key = self._mapper._report_type_map.get('request_label')
+                charge_key = self._mapper._report_type_map.get('charge_label')
+                metric_sum = query_data.aggregate(
+                    usage=Sum(usage_key),
+                    request=Sum(request_key),
+                    charge=Sum(charge_key)
+                )
+
+                query_sum['usage'] = metric_sum.get('usage')
+                query_sum['request'] = metric_sum.get('request')
+                query_sum['charge'] = metric_sum.get('charge')
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -191,40 +199,3 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         return self.execute_sum_query()
-
-    def calculate_total(self, usage_key, request_key):
-        """Calculate aggregated totals for the query.
-
-        Args:
-            usage_key (str): Usage key value (memory or cpu)
-            request_key (str): Request key value (memory or cpu)
-
-        Returns:
-            (dict) The aggregated totals for the query
-
-        """
-        filt_collection = QueryFilterCollection()
-        total_filter = self._get_search_filter(filt_collection)
-
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     -10)
-        time_and_report_filter = Q(time_scope_value=time_scope_value)
-
-        if total_filter is None:
-            total_filter = time_and_report_filter
-        else:
-            total_filter = total_filter & time_and_report_filter
-
-        q_table = self._mapper._operation_map.get('tables').get('total')
-        total_query = q_table.objects.filter(total_filter)
-
-        total_dict = {}
-        metric_sum = total_query.aggregate(
-            usage=Sum(usage_key),
-            request=Sum(request_key)
-        )
-
-        total_dict['usage'] = metric_sum.get('usage')
-        total_dict['request'] = metric_sum.get('request')
-        return total_dict

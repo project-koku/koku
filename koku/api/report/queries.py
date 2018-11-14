@@ -189,6 +189,7 @@ class ProviderMap(object):
                     'cpu': {
                         'usage_label': 'pod_usage_cpu_core_hours',
                         'request_label': 'pod_request_cpu_core_hours',
+                        'charge_label': 'pod_charge_cpu_cores',
                         'default_ordering': {'usage': 'desc'},
                         'order_field': {
                             'usage': 'usage',
@@ -207,6 +208,7 @@ class ProviderMap(object):
                     'mem': {
                         'usage_label': 'pod_usage_memory_gigabytes',
                         'request_label': 'pod_request_memory_gigabytes',
+                        'charge_label': 'pod_charge_memory_gigabytes',
                         'default_ordering': {'usage': 'desc'},
                         'order_field': {
                             'usage': 'usage',
@@ -774,13 +776,17 @@ class ReportQueryHandler(object):
                     other_sums[column] += data.get(column) if data.get(column) else 0
 
         if other is not None and others_list:
+            num_others = len(others_list)
+            others_label = '{} Others'.format(num_others)
+            if num_others == 1:
+                others_label = '{} Other'.format(num_others)
             other.update(other_sums)
             del other['rank']
             group_by = self._get_group_by()
             for group in group_by:
-                other[group] = 'Other'
+                other[group] = others_label
             if 'account' in group_by:
-                other['account_alias'] = 'Other'
+                other['account_alias'] = others_label
             ranked_list.append(other)
 
         return ranked_list

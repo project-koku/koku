@@ -16,9 +16,8 @@
 #
 
 """Models for cost entry tables."""
+
 # pylint: disable=unused-import
-
-
 from reporting.provider.aws.models import (AWSAccountAlias,                    # noqa: F401
                                            AWSCostEntry,                       # noqa: F401
                                            AWSCostEntryBill,                   # noqa: F401
@@ -35,4 +34,3 @@ from reporting.provider.ocp.models import (OCPUsageLineItem,                   #
                                            OCPUsageLineItemDailySummary,       # noqa: F401
                                            OCPUsageReport,                     # noqa: F401
                                            OCPUsageReportPeriod)               # noqa: F401
-from reporting.rate.models import Rate   # noqa: F401
