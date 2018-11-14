@@ -19,6 +19,7 @@
 import csv
 import datetime
 import io
+import uuid
 import random
 from decimal import Decimal
 
@@ -249,15 +250,14 @@ class ReportObjectCreator:
         """Convert datetime string to datetime with AWS formatting."""
         return datetime.datetime.strptime(value, Config.AWS_DATETIME_STR_FORMAT)
 
-    def create_rate(self, metric, price, timeunit):
+    def create_rate(self, metric, provider_uuid, rates):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['rate']
 
-        data = {'description': self.fake.pystr()[:8],
-                'metric': metric,
-                'name': self.fake.pystr()[:8],
-                'price': price,
-                'timeunit': timeunit}
+        data = {'metric': metric,
+                'provider_uuid': provider_uuid,
+                'rates': rates,
+                'uuid': str(uuid.uuid4())}
 
         row = self.db_accessor.create_db_object(table_name, data)
 

@@ -17,6 +17,7 @@
 
 """Test the OCPRateDBAccessor utility object."""
 import psycopg2
+import uuid
 
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
@@ -35,6 +36,7 @@ class OCPRateDBAccessorTest(MasuTestCase):
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = OCPRateDBAccessor(
             schema='acct10001org20002',
+            provider_uuid='3c6e687e-1a09-4a05-970c-2ccf44b0952e',
             column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema
@@ -61,12 +63,14 @@ class OCPRateDBAccessorTest(MasuTestCase):
             reporting_period,
             report
         )
-        self.cpu_rate = 1.5
-        self.cpu_timeunit = 'nil'
-        self.mem_rate = 2.5
-        self.mem_timeunit = 'nil'
-        self.creator.create_rate('cpu', self.cpu_rate, self.cpu_timeunit)
-        self.creator.create_rate('memory', self.mem_rate, self.mem_timeunit)
+        self.cpu_rate = {'metric': 'cpu_core_per_hour',
+                         'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+                         'rates': {'fixed_rate': {'value': 1.5, 'unit': 'USD'}}}
+        self.mem_rate = {'metric': 'memory_gb_per_hour',
+                         'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+                         'rates': {'fixed_rate': {'value': 2.5, 'unit': 'USD'}}}
+        self.creator.create_rate(**self.cpu_rate)
+        self.creator.create_rate(**self.mem_rate)
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -85,27 +89,36 @@ class OCPRateDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(self.accessor._conn)
         self.assertIsNotNone(self.accessor._cursor)
 
-    def test_get_price(self):
+    def test_get_metric(self):
         """Test get metric."""
-        cpu_price = self.accessor.get_price('cpu')
-        self.assertEqual(round(cpu_price, 1), self.cpu_rate)
-        mem_price = self.accessor.get_price('memory')
-        self.assertEqual(round(mem_price, 1), self.mem_rate)
+        cpu_metric = self.accessor.get_metric('cpu_core_per_hour')
+        self.assertEquals(cpu_metric, 'cpu_core_per_hour')
 
-    def test_get_timeunit(self):
-        """Test get timeunit."""
-        cpu_timeunit = self.accessor.get_timeunit('cpu')
-        self.assertEqual(cpu_timeunit, self.cpu_timeunit)
+        mem_metric = self.accessor.get_metric('memory_gb_per_hour')
+        self.assertEquals(mem_metric, 'memory_gb_per_hour')
 
-        mem_timeunit = self.accessor.get_timeunit('memory')
-        self.assertEqual(mem_timeunit, self.mem_timeunit)
+        missing_metric = self.accessor.get_metric('wrong_metric')
+        self.assertIsNone(missing_metric)
 
-    def test_get_cpu_usage_rate(self):
-        """Test to get cpu usage rate."""
-        cpu_rate = self.accessor.get_cpu_usage_rate()
-        self.assertEqual(cpu_rate, self.cpu_rate)
+    def test_get_rates(self):
+        """Test get metric."""
+        cpu_rate = self.accessor.get_rates('cpu_core_per_hour')
+        self.assertEquals(type(cpu_rate), dict)
 
-    def test_get_memory_usage_rate(self):
-        """Test to get memory usage rate."""
-        mem_rate = self.accessor.get_memory_usage_rate()
-        self.assertEqual(mem_rate, self.mem_rate)
+        mem_rate = self.accessor.get_rates('memory_gb_per_hour')
+        self.assertEquals(type(mem_rate), dict)
+
+        missing_rate = self.accessor.get_rates('wrong_metric')
+        self.assertIsNone(missing_rate)
+
+    def test_get_cpu_rates(self):
+        """Test get cpu rates."""
+        cpu_rates = self.accessor.get_cpu_rates()
+        self.assertEquals(type(cpu_rates), dict)
+        self.assertEqual(cpu_rates.get('fixed_rate').get('value'), 1.5)
+
+    def test_get_memory_rates(self):
+        """Test get memory rates."""
+        mem_rates = self.accessor.get_memory_rates()
+        self.assertEquals(type(mem_rates), dict)
+        self.assertEqual(mem_rates.get('fixed_rate').get('value'), 2.5)
