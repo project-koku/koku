@@ -507,6 +507,52 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
+  /reports/charges/ocp/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain charge reports
+      operationId: getOCPChargeReports
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'delta'
+        in: 'query'
+        description: 'Toggle to include delta values in report.'
+        type: 'string'
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
+      responses:
+        200:
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportCharge'
+        401:
+          description: Unauthorized
+        500:
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
   /reports/inventory/aws/instance-type/:
     get:
       tags:
@@ -992,7 +1038,7 @@ definitions:
         type: array
         items:
           type: string
-      noce:
+      node:
         type: array
         items:
           type: string
@@ -1033,7 +1079,7 @@ definitions:
           - desc
     example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
-  ReportOrderingOCP:
+  ReportInventoryOCPOrdering:
     type: object
     properties:
       cluster:
@@ -1047,6 +1093,51 @@ definitions:
           - asc
           - desc
       node:
+        type: string
+        enum:
+          - asc
+          - desc
+      usage:
+        type: string
+        enum:
+          - asc
+          - desc
+      request:
+        type: string
+        enum:
+          - asc
+          - desc
+      charge:
+        type: string
+        enum:
+          - asc
+          - desc
+      limit:
+        type: string
+        enum:
+          - asc
+          - desc
+    example: { 'cluster': 'asc' }
+    description: The ordering to apply to the report. Default is ascending order for the data.
+  ReportChargeOCPOrdering:
+    type: object
+    properties:
+      cluster:
+        type: string
+        enum:
+          - asc
+          - desc
+      project:
+        type: string
+        enum:
+          - asc
+          - desc
+      node:
+        type: string
+        enum:
+          - asc
+          - desc
+      charge:
         type: string
         enum:
           - asc
@@ -1115,6 +1206,28 @@ definitions:
         description: 'The units for the output data.'
         type: string
         example: ''
+  ReportChargeOCP:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+      - operation
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportChargeOCPOrdering'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
   ReportOCPcpu:
     required:
       - delta
@@ -1127,7 +1240,7 @@ definitions:
       group_by:
         $ref: '#/definitions/ReportOCPGrouping'
       order_by:
-        $ref: '#/definitions/ReportOrderingOCP'
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
       operation:
@@ -1152,7 +1265,7 @@ definitions:
       group_by:
         $ref: '#/definitions/ReportOCPGrouping'
       order_by:
-        $ref: '#/definitions/ReportOrderingOCP'
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
       operation:
@@ -1214,6 +1327,43 @@ definitions:
                     ]
                 }
                 ]
+            ]
+  ReportCharge:
+    allOf:
+      - $ref: '#/definitions/Report'
+      - required:
+          - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                {
+                    "date": "2018-11",
+                    "projects": [
+                        {
+                            "project": "monitoring",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "monitoring",
+                                    "charge": 3.2
+                                }
+                            ]
+                        },
+                        {
+                            "project": "metering",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "metering",
+                                    "charge": 3.0
+                                }
+                            ]
+                        }
+                    ]
+                }
             ]
   ReportInstanceInventory:
     allOf:
