@@ -79,6 +79,7 @@ class ProviderMap(object):
                     'costs': {
                         'aggregate_key': 'unblended_cost',
                         'count': None,
+                        'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
                         'sum_columns': ['total'],
@@ -87,6 +88,7 @@ class ProviderMap(object):
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
                         'count': 'resource_count',
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'instance_type',
                             'operation': 'isnull',
@@ -99,6 +101,7 @@ class ProviderMap(object):
                     'storage': {
                         'aggregate_key': 'usage_amount',
                         'count': None,
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'product_family',
                             'operation': 'contains',
@@ -136,6 +139,7 @@ class ProviderMap(object):
                     'costs': {
                         'aggregate_key': 'unblended_cost',
                         'count': None,
+                        'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
                         'sum_columns': ['total'],
@@ -143,6 +147,7 @@ class ProviderMap(object):
                     'instance_type': {
                         'aggregate_key': 'usage_amount',
                         'count': 'resource_id',
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'instance_type',
                             'table': 'cost_entry_product',
@@ -155,6 +160,7 @@ class ProviderMap(object):
                     'storage': {
                         'aggregate_key': 'usage_amount',
                         'count': None,
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'product_family',
                             'table': 'cost_entry_product',
@@ -195,6 +201,7 @@ class ProviderMap(object):
                         'annotations': {
                             'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes')),
                         },
+                        'delta_key': {'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes'))},
                         'filter': {},
                         'units_key': 'USD',
                         'sum_columns': ['charge'],
@@ -212,6 +219,11 @@ class ProviderMap(object):
                             'limit': Max('pod_limit_cpu_cores'),
                             'charge': Sum('pod_charge_cpu_cores'),
                         },
+                        'delta_key': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'charge': Sum('pod_charge_cpu_cores')
+                        },
                         'filter': {},
                         'units_key': 'core_hours',
                         'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
@@ -228,6 +240,11 @@ class ProviderMap(object):
                             'request': Sum('pod_request_memory_gigabytes'),
                             'charge': Sum('pod_charge_memory_gigabytes'),
                             'limit': Max('pod_limit_memory_gigabytes')
+                        },
+                        'delta_key': {
+                            'usage': Sum('pod_usage_memory_gigabytes'),
+                            'request': Sum('pod_request_memory_gigabytes'),
+                            'charge': Sum('pod_charge_memory_gigabytes')
                         },
                         'filter': {},
                         'units_key': 'GB',
