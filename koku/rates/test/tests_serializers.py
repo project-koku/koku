@@ -56,7 +56,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_create_cpu_core_per_hour_rate(self):
         """Test creating a cpu_core_per_hour rate."""
-        rate = {'provider': self.provider.id,
+        rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_CPU_CORE_HOUR,
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
@@ -75,7 +75,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_create_memory_bytes_per_hour_rate(self):
         """Test creating a memory_bytes_per_hour rate."""
-        rate = {'provider': self.provider.id,
+        rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_MEM_GB_HOUR,
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
@@ -94,7 +94,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
-        rate = {'provider': 999,
+        rate = {'provider_uuid': '1dd7204c-72c4-4ec4-95bc-d5c447688b27',
                 'metric': Rate.METRIC_MEM_GB_HOUR,
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
@@ -109,7 +109,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_error_on_invalid_metric(self):
         """Test error on an invalid metric rate."""
-        rate = {'provider': self.provider.id,
+        rate = {'provider_uuid': self.provider.uuid,
                 'metric': 'invalid_metric',
                 'fixed_rate': {
                     'value': round(Decimal(random.random()), 6),
@@ -124,7 +124,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_error_on_rate_type(self):
         """Test error when trying to create an invalid rate input."""
-        rate = {'provider': self.provider.id,
+        rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_CPU_CORE_HOUR,
                 'invalid_rate': {
                     'value': round(Decimal(random.random()), 6),
@@ -139,7 +139,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_error_on_negative_rate(self):
         """Test error when trying to create an negative rate input."""
-        rate = {'provider': self.provider.id,
+        rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_CPU_CORE_HOUR,
                 'fixed_rate': {
                     'value': (round(Decimal(random.random()), 6) * -1),
