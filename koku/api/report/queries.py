@@ -23,7 +23,8 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import (Max,
+from django.db.models import (F,
+                              Max,
                               Sum)
 from django.db.models.functions import (TruncDay,
                                         TruncMonth)
@@ -186,15 +187,25 @@ class ProviderMap(object):
                             'operation': 'icontains'},
                 },
                 'report_type': {
-                    'cpu': {
-                        'usage_label': 'pod_usage_cpu_core_hours',
-                        'request_label': 'pod_request_cpu_core_hours',
-                        'charge_label': 'pod_charge_cpu_cores',
-                        'default_ordering': {'usage': 'desc'},
-                        'order_field': {
-                            'usage': 'usage',
-                            'requests': 'request'
+                    'charge': {
+                        'aggregates': {
+                            'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes'))
                         },
+                        'default_ordering': {'charge': 'desc'},
+                        'annotations': {
+                            'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes')),
+                        },
+                        'filter': {},
+                        'units_key': 'USD',
+                        'sum_columns': ['charge'],
+                    },
+                    'cpu': {
+                        'aggregates': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'charge': Sum('pod_charge_cpu_cores')
+                        },
+                        'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
@@ -206,18 +217,17 @@ class ProviderMap(object):
                         'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
                     },
                     'mem': {
-                        'usage_label': 'pod_usage_memory_gigabytes',
-                        'request_label': 'pod_request_memory_gigabytes',
-                        'charge_label': 'pod_charge_memory_gigabytes',
-                        'default_ordering': {'usage': 'desc'},
-                        'order_field': {
-                            'usage': 'usage',
-                            'requests': 'request'
+                        'aggregates': {
+                            'usage': Sum('pod_usage_memory_gigabytes'),
+                            'request': Sum('pod_request_memory_gigabytes'),
+                            'charge': Sum('pod_charge_memory_gigabytes')
                         },
+                        'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_memory_gigabytes'),
                             'request': Sum('pod_request_memory_gigabytes'),
                             'charge': Sum('pod_charge_memory_gigabytes'),
+                            'limit': Max('pod_limit_memory_gigabytes')
                         },
                         'filter': {},
                         'units_key': 'GB',

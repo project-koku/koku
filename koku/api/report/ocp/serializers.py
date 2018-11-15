@@ -109,10 +109,9 @@ class OrderBySerializer(serializers.Serializer):
     """Serializer for handling query parameter order_by."""
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
-    usage = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                    required=False)
-    requests = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                       required=False)
+
+    charge = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                     required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
     project = serializers.ChoiceField(choices=ORDER_CHOICES,
@@ -124,6 +123,17 @@ class OrderBySerializer(serializers.Serializer):
         """Validate incoming data."""
         handle_invalid_fields(self, data)
         return data
+
+
+class InventoryOrderBySerializer(OrderBySerializer):
+    """Order By Serializer for CPU and Memory endpoints."""
+
+    usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
+                                    required=False)
+    request = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
+                                      required=False)
+    limit = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
+                                    required=False)
 
 
 class FilterSerializer(serializers.Serializer):
@@ -211,7 +221,6 @@ class OCPQueryParamSerializer(serializers.Serializer):
 
     delta = serializers.BooleanField(required=False)
     group_by = GroupBySerializer(required=False)
-    order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
     operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
@@ -241,19 +250,6 @@ class OCPQueryParamSerializer(serializers.Serializer):
             (ValidationError): if group_by field inputs are invalid
         """
         validate_field(self, 'group_by', GroupBySerializer, value)
-        return value
-
-    def validate_order_by(self, value):
-        """Validate incoming order_by data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if order_by field inputs are invalid
-        """
-        validate_field(self, 'order_by', OrderBySerializer, value)
         return value
 
     def validate_filter(self, value):
@@ -287,4 +283,42 @@ class OCPQueryParamSerializer(serializers.Serializer):
             error = {'units': f'{value} is not a supported unit'}
             raise serializers.ValidationError(error)
 
+        return value
+
+
+class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling inventory query parameters."""
+
+    order_by = InventoryOrderBySerializer(required=False)
+
+    def validate_order_by(self, value):
+        """Validate incoming order_by data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+        """
+        validate_field(self, 'order_by', InventoryOrderBySerializer, value)
+        return value
+
+
+class OCPChargeQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling charge query parameters."""
+
+    order_by = OrderBySerializer(required=False)
+
+    def validate_order_by(self, value):
+        """Validate incoming order_by data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+        """
+        validate_field(self, 'order_by', OrderBySerializer, value)
         return value
