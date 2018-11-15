@@ -226,7 +226,7 @@ class ProviderMap(object):
                         },
                         'filter': {},
                         'units_key': 'core_hours',
-                        'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
+                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
                     },
                     'mem': {
                         'aggregates': {
@@ -248,7 +248,7 @@ class ProviderMap(object):
                         },
                         'filter': {},
                         'units_key': 'GB',
-                        'sum_columns': ['mem_limit', 'memory_usage_gigabytes', 'memory_requests_gigabytes'],
+                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
                     }
                 },
                 'start_date': 'usage_start',
