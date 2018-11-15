@@ -31,6 +31,13 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
+def is_no_auth(request):
+    """Check condition for needing to authenticate the user."""
+    no_auth_list = ['status', 'apidoc']
+    no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
+    return no_auth
+
+
 class HttpResponseUnauthorizedRequest(HttpResponse):
     """A subclass of HttpResponse to return a 401.
 
@@ -49,7 +56,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     def process_request(self, request):  # pylint: disable=R1710
         """Check before super."""
-        if 'status' not in request.path:
+        if not is_no_auth(request):
             if hasattr(request, 'user') and hasattr(request.user, 'username'):
                 username = request.user.username
                 try:
@@ -63,7 +70,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
     def get_tenant(self, model, hostname, request):
         """Override the tenant selection logic."""
         schema_name = 'public'
-        if 'status' not in request.path:
+        if not is_no_auth(request):
             user = User.objects.get(username=request.user.username)
             customer = user.customer
             schema_name = customer.schema_name
@@ -136,8 +143,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             request (object): The request object
 
         """
-        no_auth_list = ['status', 'apidoc']
-        if any(no_auth_path in request.path for no_auth_path in no_auth_list):
+        if is_no_auth(request):
             request.user = User('', '')
             return
         try:
