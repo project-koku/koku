@@ -20,6 +20,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
                        UserPreferenceViewSet,
+                       charges,
                        costs,
                        cpu,
                        instance_type,
@@ -35,6 +36,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
     url(r'^reports/costs/aws/$', costs, name='reports-costs'),
+    url(r'^reports/charges/ocp/$', charges, name='reports-ocp-charges'),
     url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-instance-type'),
     url(r'^reports/inventory/aws/storage/$', storage, name='reports-storage'),
     url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),

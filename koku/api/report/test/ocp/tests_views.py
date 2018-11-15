@@ -417,6 +417,12 @@ class OCPReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('nodes'):
                 projects = item.get('nodes')
-                print(projects)
                 self.assertEqual(len(projects), 2)
                 self.assertEqual(projects[1].get('node'), '1 Other')
+
+    def test_execute_query_ocp_charge(self):
+        """Test that the charge endpoint is reachable."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)

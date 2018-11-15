@@ -18,7 +18,6 @@
 import copy
 
 from django.db.models import (F,
-                              Sum,
                               Value,
                               Window)
 from django.db.models.functions import Concat
@@ -46,15 +45,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         kwargs['provider'] = 'OCP'
         super().__init__(query_parameters, url_data,
                          tenant, self.group_by_options, **kwargs)
-
-    @property
-    def order_field(self):
-        """Order-by field name."""
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        key = list(order_by.keys()).pop()
-        if order_by == self.default_ordering:
-            return key
-        return self._mapper._report_type_map['order_field'][key]
 
     def _get_annotations(self, fields=None):
         """Create dictionary for query annotations.
@@ -160,20 +150,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.order_field != 'delta':
                 query_data = query_data.order_by(*query_order_by)
 
-            query_sum = {}
+            # Populate the 'total' section of the API response
             if query.exists():
-                usage_key = self._mapper._report_type_map.get('usage_label')
-                request_key = self._mapper._report_type_map.get('request_label')
-                charge_key = self._mapper._report_type_map.get('charge_label')
-                metric_sum = query_data.aggregate(
-                    usage=Sum(usage_key),
-                    request=Sum(request_key),
-                    charge=Sum(charge_key)
-                )
-
-                query_sum['usage'] = metric_sum.get('usage')
-                query_sum['request'] = metric_sum.get('request')
-                query_sum['charge'] = metric_sum.get('charge')
+                aggregates = self._mapper._report_type_map.get('aggregates')
+                metric_sum = query.aggregate(**aggregates)
+                query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
