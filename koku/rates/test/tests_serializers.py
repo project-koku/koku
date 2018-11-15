@@ -28,7 +28,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from rates.models import Rate
-from rates.serializers import RateSerializer
+from rates.serializers import RateSerializer, UUIDKeyRelatedField
 
 
 class RateSerializerTest(IamTestCase):
@@ -53,6 +53,17 @@ class RateSerializerTest(IamTestCase):
         serializer = ProviderSerializer(data=provider_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
+
+    def test_uuid_key_related_field(self):
+        """Test the uuid key related field."""
+        uuid_field = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
+        self.assertFalse(uuid_field.use_pk_only_optimization())
+        self.assertEqual(self.provider.uuid,
+                         uuid_field.to_internal_value(self.provider.uuid))
+        self.assertEqual(self.provider.uuid,
+                         uuid_field.to_representation(self.provider))
+        self.assertEqual(self.provider.uuid,
+                         uuid_field.display_value(self.provider))
 
     def test_create_cpu_core_per_hour_rate(self):
         """Test creating a cpu_core_per_hour rate."""
