@@ -872,7 +872,10 @@ class ReportQueryHandler(object):
             row['delta_value'] = current_total - previous_total
             row['delta_percent'] = self._percent_delta(current_total, previous_total)
         # Calculate the delta on the total aggregate
-        current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+        if self._delta in query_sum:
+            current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+        else:
+            current_total_sum = Decimal(query_sum.get('value') or 0)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
         prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
