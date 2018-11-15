@@ -219,7 +219,13 @@ class OCPQueryParamSerializer(serializers.Serializer):
         ('none', 'none'),
     )
 
-    delta = serializers.BooleanField(required=False)
+    DELTA_CHOICES = (
+        ('charge', 'charge'),
+        ('usage', 'usage'),
+        ('request', 'request')
+    )
+
+    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     group_by = GroupBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
