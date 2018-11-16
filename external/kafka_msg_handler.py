@@ -150,7 +150,7 @@ async def send_confirmation(file_hash, status):  # pragma: no cover
     )
     try:
         await producer.start()
-    except KafkaConnectionError:
+    except (KafkaConnectionError, TimeoutError):
         await producer.stop()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.  Closing producer.')
 
