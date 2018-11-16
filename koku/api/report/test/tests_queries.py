@@ -24,7 +24,6 @@ from django.db.models import (CharField, Count, DateTimeField, IntegerField,
                               Max, Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
-from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -661,7 +660,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*'],
                                      'service': ['*']}}
-        query_string = '?group_by[account]=*&group_by[service]=AmazonEC2'
+        query_string = '?group_by[account]=*&group_by[service]=*'
         handler = AWSReportQueryHandler(query_params, query_string,
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -696,17 +695,12 @@ class ReportQueryTest(IamTestCase):
             dh.this_month_start.strftime('%Y-%m'): 24,
         }
 
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'}}
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'}}
         query_string = '?filter[time_scope_value]=-1&filter[resolution]=monthly'
-        annotations = {'instance_type':
-                       Concat('cost_entry_product__instance_type', Value(''))}
-        extras = {'count': 'resource_count',
-                  'report_type': 'instance_type',
-                  'group_by': ['instance_type'],
-                  'annotations': annotations,
-                  'filter': {'instance_type__isnull': False}}
+        extras = {'report_type': 'instance_type',
+                  'group_by': ['instance_type']}
         handler = AWSReportQueryHandler(query_params, query_string,
                                         self.tenant,
                                         **extras)
