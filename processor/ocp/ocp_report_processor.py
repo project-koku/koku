@@ -229,7 +229,7 @@ class OCPReportProcessor(ReportProcessorBase):
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         data = self._get_data_for_table(row, table_name)
 
-        pod_label_str = '{}'
+        pod_label_str = ''
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
 
