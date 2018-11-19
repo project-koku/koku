@@ -54,7 +54,7 @@ class RateViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.fake_data = {'provider': self.provider.id,
+        self.fake_data = {'provider_uuid': self.provider.uuid,
                           'metric': Rate.METRIC_MEM_GB_HOUR,
                           'fixed_rate': {
                               'value': round(Decimal(random.random()), 6),
@@ -73,7 +73,7 @@ class RateViewTests(IamTestCase):
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
-        test_data = {'provider': self.provider.id,
+        test_data = {'provider_uuid': self.provider.uuid,
                      'metric': Rate.METRIC_CPU_CORE_HOUR,
                      'fixed_rate': {
                          'value': round(Decimal(random.random()), 6),

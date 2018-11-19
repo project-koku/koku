@@ -859,52 +859,24 @@ definitions:
           $ref: '#/definitions/ProviderOut'
   Rate:
     required:
-      - name
-      - price
-      - timeunit
-      - metric
+        - provider_uuid
+        - metric
     properties:
-      name:
+      provider_uuid:
         type: string
-        example: my-rate-name
-      description:
-        type: string
-        example: my long rate description
-      price:
-        type: number
-        format: float
-        example: 0.000001
-      timeunit:
-        type: string
-        example: hour
+        example: da065ad8-7e68-4a12-b2b4-74f18d4d9fa0
       metric:
         type: string
-        example: memory
+        example: cpu_core_per_hour
+      fixed_rate:
+        type: object
+        example: { value: 0.22, unit: USD}
   RateIn:
     allOf:
       - $ref: '#/definitions/Rate'
       - required:
-        - name
-        - price
-        - timeunit
+        - provider_uuid
         - metric
-    properties:
-      name:
-        type: string
-        example: my-rate-name
-      description:
-        type: string
-        example: my long rate description
-      price:
-        type: number
-        format: float
-        example: 0.000001
-      timeunit:
-        type: string
-        example: hour
-      metric:
-        type: string
-        example: cpu
   RatePagination:
     allOf:
       - $ref: '#/definitions/ListPagination'
@@ -919,17 +891,14 @@ definitions:
     allOf:
       - $ref: '#/definitions/Rate'
       - required:
-        - name
-        - price
-        - timeunit
+        - uuid
+        - provider_uuid
         - metric
     properties:
       uuid:
         type: string
         format: uuid
         example: 83ee048e-3c1d-43ef-b945-108225ae52f4
-      user:
-        $ref: '#/definitions/RateOut'
   ReportFilter:
     type: object
     properties:
