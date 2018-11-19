@@ -1150,7 +1150,7 @@ definitions:
       delta:
         type: string
     example: { 'delta': 'total' }
-    description: 'Field to calculate delta delta values for in report.'
+    description: 'Field to calculate delta values for in report.'
   ReportResolution:
     type: string
     enum:
