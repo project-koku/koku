@@ -1463,7 +1463,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
-                        'delta': True}
+                        'delta': 'total'}
         handler = AWSReportQueryHandler(query_params,
                                         '?group_by[account]=*&delta=True',
                                         self.tenant,
@@ -1493,11 +1493,11 @@ class ReportQueryTest(IamTestCase):
 
         query_params = {
             'filter': {'time_scope_value': -1},
-            'delta': True
+            'delta': 'total'
         }
 
         handler = AWSReportQueryHandler(query_params,
-                                        '?filter[time_scope_value]=-10&delta=True',
+                                        '?filter[time_scope_value]=-10&delta=total',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
@@ -1543,7 +1543,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'order_by': {'delta': 'asc'},
                         'group_by': {'account': ['*']},
-                        'delta': True}
+                        'delta': 'total'}
         handler = AWSReportQueryHandler(query_params,
                                         '?group_by[account]=*&order_by[delta]=asc&delta=True',
                                         self.tenant,
@@ -1574,10 +1574,9 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -1,
                          'time_scope_units': 'month',
                          'limit': 2},
-                        'group_by': {'account': ['*']},
-                        'delta': 'month'}
+                        'group_by': {'account': ['*']}}
         handler = AWSReportQueryHandler(query_params,
-                                        '?group_by[account]=*&filter[limit]=2&delta=month',
+                                        '?group_by[account]=*&filter[limit]=2',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
