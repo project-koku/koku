@@ -219,7 +219,6 @@ class OCPQueryParamSerializer(serializers.Serializer):
         ('none', 'none'),
     )
 
-    delta = serializers.BooleanField(required=False)
     group_by = GroupBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
@@ -289,6 +288,13 @@ class OCPQueryParamSerializer(serializers.Serializer):
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
 
+    DELTA_CHOICES = (
+        ('charge', 'charge'),
+        ('usage', 'usage'),
+        ('request', 'request')
+    )
+
+    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     order_by = InventoryOrderBySerializer(required=False)
 
     def validate_order_by(self, value):
@@ -308,6 +314,9 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPChargeQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling charge query parameters."""
 
+    DELTA_CHOICES = (('charge', 'charge'))
+
+    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     order_by = OrderBySerializer(required=False)
 
     def validate_order_by(self, value):

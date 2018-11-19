@@ -88,31 +88,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _create_previous_totals(self, previous_query, query_group_by):
-        """Get totals from the time period previous to the current report.
-
-        Args:
-            previous_query (Query): A Django ORM query
-            query_group_by (dict): The group by dict for the current report
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        pass
-
-    def add_deltas(self, query_data, query_sum):
-        """Calculate and add cost deltas to a result set.
-
-        Args:
-            query_data (list) The existing query data from execute_query
-            query_sum (list) The sum returned by calculate_totals
-
-        Returns:
-            (dict) query data with new with keys "value" and "percent"
-
-        """
-        pass
-
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 

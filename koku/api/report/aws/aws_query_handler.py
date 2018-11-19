@@ -16,11 +16,7 @@
 #
 """AWS Query Handling for Reports."""
 import copy
-import datetime
-from collections import OrderedDict
-from decimal import Decimal
 
-from dateutil import relativedelta
 from django.db.models import (F,
                               Max,
                               Q,
@@ -108,88 +104,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             output['delta'] = self.query_delta
 
         return output
-
-    def _create_previous_totals(self, previous_query, query_group_by):
-        """Get totals from the time period previous to the current report.
-
-        Args:
-            previous_query (Query): A Django ORM query
-            query_group_by (dict): The group by dict for the current report
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
-        else:
-            date_delta = datetime.timedelta(days=10)
-        # Added deltas for each grouping
-        # e.g. date, account, region, availability zone, et cetera
-        query_annotations = self._get_annotations()
-        previous_sums = previous_query.annotate(**query_annotations)
-        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-        previous_sums = previous_sums\
-            .values(*query_group_by)\
-            .annotate(total=Sum(aggregate_key))
-
-        previous_dict = OrderedDict()
-        for row in previous_sums:
-            date = self.string_to_date(row['date'])
-            date = date + date_delta
-            row['date'] = self.date_to_string(date)
-            key = tuple((row[key] for key in query_group_by))
-            previous_dict[key] = row['total']
-
-        return previous_dict
-
-    def add_deltas(self, query_data, query_sum):
-        """Calculate and add cost deltas to a result set.
-
-        Args:
-            query_data (list) The existing query data from execute_query
-            query_sum (list) The sum returned by calculate_totals
-
-        Returns:
-            (dict) query data with new with keys "value" and "percent"
-
-        """
-        delta_group_by = ['date'] + self._get_group_by()
-        delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper._operation_map.get('tables').get('previous_query')
-        previous_query = q_table.objects.filter(delta_filter)
-        previous_dict = self._create_previous_totals(previous_query,
-                                                     delta_group_by)
-
-        for row in query_data:
-            key = tuple((row[key] for key in delta_group_by))
-            previous_total = previous_dict.get(key, 0)
-            current_total = row.get('total', 0)
-            row['delta_value'] = current_total - previous_total
-            row['delta_percent'] = self._percent_delta(current_total, previous_total)
-
-        # Calculate the delta on the total aggregate
-        current_total_sum = Decimal(query_sum.get('value') or 0)
-        aggregate_key = self._mapper._report_type_map.get('aggregate_key')
-        prev_total_sum = previous_query.aggregate(value=Sum(aggregate_key))
-        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
-
-        total_delta = current_total_sum - prev_total_sum
-        total_delta_percent = self._percent_delta(current_total_sum,
-                                                  prev_total_sum)
-
-        self.query_delta = {
-            'value': total_delta,
-            'percent': total_delta_percent
-        }
-
-        if self.order_field == 'delta':
-            reverse = True if self.order_direction == 'desc' else False
-            query_data = sorted(list(query_data),
-                                key=lambda x: x['delta_percent'],
-                                reverse=reverse)
-        return query_data
 
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
