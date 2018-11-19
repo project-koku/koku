@@ -76,7 +76,6 @@ class TieredRateSerializer(serializers.Serializer):
 
     def validate_usage_start(self, usage_start):
         """Check that usage_start is a positive value."""
-        print(usage_start)
         if usage_start < 0:
             raise serializers.ValidationError('A tiered rate usage_start must be positive.')
         return str(usage_start)
@@ -89,9 +88,9 @@ class TieredRateSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that usage_end is greater than usage_start."""
-        usage_start = data.get('usage_start')
-        usage_end = data.get('usage_end')
-        if usage_start >= usage_end:
+        usage_start = data.get('usage_start', '0.0')
+        usage_end = data.get('usage_end', '0.0')
+        if Decimal(usage_start) >= Decimal(usage_end):
             raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
         else:
             return data
