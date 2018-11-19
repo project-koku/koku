@@ -65,7 +65,7 @@ class RateSerializerTest(IamTestCase):
         self.assertEqual(self.provider.uuid,
                          uuid_field.display_value(self.provider))
 
-    def test_create_cpu_core_per_hour_rate(self):
+    def test_create_cpu_core_per_hour_fixed_rate(self):
         """Test creating a cpu_core_per_hour rate."""
         rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_CPU_CORE_HOUR,
@@ -84,7 +84,7 @@ class RateSerializerTest(IamTestCase):
             self.assertIsNotNone(instance)
             self.assertIsNotNone(instance.uuid)
 
-    def test_create_memory_bytes_per_hour_rate(self):
+    def test_create_memory_bytes_per_hour_fixed_rate(self):
         """Test creating a memory_bytes_per_hour rate."""
         rate = {'provider_uuid': self.provider.uuid,
                 'metric': Rate.METRIC_MEM_GB_HOUR,
@@ -162,3 +162,138 @@ class RateSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
+
+    def test_error_no_rate(self):
+        """Test error when trying to create an empty rate."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR
+                }
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_neg_tier_value(self):
+        """Test error when trying to create a negative tiered value."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': (round(Decimal(random.random()), 6) * -1),
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }]
+                }
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_neg_tier_usage_start(self):
+        """Test error when trying to create a negative tiered usage_start."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 1.0,
+                    'usage_start': (round(Decimal(random.random()), 6) * -1),
+                    'usage_end': 20.0
+                }]
+                }
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_neg_tier_usage_end(self):
+        """Test error when trying to create a negative tiered usage_end."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 1.0,
+                    'usage_start': 10.0,
+                    'usage_end': (round(Decimal(random.random()), 6) * -1)
+                }]
+                }
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_tier_usage_end_less_than(self):
+        """Test error when trying to create a tiered usage_end less than usage_start."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 1.0,
+                    'usage_start': 10.0,
+                    'usage_end': 3.0
+                }]
+                }
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_create_cpu_core_per_hour_tiered_rate(self):
+        """Test creating a cpu_core_per_hour rate."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': 0.0,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
+
+    def test_create_cpu_core_per_hour_mixed_rates(self):
+        """Test creating a cpu_core_per_hour rate."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_HOUR,
+                'fixed_rate': {
+                    'unit': 'USD',
+                    'value': 0.22
+                },
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': 0.0,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
