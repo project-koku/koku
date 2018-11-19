@@ -15,7 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import copy
 import random
+import re
 from collections import OrderedDict
 from datetime import timedelta
 from decimal import Decimal
@@ -24,6 +26,7 @@ from django.db.models import (CharField, Count, DateTimeField, IntegerField,
                               Max, Sum, Value)
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
+from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -38,6 +41,342 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
+
+
+class FakeAWSCostData(object):
+    """Object to generate and store fake AWS cost data."""
+
+    fake = Faker()
+    dh = DateHelper()
+
+    SOME_INSTANCE_TYPES = ['t3.small', 't3.medium', 't3.large',
+                           'm5.large', 'm5.xlarge', 'm5.2xlarge',
+                           'c5.large', 'c5.xlarge', 'c5.2xlarge',
+                           'r5.large', 'r5.xlarge', 'r5.2xlarge']
+
+    SOME_REGIONS = ['us-east-2', 'us-east-1',
+                    'us-west-1', 'us-west-2',
+                    'ap-south-1',
+                    'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3',
+                    'ap-southeast-1', 'ap-southeast-2',
+                    'ca-central-1',
+                    'eu-central-1',
+                    'eu-west-1', 'eu-west-2', 'eu-west-3',
+                    'sa-east-1']
+
+    def __init__(self, account_alias=None, account_id=None,
+                 availability_zone=None, bill=None,
+                 billing_period_end=None, billing_period_start=None,
+                 cost_entry=None, instance_type=None, line_item=None,
+                 pricing=None, region=None, usage_end=None, usage_start=None):
+        """Constructor."""
+        # properties
+        self._account_alias = account_alias
+        self._account_id = account_id
+        self._availability_zone = availability_zone
+        self._bill = bill
+        self._billing_period_end = billing_period_end
+        self._billing_period_start = billing_period_start
+        self._cost_entry = cost_entry
+        self._instance_type = instance_type
+        self._line_item = line_item
+        self._pricing = pricing
+        self._region = region
+        self._usage_end = usage_end
+        self._usage_start = usage_start
+
+        self._products = {'fake': {'sku': self.fake.pystr(min_chars=12,
+                                                          max_chars=12).upper(),
+                                   'product_name': self.fake.words(nb=5),
+                                   'product_family': self.fake.words(nb=3),
+                                   'service_code': self.fake.word(),
+                                   'region': self.region,
+                                   'instance_type': self.instance_type,
+                                   'memory': random.randint(1, 100),
+                                   'vcpu': random.randint(1, 100)},
+
+                          'ec2': {'sku': self.fake.pystr(min_chars=12,
+                                                         max_chars=12).upper(),
+                                  'product_name': 'Amazon Elastic Compute Cloud',
+                                  'product_family': 'Compute Instance',
+                                  'service_code': 'AmazonEC2',
+                                  'region': self.region,
+                                  'instance_type': self.instance_type,
+                                  'memory': random.choice([8, 16, 32, 64]),
+                                  'vcpu': random.choice([2, 4, 8, 16])},
+
+                          'ebs': {'sku': self.fake.pystr(min_chars=12,
+                                                         max_chars=12).upper(),
+                                  'product_name': 'Amazon Elastic Compute Cloud',
+                                  'product_family': 'Storage',
+                                  'service_code': 'AmazonEC2',
+                                  'region': self.region}}
+
+        short_region = self._usage_transform(self.region)
+        self.SOME_USAGE_OPERATIONS = {'ec2': [(f'BoxUsage:{self.region}', 'RunInstances'),
+                                              ('DataTransfer-In-Bytes', 'RunInstances'),
+                                              ('DataTransfer-Out-Bytes', 'RunInstances'),
+                                              (f'{short_region}-DataTransfer-In-Bytes', 'RunInstances'),
+                                              (f'{short_region}-DataTransfer-Out-Bytes', 'RunInstances')],
+                                      'ebs': [('EBS:VolumeUsage.gp2', 'CreateVolume-Gp2'),
+                                              ('EBS:VolumeUsage', 'CreateVolume'),
+                                              (f'{short_region}-EBS:VolumeUsage', 'CreateVolume'),
+                                              (f'{short_region}-EBS:VolumeUsage.gp2', 'CreateVolume-Gp2'),
+                                              ('EBS:SnapshotUsage', 'CreateSnapshot')]}
+
+    def __str__(self):
+        """Represent data as string."""
+        return str(self.to_dict())
+
+    def _usage_transform(self, region):
+        """Translate region into shortened string used in usage.
+
+        Example: 'us-east-1' becomes 'USE1'
+
+        Note: Real-world line items can be formatted using 'EUC1' or 'EU', depending
+              on the context. Additional work will be required to support the
+              second format.
+        """
+        regex = r'(\w+)-(\w+)-(\d+)'
+        groups = re.search(regex, region).groups()
+        output = '{}{}{}'.format(groups[0].upper(),
+                                 groups[1][0].upper(),
+                                 groups[2])
+        return output
+
+    @property
+    def account_alias(self):
+        """Randomly generated account alias."""
+        if not self._account_alias:
+            self._account_alias = self.fake.company()
+        return self._account_alias
+
+    @account_alias.setter
+    def account_alias(self, alias):
+        """Account alias setter."""
+        self._account_alias = alias
+
+    @property
+    def account_id(self):
+        """Randomly generated account id."""
+        if not self._account_id:
+            self._account_id = self.fake.ean(length=13)  # pylint: disable=no-member
+        return self._account_id
+
+    @account_id.setter
+    def account_id(self, account_id):
+        """Account id setter."""
+        self._account_id = account_id
+        if self.bill:
+            self.bill['payer_account_id'] = account_id
+        if self._line_item:
+            self._line_item['usage_account_id'] = account_id
+
+    @property
+    def availability_zone(self):
+        """Availability zone."""
+        if not self._availability_zone:
+            self._availability_zone = self.region + random.choice(['a', 'b', 'c'])
+        return self._availability_zone
+
+    @availability_zone.setter
+    def availability_zone(self, zone):
+        """Availability zone."""
+        self._availability_zone = zone
+        if self._line_item:
+            self._line_item['availability_zone'] = zone
+
+    @property
+    def bill(self):
+        """Bill."""
+        if not self._bill:
+            self._bill = {'bill_type': 'Anniversary',
+                          'payer_account_id': self.account_id,
+                          'billing_period_start': self.billing_period_start,
+                          'billing_period_end': self.billing_period_end}
+        return self._bill
+
+    @bill.setter
+    def bill(self, obj):
+        """Bill setter."""
+        self._bill = obj
+
+    @property
+    def billing_period_end(self):
+        """Billing period end date."""
+        if not self._billing_period_end:
+            self._billing_period_end = self.dh.this_month_end
+        return self._billing_period_end
+
+    @billing_period_end.setter
+    def billing_period_end(self, date):
+        """Billing period end date setter."""
+        self._billing_period_end = date
+        if self.bill:
+            self.bill['billing_period_end'] = date
+        if self.cost_entry:
+            self.cost_entry['interval_end'] = date
+
+    @property
+    def billing_period_start(self):
+        """Billing period start date."""
+        if not self._billing_period_start:
+            self._billing_period_start = self.dh.this_month_start
+        return self._billing_period_start
+
+    @billing_period_start.setter
+    def billing_period_start(self, date):
+        """Billing period start date setter."""
+        self._billing_period_start = date
+        if self.bill:
+            self.bill['billing_period_start'] = date
+        if self.cost_entry:
+            self.cost_entry['interval_start'] = date
+
+    @property
+    def cost_entry(self):
+        """Cost entry."""
+        if not self._cost_entry:
+            self._cost_entry = {'interval_start': self.billing_period_start,
+                                'interval_end': self.billing_period_end,
+                                'bill': self.bill}
+        return self._cost_entry
+
+    @cost_entry.setter
+    def cost_entry(self, obj):
+        """Cost entry setter."""
+        self._cost_entry = obj
+
+    @property
+    def instance_type(self):
+        """Randomly selected instance type."""
+        if not self._instance_type:
+            self._instance_type = random.choice(self.SOME_INSTANCE_TYPES)
+        return self._instance_type
+
+    @instance_type.setter
+    def instance_type(self, instance_type):
+        """Instance type setter."""
+        self._instance_type = instance_type
+        for prod in self._products:
+            self._products[prod]['instance_type'] = instance_type
+        if self._line_item:
+            self._line_item['cost_entry_product']['instance_type'] = instance_type
+
+    def line_item(self, product='ec2'):
+        """Fake line item.
+
+        Args:
+            product (string) Either 'ec2' or 'ebs'
+
+        """
+        if not self._line_item:
+            usage = random.randint(1, 100)
+            ub_rate = random.random()
+            b_rate = random.random()
+            usage_type, operation = random.choice(self.SOME_USAGE_OPERATIONS[product])
+
+            self._line_item = {'invoice_id': self.fake.sha1(raw_output=False),
+                               'availability_zone': self.availability_zone,
+                               'blended_cost': b_rate * usage,
+                               'blended_rate': b_rate,
+                               'cost_entry': self.cost_entry,
+                               'cost_entry_bill': self.bill,
+                               'cost_entry_pricing': self.pricing,
+                               'cost_entry_product': self.product(product),
+                               'currency_code': 'USD',
+                               'line_item_type': 'Usage',
+                               'operation': operation,
+                               'product_code': 'AmazonEC2',
+                               'resource_id': 'i-{}'.format(self.fake.ean8()),
+                               'usage_amount': usage,
+                               'unblended_cost': ub_rate * usage,
+                               'unblended_rate': ub_rate,
+                               'usage_account_id': self.account_id,
+                               'usage_end': self.usage_end,
+                               'usage_start': self.usage_start,
+                               'usage_type': usage_type,
+                               }
+        return self._line_item
+
+    @property
+    def pricing(self):
+        """Product pricing."""
+        if not self._pricing:
+            self._pricing = {'term': 'OnDemand',
+                             'unit': 'Hrs'}
+        return self._pricing
+
+    @pricing.setter
+    def pricing(self, obj):
+        """Pricing setter."""
+        self._pricing = obj
+        if self._line_item:
+            self._line_item['cost_entry_pricing'] = obj
+
+    def product(self, product='ec2'):
+        """Product."""
+        return self._products.get(product, self._products['fake'])
+
+    @property
+    def region(self):
+        """Randomly selected region."""
+        if not self._region:
+            self._region = random.choice(self.SOME_REGIONS)
+        return self._region
+
+    @region.setter
+    def region(self, region):
+        """Region setter."""
+        self._region = region
+        for prod in self._products:
+            self._products[prod]['region'] = region
+        if self._line_item:
+            self._line_item['cost_entry_product']['region'] = region
+
+    def to_dict(self):
+        """Return a copy of object data as a dict."""
+        return {'account_alias': self.account_alias,
+                'account_id': self.account_id,
+                'availability_zone': self.availability_zone,
+                'bill': self.bill,
+                'billing_period_end': self.billing_period_end,
+                'billing_period_start': self.billing_period_start,
+                'cost_entry': self.cost_entry,
+                'instance_type': self.instance_type,
+                'line_item': self.line_item(),
+                'pricing': self.pricing,
+                'region': self.region,
+                'usage_end': self.usage_end,
+                'usage_start': self.usage_start}
+
+    @property
+    def usage_end(self):
+        """Usage end date."""
+        if not self._usage_end:
+            self._usage_end = self.dh.this_month_start + self.dh.one_day
+        return self._usage_end
+
+    @usage_end.setter
+    def usage_end(self, date):
+        """Usage end date setter."""
+        self._usage_end = date
+        if self._line_item:
+            self._line_item['usage_end'] = date
+
+    @property
+    def usage_start(self):
+        """Usage start date."""
+        if not self._usage_start:
+            self._usage_start = self.dh.this_month_start
+        return self._usage_start
+
+    @usage_start.setter
+    def usage_start(self, date):
+        """Usage start date setter."""
+        self._usage_start = date
+        if self._line_item:
+            self._line_item['usage_start'] = date
 
 
 class ReportQueryUtilsTest(TestCase):
@@ -99,78 +438,8 @@ class ReportQueryTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.current_month_total = Decimal(0)
-        self.add_data_to_tenant()
-
-    def create_hourly_instance_usage(self, payer_account_id, bill,
-                                     ce_pricing, ce_product, rate,
-                                     cost, start, end):
-        """Create hourly instance usage."""
-        cost_entry = AWSCostEntry(interval_start=start,
-                                  interval_end=end,
-                                  bill=bill)
-        cost_entry.save()
-        line_item = AWSCostEntryLineItem(invoice_id=self.fake.sha1(raw_output=False),
-                                         line_item_type='Usage',
-                                         usage_account_id=payer_account_id,
-                                         usage_start=start,
-                                         usage_end=end,
-                                         product_code='AmazonEC2',
-                                         usage_type='BoxUsage:c4.xlarge',
-                                         operation='RunInstances',
-                                         availability_zone='us-east-1a',
-                                         resource_id='i-{}'.format(self.fake.ean8()),
-                                         usage_amount=1,
-                                         currency_code='USD',
-                                         unblended_rate=rate,
-                                         unblended_cost=cost,
-                                         blended_rate=rate,
-                                         blended_cost=cost,
-                                         cost_entry=cost_entry,
-                                         cost_entry_bill=bill,
-                                         cost_entry_product=ce_product,
-                                         cost_entry_pricing=ce_pricing)
-        line_item.save()
-
-    def _create_product(self,
-                        name='Amazon Elastic Compute Cloud',
-                        family='Compute Instance',
-                        code='AmazonEC2',
-                        region='us-east-1',
-                        instance_type='c4.xlarge',
-                        memory=7.5,
-                        vcpu=4):
-        """Create a AWSCostEntryProduct."""
-        # pylint: disable=no-member
-        sku = self.fake.pystr(min_chars=12, max_chars=12).upper()
-        ce_product = AWSCostEntryProduct(sku=sku,
-                                         product_name=name,
-                                         product_family=family,
-                                         service_code=code,
-                                         region=region,
-                                         instance_type=instance_type,
-                                         memory=memory,
-                                         vcpu=vcpu)
-        ce_product.save()
-        return ce_product
-
-    def _create_bill(self, account, bill_start, bill_end,
-                     bill_type='Anniversary'):
-        """Create an AWSCostEntryBill."""
-        bill, _ = AWSCostEntryBill.objects.get_or_create(
-            bill_type='Anniversary',
-            payer_account_id=account,
-            billing_period_start=bill_start,
-            billing_period_end=bill_end
-        )
-        return bill
-
-    def _create_pricing(self, term='OnDemand', unit='Hrs'):
-        """Create an AWSCostEntryPricing."""
-        ce_pricing, _ = AWSCostEntryPricing.objects.get_or_create(
-            term=term,
-            unit=unit
-        )
-        return ce_pricing
+        self.fake_aws = FakeAWSCostData()
+        self.add_data_to_tenant(self.fake_aws)
 
     def _populate_daily_table(self):
         included_fields = [
@@ -243,7 +512,7 @@ class ReportQueryTest(IamTestCase):
             summary = AWSCostEntryLineItemDailySummary(**entry,
                                                        account_alias=list(alias).pop())
             summary.save()
-            self.current_month_total += entry['blended_cost']
+            self.current_month_total += entry['unblended_cost']
 
     def _populate_aggregates_table(self):
         dh = DateHelper()
@@ -296,42 +565,58 @@ class ReportQueryTest(IamTestCase):
                     agg = AWSCostEntryLineItemAggregates(**entry, account_alias=list(alias).pop())
                     agg.save()
 
-    def add_data_to_tenant(self, rate=Decimal(random.random()), amount=1,
-                           bill_start=DateHelper().this_month_start,
-                           bill_end=DateHelper().this_month_end,
-                           data_start=DateHelper().this_month_start,
-                           data_end=DateHelper().this_month_start + DateHelper().one_day,
-                           account_id=None,
-                           account_alias=None):
+    def add_data_to_tenant(self, data, product='ec2'):
         """Populate tenant with data."""
-        self.payer_account_id = account_id
-        if account_id is None:
-            self.payer_account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-
-        self.account_alias = account_alias
-        if account_alias is None:
-            self.account_alias = self.fake.company()
+        self.assertIsInstance(data, FakeAWSCostData)
 
         with tenant_context(self.tenant):
-            alias = list(AWSAccountAlias.objects.filter(
-                account_id=self.payer_account_id))
-            if not alias:
-                alias = AWSAccountAlias(account_id=self.payer_account_id,
-                                        account_alias=self.account_alias)
-                alias.save()
+            # get or create alias
+            AWSAccountAlias.objects.get_or_create(
+                account_id=data.account_id,
+                account_alias=data.account_alias)
 
-            cost = rate * amount
-            bill = self._create_bill(self.payer_account_id, bill_start, bill_end)
-            ce_product = self._create_product()
-            ce_pricing = self._create_pricing()
+            # create bill
+            bill, _ = AWSCostEntryBill.objects.get_or_create(**data.bill)
 
+            # create ec2 product
+            product_data = data.product(product)
+            ce_product, _ = AWSCostEntryProduct.objects.get_or_create(**product_data)
+
+            # create pricing
+            ce_pricing, _ = AWSCostEntryPricing.objects.get_or_create(**data.pricing)
+
+            # add hourly data
+            data_start = data.usage_start
+            data_end = data.usage_end
             current = data_start
+
             while current < data_end:
                 end_hour = current + DateHelper().one_hour
-                self.create_hourly_instance_usage(self.payer_account_id, bill,
-                                                  ce_pricing, ce_product, rate,
-                                                  cost, current, end_hour)
+
+                # generate copy of data with 1 hour usage range.
+                curr_data = copy.deepcopy(data)
+                curr_data.usage_end = end_hour
+                curr_data.usage_start = current
+
+                # keep line items within the same AZ
+                curr_data.availability_zone = data.availability_zone
+
+                # get or create cost entry
+                cost_entry_data = curr_data.cost_entry
+                cost_entry_data.update({'bill': bill})
+                cost_entry, _ = AWSCostEntry.objects.get_or_create(**cost_entry_data)
+
+                # create line item
+                line_item_data = curr_data.line_item(product)
+                model_instances = {'cost_entry': cost_entry,
+                                   'cost_entry_bill': bill,
+                                   'cost_entry_product': ce_product,
+                                   'cost_entry_pricing': ce_pricing}
+                line_item_data.update(model_instances)
+                line_item, _ = AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
+
                 current = end_hour
+
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
@@ -650,7 +935,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 account = month_item.get('account')
-                self.assertEqual(account, self.payer_account_id)
+                self.assertEqual(account, self.fake_aws.account_id)
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_by_account_by_service(self):
@@ -680,7 +965,7 @@ class ReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 account = month_item.get('account')
-                self.assertEqual(account, self.payer_account_id)
+                self.assertEqual(account, self.fake_aws.account_id)
                 self.assertIsInstance(month_item.get('services'), list)
 
     def test_execute_query_with_counts(self):
@@ -723,7 +1008,7 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
         for _ in range(3):
-            self.add_data_to_tenant()
+            self.add_data_to_tenant(FakeAWSCostData())
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -753,9 +1038,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        self.add_data_to_tenant(rate=Decimal('0.299'))
-        self.add_data_to_tenant(rate=Decimal('0.099'))
-        self.add_data_to_tenant(rate=Decimal('0.999'))
+        for _ in range(3):
+            self.add_data_to_tenant(FakeAWSCostData())
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -779,7 +1063,7 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(4, len(month_data))
+            self.assertEqual(len(month_data), 4)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
@@ -791,9 +1075,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        self.add_data_to_tenant(rate=Decimal('0.299'))
-        self.add_data_to_tenant(rate=Decimal('0.099'))
-        self.add_data_to_tenant(rate=Decimal('0.999'))
+        for _ in range(3):
+            self.add_data_to_tenant(FakeAWSCostData())
 
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
@@ -817,7 +1100,7 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(4, len(month_data))
+            self.assertEqual(len(month_data), 4)
             current = '0'
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
@@ -861,8 +1144,9 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'region': ['us-east-2']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[region]=us-east-2',
+                        'group_by': {'region': [self.fake_aws.region]}}
+        handler = AWSReportQueryHandler(query_params,
+                                        f'?group_by[region]={self.fake_aws.region}',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
@@ -871,7 +1155,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), 0)
+        self.assertGreater(total.get('value'), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -907,7 +1191,7 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('avail_zones')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(1, len(month_data))
+            self.assertEqual(len(month_data), 1)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('avail_zone'), str)
                 self.assertIsInstance(month_item.get('values'), list)
@@ -915,14 +1199,17 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
+        zone = self.fake_aws.availability_zone
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'avail_zone': ['us-east-1a']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[avail_zone]=us-east-1a',
+                        'group_by': {'avail_zone': [zone]}}
+        handler = AWSReportQueryHandler(query_params,
+                                        f'?group_by[avail_zone]={zone}',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
+
         data = query_output.get('data')
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
@@ -947,7 +1234,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'account': [self.account_alias]}}
+                         'account': [self.fake_aws.account_alias]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -997,7 +1284,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'region': ['us-east-2']}}
+                         'region': [self.fake_aws.region]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -1007,7 +1294,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), 0)
+        self.assertGreater(total.get('value'), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1021,7 +1308,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'avail_zone': ['us-east-1a']}}
+                         'avail_zone': [self.fake_aws.availability_zone]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -1045,7 +1332,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'avail_zone': ['us-east-1a']}}
+                         'avail_zone': [self.fake_aws.availability_zone]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'accept_type': 'text/csv',
@@ -1117,11 +1404,9 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit_csv(self):
         """Test execute_query for current month on monthly by account with limt as csv."""
-        self.add_data_to_tenant(rate=Decimal('0.299'))
-        self.add_data_to_tenant(rate=Decimal('0.399'))
-        self.add_data_to_tenant(rate=Decimal('0.099'))
-        self.add_data_to_tenant(rate=Decimal('0.999'))
-        self.add_data_to_tenant(rate=Decimal('0.699'))
+        for _ in range(5):
+            self.add_data_to_tenant(FakeAWSCostData())
+
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month', 'limit': 2},
@@ -1150,22 +1435,17 @@ class ReportQueryTest(IamTestCase):
         current_total = Decimal(0)
         prev_total = Decimal(0)
 
-        account_id = self.payer_account_id
-        account_alias = self.account_alias
-
-        kwargs = {'account_id': account_id,
-                  'account_alias': account_alias,
-                  'bill_start': dh.last_month_start,
-                  'bill_end': dh.last_month_end,
-                  'data_start': dh.last_month_start,
-                  'data_end': dh.last_month_start + timedelta(days=1)}
+        previous_data = copy.deepcopy(self.fake_aws)
+        previous_data.billing_period_end = dh.last_month_end
+        previous_data.billing_period_start = dh.last_month_start
+        previous_data.usage_end = dh.last_month_start + dh.one_day
+        previous_data.usage_start = dh.last_month_start
 
         for _ in range(0, 3):
             # add some current data.
-            self.add_data_to_tenant(account_id=account_id,
-                                    account_alias=account_alias)
+            self.add_data_to_tenant(self.fake_aws)
             # add some previous data.
-            self.add_data_to_tenant(**kwargs)
+            self.add_data_to_tenant(previous_data)
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
@@ -1238,30 +1518,28 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
-        account_id = self.payer_account_id
-        kwargs = {'account_id': account_id,
-                  'bill_start': DateHelper().last_month_start,
-                  'bill_end': DateHelper().last_month_end,
-                  'data_start': DateHelper().last_month_start,
-                  'data_end': DateHelper().last_month_start + timedelta(days=1)}
+        dh = DateHelper()
+        current_data = FakeAWSCostData()
+        previous_data = copy.deepcopy(current_data)
+        previous_data.billing_period_end = dh.last_month_end
+        previous_data.billing_period_start = dh.last_month_start
+        previous_data.usage_end = dh.last_month_start + timedelta(days=1)
+        previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
-        for _ in range(0, 3):
-            # add some current data.
-            self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=account_id)
-            self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=account_id)
-            self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=account_id)
-
-            # add some past data.
-            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
-            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
-            self.add_data_to_tenant(rate=Decimal(random.random()), **kwargs)
+        for _ in range(3):
+            for _ in range(3):
+                # add some current data.
+                self.add_data_to_tenant(self.fake_aws)
+                # add some past data.
+                self.add_data_to_tenant(previous_data)
 
             # create another account id for the next loop
-            account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-            kwargs['account_id'] = account_id
+            current_data = FakeAWSCostData()
+            previous_data = copy.deepcopy(current_data)
+            previous_data.billing_period_end = dh.last_month_end
+            previous_data.billing_period_start = dh.last_month_start
+            previous_data.usage_end = dh.last_month_start + timedelta(days=1)
+            previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
         query_params = {'filter':
                         {'resolution': 'monthly',
@@ -1310,20 +1588,16 @@ class ReportQueryTest(IamTestCase):
         data = query_output.get('data')
 
         account_alias = data[0].get('accounts')[0].get('values')[0].get('account_alias')
-        self.assertEqual(account_alias, self.account_alias)
+        self.assertEqual(account_alias, self.fake_aws.account_alias)
 
     def test_execute_query_orderby_alias(self):
         """Test execute_query when account alias is avaiable."""
         # generate test data
-        expected = {self.account_alias: self.payer_account_id}
+        expected = {self.fake_aws.account_alias: self.fake_aws.account_id}
         for _ in range(0, 3):
-            account_id = self.fake.ean(length=13)
-            account_alias = self.fake.company()
-            expected[account_alias] = account_id
-
-            self.add_data_to_tenant(rate=Decimal(random.random()),
-                                    account_id=account_id,
-                                    account_alias=account_alias)
+            fake_data = FakeAWSCostData()
+            expected[fake_data.account_alias] = fake_data.account_id
+            self.add_data_to_tenant(fake_data)
         expected = OrderedDict(sorted(expected.items()))
 
         # execute query
