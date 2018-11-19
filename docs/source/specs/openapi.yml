@@ -1148,9 +1148,9 @@ definitions:
     type: object
     properties:
       delta:
-        type: boolean
-    example: { 'delta': 'True' }
-    description: 'Toggle to include delta values in report.'
+        type: string
+    example: { 'delta': 'total' }
+    description: 'Field to calculate delta delta values for in report.'
   ReportResolution:
     type: string
     enum:
