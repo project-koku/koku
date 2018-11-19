@@ -25,6 +25,28 @@ from rates.models import Rate
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
 
+class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    """Related field to handle UUIDs."""
+
+    def use_pk_only_optimization(self):
+        """Override optimization."""
+        return False
+
+    def to_internal_value(self, data):
+        """Override to_internal_value, just save uuid."""
+        return data
+
+    def to_representation(self, value):
+        """Override to_representation, just show uuid."""
+        if self.pk_field is not None:
+            return value.uuid
+        return value.pk
+
+    def display_value(self, instance):
+        """Override display_value, just show uuid."""
+        return instance.uuid
+
+
 class FixedRateSerializer(serializers.Serializer):
     """Serializer for Fixed Rate."""
 
@@ -38,14 +60,21 @@ class FixedRateSerializer(serializers.Serializer):
         return str(value)
 
 
-class RateSerializer(serializers.Serializer):
+class RateSerializer(serializers.ModelSerializer):
     """Rate Serializer."""
 
     uuid = serializers.UUIDField(read_only=True)
-    provider = serializers.PrimaryKeyRelatedField(queryset=Provider.objects.all())
+    provider_uuid = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
     fixed_rate = FixedRateSerializer()
+
+    def validate_provider_uuid(self, provider_uuid):
+        """Check that provider_uuid is a valid identifier."""
+        if Provider.objects.filter(uuid=provider_uuid).count() == 1:
+            return provider_uuid
+        else:
+            raise serializers.ValidationError('Provider object does not exist with given uuid.')
 
     def to_representation(self, rate):
         """Create external representation of a rate."""
@@ -64,18 +93,22 @@ class RateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Create the rate object in the database."""
-        provider = validated_data.pop('provider')
+        provider_uuid = validated_data.pop('provider_uuid')
         metric = validated_data.pop('metric')
-        return Rate.objects.create(provider_uuid=provider.uuid,
+        return Rate.objects.create(provider_uuid=provider_uuid,
                                    metric=metric,
                                    rates=validated_data)
 
     def update(self, instance, validated_data):
         """Update the rate object in the database."""
-        provider = validated_data.pop('provider')
+        provider_uuid = validated_data.pop('provider_uuid')
         metric = validated_data.pop('metric')
-        instance.provider_uuid = provider.uuid
+        instance.provider_uuid = provider_uuid
         instance.metric = metric
         instance.rates = validated_data
         instance.save()
         return instance
+
+    class Meta:
+        model = Rate
+        fields = ('uuid', 'provider_uuid', 'metric', 'fixed_rate')
