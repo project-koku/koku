@@ -16,11 +16,7 @@
 #
 """AWS Query Handling for Reports."""
 import copy
-import datetime
-from collections import OrderedDict
-from decimal import Decimal
 
-from dateutil import relativedelta
 from django.db.models import (F,
                               Max,
                               Q,

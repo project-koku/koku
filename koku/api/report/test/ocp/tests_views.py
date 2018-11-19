@@ -19,10 +19,10 @@ import datetime
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
+from dateutil import relativedelta
 from django.db.models import F, Sum
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
-from dateutil import relativedelta
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -31,9 +31,9 @@ from tenant_schemas.utils import tenant_context
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.queries import TruncDayString
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.queries import TruncDayString
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.utils import DateHelper
@@ -443,7 +443,6 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(round(usage_total, 3),
                                  round(float(totals.get(date)), 3))
 
-
     def test_execute_query_ocp_charge(self):
         """Test that the charge endpoint is reachable."""
         url = reverse('reports-ocp-charges')
@@ -469,8 +468,12 @@ class OCPReportViewTest(IamTestCase):
         last_month_start = self.dh.last_month_start
 
         date_delta = relativedelta.relativedelta(months=1)
-        date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
-        string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+
+        def date_to_string(dt):
+            return dt.strftime('%Y-%m-%d')
+
+        def string_to_date(dt):
+            return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
             current_total = OCPUsageLineItemDailySummary.objects\
@@ -539,7 +542,6 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
 
     def test_execute_query_ocp_cpu_with_delta_usage(self):
         """Test that usage deltas work for CPU."""
@@ -551,7 +553,6 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
 
     def test_execute_query_ocp_cpu_with_delta_request(self):
         """Test that request deltas work for CPU."""
@@ -563,17 +564,12 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
 
     def test_execute_query_ocp_memory_with_delta(self):
         """Test that deltas work for CPU."""
         url = reverse('reports-ocp-memory')
         client = APIClient()
-        params = {
-            'group_by[node]': '*',
-            'filter[limit]': '1',
-        }
+        params = {'delta': 'request'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
-        data = response.json()

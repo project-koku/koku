@@ -16,11 +16,8 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-from collections import OrderedDict
-from decimal import Decimal
 
 from django.db.models import (F,
-                              Sum,
                               Value,
                               Window)
 from django.db.models.functions import Concat
