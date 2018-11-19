@@ -271,11 +271,10 @@
         },
         "whitenoise": {
             "hashes": [
-                "sha256:133a92ff0ab8fb9509f77d4f7d0de493eca19c6fea973f4195d4184f888f2e02",
-                "sha256:32b57d193478908a48acb66bf73e7a3c18679263e3e64bfebcfac1144a430039"
+                "sha256:d3609f505db173be501e8a5549d396e6013543fe126ee073b435833fc3403306",
+                "sha256:b1ddbce083c51a064da5e99dacbfff38b291d8436b6fd75156a3bb2265c55d39"
             ],
-            "index": "pypi",
-            "version": "==4.1"
+            "version": "==4.1.1"
         }
     },
     "develop": {
