@@ -144,6 +144,23 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         return {(entry.report_period_id, entry.interval_start.strftime(self._datetime_format)): entry.id
                 for entry in reports}
 
+    def get_cpu_max_usage(self):
+        """Make a mapping of reports by time."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+        return {entry.id: max(entry.pod_usage_cpu_core_hours, entry.pod_request_cpu_core_hours)
+                for entry in reports}
+
+    def get_memory_max_usage(self):
+        """Make a mapping of reports by time."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+
+        return {entry.id: max(entry.pod_usage_memory_gigabytes, entry.pod_request_memory_gigabytes)
+                for entry in reports}
+
     # pylint: disable=duplicate-code
     def populate_line_item_daily_table(self, start_date, end_date):
         """Populate the daily aggregate of line items table.
@@ -190,12 +207,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_cpu_charge.sql'
         )
-        daily_charge_sql = daily_charge_sql.decode('utf-8').format(
-            cpu_rate=str(cpu_rate)
-        )
-        LOG.info(f'Updating %s with cpu_rate: %s.',
-                 table_name, cpu_rate)
-        self._cursor.execute(daily_charge_sql)
+        for key, value in cpu_rate.items():
+            charge_line_sql = daily_charge_sql.decode('utf-8').format(
+                cpu_charge=value.get('charge'),
+                line_id=key
+            )
+            self._cursor.execute(charge_line_sql)
+        LOG.info(f'Updating %s with cpu_charge for %s items.',
+                 table_name, len(cpu_rate))
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
@@ -214,14 +233,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         daily_charge_sql = pkgutil.get_data(
             'masu.database',
-            'sql/reporting_ocp_usage_lineitem_daily_mem_charge.sql'
+            'sql/reporting_ocpusagelineitem_daily_mem_charge.sql'
         )
-        daily_charge_sql = daily_charge_sql.decode('utf-8').format(
-            mem_rate=str(mem_rate)
-        )
-        LOG.info(f'Updating %s with mem_rate: %s.',
-                 table_name, mem_rate)
-        self._cursor.execute(daily_charge_sql)
+        for key, value in mem_rate.items():
+            charge_line_sql = daily_charge_sql.decode('utf-8').format(
+                mem_charge=value.get('charge'),
+                line_id=key
+            )
+            self._cursor.execute(charge_line_sql)
+        LOG.info(f'Updating %s with mem_charge for %s items.',
+                 table_name, len(mem_rate))
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
