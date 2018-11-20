@@ -60,9 +60,9 @@
         "provider_type":"OCP"
     },
     {
-        "database_column":"pod_limit_cpu_cores",
+        "database_column":"pod_limit_cpu_core_seconds",
         "database_table":"reporting_ocpusagelineitem",
-        "provider_column_name":"pod_limit_cpu_cores",
+        "provider_column_name":"pod_limit_cpu_core_seconds",
         "provider_type":"OCP"
     },
     {

@@ -216,7 +216,7 @@ class ProviderMap(object):
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Max('pod_limit_cpu_cores'),
+                            'limit': Sum('pod_limit_cpu_core_hours'),
                             'charge': Sum('pod_charge_cpu_cores'),
                         },
                         'delta_key': {
