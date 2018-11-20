@@ -17,6 +17,7 @@
 """Updates report summary tables in the database with charge information."""
 
 import logging
+from decimal import Decimal
 
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -44,15 +45,48 @@ class OCPReportChargeUpdater:
             ReportingCommonDBAccessor().column_map
         )
 
-    def _get_cpu_rates(self):
-        """Get CPU rate dictionary."""
-        cpu_rates = self._rate_accessor.get_cpu_rates()
-        return cpu_rates.get('fixed_rate').get('value') if cpu_rates else None
+    @staticmethod
+    def _value_gte(value, test):
+        result = True
+        if test:
+            result = value >= Decimal(test)
+        return result
 
-    def _get_memory_rates(self):
-        """Get Memory rate dictionary."""
-        mem_rates = self._rate_accessor.get_memory_rates()
-        return mem_rates.get('fixed_rate').get('value') if mem_rates else None
+    @staticmethod
+    def _value_lte(value, test):
+        result = True
+        if test:
+            return value <= Decimal(test)
+        return result
+
+    def _get_tier_rate(self, tier, usage):
+        tier_rate = 0.0
+        for bucket in tier:
+            if self._value_gte(usage, bucket.get('usage_start')) and \
+                    self._value_lte(usage, bucket.get('usage_end')):
+                tier_rate += float(bucket.get('value'))
+        return tier_rate
+
+    def _calculate_rate(self, rates, usage):
+        """Calculate rate based on usage."""
+        rate = 0.0
+        if rates and rates.get('fixed_rate'):
+            fixed_rate = float(rates.get('fixed_rate').get('value'))
+            rate += fixed_rate
+
+        if rates and rates.get('tiered_rate'):
+            tier_rate = self._get_tier_rate(rates.get('tiered_rate'), usage)
+            rate += tier_rate
+        return Decimal(rate)
+
+    def _calculate_charge(self, rates, usage):
+        """Calculate charge based on rate and usage."""
+        charge_dictionary = {}
+        for key, value in usage.items():
+            rate = self._calculate_rate(rates, value)
+            charge_value = value * rate if rate and usage else Decimal(0)
+            charge_dictionary[key] = {'usage': value, 'charge': charge_value}
+        return charge_dictionary
 
     def update_summary_charge_info(self):
         """Update the OCP summary table with the charge information.
@@ -65,14 +99,17 @@ class OCPReportChargeUpdater:
 
         """
         LOG.info('Starting charge calculation updates.')
-        cpu_charge = self._get_cpu_rates()
-        mem_charge = self._get_memory_rates()
 
-        if cpu_charge:
-            self._accessor.populate_cpu_charge(cpu_charge)
+        cpu_usage = self._accessor.get_cpu_max_usage()
+        cpu_rates = self._rate_accessor.get_cpu_rates()
+        cpu_charge = self._calculate_charge(cpu_rates, cpu_usage)
 
-        if mem_charge:
-            self._accessor.populate_memory_charge(mem_charge)
+        mem_usage = self._accessor.get_memory_max_usage()
+        mem_rates = self._rate_accessor.get_memory_rates()
+        mem_charge = self._calculate_charge(mem_rates, mem_usage)
+
+        self._accessor.populate_cpu_charge(cpu_charge)
+        self._accessor.populate_memory_charge(mem_charge)
 
         self._accessor.commit()
 
