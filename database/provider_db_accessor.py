@@ -102,7 +102,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "AWS"
         """
         obj = self._get_db_obj_query().first()
-        return obj.type
+        return obj.type if obj else None
 
     def get_authentication(self):
         """
