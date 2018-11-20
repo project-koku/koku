@@ -21,6 +21,7 @@ import logging
 
 from flask import jsonify, request
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import remove_expired_data, update_summary_tables
 from masu.util.blueprint import application_route
 
@@ -36,13 +37,19 @@ def report_data():
     """Update report summary tables in the database."""
     params = request.args
 
-    provider = params.get('provider')
+    provider_uuid = params.get('provider_uuid')
+
+    if provider_uuid is None:
+        errmsg = 'provider_uuid is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    provider = ProviderDBAccessor(provider_uuid).get_type()
     schema_name = params.get('schema')
     start_date = params.get('start_date')
     end_date = params.get('end_date')
 
     if provider is None:
-        errmsg = 'provider is a required parameter.'
+        errmsg = 'Unable to determine provider type.'
         return jsonify({'Error': errmsg}), 400
 
     if schema_name is None:
@@ -59,12 +66,13 @@ def report_data():
         async_result = update_summary_tables.delay(
             schema_name,
             provider,
+            provider_uuid,
             start_date,
             end_date
         )
     else:
         async_result = update_summary_tables.delay(schema_name, provider,
-                                                   start_date)
+                                                   provider_uuid, start_date)
 
     return jsonify({'Report Data Task ID': str(async_result)})
 
