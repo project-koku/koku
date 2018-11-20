@@ -25,6 +25,7 @@ from django.db import transaction
 from requests.exceptions import ConnectionError
 
 from api.provider.models import Provider
+from rates.models import Rate
 
 
 LOG = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ class ProviderManager:
         if self.is_removable_by_user(current_user):
             authentication_model = self.model.authentication
             billing_source = self.model.billing_source
+            provider_rate_objs = Rate.objects.all().filter(provider_uuid=self._uuid)
 
             auth_count = Provider.objects.exclude(uuid=self._uuid)\
                 .filter(authentication=authentication_model).count()
@@ -80,6 +82,8 @@ class ProviderManager:
                 authentication_model.delete()
             if billing_source and billing_count == 0:
                 billing_source.delete()
+            if provider_rate_objs:
+                provider_rate_objs.delete()
             try:
                 self._delete_report_data()
             except ConnectionError as err:
