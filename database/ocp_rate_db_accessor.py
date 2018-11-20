@@ -19,8 +19,6 @@
 
 import logging
 
-from sqlalchemy.orm.exc import NoResultFound
-
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
@@ -55,12 +53,7 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
             'provider_uuid'
         )
         base_query = self._get_db_obj_query(table_name).filter(provider == self.provider_uuid)
-        metric_entry = None
-        try:
-            metric_entry = base_query.filter(metric == metric_value).one()
-        except NoResultFound as not_found_error:
-            LOG.error(str(not_found_error))
-        return metric_entry
+        return base_query.filter(metric == metric_value).first() if base_query else None
 
     def get_metric(self, value):
         """Get the metric."""
