@@ -89,9 +89,11 @@ class OCPReportSummaryUpdater:
                 report_period_start=bill_date
             ).all()
 
-            do_month_update = self._determine_if_full_summary_update_needed(
-                report_periods[0]
-            )
+            do_month_update = True
+            if report_periods is not None and len(report_periods) > 0:
+                do_month_update = self._determine_if_full_summary_update_needed(
+                    report_periods[0]
+                )
             if do_month_update:
                 last_day_of_month = calendar.monthrange(
                     bill_date.year,
