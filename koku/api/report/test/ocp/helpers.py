@@ -148,7 +148,7 @@ class OCPReportDataGenerator:
                 'pod_limit_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
                 'pod_usage_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'pod_request_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
-                'pod_limit_memory_bytes': random.randint(4, 32) * 1e9,
+                'pod_limit_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
             }
             line_item = OCPUsageLineItem(**data)
             line_item.save()
@@ -168,7 +168,7 @@ class OCPReportDataGenerator:
             'pod_limit_cpu_core_seconds': Sum('pod_limit_cpu_core_seconds'),
             'pod_usage_memory_byte_seconds': Sum('pod_usage_memory_byte_seconds'),
             'pod_request_memory_byte_seconds': Sum('pod_request_memory_byte_seconds'),
-            'pod_limit_memory_bytes': Max('pod_limit_memory_bytes'),
+            'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
             'cluster_id': F('report_period__cluster_id')
         }
         entries = OCPUsageLineItem.objects\
@@ -221,9 +221,9 @@ class OCPReportDataGenerator:
                 )
             ) * 1e-9,
             'pod_limit_memory_gigabytes': ExpressionWrapper(
-                F('pod_limit_memory_bytes') * 1e-9,
+                F('pod_limit_memory_byte_seconds') / F('total_seconds'),
                 output_field=DecimalField()
-            ),
+            ) * 1e-9,
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)

@@ -239,7 +239,7 @@ class ProviderMap(object):
                             'usage': Sum('pod_usage_memory_gigabytes'),
                             'request': Sum('pod_request_memory_gigabytes'),
                             'charge': Sum('pod_charge_memory_gigabytes'),
-                            'limit': Max('pod_limit_memory_gigabytes')
+                            'limit': Sum('pod_limit_memory_gigabytes')
                         },
                         'delta_key': {
                             'usage': Sum('pod_usage_memory_gigabytes'),
