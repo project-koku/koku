@@ -209,7 +209,8 @@ class ProviderMap(object):
                         'aggregates': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_cores')
+                            'charge': Sum('pod_charge_cpu_cores'),
+                            'limit': Sum('pod_limit_cpu_core_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
@@ -231,7 +232,8 @@ class ProviderMap(object):
                         'aggregates': {
                             'usage': Sum('pod_usage_memory_gigabytes'),
                             'request': Sum('pod_request_memory_gigabytes'),
-                            'charge': Sum('pod_charge_memory_gigabytes')
+                            'charge': Sum('pod_charge_memory_gigabytes'),
+                            'limit': Sum('pod_limit_memory_gigabytes')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
