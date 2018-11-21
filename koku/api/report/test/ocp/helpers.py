@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import (DecimalField, ExpressionWrapper, F,
-                              Max, Sum)
+                              Sum)
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
