@@ -23,11 +23,8 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import (F,
-                              Max,
-                              Sum)
-from django.db.models.functions import (TruncDay,
-                                        TruncMonth)
+from django.db.models import F, Max, Sum
+from django.db.models.functions import TruncDay, TruncMonth
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
@@ -77,7 +74,11 @@ class ProviderMap(object):
                 },
                 'report_type': {
                     'costs': {
+                        'aggregate': {'value': Sum('unblended_cost'),
+                                      'cost': Sum('unblended_cost')},
                         'aggregate_key': 'unblended_cost',
+                        'annotations': {'total': Sum('unblended_cost'),
+                                        'units': Max('currency_code')},
                         'count': None,
                         'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
@@ -86,7 +87,17 @@ class ProviderMap(object):
                         'default_ordering': {'total': 'desc'},
                     },
                     'instance_type': {
+                        'aggregate': {
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_count'),
+                            'value': Sum('usage_amount'),
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        # The summary table already already has counts
+                                        'count': Sum('resource_count'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('unit')},
                         'count': 'resource_count',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -99,7 +110,14 @@ class ProviderMap(object):
                         'default_ordering': {'total': 'desc'},
                     },
                     'storage': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost')
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('unit')},
                         'count': None,
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -137,7 +155,13 @@ class ProviderMap(object):
                 },
                 'report_type': {
                     'costs': {
+                        'aggregate': {
+                            'value': Sum('unblended_cost'),
+                            'cost': Sum('unblended_cost')
+                        },
                         'aggregate_key': 'unblended_cost',
+                        'annotations': {'total': Sum('unblended_cost'),
+                                        'units': Max('currency_code')},
                         'count': None,
                         'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
@@ -145,7 +169,16 @@ class ProviderMap(object):
                         'sum_columns': ['total'],
                     },
                     'instance_type': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_id'),
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'count': Sum('resource_id'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('cost_entry_pricing__unit')},
                         'count': 'resource_id',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -158,8 +191,17 @@ class ProviderMap(object):
                         'sum_columns': ['total'],
                     },
                     'storage': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_id'),
+                        },
                         'aggregate_key': 'usage_amount',
-                        'count': None,
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'count': Sum('resource_id'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('cost_entry_pricing__unit')},
+                        'count': 'resource_id',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'product_family',
@@ -340,7 +382,6 @@ class ReportQueryHandler(object):
 
         self.group_by_options = group_by_options
         self._accept_type = None
-        self._annotations = None
         self._group_by = None
         self.end_datetime = None
         self.resolution = None
@@ -361,8 +402,8 @@ class ReportQueryHandler(object):
         self.query_delta = {'value': None, 'percent': None}
 
         if kwargs:
-            elements = ['accept_type', 'annotations', 'delta',
-                        'group_by', 'report_type']
+            # view parameters
+            elements = ['accept_type', 'delta', 'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -665,7 +706,8 @@ class ReportQueryHandler(object):
             group_by += self._group_by
         return group_by
 
-    def _get_annotations(self, fields=None):
+    @property
+    def annotations(self):
         """Create dictionary for query annotations.
 
         Args:
@@ -831,8 +873,7 @@ class ReportQueryHandler(object):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        query_annotations = self._get_annotations()
-        previous_sums = previous_query.annotate(**query_annotations)
+        previous_sums = previous_query.annotate(**self.annotations)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
         delta_annotation = {self._delta: delta_field}
         previous_sums = previous_sums\
