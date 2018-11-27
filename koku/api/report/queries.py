@@ -23,7 +23,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import F, Max, Sum
+from django.db.models import Count, F, Max, Sum
 from django.db.models.functions import TruncDay, TruncMonth
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
