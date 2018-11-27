@@ -17,7 +17,7 @@
 """AWS Query Handling for Reports."""
 import copy
 
-from django.db.models import (Count, F, Q, Value, Window)
+from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
