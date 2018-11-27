@@ -46,7 +46,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, self.group_by_options, **kwargs)
 
-    def _get_annotations(self, fields=None):
+    @property
+    def annotations(self):
         """Create dictionary for query annotations.
 
         Args:
@@ -56,17 +57,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            'date': self.date_trunc('usage_start'),
-            # 'units': Concat(self._mapper.units_key, Value(''))  Try and generalize this
-        }
-        if self._annotations and not self.is_sum:
-            annotations.update(self._annotations)
+        annotations = {'date': self.date_trunc('usage_start')}
 
         # { query_param: database_field_name }
-        if not fields:
-            fields = self._mapper._operation_map.get('annotations')
-
+        fields = self._mapper._operation_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -101,8 +95,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         q_table = self._mapper._operation_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
+            query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
 
