@@ -1215,7 +1215,6 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1695,3 +1694,106 @@ class ReportQueryTest(IamTestCase):
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
+
+    def test_query_costs_with_totals(self):
+        """Test execute_query() - costs with totals.
+
+        Query for instance_types, validating that cost totals are present.
+
+        """
+        for _ in range(0, random.randint(3, 5)):
+            self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
+            self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        'group_by': {'account': ['*']}}
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'group_by[account]=*'
+        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
+                                        **{'report_type': 'costs'})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            accounts = data_item.get('accounts')
+            for account in accounts:
+                self.assertIsNotNone(account.get('values'))
+                self.assertGreater(len(account.get('values')), 0)
+                for value in account.get('values'):
+                    self.assertNotIn('cost', value)
+                    self.assertIsInstance(value.get('total'), Decimal)
+                    self.assertGreater(value.get('total'), Decimal(0))
+
+    def test_query_instance_types_with_totals(self):
+        """Test execute_query() - instance types with totals.
+
+        Query for instance_types, validating that cost totals are present.
+
+        """
+        for _ in range(0, random.randint(3, 5)):
+            self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'}}
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month'
+        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
+                                        **{'report_type': 'instance_type',
+                                           'group_by': ['instance_type']})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            instance_types = data_item.get('instance_types')
+            for it in instance_types:
+                self.assertIsNotNone(it.get('values'))
+                self.assertGreater(len(it.get('values')), 0)
+                for value in it.get('values'):
+                    self.assertIsInstance(value.get('cost'), Decimal)
+                    self.assertGreater(value.get('cost'), Decimal(0))
+                    self.assertIsInstance(value.get('total'), float)
+                    self.assertGreater(value.get('total'), 0.0)
+
+    def test_query_storage_with_totals(self):
+        """Test execute_query() - storage with totals.
+
+        Query for storage, validating that cost totals are present.
+
+        """
+        for _ in range(0, random.randint(3, 5)):
+            self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'}}
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month'
+        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
+                                        **{'report_type': 'storage',
+                                           'group_by': ['service']})
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+
+        for data_item in data:
+            services = data_item.get('services')
+            self.assertIsNotNone(services)
+            for srv in services:
+                # EBS is filed under the 'AmazonEC2' service.
+                if srv.get('service') == 'AmazonEC2':
+                    self.assertIsNotNone(srv.get('values'))
+                    self.assertGreater(len(srv.get('values')), 0)
+                    for value in srv.get('values'):
+                        self.assertIsInstance(value.get('cost'), Decimal)
+                        self.assertGreater(value.get('cost'), Decimal(0))
+                        self.assertIsInstance(value.get('total'), float)
+                        self.assertGreater(value.get('total'), 0.0)
