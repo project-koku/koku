@@ -181,10 +181,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(query_report.node)
         self.assertIsNotNone(query_report.pod_usage_cpu_core_seconds)
         self.assertIsNotNone(query_report.pod_request_cpu_core_seconds)
-        self.assertIsNotNone(query_report.pod_limit_cpu_cores)
+        self.assertIsNotNone(query_report.pod_limit_cpu_core_seconds)
         self.assertIsNotNone(query_report.pod_usage_memory_byte_seconds)
         self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
-        self.assertIsNotNone(query_report.pod_limit_memory_bytes)
+        self.assertIsNotNone(query_report.pod_limit_memory_byte_seconds)
 
     def test_populate_line_item_daily_table(self):
         """Test that the line item daily table populates."""
