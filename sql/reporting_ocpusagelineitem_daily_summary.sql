@@ -8,10 +8,10 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.usage_end,
         li.pod_usage_cpu_core_seconds / 3600 as pod_usage_cpu_core_hours,
         li.pod_request_cpu_core_seconds / 3600 as pod_request_cpu_core_hours,
-        li.pod_limit_cpu_cores,
+        li.pod_limit_cpu_core_seconds / 3600 as pod_limit_cpu_core_hours,
         li.pod_usage_memory_byte_seconds / li.total_seconds * 1e-9 as pod_usage_memory_gigabytes,
         li.pod_request_memory_byte_seconds / li.total_seconds * 1e-9 as pod_request_memory_gigabytes,
-        li.pod_limit_memory_bytes * 1e-9 as pod_limit_memory_gigabytes
+        li.pod_limit_memory_byte_seconds / li.total_seconds * 1e-9 as pod_limit_memory_gigabytes
     FROM reporting_ocpusagelineitem_daily AS li
 )
 ;
@@ -32,7 +32,7 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
     usage_end,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
-    pod_limit_cpu_cores,
+    pod_limit_cpu_core_hours,
     pod_usage_memory_gigabytes,
     pod_request_memory_gigabytes,
     pod_limit_memory_gigabytes
@@ -45,7 +45,7 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
         usage_end,
         pod_usage_cpu_core_hours,
         pod_request_cpu_core_hours,
-        pod_limit_cpu_cores,
+        pod_limit_cpu_core_hours,
         pod_usage_memory_gigabytes,
         pod_request_memory_gigabytes,
         pod_limit_memory_gigabytes
