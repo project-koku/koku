@@ -5,30 +5,20 @@ import pkgutil
 from django.db import migrations
 
 
-def update_pod_limit_memory_bytes(apps, schema_editor):
-    """Update pod_limit_memory_bytes database mapping."""
-    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
-    pod_limit_memory_bytes = ReportColumnMap.objects.filter(database_column='pod_limit_memory_bytes')
-
-    for entry in pod_limit_memory_bytes:
-        entry.database_column = 'pod_limit_memory_byte_seconds'
-        entry.provider_column_name = 'pod_limit_memory_byte_seconds'
-        entry.save()
-
-def update_pod_limit_cpu_cores(apps, schema_editor):
-    """Update pod_limit_cpu_cores database mapping."""
-    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
-    pod_limit_cpu_cores = ReportColumnMap.objects.filter(database_column='pod_limit_cpu_cores')
-
-    for entry in pod_limit_cpu_cores:
-        entry.database_column = 'pod_limit_cpu_core_seconds'
-        entry.provider_column_name = 'pod_limit_cpu_core_seconds'
-        entry.save()
-
-def update_report_map_data(apps, schema_editor):
+def reload_ocp_map(apps, schema_editor):
     """Update report to database mapping."""
-    update_pod_limit_memory_bytes(apps, schema_editor)
-    update_pod_limit_cpu_cores(apps, schema_editor)
+    ReportColumnMap = apps.get_model('reporting_common', 'ReportColumnMap')
+    ocp_items = ReportColumnMap.objects.filter(provider_type='OCP')
+    ocp_items.delete()
+
+    data = pkgutil.get_data('reporting_common',
+                            'data/ocp_report_column_map.json')
+
+    data = json.loads(data)
+
+    for entry in data:
+        map = ReportColumnMap(**entry)
+        map.save()
 
 class Migration(migrations.Migration):
 
@@ -37,5 +27,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-            migrations.RunPython(update_report_map_data),
+            migrations.RunPython(reload_ocp_map),
     ]
