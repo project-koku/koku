@@ -105,7 +105,7 @@ class OCPUsageLineItem(models.Model):
         null=True
     )
 
-    pod_limit_cpu_cores = models.DecimalField(
+    pod_limit_cpu_core_seconds = models.DecimalField(
         max_digits=20,
         decimal_places=6,
         null=True
@@ -123,7 +123,7 @@ class OCPUsageLineItem(models.Model):
         null=True
     )
 
-    pod_limit_memory_bytes = models.DecimalField(
+    pod_limit_memory_byte_seconds = models.DecimalField(
         max_digits=20,
         decimal_places=6,
         null=True
@@ -213,7 +213,7 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
-    pod_limit_cpu_cores = models.DecimalField(
+    pod_limit_cpu_core_seconds = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
@@ -231,7 +231,7 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
-    pod_limit_memory_bytes = models.DecimalField(
+    pod_limit_memory_byte_seconds = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
@@ -323,7 +323,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         null=True
     )
 
-    pod_limit_cpu_cores = models.DecimalField(
+    pod_limit_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
@@ -421,7 +421,7 @@ class OCPUsageLineItemAggregates(models.Model):
         null=True
     )
 
-    pod_limit_cpu_cores = models.DecimalField(
+    pod_limit_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
