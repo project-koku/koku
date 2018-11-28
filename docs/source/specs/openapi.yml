@@ -753,9 +753,6 @@ definitions:
       error_key:
         type: string
   ListPagination:
-    required:
-      - previous
-      - next
     properties:
       count:
         type: integer
@@ -769,6 +766,8 @@ definitions:
         type: string
         format: uri
         example: /api/v1/(resources)/?page=4
+      results:
+        type: object
   ProviderAuthenticationIn:
     required:
       - provider_resource_name
