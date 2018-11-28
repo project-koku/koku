@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import (DecimalField, ExpressionWrapper, F,
-                              Max, Sum)
+                              Sum)
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -145,10 +145,10 @@ class OCPReportDataGenerator:
                 'node': row.get('node'),
                 'pod_usage_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
                 'pod_request_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
-                'pod_limit_cpu_cores': random.randint(1, 4),
+                'pod_limit_cpu_core_seconds': Decimal(random.uniform(0, 3600)),
                 'pod_usage_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'pod_request_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
-                'pod_limit_memory_bytes': random.randint(4, 32) * 1e9,
+                'pod_limit_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
             }
             line_item = OCPUsageLineItem(**data)
             line_item.save()
@@ -165,10 +165,10 @@ class OCPReportDataGenerator:
             'usage_end': F('report__interval_start'),
             'pod_usage_cpu_core_seconds': Sum('pod_usage_cpu_core_seconds'),
             'pod_request_cpu_core_seconds': Sum('pod_request_cpu_core_seconds'),
-            'pod_limit_cpu_cores': Max('pod_limit_cpu_cores'),
+            'pod_limit_cpu_core_seconds': Sum('pod_limit_cpu_core_seconds'),
             'pod_usage_memory_byte_seconds': Sum('pod_usage_memory_byte_seconds'),
             'pod_request_memory_byte_seconds': Sum('pod_request_memory_byte_seconds'),
-            'pod_limit_memory_bytes': Max('pod_limit_memory_bytes'),
+            'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
             'cluster_id': F('report_period__cluster_id')
         }
         entries = OCPUsageLineItem.objects\
@@ -187,7 +187,6 @@ class OCPReportDataGenerator:
             'namespace',
             'pod',
             'node',
-            'pod_limit_cpu_cores',
             'cluster_id'
         ]
         annotations = {
@@ -200,6 +199,12 @@ class OCPReportDataGenerator:
             'pod_request_cpu_core_hours': Sum(
                 ExpressionWrapper(
                     F('pod_request_cpu_core_seconds') / 3600,
+                    output_field=DecimalField()
+                )
+            ),
+            'pod_limit_cpu_core_hours': Sum(
+                ExpressionWrapper(
+                    F('pod_limit_cpu_core_seconds') / 3600,
                     output_field=DecimalField()
                 )
             ),
@@ -216,9 +221,9 @@ class OCPReportDataGenerator:
                 )
             ) * 1e-9,
             'pod_limit_memory_gigabytes': ExpressionWrapper(
-                F('pod_limit_memory_bytes') * 1e-9,
+                F('pod_limit_memory_byte_seconds') / F('total_seconds'),
                 output_field=DecimalField()
-            ),
+            ) * 1e-9,
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)

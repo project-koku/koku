@@ -77,6 +77,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                          current_totals.get('request').quantize(Decimal('0.001')))
         self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
                          current_totals.get('charge').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('limit').quantize(Decimal('0.001')),
+                         current_totals.get('limit').quantize(Decimal('0.001')))
 
     def test_execute_sum_query_charge(self):
         """Test that the sum query runs properly for the charge endpoint."""
