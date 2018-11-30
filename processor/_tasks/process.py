@@ -24,7 +24,7 @@ from celery.utils.log import get_task_logger
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from masu.processor.report_processor import ReportProcessor
+from masu.processor.report_processor import ReportProcessor, ReportProcessorError
 
 LOG = get_task_logger(__name__)
 
@@ -71,29 +71,32 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     stats_recorder.log_last_started_datetime()
     stats_recorder.commit()
 
-    processor = ReportProcessor(schema_name=schema_name,
-                                report_path=report_path,
-                                compression=compression,
-                                provider=provider,
-                                provider_id=provider_id,
-                                manifest_id=manifest_id)
+    try:
+        processor = ReportProcessor(schema_name=schema_name,
+                                    report_path=report_path,
+                                    compression=compression,
+                                    provider=provider,
+                                    provider_id=provider_id,
+                                    manifest_id=manifest_id)
+        processor.process()
+        stats_recorder.log_last_completed_datetime()
+        stats_recorder.commit()
+        stats_recorder.close_session()
 
-    processor.process()
-    stats_recorder.log_last_completed_datetime()
-    stats_recorder.commit()
-    stats_recorder.close_session()
+        manifest_accesor = ReportManifestDBAccessor()
+        manifest = manifest_accesor.get_manifest_by_id(manifest_id)
+        manifest.num_processed_files += 1
+        manifest_accesor.mark_manifest_as_updated(manifest)
+        manifest_accesor.commit()
+        manifest_accesor.close_session()
 
-    manifest_accesor = ReportManifestDBAccessor()
-    manifest = manifest_accesor.get_manifest_by_id(manifest_id)
-    manifest.num_processed_files += 1
-    manifest_accesor.mark_manifest_as_updated(manifest)
-    manifest_accesor.commit()
-    manifest_accesor.close_session()
+        provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
+        provider_accessor.setup_complete()
+        provider_accessor.commit()
+        provider_accessor.close_session()
 
-    provider_accessor = ProviderDBAccessor(provider_uuid=provider_uuid)
-    provider_accessor.setup_complete()
-    provider_accessor.commit()
-    provider_accessor.close_session()
+        files = processor.remove_processed_files(path.dirname(report_path))
+        LOG.info('Temporary files removed: %s', str(files))
 
-    files = processor.remove_processed_files(path.dirname(report_path))
-    LOG.info('Temporary files removed: %s', str(files))
+    except ReportProcessorError as processing_error:
+        LOG.error(str(processing_error))
