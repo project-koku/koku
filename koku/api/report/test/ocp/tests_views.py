@@ -279,7 +279,6 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        import pdb; pdb.set_trace()
         self.assertTrue('units' in total)
         self.assertEqual(total.get('units'), 'USD')
 
@@ -298,7 +297,6 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        import pdb; pdb.set_trace()
         self.assertTrue('units' in total)
         self.assertEqual(total.get('units'), 'Core-Hours')
 
@@ -317,7 +315,6 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        import pdb; pdb.set_trace()
         self.assertTrue('units' in total)
         self.assertEqual(total.get('units'), 'GB-Hours')
 
