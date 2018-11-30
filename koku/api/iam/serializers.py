@@ -207,7 +207,7 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
             None
 
         """
-        if data.get('name') is not field:
+        if data.get('name') != field:
             return
 
         pref = data.get('preference', dict).get(field)
