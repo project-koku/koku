@@ -243,6 +243,7 @@ class ProviderMap(object):
                         'annotations': {
                             'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes')),
                         },
+                        'capacity_aggregate': {},
                         'delta_key': {'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes'))},
                         'filter': {},
                         'units_key': 'USD',
@@ -254,6 +255,9 @@ class ProviderMap(object):
                             'request': Sum('pod_request_cpu_core_hours'),
                             'charge': Sum('pod_charge_cpu_cores'),
                             'limit': Sum('pod_limit_cpu_core_hours')
+                        },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_cpu_core_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
@@ -277,6 +281,9 @@ class ProviderMap(object):
                             'request': Sum('pod_request_memory_gigabytes'),
                             'charge': Sum('pod_charge_memory_gigabytes'),
                             'limit': Sum('pod_limit_memory_gigabytes')
+                        },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_memory_byte_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
