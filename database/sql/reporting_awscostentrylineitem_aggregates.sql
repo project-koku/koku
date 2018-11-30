@@ -15,7 +15,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+    WHERE li.usage_start >= current_date - INTERVAL '29 days'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
     UNION
@@ -35,7 +35,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+    WHERE li.usage_start >= current_date - INTERVAL '29 days'
         AND p.instance_type IS NOT NULL
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -56,7 +56,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '30 days'
+    WHERE li.usage_start >= current_date - INTERVAL '29 days'
         AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -77,7 +77,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '10 days'
+    WHERE li.usage_start >= current_date - INTERVAL '9 days'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
     UNION
@@ -97,7 +97,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '10 days'
+    WHERE li.usage_start >= current_date - INTERVAL '9 days'
         AND p.instance_type IS NOT NULL
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
@@ -118,7 +118,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_aggregates_{uuid} AS (
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= current_date - INTERVAL '10 days'
+    WHERE li.usage_start >= current_date - INTERVAL '9 days'
         AND p.product_family LIKE '%Storage%'
     GROUP BY li.usage_account_id, li.product_code, p.region, li.availability_zone
 
