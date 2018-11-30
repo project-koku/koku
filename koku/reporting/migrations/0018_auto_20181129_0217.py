@@ -12,6 +12,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RenameField(
             model_name='ocpusagelineitemdailysummary',
+            old_name='pod_charge_cpu_cores',
+            new_name='pod_charge_cpu_core_hours',
+        ),
+        migrations.RenameField(
+            model_name='ocpusagelineitemdailysummary',
             old_name='pod_charge_memory_gigabytes',
             new_name='pod_charge_memory_gigabyte_hours',
         ),

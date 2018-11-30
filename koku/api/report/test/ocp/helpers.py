@@ -239,12 +239,12 @@ class OCPReportDataGenerator:
             mem_request = entry.pod_request_memory_gigabytes
             mem_charge = max(float(mem_usage), float(mem_request)) * 0.25
 
-            entry.pod_charge_memory_gigabytes = mem_charge
+            entry.pod_charge_memory_gigabyte_hours = mem_charge
 
             cpu_usage = entry.pod_usage_cpu_core_hours
             cpu_request = entry.pod_request_cpu_core_hours
             cpu_charge = max(float(cpu_usage), float(cpu_request)) * 0.50
 
-            entry.pod_charge_cpu_cores = cpu_charge
+            entry.pod_charge_cpu_core_hours = cpu_charge
 
             entry.save()

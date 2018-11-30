@@ -329,7 +329,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         null=True
     )
 
-    pod_charge_cpu_cores = models.DecimalField(
+    pod_charge_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
