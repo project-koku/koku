@@ -270,6 +270,60 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('usage' in values)
                 self.assertTrue('request' in values)
 
+    def test_charge_api_has_units(self):
+        """Test that the charge API returns units."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'USD')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'USD')
+
+    def test_cpu_api_has_units(self):
+        """Test that the CPU API returns units."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'Core-Hours')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'Core-Hours')
+
+    def test_memory_api_has_units(self):
+        """Test that the charge API returns units."""
+        url = reverse('reports-ocp-memory')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'GB-Hours')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'GB-Hours')
+
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
         url = reverse('reports-ocp-cpu')
