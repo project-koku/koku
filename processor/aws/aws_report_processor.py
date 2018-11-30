@@ -227,10 +227,13 @@ class AWSReportProcessor(ReportProcessorBase):
         removed_files = []
         for victim in victim_list:
             if victim['assemblyId'] != current_assembly_id:
-                LOG.info('Removing %s, completed processing on date %s',
-                         victim['file'], victim['completed_date'])
-                remove(victim['file'])
-                removed_files.append(victim['file'])
+                try:
+                    LOG.info('Removing %s, completed processing on date %s',
+                             victim['file'], victim['completed_date'])
+                    remove(victim['file'])
+                    removed_files.append(victim['file'])
+                except FileNotFoundError:
+                    LOG.warning('Unable to locate file: %s', victim['file'])
         return removed_files
 
     # pylint: disable=inconsistent-return-statements, no-self-use
