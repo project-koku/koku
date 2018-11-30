@@ -136,6 +136,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
+
+        query_sum.update({'units': self._mapper.units_key})
+
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
