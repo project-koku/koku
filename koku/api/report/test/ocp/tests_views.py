@@ -534,7 +534,7 @@ class OCPReportViewTest(IamTestCase):
                 .filter(usage_start__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +
+                        F('pod_charge_cpu_core_hours') + # noqa: W504
                         F('pod_charge_memory_gigabyte_hours')
                     )
                 ).get('total')
