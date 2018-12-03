@@ -532,12 +532,22 @@ class OCPReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             current_total = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=this_month_start)\
-                .aggregate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))).get('total')
+                .aggregate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +
+                        F('pod_charge_memory_gigabyte_hours')
+                    )
+                ).get('total')
 
             prev_total = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=last_month_start)\
                 .filter(usage_start__lt=this_month_start)\
-                .aggregate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))).get('total')
+                .aggregate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +
+                        F('pod_charge_memory_gigabyte_hours')
+                    )
+                ).get('total')
 
             current_total = current_total if current_total is not None else 0
             prev_total = prev_total if prev_total is not None else 0
