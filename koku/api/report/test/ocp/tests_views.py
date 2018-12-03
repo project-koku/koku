@@ -477,7 +477,7 @@ class OCPReportViewTest(IamTestCase):
             totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=ten_days_ago)\
                 .values(*['usage_start'])\
-                .annotate(total=Sum('pod_usage_memory_gigabytes'))
+                .annotate(total=Sum('pod_usage_memory_gigabyte_hours'))
 
         totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('total')
                   for total in totals}
