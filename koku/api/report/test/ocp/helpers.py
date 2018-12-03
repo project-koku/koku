@@ -19,8 +19,7 @@ import random
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
-from django.db.models import (DecimalField, ExpressionWrapper, F,
-                              Sum)
+from django.db.models import DecimalField, ExpressionWrapper, F, Max, Sum
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -52,22 +51,10 @@ class OCPReportDataGenerator:
             (self.dh.this_month_start, self.dh.this_month_end),
         ]
 
-        if self.one_month_ago.day >= 10:
-            self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
-                (self.today - relativedelta(days=i) for i in range(11)),
-            ]
-        else:
-            self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
-                (self.today + relativedelta(days=i) for i in range(11)),
-            ]
-
-        self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
-        self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 10)}
-        self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 30)}
-        self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
-                                  'usage_end__lte': self.dh.last_month_end}
+        self.report_ranges = [
+            (self.one_month_ago - relativedelta(days=i) for i in range(10)),
+            (self.today - relativedelta(days=i) for i in range(10)),
+        ]
 
     def add_data_to_tenant(self):
         """Populate tenant with data."""
@@ -136,6 +123,8 @@ class OCPReportDataGenerator:
 
     def create_line_items(self, report_period, report):
         """Create OCP hourly usage line items."""
+        node_cpu_cores = random.randint(1, 8)
+        node_memory_gb = random.randint(4, 32)
         for row in self.line_items:
             data = {
                 'report_period': report_period,
@@ -149,7 +138,12 @@ class OCPReportDataGenerator:
                 'pod_usage_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'pod_request_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
                 'pod_limit_memory_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
+                'node_capacity_cpu_cores': Decimal(node_cpu_cores),
+                'node_capacity_cpu_core_seconds': Decimal(node_cpu_cores * 3600),
+                'node_capacity_memory_bytes': Decimal(node_memory_gb * 1e9),
+                'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e9 * 3600)
             }
+
             line_item = OCPUsageLineItem(**data)
             line_item.save()
 
@@ -169,7 +163,11 @@ class OCPReportDataGenerator:
             'pod_usage_memory_byte_seconds': Sum('pod_usage_memory_byte_seconds'),
             'pod_request_memory_byte_seconds': Sum('pod_request_memory_byte_seconds'),
             'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
-            'cluster_id': F('report_period__cluster_id')
+            'cluster_id': F('report_period__cluster_id'),
+            'node_capacity_cpu_cores': Max('node_capacity_cpu_cores'),
+            'node_capacity_cpu_core_seconds': Sum('node_capacity_cpu_core_seconds'),
+            'node_capacity_memory_bytes': Max('node_capacity_memory_bytes'),
+            'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
         }
         entries = OCPUsageLineItem.objects\
             .values(*included_fields)\
@@ -187,15 +185,11 @@ class OCPReportDataGenerator:
             'namespace',
             'pod',
             'node',
-            'cluster_id'
+            'cluster_id',
+            'node_capacity_cpu_cores'
         ]
         annotations = {
-            'pod_usage_cpu_core_hours': Sum(
-                ExpressionWrapper(
-                    F('pod_usage_cpu_core_seconds') / 3600,
-                    output_field=DecimalField()
-                )
-            ),
+            'pod_usage_cpu_core_hours': F('pod_usage_cpu_core_seconds') / 3600,
             'pod_request_cpu_core_hours': Sum(
                 ExpressionWrapper(
                     F('pod_request_cpu_core_seconds') / 3600,
@@ -208,25 +202,32 @@ class OCPReportDataGenerator:
                     output_field=DecimalField()
                 )
             ),
-            'pod_usage_memory_gigabytes': Sum(
+            'pod_usage_memory_gigabyte_hours': Sum(
                 ExpressionWrapper(
-                    F('pod_usage_memory_byte_seconds') / F('total_seconds'),
+                    F('pod_usage_memory_byte_seconds') / 3600,
                     output_field=DecimalField()
                 )
             ) * 1e-9,
-            'pod_request_memory_gigabytes': Sum(
+            'pod_request_memory_gigabyte_hours': Sum(
                 ExpressionWrapper(
-                    F('pod_request_memory_byte_seconds') / F('total_seconds'),
+                    F('pod_request_memory_byte_seconds') / 3600,
                     output_field=DecimalField()
                 )
             ) * 1e-9,
-            'pod_limit_memory_gigabytes': ExpressionWrapper(
-                F('pod_limit_memory_byte_seconds') / F('total_seconds'),
+            'pod_limit_memory_gigabyte_hours': ExpressionWrapper(
+                F('pod_limit_memory_byte_seconds') / 3600,
+                output_field=DecimalField()
+            ) * 1e-9,
+            'node_capacity_cpu_core_hours': F('node_capacity_cpu_core_seconds') / 3600,
+            'node_capacity_memory_gigabytes': F('node_capacity_memory_bytes') * 1e-9,
+            'node_capacity_memory_gigabyte_hours': ExpressionWrapper(
+                F('node_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
             ) * 1e-9,
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
+
         for entry in entries:
             summary = OCPUsageLineItemDailySummary(**entry)
             summary.save()
@@ -235,8 +236,8 @@ class OCPReportDataGenerator:
         """Populate the charge information in summary table."""
         entries = OCPUsageLineItemDailySummary.objects.all()
         for entry in entries:
-            mem_usage = entry.pod_usage_memory_gigabytes
-            mem_request = entry.pod_request_memory_gigabytes
+            mem_usage = entry.pod_usage_memory_gigabyte_hours
+            mem_request = entry.pod_request_memory_gigabyte_hours
             mem_charge = max(float(mem_usage), float(mem_request)) * 0.25
 
             entry.pod_charge_memory_gigabyte_hours = mem_charge

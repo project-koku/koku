@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from tenant_schemas.utils import tenant_context
@@ -97,3 +98,42 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
                          current_totals.get('charge').quantize(Decimal('0.001')))
+
+    def test_get_cluster_capacity(self):
+        """Test that cluster capacity returns."""
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        date_capacity, total_capacity = handler.get_cluster_capacity()
+        for entry in date_capacity:
+            self.assertTrue(isinstance(datetime.strptime(entry, '%Y-%m-%d'), datetime))
+            self.assertTrue(isinstance(date_capacity[entry], Decimal))
+            self.assertTrue('date')
+        self.assertTrue('capacity' in total_capacity)
+        self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
+
+    def test_add_capacity_to_data(self):
+        """Test that capacity data is added to the resultset."""
+        dates = [self.dh._now - timedelta(days=i) for i in range(10)]
+
+        data = {}
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        dates = [handler.date_to_string(date) for date in dates]
+        data = [{'date': date} for date in dates]
+        date_capacity, _ = handler.get_cluster_capacity()
+        results = handler.add_capacity_to_data(date_capacity, data)
+
+        for result in results:
+            date = result.get('date')
+            self.assertEqual(result.get('capacity'), date_capacity.get(date))
