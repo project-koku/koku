@@ -951,11 +951,15 @@ class ReportQueryHandler(object):
         else:
             current_total_sum = Decimal(query_sum.get('value') or 0)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
-        dates = [entry.get('date') for entry in query_data]
-        prev_total_filters = self._get_previous_totals_filter(dates)
-        prev_total_sum = previous_query\
-            .filter(prev_total_filters)\
-            .aggregate(value=delta_field)
+        prev_total_sum = previous_query.aggregate(value=delta_field)
+        if self.resolution == 'daily':
+            dates = [entry.get('date') for entry in query_data]
+            prev_total_filters = self._get_previous_totals_filter(dates)
+            if prev_total_filters:
+                prev_total_sum = previous_query\
+                    .filter(prev_total_filters)\
+                    .aggregate(value=delta_field)
+
         prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
 
         total_delta = current_total_sum - prev_total_sum
