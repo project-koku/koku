@@ -375,7 +375,7 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(result.get('units'), expected_unit)
 
     def test_execute_query_w_delta_total(self):
-        """Test that delta=True returns deltas."""
+        """Test that delta=total returns deltas."""
         qs = 'delta=total'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
