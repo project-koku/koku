@@ -23,7 +23,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import CharField, Count, F, Max, Sum, Value
+from django.db.models import CharField, Count, F, Max, Q, Sum, Value
 from django.db.models.functions import TruncDay, TruncMonth
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
@@ -894,6 +894,34 @@ class ReportQueryHandler(object):
 
         return previous_dict
 
+    def _get_previous_totals_filter(self, filter_dates):
+        """Filter previous time range to exlude days from the current range.
+
+        Specifically this covers days in the current range that have not yet
+        happened, but that data exists for in the previous range.
+
+        Args:
+            filter_dates (list) A list of date strings of dates to filter
+
+        Returns:
+            (django.db.models.query_utils.Q) The OR date filter
+
+        """
+        date_delta = self._get_date_delta()
+        prev_total_filters = None
+
+        for i in range(len(filter_dates)):
+            date = self.string_to_date(filter_dates[i])
+            date = date - date_delta
+            filter_dates[i] = self.date_to_string(date)
+
+        for date in filter_dates:
+            if prev_total_filters:
+                prev_total_filters = prev_total_filters | Q(usage_start=date)
+            else:
+                prev_total_filters = Q(usage_start=date)
+        return prev_total_filters
+
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -924,6 +952,14 @@ class ReportQueryHandler(object):
             current_total_sum = Decimal(query_sum.get('value') or 0)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
+        if self.resolution == 'daily':
+            dates = [entry.get('date') for entry in query_data]
+            prev_total_filters = self._get_previous_totals_filter(dates)
+            if prev_total_filters:
+                prev_total_sum = previous_query\
+                    .filter(prev_total_filters)\
+                    .aggregate(value=delta_field)
+
         prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
 
         total_delta = current_total_sum - prev_total_sum
