@@ -534,23 +534,11 @@ class OCPReportViewTest(IamTestCase):
                 .filter(usage_start__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +
-                        F('pod_charge_memory_gigabyte_hours')
+                        F('pod_charge_cpu_cores') +
+                        F('pod_charge_memory_gigabytes')
                     )
                 ).get('total')
-
-            prev_total = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=last_month_start)\
-                .filter(usage_start__lt=this_month_start)\
-                .aggregate(
-                    total=Sum(
-                        F('pod_charge_cpu_core_hours') +
-                        F('pod_charge_memory_gigabyte_hours')
-                    )
-                ).get('total')
-
             current_total = current_total if current_total is not None else 0
-            prev_total = prev_total if prev_total is not None else 0
 
             current_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=this_month_start)\
@@ -568,7 +556,12 @@ class OCPReportViewTest(IamTestCase):
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}
         prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
-                       for total in prev_totals}
+                       for total in prev_totals
+                       if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
+
+        prev_total = sum(prev_totals.values())
+        prev_total = prev_total if prev_total is not None else 0
+
         expected_delta = current_total - prev_total
         delta = data.get('delta').get('value')
         self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
@@ -579,7 +572,6 @@ class OCPReportViewTest(IamTestCase):
             delta_value = 0
             if values:
                 delta_value = values[0].get('delta_value')
-
             self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
 
     def test_execute_query_ocp_charge_with_invalid_delta(self):
