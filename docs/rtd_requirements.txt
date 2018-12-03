@@ -19,7 +19,7 @@ pint==0.8.1
 psycopg2-binary==2.7.6.1
 psycopg2==2.7.6.1
 python-dateutil==2.7.5; python_version >= '2.7'
-pytz==2018.5
+pytz==2018.7
 querystring-parser==1.2.3
 requests==2.20.0
 s3transfer==0.1.13
