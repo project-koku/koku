@@ -639,17 +639,17 @@ class ReportDBAccessorTest(MasuTestCase):
         self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
 
         # Verify that the result is returned for a date later than cutoff_date
-        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1, day=15)
+        later_date = cutoff_date + relativedelta.relativedelta(months=+1)
+        later_cutoff = later_date.replace(month=later_date.month, day=15)
         cost_entries = self.accessor.get_bill_query_before_date(later_cutoff)
         self.assertEqual(cost_entries.count(), 1)
         self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
 
         # Verify that no results are returned for a date earlier than cutoff_date
-        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1, day=15)
+        earlier_date = cutoff_date + relativedelta.relativedelta(months=-1)
+        earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
         cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
         self.assertEqual(cost_entries.count(), 0)
-        # self.assertEqual(cost_entries.first().billing_period_start, cutoff_date)
-
 
     def test_get_lineitem_query_for_billid(self):
         """Test that gets a cost entry line item query given a bill id."""
