@@ -159,20 +159,23 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def get_cluster_capacity(self):
         """Calculate cluster capacity for all nodes over the date range."""
+        annotations = self._mapper._report_type_map.get('capacity_aggregate')
+        if not annotations:
+            return {}, {}
+
+        cap_key = list(annotations.keys())[0]
         cluster_capacity = defaultdict(Decimal)
         q_table = self._mapper._operation_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['node', 'usage_start']
 
-        annotations = self._mapper._report_type_map.get('capacity_aggregate')
-        if annotations:
-            cap_key = list(annotations.keys())[0]
-        query_data = query.values(*query_group_by).annotate(**annotations)
-        for entry in query_data:
-            date = self.date_to_string(entry.get('usage_start'))
-            if entry.get(cap_key):
-                cluster_capacity[date] += entry.get(cap_key)
-        total_capacity = sum(cluster_capacity.values())
+        with tenant_context(self.tenant):
+            query_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in query_data:
+                date = self.date_to_string(entry.get('usage_start'))
+                if entry.get(cap_key):
+                    cluster_capacity[date] += entry.get(cap_key)
+            total_capacity = Decimal(sum(cluster_capacity.values()))
         return cluster_capacity, {cap_key: total_capacity}
 
     def add_capacity_to_data(self, capacity, data):
