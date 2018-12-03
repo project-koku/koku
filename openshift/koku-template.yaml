@@ -68,10 +68,6 @@ objects:
       template: koku-template
     annotations:
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
-      template.openshift.io/expose-service_admin_username: "{.data['service-admin-user']}"
-      template.openshift.io/expose-service_admin_email: "{.data['service-admin-email']}"
-      template.openshift.io/expose-service_admin_password: "{.data['service-admin-password']}"
-      template.openshift.io/expose-email_service_password: "{.data['email-service-password']}"
       template.openshift.io/expose-aws_access_key_id: "{.data['aws-access-key-id']}"
       template.openshift.io/expose-aws_secret_access_key: "{.data['aws-secret-access-key']}"
     name: ${NAME}-secret
@@ -80,7 +76,6 @@ objects:
     service-admin-user: ${SERVICE_ADMIN_USER}
     service-admin-email: ${SERVICE_ADMIN_EMAIL}
     service-admin-password: ${SERVICE_ADMIN_PASSWORD}
-    email-service-password: ${EMAIL_SERVICE_PASSWORD}
     aws-access-key-id: ${AWS_ACCESS_KEY_ID}
     aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
 - apiVersion: v1
@@ -102,10 +97,8 @@ objects:
     app-module: ${APP_MODULE}
     app-namespace: ${NAMESPACE}
     app-domain: ${APP_DOMAIN}
-    email-service-host: ${EMAIL_HOST}
-    email-service-port: ${EMAIL_PORT}
-    email-service-host-user: ${EMAIL_HOST_USER}
     django-debug: ${DJANGO_DEBUG}
+    api-path-prefix: ${API_PATH_PREFIX}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -252,30 +245,6 @@ objects:
                   key: django-secret-key
                   name: ${NAME}-secret
                   optional: false
-            - name: SERVICE_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  key: service-admin-user
-                  name: ${NAME}-secret
-                  optional: false
-            - name: SERVICE_ADMIN_EMAIL
-              valueFrom:
-                secretKeyRef:
-                  key: service-admin-email
-                  name: ${NAME}-secret
-                  optional: false
-            - name: SERVICE_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: service-admin-password
-                  name: ${NAME}-secret
-                  optional: false
-            - name: EMAIL_HOST_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: email-service-password
-                  name: ${NAME}-secret
-                  optional: false
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -318,29 +287,17 @@ objects:
                   name: koku-env
                   key: postgres-sql-service-port
                   optional: false
-            - name: EMAIL_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: koku-env
-                  key: email-service-host
-                  optional: false
-            - name: EMAIL_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: koku-env
-                  key: email-service-port
-                  optional: false
-            - name: EMAIL_HOST_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: koku-env
-                  key: email-service-host-user
-                  optional: false
             - name: DJANGO_DEBUG
               valueFrom:
                 configMapKeyRef:
                   name: koku-env
                   key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: api-path-prefix
                   optional: false
             - name: MASU_SERVICE_HOST
               valueFrom:
@@ -647,31 +604,6 @@ parameters:
   from: '[a-zA-Z0-9]{50}'
   generate: expression
   name: DJANGO_SECRET_KEY
-- displayName: Service Admin Username
-  from: 'user_[a-zA-Z0-9]{12}'
-  generate: expression
-  name: SERVICE_ADMIN_USER
-  required: true
-- displayName: Service Admin Email
-  value: 'cost-mgmt@project-koku.com'
-  name: SERVICE_ADMIN_EMAIL
-  required: true
-- displayName: Service Admin Password
-  from: '[a-zA-Z0-9]{16}'
-  generate: expression
-  name: SERVICE_ADMIN_PASSWORD
-- displayName: Email Service Host
-  value: 'smtp.mailgun.org'
-  name: EMAIL_HOST
-- displayName: Email Service Port
-  value: '587'
-  name: EMAIL_PORT
-- displayName: Email Service User
-  value: 'postmaster@project-koku.com'
-  name: EMAIL_HOST_USER
-- displayName: Email Service Password
-  from: ${EMAIL_SERVICE_PASSWORD}
-  name: EMAIL_SERVICE_PASSWORD
 - displayName: AWS Access Key ID
   from: ${AWS_ACCESS_KEY_ID}
   name: AWS_ACCESS_KEY_ID
@@ -694,3 +626,6 @@ parameters:
 - displayName: Django debug flag
   value: 'False'
   name: DJANGO_DEBUG
+- displayName: API path prefix
+  value: ''
+  name: API_PATH_PREFIX

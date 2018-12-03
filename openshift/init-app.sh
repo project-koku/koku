@@ -51,7 +51,6 @@ OPENSHIFT_USER='system:admin'
 OPENSHIFT_TEMPLATE_PATH='openshift/koku-template.yaml'
 CODE_REPO='https://github.com/project-koku/koku.git'
 REPO_BRANCH='master'
-EMAIL_SERVICE_PASSWORD=$EMAIL_SERVICE_PASSWORD
 DJANGO_DEBUG='False'
 
 # accept cli arguments for params
@@ -121,7 +120,6 @@ oc new-app --template ${OPENSHIFT_PROJECT}/$(basename ${OPENSHIFT_TEMPLATE_PATH}
     --param NAMESPACE=${OPENSHIFT_PROJECT} \
     --param SOURCE_REPOSITORY_URL=${CODE_REPO} \
     --param SOURCE_REPOSITORY_REF=${REPO_BRANCH} \
-    --param EMAIL_SERVICE_PASSWORD=${EMAIL_SERVICE_PASSWORD} \
     --param AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
     --param AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
     --param DJANGO_DEBUG=${DJANGO_DEBUG} \
