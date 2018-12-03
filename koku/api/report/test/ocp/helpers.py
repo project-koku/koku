@@ -52,22 +52,10 @@ class OCPReportDataGenerator:
             (self.dh.this_month_start, self.dh.this_month_end),
         ]
 
-        if self.one_month_ago.day >= 10:
-            self.report_ranges = [
+        self.report_ranges = [
                 (self.one_month_ago - relativedelta(days=i) for i in range(11)),
                 (self.today - relativedelta(days=i) for i in range(11)),
             ]
-        else:
-            self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
-                (self.today + relativedelta(days=i) for i in range(11)),
-            ]
-
-        self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
-        self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 10)}
-        self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 30)}
-        self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
-                                  'usage_end__lte': self.dh.last_month_end}
 
     def add_data_to_tenant(self):
         """Populate tenant with data."""
