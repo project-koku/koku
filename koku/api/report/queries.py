@@ -248,7 +248,7 @@ class ProviderMap(object):
                         'capacity_aggregate': {},
                         'delta_key': {
                             'charge': Sum(
-                                F('pod_charge_cpu_core_hours') + # noqa: W504
+                                F('pod_charge_cpu_core_hours') +  # noqa: W504
                                 F('pod_charge_memory_gigabyte_hours')
                             )
                         },
