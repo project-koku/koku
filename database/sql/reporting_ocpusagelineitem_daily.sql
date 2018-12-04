@@ -12,6 +12,10 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         sum(li.pod_usage_memory_byte_seconds) as pod_usage_memory_byte_seconds,
         sum(li.pod_request_memory_byte_seconds) as pod_request_memory_byte_seconds,
         sum(li.pod_limit_memory_byte_seconds) as pod_limit_memory_byte_seconds,
+        max(li.node_capacity_cpu_cores) as node_capacity_cpu_cores,
+        sum(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
+        max(li.node_capacity_memory_bytes) as node_capacity_memory_bytes,
+        sum(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds,
         count(ur.interval_start) * 3600 as total_seconds
     FROM reporting_ocpusagelineitem AS li
     JOIN reporting_ocpusagereport AS ur
@@ -48,6 +52,10 @@ INSERT INTO reporting_ocpusagelineitem_daily (
     pod_usage_memory_byte_seconds,
     pod_request_memory_byte_seconds,
     pod_limit_memory_byte_seconds,
+    node_capacity_cpu_cores,
+    node_capacity_cpu_core_seconds,
+    node_capacity_memory_bytes,
+    node_capacity_memory_byte_seconds,
     total_seconds
 )
     SELECT cluster_id,
@@ -62,6 +70,10 @@ INSERT INTO reporting_ocpusagelineitem_daily (
         pod_usage_memory_byte_seconds,
         pod_request_memory_byte_seconds,
         pod_limit_memory_byte_seconds,
+        node_capacity_cpu_cores,
+        node_capacity_cpu_core_seconds,
+        node_capacity_memory_bytes,
+        node_capacity_memory_byte_seconds,
         total_seconds
     FROM reporting_ocpusagelineitem_daily_{uuid}
 ;
