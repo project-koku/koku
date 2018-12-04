@@ -17,6 +17,7 @@
 
 """Test the AWSReportDBCleaner utility object."""
 import datetime
+from dateutil import relativedelta
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -127,7 +128,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
         # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
-        earlier_cutoff = cutoff_date.replace(month=cutoff_date.month-1, day=15)
+        earlier_date = cutoff_date + relativedelta.relativedelta(months=-1)
+        earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
@@ -152,7 +154,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
         # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
-        later_cutoff = cutoff_date.replace(month=cutoff_date.month+1, day=15)
+        later_date = cutoff_date + relativedelta.relativedelta(months=+1)
+
+        later_cutoff = cutoff_date.replace(month=later_date.month, day=15)
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
