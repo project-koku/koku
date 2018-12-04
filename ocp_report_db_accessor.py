@@ -158,7 +158,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         reports = self._get_db_obj_query(table_name).all()
 
-        return {entry.id: max(entry.pod_usage_memory_gigabytes, entry.pod_request_memory_gigabytes)
+        return {entry.id: max(entry.pod_usage_memory_gigabyte_hours, entry.pod_request_memory_gigabyte_hours)
                 for entry in reports}
 
     # pylint: disable=duplicate-code
