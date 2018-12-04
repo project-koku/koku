@@ -113,7 +113,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for entry in date_capacity:
             self.assertTrue(isinstance(datetime.strptime(entry, '%Y-%m-%d'), datetime))
             self.assertTrue(isinstance(date_capacity[entry], Decimal))
-            self.assertTrue('date')
         self.assertTrue('capacity' in total_capacity)
         self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
 
