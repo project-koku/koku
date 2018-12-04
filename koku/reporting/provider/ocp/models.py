@@ -94,61 +94,61 @@ class OCPUsageLineItem(models.Model):
     node = models.CharField(max_length=253, null=False)
 
     pod_usage_cpu_core_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     pod_request_cpu_core_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     pod_limit_cpu_core_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     pod_usage_memory_byte_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     pod_request_memory_byte_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     pod_limit_memory_byte_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_cpu_cores = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_cpu_core_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_memory_bytes = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_memory_byte_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
@@ -238,25 +238,25 @@ class OCPUsageLineItemDaily(models.Model):
     )
 
     node_capacity_cpu_cores = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_cpu_core_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_memory_bytes = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_memory_byte_seconds = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
@@ -329,56 +329,56 @@ class OCPUsageLineItemDailySummary(models.Model):
         null=True
     )
 
-    pod_charge_cpu_cores = models.DecimalField(
+    pod_charge_cpu_core_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_usage_memory_gigabytes = models.DecimalField(
+    pod_usage_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_request_memory_gigabytes = models.DecimalField(
+    pod_request_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_charge_memory_gigabytes = models.DecimalField(
+    pod_charge_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    pod_limit_memory_gigabytes = models.DecimalField(
+    pod_limit_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_cpu_cores = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
     node_capacity_cpu_core_hours = models.DecimalField(
-        max_digits=20,
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    node_capacity_memory_bytes = models.DecimalField(
-        max_digits=20,
+    node_capacity_memory_gigabytes = models.DecimalField(
+        max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    node_capacity_memory_byte_hours = models.DecimalField(
-        max_digits=20,
+    node_capacity_memory_gigabyte_hours = models.DecimalField(
+        max_digits=24,
         decimal_places=6,
         null=True
     )
