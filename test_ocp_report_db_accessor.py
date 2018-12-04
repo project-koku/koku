@@ -225,6 +225,21 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.assertEqual(result_start_date, start_date)
         self.assertEqual(result_end_date, end_date)
 
+        entry = query.first()
+
+        summary_columns = [
+            'cluster_id', 'namespace', 'node', 'node_capacity_cpu_core_seconds',
+            'node_capacity_cpu_cores', 'node_capacity_memory_byte_seconds',
+            'node_capacity_memory_bytes', 'pod',
+            'pod_limit_cpu_core_seconds', 'pod_limit_memory_byte_seconds',
+            'pod_request_cpu_core_seconds', 'pod_request_memory_byte_seconds',
+            'pod_usage_cpu_core_seconds', 'pod_usage_memory_byte_seconds',
+            'total_seconds', 'usage_end', 'usage_start'
+        ]
+
+        for column in summary_columns:
+            self.assertIsNotNone(getattr(entry, column))
+
     def test_populate_line_item_daily_summary_table(self):
         """Test that the line item daily summary table populates."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
@@ -264,6 +279,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(result_start_date, start_date)
         self.assertEqual(result_end_date, end_date)
+
+        entry = query.first()
+
+        summary_columns = [
+            'cluster_id', 'namespace', 'node', 'node_capacity_cpu_core_hours',
+            'node_capacity_cpu_cores', 'node_capacity_memory_gigabyte_hours',
+            'node_capacity_memory_gigabytes', 'pod', 'pod_limit_cpu_core_hours',
+            'pod_limit_memory_gigabyte_hours', 'pod_request_cpu_core_hours',
+            'pod_request_memory_gigabyte_hours', 'pod_usage_cpu_core_hours',
+            'pod_usage_memory_gigabyte_hours', 'usage_end', 'usage_start'
+        ]
+
+        for column in summary_columns:
+            self.assertIsNotNone(getattr(entry, column))
 
     def test_populate_line_item_aggregates_table(self):
         """Test that the aggregates table is populated."""

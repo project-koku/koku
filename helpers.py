@@ -189,6 +189,11 @@ class ReportObjectCreator:
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
+
+        for key in data:
+            if 'byte' in key:
+                data[key] = data[key] * Decimal(1e9)
+
         row = self.db_accessor.create_db_object(table_name, data)
 
         row.report_period_id = report_period.id
