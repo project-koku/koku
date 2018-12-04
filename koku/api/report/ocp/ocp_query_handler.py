@@ -16,6 +16,8 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+from collections import defaultdict
+from decimal import Decimal
 
 from django.db.models import (F,
                               Value,
@@ -137,7 +139,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
+        capacity_by_date, total_capacity = self.get_cluster_capacity()
+        query_sum.update(total_capacity)
         query_sum.update({'units': self._mapper.units_key})
+        data = self.add_capacity_to_data(capacity_by_date, data)
 
         self.query_sum = query_sum
         self.query_data = data
@@ -151,3 +156,32 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         return self.execute_sum_query()
+
+    def get_cluster_capacity(self):
+        """Calculate cluster capacity for all nodes over the date range."""
+        annotations = self._mapper._report_type_map.get('capacity_aggregate')
+        if not annotations:
+            return {}, {}
+
+        cap_key = list(annotations.keys())[0]
+        cluster_capacity = defaultdict(Decimal)
+        q_table = self._mapper._operation_map.get('tables').get('query')
+        query = q_table.objects.filter(self.query_filter)
+        query_group_by = ['node', 'usage_start']
+
+        with tenant_context(self.tenant):
+            query_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in query_data:
+                date = self.date_to_string(entry.get('usage_start'))
+                if entry.get(cap_key):
+                    cluster_capacity[date] += entry.get(cap_key)
+            total_capacity = Decimal(sum(cluster_capacity.values()))
+        return cluster_capacity, {cap_key: total_capacity}
+
+    def add_capacity_to_data(self, capacity, data):
+        """Inject cluster capacity to the resultset."""
+        for entry in data:
+            date = entry.get('date')
+            capacity_on_date = capacity.get(date, Decimal(0))
+            entry['capacity'] = capacity_on_date
+        return data

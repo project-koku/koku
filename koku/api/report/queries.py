@@ -237,14 +237,21 @@ class ProviderMap(object):
                 'report_type': {
                     'charge': {
                         'aggregates': {
-                            'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes'))
+                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
                         },
                         'default_ordering': {'charge': 'desc'},
                         'annotations': {
-                            'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes')),
+
+                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                             'units': Value('USD', output_field=CharField())
                         },
-                        'delta_key': {'charge': Sum(F('pod_charge_cpu_cores') + F('pod_charge_memory_gigabytes'))},
+                        'capacity_aggregate': {},
+                        'delta_key': {
+                            'charge': Sum(
+                                F('pod_charge_cpu_core_hours') +  # noqa: W504
+                                F('pod_charge_memory_gigabyte_hours')
+                            )
+                        },
                         'filter': {},
                         'units_key': 'USD',
                         'sum_columns': ['charge'],
@@ -253,21 +260,25 @@ class ProviderMap(object):
                         'aggregates': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_cores'),
+                            'charge': Sum('pod_charge_cpu_core_hours'),
                             'limit': Sum('pod_limit_cpu_core_hours')
+                        },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_cpu_core_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
                             'limit': Sum('pod_limit_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_cores'),
+
+                            'charge': Sum('pod_charge_cpu_core_hours'),
                             'units': Value('Core-Hours', output_field=CharField())
                         },
                         'delta_key': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_cores')
+                            'charge': Sum('pod_charge_cpu_core_hours')
                         },
                         'filter': {},
                         'units_key': 'Core-Hours',
@@ -275,23 +286,27 @@ class ProviderMap(object):
                     },
                     'mem': {
                         'aggregates': {
-                            'usage': Sum('pod_usage_memory_gigabytes'),
-                            'request': Sum('pod_request_memory_gigabytes'),
-                            'charge': Sum('pod_charge_memory_gigabytes'),
-                            'limit': Sum('pod_limit_memory_gigabytes')
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                            'limit': Sum('pod_limit_memory_gigabyte_hours')
+                        },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_memory_gigabyte_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
-                            'usage': Sum('pod_usage_memory_gigabytes'),
-                            'request': Sum('pod_request_memory_gigabytes'),
-                            'charge': Sum('pod_charge_memory_gigabytes'),
-                            'limit': Sum('pod_limit_memory_gigabytes'),
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+
+                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
                             'units': Value('GB-Hours', output_field=CharField())
                         },
                         'delta_key': {
-                            'usage': Sum('pod_usage_memory_gigabytes'),
-                            'request': Sum('pod_request_memory_gigabytes'),
-                            'charge': Sum('pod_charge_memory_gigabytes')
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours')
                         },
                         'filter': {},
                         'units_key': 'GB-Hours',
