@@ -1,5 +1,3 @@
-sudo: false
-
 language: python
 
 python:
@@ -23,7 +21,7 @@ env:
   DATABASE_PASSWORD=''
 
 before_install:
-  - export BOTO_CONFIG=/dev/null
+  - sudo rm -f /etc/boto.cfg
 
 install:
   - pip install tox codecov
