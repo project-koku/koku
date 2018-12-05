@@ -114,7 +114,7 @@ class RateSerializer(serializers.ModelSerializer):
                 value = rate.get(decimal_key)
                 if value is not None:
                     decimal_value = Decimal(value)
-                rate[decimal_key] = decimal_value
+                    rate[decimal_key] = decimal_value
         return rate
 
     @staticmethod
