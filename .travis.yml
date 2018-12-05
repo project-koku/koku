@@ -22,6 +22,9 @@ env:
   DATABASE_USER=postgres
   DATABASE_PASSWORD=''
 
+before_install:
+  - export BOTO_CONFIG=/dev/null
+
 install:
   - pip install tox codecov
 
