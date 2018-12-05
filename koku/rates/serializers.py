@@ -127,7 +127,7 @@ class RateSerializer(serializers.ModelSerializer):
                               key=lambda tier: Decimal('-Infinity') if tier.get('usage_start') is None else Decimal(tier.get('usage_start')))  # noqa: E501
         start = sorted_tiers[0].get('usage_start')
         end = sorted_tiers[-1].get('usage_end')
-        if start is not None and end is not None:
+        if start is not None or end is not None:
             error_msg = 'tiered_rate must have a tier with usage_start as null' \
                 ' and a tier with usage_end as null.'
             raise serializers.ValidationError(error_msg)
