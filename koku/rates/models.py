@@ -28,10 +28,10 @@ class Rate(models.Model):
     Support various types of rates (flat, fixed, tiered, discount).
     """
 
-    METRIC_CPU_CORE_USAGE_HOUR = 'cpu_core_per_usage_hour'
-    METRIC_CPU_CORE_REQUEST_HOUR = 'cpu_core_per_request_hour'
-    METRIC_MEM_GB_USAGE_HOUR = 'memory_gb_per_usage_hour'
-    METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_per_request_hour'
+    METRIC_CPU_CORE_USAGE_HOUR = 'cpu_core_usage_per_hour'
+    METRIC_CPU_CORE_REQUEST_HOUR = 'cpu_core_request_per_hour'
+    METRIC_MEM_GB_USAGE_HOUR = 'memory_gb_usage_per_hour'
+    METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_request_per_hour'
 
     METRIC_CHOICES = ((METRIC_CPU_CORE_USAGE_HOUR, METRIC_CPU_CORE_USAGE_HOUR),
                       (METRIC_CPU_CORE_REQUEST_HOUR, METRIC_CPU_CORE_REQUEST_HOUR),
