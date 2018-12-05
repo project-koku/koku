@@ -28,17 +28,21 @@ class Rate(models.Model):
     Support various types of rates (flat, fixed, tiered, discount).
     """
 
-    METRIC_CPU_CORE_HOUR = 'cpu_core_per_hour'
-    METRIC_MEM_GB_HOUR = 'memory_gb_per_hour'
+    METRIC_CPU_CORE_USAGE_HOUR = 'cpu_core_per_usage_hour'
+    METRIC_CPU_CORE_REQUEST_HOUR = 'cpu_core_per_request_hour'
+    METRIC_MEM_GB_USAGE_HOUR = 'memory_gb_per_usage_hour'
+    METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_per_request_hour'
 
-    METRIC_CHOICES = ((METRIC_CPU_CORE_HOUR, METRIC_CPU_CORE_HOUR),
-                      (METRIC_MEM_GB_HOUR, METRIC_MEM_GB_HOUR),)
+    METRIC_CHOICES = ((METRIC_CPU_CORE_USAGE_HOUR, METRIC_CPU_CORE_USAGE_HOUR),
+                      (METRIC_CPU_CORE_REQUEST_HOUR, METRIC_CPU_CORE_REQUEST_HOUR),
+                      (METRIC_MEM_GB_USAGE_HOUR, METRIC_MEM_GB_USAGE_HOUR),
+                      (METRIC_MEM_GB_REQUEST_HOUR, METRIC_MEM_GB_REQUEST_HOUR),)
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     provider_uuid = models.UUIDField(null=False)
     metric = models.CharField(max_length=256, null=False,
-                              choices=METRIC_CHOICES, default=METRIC_CPU_CORE_HOUR)
+                              choices=METRIC_CHOICES, default=METRIC_CPU_CORE_USAGE_HOUR)
     rates = JSONField(default=dict)
 
     class Meta:
