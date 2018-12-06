@@ -19,9 +19,7 @@ import copy
 from collections import defaultdict
 from decimal import Decimal
 
-from django.db.models import (F,
-                              Value,
-                              Window)
+from django.db.models import F, Value, Window
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
@@ -186,3 +184,48 @@ class OCPReportQueryHandler(ReportQueryHandler):
             capacity_on_date = capacity.get(date, Decimal(0))
             entry['capacity'] = capacity_on_date
         return data
+
+    def add_deltas(self, query_data, query_sum):
+        """Calculate and add cost deltas to a result set.
+
+        Args:
+            query_data (list) The existing query data from execute_query
+            query_sum (list) The sum returned by calculate_totals
+
+        Returns:
+            (dict) query data with new with keys "value" and "percent"
+
+        """
+        if '__' in self._delta:
+            return self.add_current_month_deltas(query_data, query_sum)
+        else:
+            return super().add_deltas(query_data, query_sum)
+
+    def add_current_month_deltas(self, query_data, query_sum):
+        """Add delta to the resultset using current month comparisons."""
+        delta_field_one, delta_field_two = self._delta.split('__')
+
+        for row in query_data:
+            delta_value = (Decimal(row.get(delta_field_one, 0))
+                           - Decimal(row.get(delta_field_two, 0)))
+
+            row['delta_value'] = delta_value
+            row['delta_percent'] = (row.get(delta_field_one, 0)
+                                    / row.get(delta_field_two, 0) * 100)
+
+
+        total_delta = (Decimal(query_sum.get(delta_field_one, 0))
+                           - Decimal(query_sum.get(delta_field_two, 0)))
+        total_delta_percent = (query_sum.get(delta_field_one, 0)
+                                    / query_sum.get(delta_field_two, 0) * 100)
+
+        self.query_delta = {
+            'value': total_delta,
+            'percent': total_delta_percent
+        }
+        if self.order_field == 'delta':
+            reverse = True if self.order_direction == 'desc' else False
+            query_data = sorted(list(query_data),
+                                key=lambda x: x['delta_percent'],
+                                reverse=reverse)
+        return query_data
