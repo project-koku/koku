@@ -836,6 +836,7 @@ class ReportQueryHandler(object):
         sorted_data = data
         for field in order_fields:
             reverse=False
+            field = field.replace('delta', 'delta_percent')
             if '-' in field:
                 reverse=True
                 field=field.replace('-', '')
