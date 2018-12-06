@@ -785,6 +785,8 @@ class ReportQueryHandler(object):
             bucket_by_date[date_string] = []
 
         for result in query_data:
+            if self._limit:
+                del result['rank']
             date_string = result.get('date')
             date_bucket = bucket_by_date.get(date_string)
             if date_bucket is not None:
@@ -848,16 +850,23 @@ class ReportQueryHandler(object):
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
+        return_data = []
+        date_grouped_data = defaultdict(list)
+        rank_limited_data = OrderedDict()
+        for data in data_list:
+            key = data.get('date')
+            date_grouped_data[key].append(data)
+
+        for date in date_grouped_data:
+            other = None
         ranked_list = []
         others_list = []
-        other = None
         other_sums = {column: 0 for column in self._mapper.sum_columns}
-        for data in data_list:
+            for data in date_grouped_data[date]:
             if other is None:
                 other = copy.deepcopy(data)
             rank = data.get('rank')
             if rank <= self._limit:
-                del data['rank']
                 ranked_list.append(data)
             else:
                 others_list.append(data)
@@ -870,15 +879,20 @@ class ReportQueryHandler(object):
             if num_others == 1:
                 others_label = '{} Other'.format(num_others)
             other.update(other_sums)
-            del other['rank']
+                other['rank'] = self._limit + 1
             group_by = self._get_group_by()
             for group in group_by:
                 other[group] = others_label
             if 'account' in group_by:
                 other['account_alias'] = others_label
             ranked_list.append(other)
+            rank_limited_data[date] = ranked_list
 
-        return ranked_list
+        for date, values in rank_limited_data.items():
+            for value in values:
+                return_data.append(value)
+
+        return return_data
 
     def _create_previous_totals(self, previous_query, query_group_by):
         """Get totals from the time period previous to the current report.
