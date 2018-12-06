@@ -219,12 +219,12 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             rate = {'provider_uuid': provider.uuid,
-                    'metric': Rate.METRIC_CPU_CORE_HOUR,
+                    'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
                     'rates': {'tiered_rate': [{
                         'unit': 'USD',
                         'value': 1.0,
-                        'usage_start': 10.0,
-                        'usage_end': 3.0
+                        'usage_start': None,
+                        'usage_end': None
                     }]}
                     }
 

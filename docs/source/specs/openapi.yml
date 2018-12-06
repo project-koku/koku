@@ -864,9 +864,9 @@ definitions:
       metric:
         type: string
         example: cpu_core_per_hour
-      fixed_rate:
+      tiered_rate:
         type: object
-        example: { value: 0.22, unit: USD}
+        example: [{ value: 0.22, unit: USD, usage_start: 0, usage_end: 10}]
   RateIn:
     allOf:
       - $ref: '#/definitions/Rate'
