@@ -116,9 +116,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 )
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by = query_order_by + ('rank',)
+                query_data = self._ranked_list(query_data)
 
             if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
+                query_data = self.order_by(query_data, query_order_by)
 
             # Populate the 'total' section of the API response
             if query.exists():
