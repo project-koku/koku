@@ -65,14 +65,26 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
         rate_entry = self._get_base_entry(value)
         return rate_entry.rates if rate_entry else None
 
-    def get_cpu_rates(self):
-        """Get cpu rates."""
-        cpu_rates = self.get_rates('cpu_core_per_hour')
-        LOG.info('OCP CPU rates: %s', str(cpu_rates))
-        return cpu_rates
+    def get_cpu_core_usage_per_hour_rates(self):
+        """Get cpu usage rates."""
+        cpu_usage_rates = self.get_rates('cpu_core_usage_per_hour')
+        LOG.info('OCP CPU usage rates: %s', str(cpu_usage_rates))
+        return cpu_usage_rates
 
-    def get_memory_rates(self):
-        """Get the memory rates."""
-        mem_rates = self.get_rates('memory_gb_per_hour')
-        LOG.info('OCP Memory rates: %s', str(mem_rates))
-        return mem_rates
+    def get_memory_gb_usage_per_hour_rates(self):
+        """Get the memory usage rates."""
+        mem_usage_rates = self.get_rates('memory_gb_usage_per_hour')
+        LOG.info('OCP Memory usage rates: %s', str(mem_usage_rates))
+        return mem_usage_rates
+
+    def get_cpu_core_request_per_hour_rates(self):
+        """Get cpu request rates."""
+        cpu_request_rates = self.get_rates('cpu_core_request_per_hour')
+        LOG.info('OCP CPU request rates: %s', str(cpu_request_rates))
+        return cpu_request_rates
+
+    def get_memory_gb_request_per_hour_rates(self):
+        """Get the memory request rates."""
+        mem_request_rates = self.get_rates('memory_gb_request_per_hour')
+        LOG.info('OCP Memory request rates: %s', str(mem_request_rates))
+        return mem_request_rates
