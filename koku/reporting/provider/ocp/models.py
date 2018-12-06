@@ -261,6 +261,18 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
+    cluster_capacity_cpu_core_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_memory_byte_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
     total_seconds = models.IntegerField()
 
     pod_labels = JSONField(null=True)
@@ -378,6 +390,18 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
 
     node_capacity_memory_gigabyte_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
