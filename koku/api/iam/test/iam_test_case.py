@@ -110,10 +110,15 @@ class IamTestCase(TestCase):
             )
         identity = {
             'identity': {
-                'org_id': org,
+                'internal': {
+                    'org_id': org,
+                },
                 'account_number': account,
-                'username': user_data['username'],
-                'email': user_data['email']
+                'type': 'User',
+                'user': {
+                    'username': user_data['username'],
+                    'email': user_data['email']
+                }
             }
         }
         json_identity = json_dumps(identity)

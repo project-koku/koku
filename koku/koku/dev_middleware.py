@@ -40,9 +40,15 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
             identity_header = {'identity':
                                {
                                    'account_number': '10001',
-                                   'org_id': '20001',
-                                   'username': 'user_dev',
-                                   'email': 'user_dev@foo.com'
+                                   'type': 'User',
+                                   'user': {
+                                       'username': 'user_dev',
+                                       'email': 'user_dev@foo.com'
+                                   },
+                                   'internal': {
+                                       'org_id': '20001',
+
+                                   }
                                }
                                }
             json_identity = json_dumps(identity_header)
