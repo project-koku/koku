@@ -18,7 +18,7 @@
 import copy
 import datetime
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
@@ -794,8 +794,6 @@ class ReportQueryHandler(object):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            if self._limit:
-                data = self._ranked_list(data_list)
             group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
@@ -823,6 +821,27 @@ class ReportQueryHandler(object):
             out_data.append(cur)
 
         return out_data
+
+    def order_by(self, data, order_fields):
+        """Order a list of dictionaries by dictionary keys.
+
+        Args:
+            data (list): Query data that has been converted from QuerySet to list.
+            order_fields (list): The list of dictionary keys to order by.
+
+        Returns
+            (list): The sorted/ordered list
+
+        """
+        sorted_data = data
+        for field in order_fields:
+            reverse=False
+            if '-' in field:
+                reverse=True
+                field=field.replace('-', '')
+            sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
+                                 reverse=reverse)
+        return sorted_data
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
@@ -859,33 +878,33 @@ class ReportQueryHandler(object):
 
         for date in date_grouped_data:
             other = None
-        ranked_list = []
-        others_list = []
-        other_sums = {column: 0 for column in self._mapper.sum_columns}
+            ranked_list = []
+            others_list = []
+            other_sums = {column: 0 for column in self._mapper.sum_columns}
             for data in date_grouped_data[date]:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) if data.get(column) else 0
+                if other is None:
+                    other = copy.deepcopy(data)
+                rank = data.get('rank')
+                if rank <= self._limit:
+                    ranked_list.append(data)
+                else:
+                    others_list.append(data)
+                    for column in self._mapper.sum_columns:
+                        other_sums[column] += data.get(column) if data.get(column) else 0
 
-        if other is not None and others_list:
-            num_others = len(others_list)
-            others_label = '{} Others'.format(num_others)
-            if num_others == 1:
-                others_label = '{} Other'.format(num_others)
-            other.update(other_sums)
+            if other is not None and others_list:
+                num_others = len(others_list)
+                others_label = '{} Others'.format(num_others)
+                if num_others == 1:
+                    others_label = '{} Other'.format(num_others)
+                other.update(other_sums)
                 other['rank'] = self._limit + 1
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = others_label
-            if 'account' in group_by:
-                other['account_alias'] = others_label
-            ranked_list.append(other)
+                group_by = self._get_group_by()
+                for group in group_by:
+                    other[group] = others_label
+                if 'account' in group_by:
+                    other['account_alias'] = others_label
+                ranked_list.append(other)
             rank_limited_data[date] = ranked_list
 
         for date, values in rank_limited_data.items():
