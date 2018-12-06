@@ -17,7 +17,7 @@
 """OCP Query Handling for Reports."""
 import copy
 from collections import defaultdict
-from decimal import Decimal
+from decimal import Decimal, DivisionByZero
 
 from django.db.models import F, Value, Window
 from django.db.models.functions import Concat
@@ -98,15 +98,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
-
             query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
+            query_order_by += (self.order,)
+
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
+
+                if self.order_field == 'delta' and '__' in self._delta:
+                    delta_field_one, delta_field_two = self._delta.split('__')
+                    rank_order = getattr(
+                        F(delta_field_one) / F(delta_field_two),
+                        self.order_direction
+                    )()
+
                 rank_by_total = Window(
                     expression=RowNumber(),
                     partition_by=F('date'),
@@ -115,9 +122,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by = query_order_by + ('rank',)
                 query_data = self._ranked_list(query_data)
-
-            if self.order_field != 'delta':
-                query_data = self.order_by(query_data, query_order_by)
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -128,6 +132,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+
+            query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:
@@ -210,22 +216,24 @@ class OCPReportQueryHandler(ReportQueryHandler):
                            - Decimal(row.get(delta_field_two, 0)))
 
             row['delta_value'] = delta_value
-            row['delta_percent'] = (row.get(delta_field_one, 0)
-                                    / row.get(delta_field_two, 0) * 100)
+            try:
+                row['delta_percent'] = (row.get(delta_field_one, 0)
+                                        / row.get(delta_field_two, 0) * 100)
+            except DivisionByZero:
+                row['delta_percent'] = 0
 
 
         total_delta = (Decimal(query_sum.get(delta_field_one, 0))
                            - Decimal(query_sum.get(delta_field_two, 0)))
-        total_delta_percent = (query_sum.get(delta_field_one, 0)
-                                    / query_sum.get(delta_field_two, 0) * 100)
+        try:
+            total_delta_percent = (query_sum.get(delta_field_one, 0)
+                                   / query_sum.get(delta_field_two, 0) * 100)
+        except DivisionByZero:
+                total_delta_percent = 0
 
         self.query_delta = {
             'value': total_delta,
             'percent': total_delta_percent
         }
-        if self.order_field == 'delta':
-            reverse = True if self.order_direction == 'desc' else False
-            query_data = sorted(list(query_data),
-                                key=lambda x: x['delta_percent'],
-                                reverse=reverse)
+
         return query_data

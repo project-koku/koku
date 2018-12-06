@@ -106,12 +106,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-
             query_group_by = ['date'] + self._get_group_by()
-
             query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
+            query_order_by += (self.order,)
 
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -122,6 +119,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
+                # if self._delta:
+                #     rank_order = getattr(F('total'), self.order_direction)()
                 rank_by_total = Window(
                     expression=RowNumber(),
                     partition_by=F('date'),
@@ -129,9 +128,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 )
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by = query_order_by + ('rank',)
-
-            if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
+                query_data = self._ranked_list(query_data)
 
             if query.exists():
                 units_key = self._mapper.units_key
@@ -142,6 +139,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+
+            query_data = self.order_by(query_data, query_order_by)
+
             if is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
