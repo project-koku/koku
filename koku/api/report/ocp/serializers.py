@@ -118,6 +118,8 @@ class OrderBySerializer(serializers.Serializer):
                                       required=False)
     node = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
 
     def validate(self, data):
         """Validate incoming data."""
