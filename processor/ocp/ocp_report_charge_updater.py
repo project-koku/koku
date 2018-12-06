@@ -101,11 +101,11 @@ class OCPReportChargeUpdater:
         LOG.info('Starting charge calculation updates.')
 
         cpu_usage = self._accessor.get_cpu_max_usage()
-        cpu_rates = self._rate_accessor.get_cpu_rates()
+        cpu_rates = self._rate_accessor.get_cpu_core_usage_per_hour_rates()
         cpu_charge = self._calculate_charge(cpu_rates, cpu_usage)
 
         mem_usage = self._accessor.get_memory_max_usage()
-        mem_rates = self._rate_accessor.get_memory_rates()
+        mem_rates = self._rate_accessor.get_memory_gb_usage_per_hour_rates()
         mem_charge = self._calculate_charge(mem_rates, mem_usage)
 
         self._accessor.populate_cpu_charge(cpu_charge)
