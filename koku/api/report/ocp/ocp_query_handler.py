@@ -145,7 +145,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         total_capacity = self.get_cluster_capacity()
-        query_sum.update(total_capacity)
+        if total_capacity:
+            query_sum.update(total_capacity)
         query_sum.update({'units': self._mapper.units_key})
 
         self.query_sum = query_sum
@@ -165,7 +166,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate cluster capacity for all nodes over the date range."""
         annotations = self._mapper._report_type_map.get('capacity_aggregate')
         if not annotations:
-            return {}, {}
+            return {}
 
         cap_key = list(annotations.keys())[0]
         cluster_capacity = defaultdict(Decimal)
@@ -180,6 +181,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if entry.get(cap_key):
                     cluster_capacity[date] += entry.get(cap_key)
             total_capacity = Decimal(sum(cluster_capacity.values()))
+
         return {cap_key: total_capacity}
 
 

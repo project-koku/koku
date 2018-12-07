@@ -1665,9 +1665,9 @@ class ReportQueryTest(IamTestCase):
             {'account': '4', 'account_alias': '4', 'total': 2, 'rank': 4}
         ]
         expected = [
-            {'account': '1', 'account_alias': '1', 'total': 5},
-            {'account': '2', 'account_alias': '2', 'total': 4},
-            {'account': '2 Others', 'account_alias': '2 Others', 'total': 5}
+            {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
+            {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
+            {'account': '2 Others', 'account_alias': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1688,9 +1688,9 @@ class ReportQueryTest(IamTestCase):
             {'service': '4', 'total': 2, 'rank': 4}
         ]
         expected = [
-            {'service': '1', 'total': 5},
-            {'service': '2', 'total': 4},
-            {'service': '2 Others', 'total': 5}
+            {'service': '1', 'total': 5, 'rank': 1},
+            {'service': '2', 'total': 4, 'rank': 2},
+            {'service': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
