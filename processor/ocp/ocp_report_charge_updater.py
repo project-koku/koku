@@ -26,6 +26,12 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 LOG = logging.getLogger(__name__)
 
 
+class OCPReportChargeUpdaterError(Exception):
+    """OCPReportChargeUpdater error."""
+
+    pass
+
+
 class OCPReportChargeUpdater:
     """Class to update OCP report summary data with charge information."""
 
@@ -46,47 +52,130 @@ class OCPReportChargeUpdater:
         )
 
     @staticmethod
-    def _value_gte(value, test):
-        result = True
-        if test:
-            result = value >= Decimal(test)
-        return result
+    def _normalize_tier(input_tier):
+        # Pull out the parts for beginning, middle, and end for validation and ordering correction.
+        first_tier = [t for t in input_tier if not t.get('usage_start')]
+        last_tier = [t for t in input_tier if not t.get('usage_end')]
+        middle_tiers = [t for t in input_tier if t.get('usage_start') and t.get('usage_end')]
+
+        # Ensure that there is only 1 starting tier. (i.e. 1 'usage_start': None, if provided)
+        if not first_tier:
+            raise OCPReportChargeUpdaterError('Missing first tier.')
+
+        if len(first_tier) != 1:
+            raise OCPReportChargeUpdaterError('Two starting tiers.')
+
+        # Ensure that there is only 1 final tier. (i.e. 1 'usage_end': None, if provided)
+        if not last_tier:
+            raise OCPReportChargeUpdaterError('Missing last tier.')
+
+        if len(last_tier) != 1:
+            raise OCPReportChargeUpdaterError('Two final tiers.')
+
+        # Remove last 'usage_end' for consistency to avoid 'usage_end: 0' situations.
+        last_tier[0].pop('usage_end', None)
+
+        # Build final tier that is sorted in asending order.
+        newlist = first_tier
+        newlist += sorted(middle_tiers, key=lambda k: k['usage_end'])
+        newlist += last_tier
+
+        return newlist
 
     @staticmethod
-    def _value_lte(value, test):
-        result = True
-        if test:
-            return value <= Decimal(test)
-        return result
+    def _bucket_applied(usage, lower_limit, upper_limit):
+        usage_applied = 0
 
-    def _get_tier_rate(self, tier, usage):
-        tier_rate = 0.0
+        if usage >= upper_limit:
+            usage_applied = upper_limit
+        elif usage > lower_limit:
+            usage_applied = usage - lower_limit
+
+        return usage_applied
+
+    def _calculate_variable_charge(self, usage, rates):
+        charge = Decimal(0)
+        balance = usage
+        tier = []
+        if rates:
+            tier = self._normalize_tier(rates.get('tiered_rate'))
+
         for bucket in tier:
-            if self._value_gte(usage, bucket.get('usage_start')) and \
-                    self._value_lte(usage, bucket.get('usage_end')):
-                tier_rate += float(bucket.get('value'))
-        return tier_rate
+            usage_end = Decimal(bucket.get('usage_end')) if bucket.get('usage_end') else None
+            usage_start = Decimal(bucket.get('usage_start') if bucket.get('usage_start') else 0)
+            bucket_size = (usage_end - usage_start) if usage_end else None
 
-    def _calculate_rate(self, rates, usage):
-        """Calculate rate based on usage."""
-        rate = 0.0
-        if rates and rates.get('fixed_rate'):
-            fixed_rate = float(rates.get('fixed_rate').get('value'))
-            rate += fixed_rate
+            lower_limit = 0
+            upper_limit = bucket_size
+            rate = Decimal(bucket.get('value'))
 
-        if rates and rates.get('tiered_rate'):
-            tier_rate = self._get_tier_rate(rates.get('tiered_rate'), usage)
-            rate += tier_rate
-        return Decimal(rate)
+            usage_applied = 0
+            if upper_limit is not None:
+                usage_applied = self._bucket_applied(balance, lower_limit, upper_limit)
+            else:
+                usage_applied = balance
+
+            charge += usage_applied * rate
+            balance -= usage_applied
+
+        return Decimal(charge)
 
     def _calculate_charge(self, rates, usage):
         """Calculate charge based on rate and usage."""
         charge_dictionary = {}
         for key, value in usage.items():
-            rate = self._calculate_rate(rates, value)
-            charge_value = value * rate if rate and usage else Decimal(0)
+            charge_value = self._calculate_variable_charge(value, rates)
             charge_dictionary[key] = {'usage': value, 'charge': charge_value}
         return charge_dictionary
+
+    @staticmethod
+    def _aggregate_charges(usage_charge, request_charge):
+        """Combine the usage and request charges."""
+        if usage_charge.keys() != request_charge.keys():
+            raise OCPReportChargeUpdaterError('Usage and request charge mismatched.')
+
+        charge_dictionary = {}
+        for key, value in usage_charge.items():
+            usage_charge_value = value.get('charge')
+            request_charge_value = request_charge[key].get('charge')
+            charge_dictionary[key] = {'usage_charge': usage_charge_value,
+                                      'request_charge': request_charge_value,
+                                      'charge': usage_charge_value + request_charge_value}
+        return charge_dictionary
+
+    def _update_cpu_charge(self):
+        """Calculate and store total CPU charges."""
+        try:
+            cpu_usage = self._accessor.get_pod_usage_cpu_core_hours()
+            cpu_usage_rates = self._rate_accessor.get_cpu_core_usage_per_hour_rates()
+            cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
+
+            cpu_request = self._accessor.get_pod_request_cpu_core_hours()
+            cpu_request_rates = self._rate_accessor.get_cpu_core_request_per_hour_rates()
+            cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
+
+            total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
+
+            self._accessor.populate_cpu_charge(total_cpu_charge)
+        except OCPReportChargeUpdaterError as error:
+            LOG.error('Unable to calculate CPU charge. Error: %s', str(error))
+
+    def _update_memory_charge(self):
+        """Calculate and store total Memory charges."""
+        try:
+            mem_usage = self._accessor.get_pod_usage_memory_gigabyte_hours()
+            mem_usage_rates = self._rate_accessor.get_memory_gb_usage_per_hour_rates()
+            mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
+
+            mem_request = self._accessor.get_pod_request_memory_gigabyte_hours()
+            mem_request_rates = self._rate_accessor.get_memory_gb_request_per_hour_rates()
+            mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
+
+            total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
+
+            self._accessor.populate_memory_charge(total_memory_charge)
+        except OCPReportChargeUpdaterError as error:
+            LOG.error('Unable to calculate memory charge. Error: %s', str(error))
 
     def update_summary_charge_info(self):
         """Update the OCP summary table with the charge information.
@@ -100,16 +189,8 @@ class OCPReportChargeUpdater:
         """
         LOG.info('Starting charge calculation updates.')
 
-        cpu_usage = self._accessor.get_cpu_max_usage()
-        cpu_rates = self._rate_accessor.get_cpu_core_usage_per_hour_rates()
-        cpu_charge = self._calculate_charge(cpu_rates, cpu_usage)
-
-        mem_usage = self._accessor.get_memory_max_usage()
-        mem_rates = self._rate_accessor.get_memory_gb_usage_per_hour_rates()
-        mem_charge = self._calculate_charge(mem_rates, mem_usage)
-
-        self._accessor.populate_cpu_charge(cpu_charge)
-        self._accessor.populate_memory_charge(mem_charge)
+        self._update_cpu_charge()
+        self._update_memory_charge()
 
         self._accessor.commit()
 
