@@ -1,4 +1,29 @@
 -- Place our query in a temporary table
+CREATE TEMPORARY TABLE ocp_cluster_capacity_{uuid} AS (
+    SELECT cc.cluster_id,
+        date(cc.interval_start) as usage_start,
+        sum(cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+        sum(cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+    FROM (
+        SELECT rp.cluster_id,
+            ur.interval_start,
+            max(li.node_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+            max(li.node_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+        FROM reporting_ocpusagelineitem AS li
+        JOIN reporting_ocpusagereport AS ur
+            ON li.report_id = ur.id
+        JOIN reporting_ocpusagereportperiod AS rp
+            ON li.report_period_id = rp.id
+        WHERE date(ur.interval_start) >= '{start_date}'
+            AND date(ur.interval_start) <= '{end_date}'
+        GROUP BY rp.cluster_id,
+            ur.interval_start,
+            li.node
+        ) AS cc
+        GROUP BY cc.cluster_id,
+            date(cc.interval_start)
+);
+
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
     SELECT  rp.cluster_id,
         date(ur.interval_start) as usage_start,
@@ -16,12 +41,17 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         sum(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
         max(li.node_capacity_memory_bytes) as node_capacity_memory_bytes,
         sum(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds,
+        max(cc.cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+        max(cc.cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds,
         count(ur.interval_start) * 3600 as total_seconds
     FROM reporting_ocpusagelineitem AS li
     JOIN reporting_ocpusagereport AS ur
         ON li.report_id = ur.id
     JOIN reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
+    JOIN ocp_cluster_capacity_{uuid} as cc
+        ON rp.cluster_id = cc.cluster_id
+            AND date(ur.interval_start) = cc.usage_start
     WHERE date(ur.interval_start) >= '{start_date}'
         AND date(ur.interval_start) <= '{end_date}'
     GROUP BY rp.cluster_id,
@@ -56,6 +86,8 @@ INSERT INTO reporting_ocpusagelineitem_daily (
     node_capacity_cpu_core_seconds,
     node_capacity_memory_bytes,
     node_capacity_memory_byte_seconds,
+    cluster_capacity_cpu_core_seconds,
+    cluster_capacity_memory_byte_seconds,
     total_seconds
 )
     SELECT cluster_id,
@@ -74,6 +106,8 @@ INSERT INTO reporting_ocpusagelineitem_daily (
         node_capacity_cpu_core_seconds,
         node_capacity_memory_bytes,
         node_capacity_memory_byte_seconds,
+        cluster_capacity_cpu_core_seconds,
+        cluster_capacity_memory_byte_seconds,
         total_seconds
     FROM reporting_ocpusagelineitem_daily_{uuid}
 ;
