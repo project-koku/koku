@@ -835,11 +835,11 @@ class ReportQueryHandler(object):
         """
         sorted_data = data
         for field in reversed(order_fields):
-            reverse=False
+            reverse = False
             field = field.replace('delta', 'delta_percent')
             if '-' in field:
-                reverse=True
-                field=field.replace('-', '')
+                reverse = True
+                field = field.replace('-', '')
             sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
                                  reverse=reverse)
         return sorted_data

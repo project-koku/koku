@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -132,7 +131,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         mock_current_deltas.assert_called()
         mock_deltas.assert_not_called()
 
-
     @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')
     def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas):
@@ -153,7 +151,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_add_current_month_deltas(self):
         """Test that current month deltas are calculated."""
-
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
@@ -188,8 +185,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 field_one_total += entry.get(delta_field_one, 0)
                 field_two_total += entry.get(delta_field_two, 0)
                 delta_percent = entry.get('delta_percent')
-                expected = (entry.get(delta_field_one, 0)
-                            / entry.get(delta_field_two, 0) * 100) if entry.get(delta_field_two) else 0
+                expected = (entry.get(delta_field_one, 0) / entry.get(delta_field_two, 0) * 100) \
+                    if entry.get(delta_field_two) else 0
                 self.assertEqual(delta_percent, expected)
 
             expected_total = field_one_total / field_two_total * 100 if field_two_total != 0 else 0

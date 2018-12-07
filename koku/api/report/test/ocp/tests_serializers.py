@@ -237,7 +237,6 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
         serializer = OCPInventoryQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
-
     def test_delta_failure(self):
         """Test that a bad delta value is not serialized."""
         query_params = {'delta': 'bad_delta'}

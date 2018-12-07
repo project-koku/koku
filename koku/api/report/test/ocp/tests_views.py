@@ -646,9 +646,8 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one)
-                             / values.get(delta_two) * 100) \
-                            if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one) /
+                             values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
     def test_execute_query_ocp_cpu_with_delta_usage__request(self):
@@ -667,12 +666,11 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one)
-                             / values.get(delta_two) * 100) \
-                            if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one) /
+                             values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
-    def test_execute_query_ocp_cpu_with_delta_usage__request(self):
+    def test_execute_query_ocp_cpu_with_delta_request__capacity(self):
         """Test that request v capacity deltas work."""
         delta = 'request__capacity'
         url = reverse('reports-ocp-cpu')
@@ -688,7 +686,6 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one)
-                             / values.get(delta_two) * 100) \
-                            if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one) /
+                             values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))

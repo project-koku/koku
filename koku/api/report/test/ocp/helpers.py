@@ -178,9 +178,10 @@ class OCPReportDataGenerator:
 
         cluster_cap = OCPUsageLineItem.objects\
             .values(*['node'])\
-            .annotate(**{
-                'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
-                'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
+            .annotate(
+                **{
+                    'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
+                    'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
                 }
             )
 

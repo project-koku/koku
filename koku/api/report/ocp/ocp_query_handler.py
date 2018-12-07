@@ -184,7 +184,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return {cap_key: total_capacity}
 
-
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -206,22 +205,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
         delta_field_one, delta_field_two = self._delta.split('__')
 
         for row in query_data:
-            delta_value = (Decimal(row.get(delta_field_one, 0))
-                           - Decimal(row.get(delta_field_two, 0)))
+            delta_value = (Decimal(row.get(delta_field_one, 0)) -
+                           Decimal(row.get(delta_field_two, 0)))
 
             row['delta_value'] = delta_value
             try:
-                row['delta_percent'] = (row.get(delta_field_one, 0)
-                                        / row.get(delta_field_two, 0) * 100)
+                row['delta_percent'] = (row.get(delta_field_one, 0) /
+                                        row.get(delta_field_two, 0) * 100)
             except (DivisionByZero, ZeroDivisionError):
                 row['delta_percent'] = 0
 
-
-        total_delta = (Decimal(query_sum.get(delta_field_one, 0))
-                           - Decimal(query_sum.get(delta_field_two, 0)))
+        total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -
+                       Decimal(query_sum.get(delta_field_two, 0)))
         try:
-            total_delta_percent = (query_sum.get(delta_field_one, 0)
-                                   / query_sum.get(delta_field_two, 0) * 100)
+            total_delta_percent = (query_sum.get(delta_field_one, 0) /
+                                   query_sum.get(delta_field_two, 0) * 100)
         except (DivisionByZero, ZeroDivisionError):
                 total_delta_percent = 0
 
