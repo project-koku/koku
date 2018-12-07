@@ -264,14 +264,14 @@ class ProviderMap(object):
                             'limit': Sum('pod_limit_cpu_core_hours')
                         },
                         'capacity_aggregate': {
-                            'capacity': Max('node_capacity_cpu_core_hours')
+                            'capacity': Max('cluster_capacity_cpu_core_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
                             'limit': Sum('pod_limit_cpu_core_hours'),
-
+                            'capacity': Max('cluster_capacity_cpu_core_hours'),
                             'charge': Sum('pod_charge_cpu_core_hours'),
                             'units': Value('Core-Hours', output_field=CharField())
                         },
@@ -292,13 +292,13 @@ class ProviderMap(object):
                             'limit': Sum('pod_limit_memory_gigabyte_hours')
                         },
                         'capacity_aggregate': {
-                            'capacity': Max('node_capacity_memory_gigabyte_hours')
+                            'capacity': Max('cluster_capacity_memory_gigabyte_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_memory_gigabyte_hours'),
                             'request': Sum('pod_request_memory_gigabyte_hours'),
-
+                            'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
                             'charge': Sum('pod_charge_memory_gigabyte_hours'),
                             'limit': Sum('pod_limit_memory_gigabyte_hours'),
                             'units': Value('GB-Hours', output_field=CharField())
