@@ -144,22 +144,35 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         return {(entry.report_period_id, entry.interval_start.strftime(self._datetime_format)): entry.id
                 for entry in reports}
 
-    def get_cpu_max_usage(self):
-        """Make a mapping of reports by time."""
+    def get_pod_usage_cpu_core_hours(self):
+        """Make a mapping of cpu pod usage hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         reports = self._get_db_obj_query(table_name).all()
-        return {entry.id: max(entry.pod_usage_cpu_core_hours, entry.pod_request_cpu_core_hours)
-                for entry in reports}
+        return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
-    def get_memory_max_usage(self):
-        """Make a mapping of reports by time."""
+    def get_pod_request_cpu_core_hours(self):
+        """Make a mapping of cpu pod request hours."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+        return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
+
+    def get_pod_usage_memory_gigabyte_hours(self):
+        """Make a mapping of memory_usage hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         reports = self._get_db_obj_query(table_name).all()
 
-        return {entry.id: max(entry.pod_usage_memory_gigabyte_hours, entry.pod_request_memory_gigabyte_hours)
-                for entry in reports}
+        return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+
+    def get_pod_request_memory_gigabyte_hours(self):
+        """Make a mapping of memory_request_hours."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+
+        return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
     # pylint: disable=duplicate-code
     def populate_line_item_daily_table(self, start_date, end_date):
