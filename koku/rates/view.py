@@ -59,11 +59,14 @@ class RateViewSet(mixins.CreateModelMixin,
         @apiParam (Request Body) {String} timeunit Unit of time
         @apiParamExample {json} Request Body:
             {
-                "name": "My Rate",
-                "description": "This is an example rate.",
-                "price": "0.001",
-                "metric": "cpu_ticks",
-                "timeunit": "hour"
+                "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                "metric": "cpu_core_per_hour",
+                "tiered_rate": [{
+                    "value": 0.022,
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
 
         @apiSuccess {String} uuid Rate unique identifier
@@ -76,11 +79,14 @@ class RateViewSet(mixins.CreateModelMixin,
             HTTP/1.1 201 CREATED
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
-                "name": "My Rate",
-                "description": "This is an example rate.",
-                "price": "0.001",
-                "metric": "cpu_ticks",
-                "timeunit": "hour"
+                "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                "metric": "cpu_core_per_hour",
+                "tiered_rate": [{
+                    "value": 0.022,
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().create(request=request, args=args, kwargs=kwargs)
@@ -112,19 +118,25 @@ class RateViewSet(mixins.CreateModelMixin,
                 'results': [
                                 {
                                     "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
-                                    "name": "My Rate",
-                                    "description": "This is an example rate.",
-                                    "price": "0.001",
-                                    "metric": "cpu_ticks",
-                                    "timeunit": "hour"
+                                    "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                                    "metric": "cpu_core_per_hour",
+                                    "tiered_rate": [{
+                                        "value": 0.022,
+                                        "unit": "USD",
+                                        "usage_start": null,
+                                        "usage_end": null,
+                                    }]
                                 },
                                 {
                                     "uuid": "20ecdcd0-397c-4ede-8940-f3439bf40212",
-                                    "name": "My Other Rate",
-                                    "description": "This is another example rate.",
-                                    "price": "0.002",
-                                    "metric": "memory_bytes_hours",
-                                    "timeunit": "nil"
+                                    "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                                    "metric": "memory_gb_per_hour",
+                                    "tiered_rate": [{
+                                        "value": 0.022,
+                                        "unit": "USD",
+                                        "usage_start": null,
+                                        "usage_end": null,
+                                    }]
                                 }
                             ]
             }
@@ -155,11 +167,14 @@ class RateViewSet(mixins.CreateModelMixin,
             HTTP/1.1 200 OK
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
-                "name": "My Rate",
-                "description": "This is an example rate.",
-                "price": "0.001",
-                "metric": "cpu_ticks",
-                "timeunit": "hour"
+                "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                "metric": "cpu_core_per_hour",
+                "tiered_rate": [{
+                    "value": 0.022,
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -205,11 +220,14 @@ class RateViewSet(mixins.CreateModelMixin,
             HTTP/1.1 200 OK
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
-                "name": "My Rate",
-                "description": "This is an example rate.",
-                "price": "0.001",
-                "metric": "cpu_ticks",
-                "timeunit": "hour"
+                "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                "metric": "cpu_core_per_hour",
+                "tiered_rate": [{
+                    "value": 0.022,
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().update(request=request, args=args, kwargs=kwargs)

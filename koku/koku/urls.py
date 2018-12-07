@@ -19,23 +19,27 @@
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.0/topics/http/urls/
 """
+import os
+
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 from django.views.generic import RedirectView
 
+API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '')
+
 
 # pylint: disable=invalid-name
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^api-auth/', include('rest_framework.urls')),
-    url(r'^api/v1/', include('api.urls')),
-    url(r'^api/v1/', include('rates.urls')),
+    url(r'^{}api-auth/'.format(API_PATH_PREFIX), include('rest_framework.urls')),
+    url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('api.urls')),
+    url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('rates.urls')),
 
     # static files (*.css, *.js, *.jpg etc.)
-    url(r'^(?!/?apidoc/)(?P<path>.*\..*)$',
-        RedirectView.as_view(url='/apidoc/%(path)s', permanent=False),
+    url(r'^{}(?!/?apidoc/)(?P<path>.*\..*)$'.format(API_PATH_PREFIX),
+        RedirectView.as_view(url='apidoc/%(path)s', permanent=False),
         name='apidoc'),
 ]
 

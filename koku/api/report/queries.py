@@ -23,10 +23,8 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
 from dateutil import relativedelta
-from django.db.models import (Max,
-                              Sum)
-from django.db.models.functions import (TruncDay,
-                                        TruncMonth)
+from django.db.models import CharField, Count, F, Max, Q, Sum, Value
+from django.db.models.functions import TruncDay, TruncMonth
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
@@ -76,16 +74,32 @@ class ProviderMap(object):
                 },
                 'report_type': {
                     'costs': {
+                        'aggregate': {'value': Sum('unblended_cost'),
+                                      'cost': Sum('unblended_cost')},
                         'aggregate_key': 'unblended_cost',
+                        'annotations': {'total': Sum('unblended_cost'),
+                                        'units': Max('currency_code')},
                         'count': None,
+                        'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
                         'sum_columns': ['total'],
                         'default_ordering': {'total': 'desc'},
                     },
                     'instance_type': {
+                        'aggregate': {
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_count'),
+                            'value': Sum('usage_amount'),
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        # The summary table already already has counts
+                                        'count': Sum('resource_count'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('unit')},
                         'count': 'resource_count',
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'instance_type',
                             'operation': 'isnull',
@@ -96,8 +110,16 @@ class ProviderMap(object):
                         'default_ordering': {'total': 'desc'},
                     },
                     'storage': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost')
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('unit')},
                         'count': None,
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'product_family',
                             'operation': 'contains',
@@ -133,15 +155,32 @@ class ProviderMap(object):
                 },
                 'report_type': {
                     'costs': {
+                        'aggregate': {
+                            'value': Sum('unblended_cost'),
+                            'cost': Sum('unblended_cost')
+                        },
                         'aggregate_key': 'unblended_cost',
+                        'annotations': {'total': Sum('unblended_cost'),
+                                        'units': Max('currency_code')},
                         'count': None,
+                        'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
                         'sum_columns': ['total'],
                     },
                     'instance_type': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_count '),
+                        },
                         'aggregate_key': 'usage_amount',
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'count': Count('resource_id', distinct=True),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('cost_entry_pricing__unit')},
                         'count': 'resource_id',
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'instance_type',
                             'table': 'cost_entry_product',
@@ -152,8 +191,18 @@ class ProviderMap(object):
                         'sum_columns': ['total'],
                     },
                     'storage': {
+                        'aggregate': {
+                            'value': Sum('usage_amount'),
+                            'cost': Sum('unblended_cost'),
+                            'count': Sum('resource_count'),
+                        },
                         'aggregate_key': 'usage_amount',
-                        'count': None,
+                        'annotations': {'cost': Sum('unblended_cost'),
+                                        'count': Count('resource_id', distinct=True),
+                                        'total': Sum('usage_amount'),
+                                        'units': Max('cost_entry_pricing__unit')},
+                        'count': 'resource_id',
+                        'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
                             'field': 'product_family',
                             'table': 'cost_entry_product',
@@ -186,42 +235,82 @@ class ProviderMap(object):
                             'operation': 'icontains'},
                 },
                 'report_type': {
-                    'cpu': {
-                        'usage_label': 'pod_usage_cpu_core_hours',
-                        'request_label': 'pod_request_cpu_core_hours',
-                        'charge_label': 'pod_charge_cpu_cores',
-                        'default_ordering': {'usage': 'desc'},
-                        'order_field': {
-                            'usage': 'usage',
-                            'requests': 'request'
+                    'charge': {
+                        'aggregates': {
+                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
                         },
+                        'default_ordering': {'charge': 'desc'},
+                        'annotations': {
+
+                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                            'units': Value('USD', output_field=CharField())
+                        },
+                        'capacity_aggregate': {},
+                        'delta_key': {
+                            'charge': Sum(
+                                F('pod_charge_cpu_core_hours') +  # noqa: W504
+                                F('pod_charge_memory_gigabyte_hours')
+                            )
+                        },
+                        'filter': {},
+                        'units_key': 'USD',
+                        'sum_columns': ['charge'],
+                    },
+                    'cpu': {
+                        'aggregates': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'charge': Sum('pod_charge_cpu_core_hours'),
+                            'limit': Sum('pod_limit_cpu_core_hours')
+                        },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_cpu_core_hours')
+                        },
+                        'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Max('pod_limit_cpu_cores'),
-                            'charge': Sum('pod_charge_cpu_cores'),
+                            'limit': Sum('pod_limit_cpu_core_hours'),
+
+                            'charge': Sum('pod_charge_cpu_core_hours'),
+                            'units': Value('Core-Hours', output_field=CharField())
+                        },
+                        'delta_key': {
+                            'usage': Sum('pod_usage_cpu_core_hours'),
+                            'request': Sum('pod_request_cpu_core_hours'),
+                            'charge': Sum('pod_charge_cpu_core_hours')
                         },
                         'filter': {},
-                        'units_key': 'core_hours',
-                        'sum_columns': ['cpu_limit', 'cpu_usage_core_hours', 'cpu_requests_core_hours'],
+                        'units_key': 'Core-Hours',
+                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
                     },
                     'mem': {
-                        'usage_label': 'pod_usage_memory_gigabytes',
-                        'request_label': 'pod_request_memory_gigabytes',
-                        'charge_label': 'pod_charge_memory_gigabytes',
-                        'default_ordering': {'usage': 'desc'},
-                        'order_field': {
-                            'usage': 'usage',
-                            'requests': 'request'
+                        'aggregates': {
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                            'limit': Sum('pod_limit_memory_gigabyte_hours')
                         },
+                        'capacity_aggregate': {
+                            'capacity': Max('node_capacity_memory_gigabyte_hours')
+                        },
+                        'default_ordering': {'usage': 'desc'},
                         'annotations': {
-                            'usage': Sum('pod_usage_memory_gigabytes'),
-                            'request': Sum('pod_request_memory_gigabytes'),
-                            'charge': Sum('pod_charge_memory_gigabytes'),
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+
+                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                            'units': Value('GB-Hours', output_field=CharField())
+                        },
+                        'delta_key': {
+                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                            'request': Sum('pod_request_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours')
                         },
                         'filter': {},
-                        'units_key': 'GB',
-                        'sum_columns': ['mem_limit', 'memory_usage_gigabytes', 'memory_requests_gigabytes'],
+                        'units_key': 'GB-Hours',
+                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
                     }
                 },
                 'start_date': 'usage_start',
@@ -313,7 +402,6 @@ class ReportQueryHandler(object):
 
         self.group_by_options = group_by_options
         self._accept_type = None
-        self._annotations = None
         self._group_by = None
         self.end_datetime = None
         self.resolution = None
@@ -334,8 +422,8 @@ class ReportQueryHandler(object):
         self.query_delta = {'value': None, 'percent': None}
 
         if kwargs:
-            elements = ['accept_type', 'annotations', 'delta',
-                        'group_by', 'report_type']
+            # view parameters
+            elements = ['accept_type', 'delta', 'group_by', 'report_type']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -638,7 +726,8 @@ class ReportQueryHandler(object):
             group_by += self._group_by
         return group_by
 
-    def _get_annotations(self, fields=None):
+    @property
+    def annotations(self):
         """Create dictionary for query annotations.
 
         Args:
@@ -790,3 +879,116 @@ class ReportQueryHandler(object):
             ranked_list.append(other)
 
         return ranked_list
+
+    def _create_previous_totals(self, previous_query, query_group_by):
+        """Get totals from the time period previous to the current report.
+
+        Args:
+            previous_query (Query): A Django ORM query
+            query_group_by (dict): The group by dict for the current report
+        Returns:
+            (dict) A dictionary keyed off the grouped values for the report
+
+        """
+        date_delta = self._get_date_delta()
+        # Added deltas for each grouping
+        # e.g. date, account, region, availability zone, et cetera
+        previous_sums = previous_query.annotate(**self.annotations)
+        delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
+        delta_annotation = {self._delta: delta_field}
+        previous_sums = previous_sums\
+            .values(*query_group_by)\
+            .annotate(**delta_annotation)
+        previous_dict = OrderedDict()
+        for row in previous_sums:
+            date = self.string_to_date(row['date'])
+            date = date + date_delta
+            row['date'] = self.date_to_string(date)
+            key = tuple((row[key] for key in query_group_by))
+            previous_dict[key] = row[self._delta]
+
+        return previous_dict
+
+    def _get_previous_totals_filter(self, filter_dates):
+        """Filter previous time range to exlude days from the current range.
+
+        Specifically this covers days in the current range that have not yet
+        happened, but that data exists for in the previous range.
+
+        Args:
+            filter_dates (list) A list of date strings of dates to filter
+
+        Returns:
+            (django.db.models.query_utils.Q) The OR date filter
+
+        """
+        date_delta = self._get_date_delta()
+        prev_total_filters = None
+
+        for i in range(len(filter_dates)):
+            date = self.string_to_date(filter_dates[i])
+            date = date - date_delta
+            filter_dates[i] = self.date_to_string(date)
+
+        for date in filter_dates:
+            if prev_total_filters:
+                prev_total_filters = prev_total_filters | Q(usage_start=date)
+            else:
+                prev_total_filters = Q(usage_start=date)
+        return prev_total_filters
+
+    def add_deltas(self, query_data, query_sum):
+        """Calculate and add cost deltas to a result set.
+
+        Args:
+            query_data (list) The existing query data from execute_query
+            query_sum (list) The sum returned by calculate_totals
+
+        Returns:
+            (dict) query data with new with keys "value" and "percent"
+
+        """
+        delta_group_by = ['date'] + self._get_group_by()
+        delta_filter = self._get_filter(delta=True)
+        q_table = self._mapper._operation_map.get('tables').get('previous_query')
+        previous_query = q_table.objects.filter(delta_filter)
+        previous_dict = self._create_previous_totals(previous_query,
+                                                     delta_group_by)
+        for row in query_data:
+            key = tuple((row[key] for key in delta_group_by))
+            previous_total = previous_dict.get(key, 0)
+            current_total = row.get(self._delta, 0)
+            row['delta_value'] = current_total - previous_total
+            row['delta_percent'] = self._percent_delta(current_total, previous_total)
+        # Calculate the delta on the total aggregate
+        if self._delta in query_sum:
+            current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+        else:
+            current_total_sum = Decimal(query_sum.get('value') or 0)
+        delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
+        prev_total_sum = previous_query.aggregate(value=delta_field)
+        if self.resolution == 'daily':
+            dates = [entry.get('date') for entry in query_data]
+            prev_total_filters = self._get_previous_totals_filter(dates)
+            if prev_total_filters:
+                prev_total_sum = previous_query\
+                    .filter(prev_total_filters)\
+                    .aggregate(value=delta_field)
+
+        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
+
+        total_delta = current_total_sum - prev_total_sum
+        total_delta_percent = self._percent_delta(current_total_sum,
+                                                  prev_total_sum)
+
+        self.query_delta = {
+            'value': total_delta,
+            'percent': total_delta_percent
+        }
+
+        if self.order_field == 'delta':
+            reverse = True if self.order_direction == 'desc' else False
+            query_data = sorted(list(query_data),
+                                key=lambda x: x['delta_percent'],
+                                reverse=reverse)
+        return query_data

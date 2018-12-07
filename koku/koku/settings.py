@@ -194,7 +194,10 @@ USE_TZ = True
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-STATIC_URL = '/apidoc/'
+API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '')
+STATIC_API_PATH_PREFIX = '/' + API_PATH_PREFIX
+
+STATIC_URL = '{}apidoc/'.format(STATIC_API_PATH_PREFIX)
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, '..', 'apidoc'),

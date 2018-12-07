@@ -158,7 +158,11 @@ class QueryParamSerializer(serializers.Serializer):
         ('none', 'none'),
     )
 
-    delta = serializers.BooleanField(required=False)
+    DELTA_CHOICES = (
+        ('total', 'total')
+    )
+
+    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)

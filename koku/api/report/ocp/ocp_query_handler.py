@@ -16,9 +16,10 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+from collections import defaultdict
+from decimal import Decimal
 
 from django.db.models import (F,
-                              Sum,
                               Value,
                               Window)
 from django.db.models.functions import Concat
@@ -48,15 +49,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                          tenant, self.group_by_options, **kwargs)
 
     @property
-    def order_field(self):
-        """Order-by field name."""
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        key = list(order_by.keys()).pop()
-        if order_by == self.default_ordering:
-            return key
-        return self._mapper._report_type_map['order_field'][key]
-
-    def _get_annotations(self, fields=None):
+    def annotations(self):
         """Create dictionary for query annotations.
 
         Args:
@@ -66,17 +59,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            'date': self.date_trunc('usage_start'),
-            # 'units': Concat(self._mapper.units_key, Value(''))  Try and generalize this
-        }
-        if self._annotations and not self.is_sum:
-            annotations.update(self._annotations)
+        annotations = {'date': self.date_trunc('usage_start')}
 
         # { query_param: database_field_name }
-        if not fields:
-            fields = self._mapper._operation_map.get('annotations')
-
+        fields = self._mapper._operation_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -98,31 +84,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _create_previous_totals(self, previous_query, query_group_by):
-        """Get totals from the time period previous to the current report.
-
-        Args:
-            previous_query (Query): A Django ORM query
-            query_group_by (dict): The group by dict for the current report
-        Returns:
-            (dict) A dictionary keyed off the grouped values for the report
-
-        """
-        pass
-
-    def add_deltas(self, query_data, query_sum):
-        """Calculate and add cost deltas to a result set.
-
-        Args:
-            query_data (list) The existing query data from execute_query
-            query_sum (list) The sum returned by calculate_totals
-
-        Returns:
-            (dict) query data with new with keys "value" and "percent"
-
-        """
-        pass
-
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
@@ -136,8 +97,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         q_table = self._mapper._operation_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
-            query_annotations = self._get_annotations()
-            query_data = query.annotate(**query_annotations)
+            query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
 
@@ -160,20 +120,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.order_field != 'delta':
                 query_data = query_data.order_by(*query_order_by)
 
-            query_sum = {}
+            # Populate the 'total' section of the API response
             if query.exists():
-                usage_key = self._mapper._report_type_map.get('usage_label')
-                request_key = self._mapper._report_type_map.get('request_label')
-                charge_key = self._mapper._report_type_map.get('charge_label')
-                metric_sum = query_data.aggregate(
-                    usage=Sum(usage_key),
-                    request=Sum(request_key),
-                    charge=Sum(charge_key)
-                )
-
-                query_sum['usage'] = metric_sum.get('usage')
-                query_sum['request'] = metric_sum.get('request')
-                query_sum['charge'] = metric_sum.get('charge')
+                aggregates = self._mapper._report_type_map.get('aggregates')
+                metric_sum = query.aggregate(**aggregates)
+                query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
@@ -187,6 +138,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
+
+        capacity_by_date, total_capacity = self.get_cluster_capacity()
+        query_sum.update(total_capacity)
+        query_sum.update({'units': self._mapper.units_key})
+        data = self.add_capacity_to_data(capacity_by_date, data)
+
         self.query_sum = query_sum
         self.query_data = data
         return self._format_query_response()
@@ -199,3 +156,32 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         return self.execute_sum_query()
+
+    def get_cluster_capacity(self):
+        """Calculate cluster capacity for all nodes over the date range."""
+        annotations = self._mapper._report_type_map.get('capacity_aggregate')
+        if not annotations:
+            return {}, {}
+
+        cap_key = list(annotations.keys())[0]
+        cluster_capacity = defaultdict(Decimal)
+        q_table = self._mapper._operation_map.get('tables').get('query')
+        query = q_table.objects.filter(self.query_filter)
+        query_group_by = ['node', 'usage_start']
+
+        with tenant_context(self.tenant):
+            query_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in query_data:
+                date = self.date_to_string(entry.get('usage_start'))
+                if entry.get(cap_key):
+                    cluster_capacity[date] += entry.get(cap_key)
+            total_capacity = Decimal(sum(cluster_capacity.values()))
+        return cluster_capacity, {cap_key: total_capacity}
+
+    def add_capacity_to_data(self, capacity, data):
+        """Inject cluster capacity to the resultset."""
+        for entry in data:
+            date = entry.get('date')
+            capacity_on_date = capacity.get(date, Decimal(0))
+            entry['capacity'] = capacity_on_date
+        return data

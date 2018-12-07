@@ -19,11 +19,14 @@ import json
 import logging
 from unittest.mock import patch
 
+from tenant_schemas.utils import tenant_context
+
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from rates.models import Rate
 
 
 class MockResponse:
@@ -144,8 +147,9 @@ class ProviderManagerTest(IamTestCase):
         if user_serializer.is_valid(raise_exception=True):
             other_user = user_serializer.save()
 
-        manager = ProviderManager(provider_uuid)
-        manager.remove(other_user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            manager.remove(other_user)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         auth_count = ProviderAuthentication.objects.count()
         billing_count = ProviderBillingSource.objects.count()
@@ -183,8 +187,9 @@ class ProviderManagerTest(IamTestCase):
         if user_serializer.is_valid(raise_exception=True):
             other_user = user_serializer.save()
 
-        manager = ProviderManager(provider_uuid)
-        manager.remove(other_user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            manager.remove(other_user)
         auth_count = ProviderAuthentication.objects.count()
         billing_count = ProviderBillingSource.objects.count()
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
@@ -212,8 +217,22 @@ class ProviderManagerTest(IamTestCase):
         if user_serializer.is_valid(raise_exception=True):
             other_user = user_serializer.save()
 
-        manager = ProviderManager(provider_uuid)
-        manager.remove(other_user)
+        with tenant_context(self.tenant):
+            rate = {'provider_uuid': provider.uuid,
+                    'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                    'rates': {'tiered_rate': [{
+                        'unit': 'USD',
+                        'value': 1.0,
+                        'usage_start': None,
+                        'usage_end': None
+                    }]}
+                    }
+
+            Rate.objects.create(**rate)
+            manager = ProviderManager(provider_uuid)
+            manager.remove(other_user)
+            rates_query = Rate.objects.all().filter(provider_uuid=provider_uuid)
+            self.assertFalse(rates_query)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
 

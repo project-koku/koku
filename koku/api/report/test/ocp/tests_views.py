@@ -15,23 +15,29 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report views."""
+import datetime
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
+from dateutil import relativedelta
+from django.db.models import F, Sum
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.queries import TruncDayString
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.utils import DateHelper
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -264,6 +270,60 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('usage' in values)
                 self.assertTrue('request' in values)
 
+    def test_charge_api_has_units(self):
+        """Test that the charge API returns units."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'USD')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'USD')
+
+    def test_cpu_api_has_units(self):
+        """Test that the CPU API returns units."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'Core-Hours')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'Core-Hours')
+
+    def test_memory_api_has_units(self):
+        """Test that the charge API returns units."""
+        url = reverse('reports-ocp-memory')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        response_json = response.json()
+
+        total = response_json.get('total', {})
+        data = response_json.get('data', {})
+        self.assertTrue('units' in total)
+        self.assertEqual(total.get('units'), 'GB-Hours')
+
+        for item in data:
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('units' in values)
+                self.assertEqual(values.get('units'), 'GB-Hours')
+
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
         url = reverse('reports-ocp-cpu')
@@ -412,11 +472,160 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         data = response.json()
 
+        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
+        with tenant_context(self.tenant):
+            totals = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=ten_days_ago)\
+                .values(*['usage_start'])\
+                .annotate(total=Sum('pod_usage_memory_gigabyte_hours'))
+
+        totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('total')
+                  for total in totals}
+
         self.assertIn('nodes', data.get('data')[0])
 
+        # Check if limit returns the correct number of results, and
+        # that the totals add up properly
         for item in data.get('data'):
             if item.get('nodes'):
+                date = item.get('date')
                 projects = item.get('nodes')
-                print(projects)
                 self.assertEqual(len(projects), 2)
                 self.assertEqual(projects[1].get('node'), '1 Other')
+                usage_total = projects[0].get('values')[0].get('usage') + \
+                    projects[1].get('values')[0].get('usage')
+                self.assertEqual(round(usage_total, 3),
+                                 round(float(totals.get(date)), 3))
+
+    def test_execute_query_ocp_charge(self):
+        """Test that the charge endpoint is reachable."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_charge_with_delta(self):
+        """Test that deltas work for charge."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        params = {
+            'delta': 'charge',
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        this_month_start = self.dh.this_month_start
+        last_month_start = self.dh.last_month_start
+
+        date_delta = relativedelta.relativedelta(months=1)
+
+        def date_to_string(dt):
+            return dt.strftime('%Y-%m-%d')
+
+        def string_to_date(dt):
+            return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+
+        with tenant_context(self.tenant):
+            current_total = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=this_month_start)\
+                .aggregate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +  # noqa: W504
+                        F('pod_charge_memory_gigabyte_hours')
+                    )
+                ).get('total')
+            current_total = current_total if current_total is not None else 0
+
+            current_totals = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=this_month_start)\
+                .annotate(**{'date': TruncDayString('usage_start')})\
+                .values(*['date'])\
+                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+
+            prev_totals = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=last_month_start)\
+                .filter(usage_start__lt=this_month_start)\
+                .annotate(**{'date': TruncDayString('usage_start')})\
+                .values(*['date'])\
+                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+
+        current_totals = {total.get('date'): total.get('total')
+                          for total in current_totals}
+        prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
+                       for total in prev_totals
+                       if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
+
+        prev_total = sum(prev_totals.values())
+        prev_total = prev_total if prev_total is not None else 0
+
+        expected_delta = current_total - prev_total
+        delta = data.get('delta').get('value')
+        self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
+        for item in data.get('data'):
+            date = item.get('date')
+            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+            values = item.get('values', [])
+            delta_value = 0
+            if values:
+                delta_value = values[0].get('delta_value')
+            self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
+
+    def test_execute_query_ocp_charge_with_invalid_delta(self):
+        """Test that bad deltas don't work for charge."""
+        url = reverse('reports-ocp-charges')
+        client = APIClient()
+        params = {'delta': 'usage'}
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 400)
+
+        params = {'delta': 'request'}
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_execute_query_ocp_cpu_with_delta_charge(self):
+        """Test that charge deltas work for CPU."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': 'charge'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_cpu_with_delta_usage(self):
+        """Test that usage deltas work for CPU."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': 'usage'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_cpu_with_delta_request(self):
+        """Test that request deltas work for CPU."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': 'request'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_memory_with_delta(self):
+        """Test that deltas work for CPU."""
+        url = reverse('reports-ocp-memory')
+        client = APIClient()
+        params = {'delta': 'request'}
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)

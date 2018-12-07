@@ -30,11 +30,11 @@ paths:
       produces:
       - 'application/json'
       responses:
-        200:
+        '200':
           description: An object describing the server status
           schema:
             $ref: '#/definitions/Status'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -54,15 +54,15 @@ paths:
         description: Preference to add to a Preference
         required: true
         schema:
-          $ref: '#/definitions/UserPreferenceIn'
+          $ref: '#/definitions/UserPreference'
       responses:
-        201:
+        '201':
           description: An object describing the user
           schema:
             $ref: '#/definitions/UserPreferenceOut'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -83,13 +83,13 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        200:
+        '200':
           description: A paginated list of preference objects
           schema:
             $ref: '#/definitions/UserPreferencePagination'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -111,17 +111,17 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        200:
+        '200':
           description: A UserPreference object
           schema:
             $ref: '#/definitions/UserPreferenceOut'
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -142,15 +142,15 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        204:
+        '204':
           description: User deleted
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -177,17 +177,17 @@ paths:
         description: Update to a Preference
         required: true
         schema:
-          $ref: '#/definitions/UserPreferenceIn'
+          $ref: '#/definitions/UserPreference'
       responses:
-        200:
+        '200':
           description: Preference updated
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -211,13 +211,13 @@ paths:
         schema:
           $ref: '#/definitions/ProviderIn'
       responses:
-        201:
+        '201':
           description: An object describing the provider
           schema:
             $ref: '#/definitions/ProviderOut'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -231,13 +231,13 @@ paths:
       produces:
       - 'application/json'
       responses:
-        200:
+        '200':
           description: A paginated list of provider objects
           schema:
             $ref: '#/definitions/ProviderPagination'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -256,19 +256,19 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        204:
+        '204':
           description: Provider deleted
-        401:
+        '401':
           description: Unauthorized
-        403:
+        '403':
           description: Insufficent permissions to delete provider
           schema:
             $ref: '#/definitions/Error'
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -290,17 +290,17 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        200:
+        '200':
           description: A Provider object
           schema:
             $ref: '#/definitions/ProviderOut'
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -324,13 +324,13 @@ paths:
         schema:
           $ref: '#/definitions/RateIn'
       responses:
-        201:
+        '201':
           description: An object describing the rate
           schema:
             $ref: '#/definitions/RateOut'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -351,13 +351,13 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        200:
+        '200':
           description: A paginated list of rate objects
           schema:
             $ref: '#/definitions/RatePagination'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -379,17 +379,17 @@ paths:
         type: 'string'
         format: 'uuid'
       responses:
-        200:
+        '200':
           description: A Rate object
           schema:
             $ref: '#/definitions/RateOut'
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -410,15 +410,15 @@ paths:
         type: 'string'
         format: 'integer'
       responses:
-        204:
+        '204':
           description: Rate deleted
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -447,15 +447,15 @@ paths:
         schema:
           $ref: '#/definitions/RateIn'
       responses:
-        200:
+        '200':
           description: Rate updated
-        401:
+        '401':
           description: Unauthorized
-        404:
+        '404':
           description: Not Found
           schema:
             $ref: '#/definitions/Error'
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -495,13 +495,59 @@ paths:
           - sum
           - none
       responses:
-        200:
+        '200':
           description: A report object
           schema:
             $ref: '#/definitions/ReportCost'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+  /reports/charges/ocp/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain charge reports
+      operationId: getOCPChargeReports
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'delta'
+        in: 'query'
+        description: 'Toggle to include delta values in report.'
+        type: 'string'
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportCharge'
+        '401':
+          description: Unauthorized
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -541,13 +587,13 @@ paths:
           - sum
           - none
       responses:
-        200:
+        '200':
           description: A report object
           schema:
             $ref: '#/definitions/ReportInstanceInventory'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -587,13 +633,13 @@ paths:
           - sum
           - none
       responses:
-        200:
+        '200':
           description: A report object
           schema:
             $ref: '#/definitions/ReportStorageInventory'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -622,13 +668,13 @@ paths:
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
       responses:
-        200:
+        '200':
           description: A report object
           schema:
             $ref: '#/definitions/ReportOCPCpu'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -657,13 +703,13 @@ paths:
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
       responses:
-        200:
+        '200':
           description: A report object
           schema:
             $ref: '#/definitions/ReportOCPmemory'
-        401:
+        '401':
           description: Unauthorized
-        500:
+        '500':
           description: Unexpected Error
           schema:
             $ref: '#/definitions/Error'
@@ -689,9 +735,9 @@ definitions:
   CustomerOut:
     allOf:
       - $ref: '#/definitions/Customer'
-      - required:
-          - uuid
-          - date_created
+    required:
+      - uuid
+      - date_created
     properties:
       uuid:
         type: string
@@ -707,9 +753,6 @@ definitions:
       error_key:
         type: string
   ListPagination:
-    required:
-      - previous
-      - next
     properties:
       count:
         type: integer
@@ -751,9 +794,8 @@ definitions:
   ProviderIn:
     allOf:
       - $ref: '#/definitions/Provider'
-      - required:
-          - authentication
-          - billing_source
+    required:
+      - authentication
     properties:
       authentication:
         $ref: '#/definitions/ProviderAuthenticationIn'
@@ -762,8 +804,8 @@ definitions:
   ProviderAuthenticationOut:
     allOf:
       - $ref: '#/definitions/ProviderAuthenticationIn'
-      - required:
-          - uuid
+    required:
+      - uuid
     properties:
       uuid:
         type: string
@@ -772,8 +814,8 @@ definitions:
   ProviderBillingSourceOut:
     allOf:
       - $ref: '#/definitions/ProviderBillingSourceIn'
-      - required:
-          - uuid
+    required:
+      - uuid
     properties:
       uuid:
         type: string
@@ -782,12 +824,12 @@ definitions:
   ProviderOut:
     allOf:
       - $ref: '#/definitions/Provider'
-      - required:
-          - uuid
-          - authentication
-          - billing_source
-          - customer
-          - created_by
+    required:
+      - uuid
+      - authentication
+      - billing_source
+      - customer
+      - created_by
     properties:
       uuid:
         type: string
@@ -804,8 +846,8 @@ definitions:
   ProviderPagination:
     allOf:
       - $ref: '#/definitions/ListPagination'
-      - required:
-          - results
+    required:
+      - results
     properties:
       results:
         type: array
@@ -813,57 +855,29 @@ definitions:
           $ref: '#/definitions/ProviderOut'
   Rate:
     required:
-      - name
-      - price
-      - timeunit
-      - metric
+        - provider_uuid
+        - metric
     properties:
-      name:
+      provider_uuid:
         type: string
-        example: my-rate-name
-      description:
-        type: string
-        example: my long rate description
-      price:
-        type: number
-        format: float
-        example: 0.000001
-      timeunit:
-        type: string
-        example: hour
+        example: da065ad8-7e68-4a12-b2b4-74f18d4d9fa0
       metric:
         type: string
-        example: memory
+        example: cpu_core_per_hour
+      tiered_rate:
+        type: object
+        example: [{ value: 0.22, unit: USD, usage_start: 0, usage_end: 10}]
   RateIn:
     allOf:
       - $ref: '#/definitions/Rate'
-      - required:
-        - name
-        - price
-        - timeunit
-        - metric
-    properties:
-      name:
-        type: string
-        example: my-rate-name
-      description:
-        type: string
-        example: my long rate description
-      price:
-        type: number
-        format: float
-        example: 0.000001
-      timeunit:
-        type: string
-        example: hour
-      metric:
-        type: string
-        example: cpu
+    required:
+      - provider_uuid
+      - metric
   RatePagination:
     allOf:
       - $ref: '#/definitions/ListPagination'
-      - required:
-          - results
+    required:
+      - results
     properties:
       results:
         type: array
@@ -872,18 +886,15 @@ definitions:
   RateOut:
     allOf:
       - $ref: '#/definitions/Rate'
-      - required:
-        - name
-        - price
-        - timeunit
-        - metric
+    required:
+      - uuid
+      - provider_uuid
+      - metric
     properties:
       uuid:
         type: string
         format: uuid
         example: 83ee048e-3c1d-43ef-b945-108225ae52f4
-      user:
-        $ref: '#/definitions/RateOut'
   ReportFilter:
     type: object
     properties:
@@ -992,7 +1003,7 @@ definitions:
         type: array
         items:
           type: string
-      noce:
+      node:
         type: array
         items:
           type: string
@@ -1033,7 +1044,7 @@ definitions:
           - desc
     example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
-  ReportOrderingOCP:
+  ReportInventoryOCPOrdering:
     type: object
     properties:
       cluster:
@@ -1051,15 +1062,60 @@ definitions:
         enum:
           - asc
           - desc
+      usage:
+        type: string
+        enum:
+          - asc
+          - desc
+      request:
+        type: string
+        enum:
+          - asc
+          - desc
+      charge:
+        type: string
+        enum:
+          - asc
+          - desc
+      limit:
+        type: string
+        enum:
+          - asc
+          - desc
+    example: { 'cluster': 'asc' }
+    description: The ordering to apply to the report. Default is ascending order for the data.
+  ReportChargeOCPOrdering:
+    type: object
+    properties:
+      cluster:
+        type: string
+        enum:
+          - asc
+          - desc
+      project:
+        type: string
+        enum:
+          - asc
+          - desc
+      node:
+        type: string
+        enum:
+          - asc
+          - desc
+      charge:
+        type: string
+        enum:
+          - asc
+          - desc
     example: { 'cluster': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
     type: object
     properties:
       delta:
-        type: boolean
-    example: { 'delta': 'True' }
-    description: 'Toggle to include delta values in report.'
+        type: string
+    example: { 'delta': 'total' }
+    description: 'Field to calculate delta values for in report.'
   ReportResolution:
     type: string
     enum:
@@ -1115,6 +1171,28 @@ definitions:
         description: 'The units for the output data.'
         type: string
         example: ''
+  ReportChargeOCP:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+      - operation
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportChargeOCPOrdering'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
+      operation:
+        description: 'The report operation; default is sum.'
+        type: string
+        enum:
+          - sum
+          - none
   ReportOCPcpu:
     required:
       - delta
@@ -1127,7 +1205,7 @@ definitions:
       group_by:
         $ref: '#/definitions/ReportOCPGrouping'
       order_by:
-        $ref: '#/definitions/ReportOrderingOCP'
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
       operation:
@@ -1152,7 +1230,7 @@ definitions:
       group_by:
         $ref: '#/definitions/ReportOCPGrouping'
       order_by:
-        $ref: '#/definitions/ReportOrderingOCP'
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
       operation:
@@ -1168,8 +1246,8 @@ definitions:
   ReportCost:
     allOf:
       - $ref: '#/definitions/Report'
-      - required:
-          - data
+    required:
+      - data
     properties:
       data:
         type: array
@@ -1215,11 +1293,48 @@ definitions:
                 }
                 ]
             ]
+  ReportCharge:
+    allOf:
+      - $ref: '#/definitions/Report'
+    required:
+      - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                {
+                    "date": "2018-11",
+                    "projects": [
+                        {
+                            "project": "monitoring",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "monitoring",
+                                    "charge": 3.2
+                                }
+                            ]
+                        },
+                        {
+                            "project": "metering",
+                            "values": [
+                                {
+                                    "date": "2018-11",
+                                    "project": "metering",
+                                    "charge": 3.0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
   ReportInstanceInventory:
     allOf:
       - $ref: '#/definitions/Report'
-      - required:
-          - data
+    required:
+      - data
     properties:
       data:
         type: array
@@ -1261,8 +1376,8 @@ definitions:
   ReportStorageInventory:
     allOf:
       - $ref: '#/definitions/Report'
-      - required:
-          - data
+    required:
+      - data
     properties:
       data:
         type: array
@@ -1335,8 +1450,8 @@ definitions:
   ReportOCPCpu:
     allOf:
       - $ref: '#/definitions/Report'
-      - required:
-          - data
+    required:
+      - data
     properties:
       data:
         type: array
@@ -1371,8 +1486,8 @@ definitions:
   ReportOCPMemory:
     allOf:
       - $ref: '#/definitions/Report'
-      - required:
-          - data
+    required:
+      - data
     properties:
       data:
         type: array
@@ -1405,7 +1520,6 @@ definitions:
   Status:
     required:
       - api_version
-      - name
     properties:
       api_version:
         type: integer
@@ -1473,35 +1587,18 @@ definitions:
   UserOut:
     allOf:
       - $ref: '#/definitions/User'
-      - required:
-          - uuid
+    required:
+      - uuid
     properties:
       uuid:
         type: string
         format: uuid
         example: 57e60f90-8c0c-4bd1-87a0-2143759aae1c
-  UserPreferenceIn:
-    allOf:
-      - $ref: '#/definitions/UserPreference'
-      - required:
-          - name
-          - preference
-    properties:
-      name:
-        type: string
-        example: my-preference-name
-      preference:
-        type: object
-        format: json
-        example: {'currency': 'USD'}
-      description:
-        type: string
-        example: my long preference description
   UserPreferencePagination:
     allOf:
       - $ref: '#/definitions/ListPagination'
-      - required:
-          - results
+    required:
+      - results
     properties:
       results:
         type: array
@@ -1510,9 +1607,9 @@ definitions:
   UserPreferenceOut:
     allOf:
       - $ref: '#/definitions/UserPreference'
-      - required:
-          - uuid
-          - user
+    required:
+      - uuid
+      - user
     properties:
       uuid:
         type: string

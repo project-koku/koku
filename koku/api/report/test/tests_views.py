@@ -374,23 +374,18 @@ class ReportViewTest(IamTestCase):
 
         self.assertEqual(result.get('units'), expected_unit)
 
-    def test_execute_query_w_delta_true(self):
-        """Test that delta=True returns deltas."""
-        qs = 'delta=True'
+    def test_execute_query_w_delta_total(self):
+        """Test that delta=total returns deltas."""
+        qs = 'delta=total'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
-
-        qs = 'delta=False'
-        url = reverse('reports-costs') + '?' + qs
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
         bad_delta = 'Invalid'
-        expected = 'Must be a valid boolean.'
+        expected = f'"{bad_delta}" is not a valid choice.'
         qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
         url = reverse('reports-costs') + '?' + qs
         client = APIClient()
