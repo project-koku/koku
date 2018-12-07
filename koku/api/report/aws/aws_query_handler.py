@@ -119,8 +119,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
-                # if self._delta:
-                #     rank_order = getattr(F('total'), self.order_direction)()
                 rank_by_total = Window(
                     expression=RowNumber(),
                     partition_by=F('date'),
