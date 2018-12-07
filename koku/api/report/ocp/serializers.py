@@ -326,6 +326,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
             values = value.split('__')
             if len(values) != 2:
                 error[value] = _('Only two fields may be compared')
+                raise serializers.ValidationError(error)
             for val in values:
                 if val not in self.curren_month_delta_fields:
                     error[value] = _('Unsupported parameter')
