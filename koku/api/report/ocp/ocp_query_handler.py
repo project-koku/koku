@@ -144,10 +144,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-        capacity_by_date, total_capacity = self.get_cluster_capacity()
+        total_capacity = self.get_cluster_capacity()
         query_sum.update(total_capacity)
         query_sum.update({'units': self._mapper.units_key})
-        data = self.add_capacity_to_data(capacity_by_date, data)
 
         self.query_sum = query_sum
         self.query_data = data
@@ -172,7 +171,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         cluster_capacity = defaultdict(Decimal)
         q_table = self._mapper._operation_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
-        query_group_by = ['node', 'usage_start']
+        query_group_by = ['usage_start']
 
         with tenant_context(self.tenant):
             query_data = query.values(*query_group_by).annotate(**annotations)
@@ -181,15 +180,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if entry.get(cap_key):
                     cluster_capacity[date] += entry.get(cap_key)
             total_capacity = Decimal(sum(cluster_capacity.values()))
-        return cluster_capacity, {cap_key: total_capacity}
+        return {cap_key: total_capacity}
 
-    def add_capacity_to_data(self, capacity, data):
-        """Inject cluster capacity to the resultset."""
-        for entry in data:
-            date = entry.get('date')
-            capacity_on_date = capacity.get(date, Decimal(0))
-            entry['capacity'] = capacity_on_date
-        return data
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
@@ -219,7 +211,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             try:
                 row['delta_percent'] = (row.get(delta_field_one, 0)
                                         / row.get(delta_field_two, 0) * 100)
-            except DivisionByZero:
+            except (DivisionByZero, ZeroDivisionError):
                 row['delta_percent'] = 0
 
 
@@ -228,7 +220,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         try:
             total_delta_percent = (query_sum.get(delta_field_one, 0)
                                    / query_sum.get(delta_field_two, 0) * 100)
-        except DivisionByZero:
+        except (DivisionByZero, ZeroDivisionError):
                 total_delta_percent = 0
 
         self.query_delta = {
