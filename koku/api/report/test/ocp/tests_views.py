@@ -646,7 +646,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /
+            delta_percent = (values.get(delta_one) /  # noqa: W504
                              values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
@@ -666,7 +666,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /
+            delta_percent = (values.get(delta_one) /  # noqa: W504
                              values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
@@ -686,6 +686,6 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /
+            delta_percent = (values.get(delta_one) /  # noqa: W504
                              values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))

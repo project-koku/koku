@@ -206,20 +206,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
         delta_field_one, delta_field_two = self._delta.split('__')
 
         for row in query_data:
-            delta_value = (Decimal(row.get(delta_field_one, 0)) -
+            delta_value = (Decimal(row.get(delta_field_one, 0)) -  # noqa: W504
                            Decimal(row.get(delta_field_two, 0)))
 
             row['delta_value'] = delta_value
             try:
-                row['delta_percent'] = (row.get(delta_field_one, 0) /
+                row['delta_percent'] = (row.get(delta_field_one, 0) /  # noqa: W504
                                         row.get(delta_field_two, 0) * 100)
             except (DivisionByZero, ZeroDivisionError):
                 row['delta_percent'] = 0
 
-        total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -
+        total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -  # noqa: W504
                        Decimal(query_sum.get(delta_field_two, 0)))
         try:
-            total_delta_percent = (query_sum.get(delta_field_one, 0) /
+            total_delta_percent = (query_sum.get(delta_field_one, 0) /  # noqa: W504
                                    query_sum.get(delta_field_two, 0) * 100)
         except (DivisionByZero, ZeroDivisionError):
                 total_delta_percent = 0
