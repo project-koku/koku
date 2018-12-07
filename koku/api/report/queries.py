@@ -870,12 +870,8 @@ class ReportQueryHandler(object):
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
-        return_data = []
-        date_grouped_data = defaultdict(list)
         rank_limited_data = OrderedDict()
-        for data in data_list:
-            key = data.get('date')
-            date_grouped_data[key].append(data)
+        date_grouped_data = self.date_group_data(data_list)
 
         for date in date_grouped_data:
             other = None
@@ -908,10 +904,23 @@ class ReportQueryHandler(object):
                 ranked_list.append(other)
             rank_limited_data[date] = ranked_list
 
-        for date, values in rank_limited_data.items():
+        return self.unpack_date_grouped_data(rank_limited_data)
+
+    def date_group_data(self, data_list):
+        """Group data by date."""
+        date_grouped_data = defaultdict(list)
+
+        for data in data_list:
+            key = data.get('date')
+            date_grouped_data[key].append(data)
+        return date_grouped_data
+
+    def unpack_date_grouped_data(self, date_grouped_data):
+        """Return date grouped data to a flatter form."""
+        return_data = []
+        for date, values in date_grouped_data.items():
             for value in values:
                 return_data.append(value)
-
         return return_data
 
     def _create_previous_totals(self, previous_query, query_group_by):
