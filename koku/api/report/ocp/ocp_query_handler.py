@@ -129,6 +129,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
+            total_capacity = self.get_cluster_capacity()
+            if total_capacity:
+                query_sum.update(total_capacity)
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
@@ -144,9 +148,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-        total_capacity = self.get_cluster_capacity()
-        if total_capacity:
-            query_sum.update(total_capacity)
         query_sum.update({'units': self._mapper.units_key})
 
         self.query_sum = query_sum
