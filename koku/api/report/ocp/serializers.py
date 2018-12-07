@@ -118,6 +118,8 @@ class OrderBySerializer(serializers.Serializer):
                                       required=False)
     node = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
 
     def validate(self, data):
         """Validate incoming data."""
@@ -288,13 +290,20 @@ class OCPQueryParamSerializer(serializers.Serializer):
 class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
 
-    DELTA_CHOICES = (
-        ('charge', 'charge'),
-        ('usage', 'usage'),
-        ('request', 'request')
+    delta_choices = (
+        'charge',
+        'usage',
+        'request',
     )
 
-    delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    curren_month_delta_fields = (
+        'usage',
+        'request',
+        'limit',
+        'capacity'
+    )
+
+    delta = serializers.CharField(required=False)
     order_by = InventoryOrderBySerializer(required=False)
 
     def validate_order_by(self, value):
@@ -308,6 +317,24 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
             (ValidationError): if order_by field inputs are invalid
         """
         validate_field(self, 'order_by', InventoryOrderBySerializer, value)
+        return value
+
+    def validate_delta(self, value):
+        """Validate delta is valid."""
+        error = {}
+        if '__' in value:
+            values = value.split('__')
+            if len(values) != 2:
+                error[value] = _('Only two fields may be compared')
+                raise serializers.ValidationError(error)
+            for val in values:
+                if val not in self.curren_month_delta_fields:
+                    error[value] = _('Unsupported parameter')
+                    raise serializers.ValidationError(error)
+        else:
+            if value not in self.delta_choices:
+                error[value] = _('Unsupported parameter')
+                raise serializers.ValidationError(error)
         return value
 
 

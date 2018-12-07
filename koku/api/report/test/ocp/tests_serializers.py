@@ -223,6 +223,53 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_delta_success(self):
+        """Test that a proper delta value is serialized."""
+        query_params = {'delta': 'charge'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+        query_params = {'delta': 'usage'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+        query_params = {'delta': 'request'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_delta_failure(self):
+        """Test that a bad delta value is not serialized."""
+        query_params = {'delta': 'bad_delta'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_current_month_delta_success(self):
+        """Test that a proper current month delta value is serialized."""
+        query_params = {'delta': 'usage__request'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+        query_params = {'delta': 'usage__capacity'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+        query_params = {'delta': 'request__capacity'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_current_month_delta_failure(self):
+        """Test that a bad current month delta value is not serialized."""
+        query_params = {'delta': 'bad__delta'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+        query_params = {'delta': 'usage__request__capacity'}
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class OCPChargeQueryParamSerializerTest(TestCase):
     """Tests for the handling charge query parameter parsing serializer."""

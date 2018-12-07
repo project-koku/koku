@@ -165,15 +165,34 @@ class OCPReportDataGenerator:
             'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
             'cluster_id': F('report_period__cluster_id'),
             'node_capacity_cpu_cores': Max('node_capacity_cpu_cores'),
-            'node_capacity_cpu_core_seconds': Sum('node_capacity_cpu_core_seconds'),
+            'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
             'node_capacity_memory_bytes': Max('node_capacity_memory_bytes'),
-            'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
+            'node_capacity_memory_byte_seconds': Max('node_capacity_memory_byte_seconds')
         }
         entries = OCPUsageLineItem.objects\
             .values(*included_fields)\
             .annotate(**annotations)
+
+        cluster_capacity_cpu_core_seconds = Decimal(0)
+        cluster_capacity_memory_byte_seconds = Decimal(0)
+
+        cluster_cap = OCPUsageLineItem.objects\
+            .values(*['node'])\
+            .annotate(
+                **{
+                    'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
+                    'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
+                }
+            )
+
+        for node in cluster_cap:
+            cluster_capacity_cpu_core_seconds += node.get('node_capacity_cpu_core_seconds')
+            cluster_capacity_memory_byte_seconds += node.get('node_capacity_memory_byte_seconds')
+
         for entry in entries:
             entry['total_seconds'] = 3600
+            entry['cluster_capacity_cpu_core_seconds'] = cluster_capacity_cpu_core_seconds
+            entry['cluster_capacity_memory_byte_seconds'] = cluster_capacity_memory_byte_seconds
             daily = OCPUsageLineItemDaily(**entry)
             daily.save()
 
@@ -222,6 +241,11 @@ class OCPReportDataGenerator:
             'node_capacity_memory_gigabytes': F('node_capacity_memory_bytes') * 1e-9,
             'node_capacity_memory_gigabyte_hours': ExpressionWrapper(
                 F('node_capacity_memory_byte_seconds') / 3600,
+                output_field=DecimalField()
+            ) * 1e-9,
+            'cluster_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
+            'cluster_capacity_memory_gigabyte_hours': ExpressionWrapper(
+                F('cluster_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
             ) * 1e-9,
         }
