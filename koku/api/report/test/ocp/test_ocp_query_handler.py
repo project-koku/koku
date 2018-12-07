@@ -17,6 +17,7 @@
 """Test the Report Queries."""
 from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from tenant_schemas.utils import tenant_context
 
@@ -112,3 +113,85 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total_capacity = handler.get_cluster_capacity()
         self.assertTrue('capacity' in total_capacity)
         self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
+
+    @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
+    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')
+    def test_add_deltas_current_month(self, mock_current_deltas, mock_deltas):
+        """Test that the current month method is called for deltas."""
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        handler._delta = 'usage__request'
+
+        handler.add_deltas([], [])
+
+        mock_current_deltas.assert_called()
+        mock_deltas.assert_not_called()
+
+
+    @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
+    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')
+    def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas):
+        """Test that the super delta method is called for deltas."""
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        handler._delta = 'usage'
+
+        handler.add_deltas([], [])
+
+        mock_current_deltas.assert_not_called()
+        mock_deltas.assert_called()
+
+    def test_add_current_month_deltas(self):
+        """Test that current month deltas are calculated."""
+
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        handler._delta = 'usage__request'
+
+        q_table = handler._mapper._operation_map.get('tables').get('query')
+        with tenant_context(self.tenant):
+            query = q_table.objects.filter(handler.query_filter)
+            query_data = query.annotate(**handler.annotations)
+            group_by_value = handler._get_group_by()
+            query_group_by = ['date'] + group_by_value
+            query_order_by = ('-date', )
+            query_order_by += (handler.order,)
+
+            annotations = handler._mapper._report_type_map.get('annotations')
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            aggregates = handler._mapper._report_type_map.get('aggregates')
+            metric_sum = query.aggregate(**aggregates)
+            query_sum = {key: metric_sum.get(key) for key in aggregates}
+
+            result = handler.add_current_month_deltas(query_data, query_sum)
+
+            delta_field_one, delta_field_two = handler._delta.split('__')
+            field_one_total = Decimal(0)
+            field_two_total = Decimal(0)
+            for entry in result:
+                field_one_total += entry.get(delta_field_one, 0)
+                field_two_total += entry.get(delta_field_two, 0)
+                delta_percent = entry.get('delta_percent')
+                expected = (entry.get(delta_field_one, 0)
+                            / entry.get(delta_field_two, 0) * 100) if entry.get(delta_field_two) else 0
+                self.assertEqual(delta_percent, expected)
+
+            expected_total = field_one_total / field_two_total * 100 if field_two_total != 0 else 0
+
+            self.assertEqual(handler.query_delta.get('percent'), expected_total)

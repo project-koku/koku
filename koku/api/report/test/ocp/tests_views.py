@@ -629,3 +629,66 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_cpu_with_delta_usage__capacity(self):
+        """Test that usage v capacity deltas work."""
+        delta = 'usage__capacity'
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': delta
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        delta_one, delta_two = delta.split('__')
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', {})[0]
+            delta_percent = (values.get(delta_one)
+                             / values.get(delta_two) * 100) \
+                            if values.get(delta_two) else 0
+            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+
+    def test_execute_query_ocp_cpu_with_delta_usage__request(self):
+        """Test that usage v request deltas work."""
+        delta = 'usage__request'
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': delta
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        delta_one, delta_two = delta.split('__')
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', {})[0]
+            delta_percent = (values.get(delta_one)
+                             / values.get(delta_two) * 100) \
+                            if values.get(delta_two) else 0
+            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+
+    def test_execute_query_ocp_cpu_with_delta_usage__request(self):
+        """Test that request v capacity deltas work."""
+        delta = 'request__capacity'
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'delta': delta
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        delta_one, delta_two = delta.split('__')
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', {})[0]
+            delta_percent = (values.get(delta_one)
+                             / values.get(delta_two) * 100) \
+                            if values.get(delta_two) else 0
+            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
