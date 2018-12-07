@@ -65,16 +65,16 @@ class OCPRateDBAccessorTest(MasuTestCase):
         )
         self.cpu_usage_rate = {'metric': 'cpu_core_usage_per_hour',
                                'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': {'value': 1.5, 'unit': 'USD'}}}
+                               'rates': {'tiered_rate': [{'value': 1.5, 'unit': 'USD'}]}}
         self.mem_usage_rate = {'metric': 'memory_gb_usage_per_hour',
                                'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': {'value': 2.5, 'unit': 'USD'}}}
+                               'rates': {'tiered_rate': [{'value': 2.5, 'unit': 'USD'}]}}
         self.cpu_request_rate = {'metric': 'cpu_core_request_per_hour',
                                  'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': {'value': 3.5, 'unit': 'USD'}}}
+                                 'rates': {'tiered_rate': [{'value': 3.5, 'unit': 'USD'}]}}
         self.mem_request_rate = {'metric': 'memory_gb_request_per_hour',
                                  'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': {'value': 4.5, 'unit': 'USD'}}}
+                                 'rates': {'tiered_rate': [{'value': 4.5, 'unit': 'USD'}]}}
 
         self.creator.create_rate(**self.cpu_usage_rate)
         self.creator.create_rate(**self.mem_usage_rate)
@@ -136,22 +136,22 @@ class OCPRateDBAccessorTest(MasuTestCase):
         """Test get cpu usage rates."""
         cpu_rates = self.accessor.get_cpu_core_usage_per_hour_rates()
         self.assertEquals(type(cpu_rates), dict)
-        self.assertEqual(cpu_rates.get('tiered_rate').get('value'), 1.5)
+        self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 1.5)
 
     def test_get_memory_gb_usage_per_hour_rates(self):
         """Test get memory usage rates."""
         mem_rates = self.accessor.get_memory_gb_usage_per_hour_rates()
         self.assertEquals(type(mem_rates), dict)
-        self.assertEqual(mem_rates.get('tiered_rate').get('value'), 2.5)
+        self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 2.5)
 
     def test_get_cpu_core_request_per_hour_rates(self):
         """Test get cpu request rates."""
         cpu_rates = self.accessor.get_cpu_core_request_per_hour_rates()
         self.assertEquals(type(cpu_rates), dict)
-        self.assertEqual(cpu_rates.get('tiered_rate').get('value'), 3.5)
+        self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 3.5)
 
     def test_get_memory_gb_request_per_hour_rates(self):
         """Test get memory request rates."""
         mem_rates = self.accessor.get_memory_gb_request_per_hour_rates()
         self.assertEquals(type(mem_rates), dict)
-        self.assertEqual(mem_rates.get('tiered_rate').get('value'), 4.5)
+        self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 4.5)
