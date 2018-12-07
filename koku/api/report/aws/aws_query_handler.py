@@ -107,8 +107,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ['date'] + self._get_group_by()
-            query_order_by = ('-date', )
-            query_order_by += (self.order,)
+            query_order_by = ['-date', ]
+            query_order_by.extend([self.order])
 
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -125,7 +125,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     order_by=rank_order
                 )
                 query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by = query_order_by + ('rank',)
+                query_order_by.insert(1, 'rank')
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
