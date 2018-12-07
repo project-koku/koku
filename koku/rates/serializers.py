@@ -47,25 +47,18 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
         return instance.uuid
 
 
-class FixedRateSerializer(serializers.Serializer):
-    """Serializer for Fixed Rate."""
-
-    value = serializers.DecimalField(required=True, max_digits=19, decimal_places=10)
-    unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
-
-    def validate_value(self, value):
-        """Check that value is a positive value."""
-        if value <= 0:
-            raise serializers.ValidationError('A fixed rate value must be positive.')
-        return str(value)
-
-
 class TieredRateSerializer(serializers.Serializer):
     """Serializer for Tiered Rate."""
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    usage_start = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    usage_end = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    usage_start = serializers.DecimalField(required=False,
+                                           max_digits=19,
+                                           decimal_places=10,
+                                           allow_null=True)
+    usage_end = serializers.DecimalField(required=False,
+                                         max_digits=19,
+                                         decimal_places=10,
+                                         allow_null=True)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
 
     def validate_value(self, value):
@@ -76,22 +69,29 @@ class TieredRateSerializer(serializers.Serializer):
 
     def validate_usage_start(self, usage_start):
         """Check that usage_start is a positive value."""
-        if usage_start < 0:
+        if usage_start is None:
+            return usage_start
+        elif usage_start < 0:
             raise serializers.ValidationError('A tiered rate usage_start must be positive.')
         return str(usage_start)
 
     def validate_usage_end(self, usage_end):
         """Check that usage_end is a positive value."""
-        if usage_end <= 0:
+        if usage_end is None:
+            return usage_end
+        elif usage_end <= 0:
             raise serializers.ValidationError('A tiered rate usage_end must be positive.')
         return str(usage_end)
 
     def validate(self, data):
         """Validate that usage_end is greater than usage_start."""
-        usage_start = data.get('usage_start', '0.0')
-        usage_end = data.get('usage_end', '0.0')
-        if Decimal(usage_start) >= Decimal(usage_end):
-            raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
+        usage_start = data.get('usage_start')
+        usage_end = data.get('usage_end')
+
+        if usage_start is not None and usage_end is not None:
+            if Decimal(usage_start) >= Decimal(usage_end):
+                raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
+            return data
         else:
             return data
 
@@ -105,16 +105,44 @@ class RateSerializer(serializers.ModelSerializer):
     provider_uuid = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
-    fixed_rate = FixedRateSerializer(required=False)
     tiered_rate = TieredRateSerializer(required=False, many=True)
 
     @staticmethod
     def _convert_to_decimal(rate):
         for decimal_key in RateSerializer.DECIMALS:
             if decimal_key in rate:
-                decimal_value = Decimal(rate.get(decimal_key))
-                rate[decimal_key] = decimal_value
+                value = rate.get(decimal_key)
+                if value is not None:
+                    decimal_value = Decimal(value)
+                    rate[decimal_key] = decimal_value
         return rate
+
+    @staticmethod
+    def _validate_continuouse_tiers(tiers):
+        """Validate tiers have no gaps."""
+        if len(tiers) < 1:
+            raise serializers.ValidationError('tiered_rate must have at least one tier.')
+
+        sorted_tiers = sorted(tiers,
+                              key=lambda tier: Decimal('-Infinity') if tier.get('usage_start') is None else Decimal(tier.get('usage_start')))  # noqa: E501
+        start = sorted_tiers[0].get('usage_start')
+        end = sorted_tiers[-1].get('usage_end')
+        if start is not None or end is not None:
+            error_msg = 'tiered_rate must have a tier with usage_start as null' \
+                ' and a tier with usage_end as null.'
+            raise serializers.ValidationError(error_msg)
+        else:
+            next_tier = None
+            for tier in sorted_tiers:
+                usage_start = tier.get('usage_start')
+                usage_end = tier.get('usage_end')
+                if (next_tier is not None and usage_start is not None
+                        and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
+                    error_msg = 'tiered_rate must not have gaps between tiers.' \
+                        'usage_start of {} should be less than or equal to the' \
+                        ' usage_end {} of the previous tier.'.format(usage_start, next_tier)
+                    raise serializers.ValidationError(error_msg)
+                next_tier = usage_end
 
     def validate_provider_uuid(self, provider_uuid):
         """Check that provider_uuid is a valid identifier."""
@@ -125,11 +153,16 @@ class RateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate that a rate must be defined."""
-        rate_keys = ('fixed_rate', 'tiered_rate')
+        rate_keys = ('tiered_rate',)
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
+            tiered_rate = data.get('tiered_rate')
+            if tiered_rate is not None:
+                RateSerializer._validate_continuouse_tiers(tiered_rate)
             return data
         else:
-            raise serializers.ValidationError('A rated must be provided (e.g. fixed_rate, tiered_rate).')
+            rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)
+            error_msg = 'A rated must be provided (e.g. {}).'.format(rate_keys_str)
+            raise serializers.ValidationError(error_msg)
 
     def to_representation(self, rate):
         """Create external representation of a rate."""
@@ -168,4 +201,4 @@ class RateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Rate
-        fields = ('uuid', 'provider_uuid', 'metric', 'fixed_rate', 'tiered_rate')
+        fields = ('uuid', 'provider_uuid', 'metric', 'tiered_rate')

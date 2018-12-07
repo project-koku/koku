@@ -61,10 +61,12 @@ class RateViewSet(mixins.CreateModelMixin,
             {
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                 "metric": "cpu_core_per_hour",
-                "fixed_rate": {
+                "tiered_rate": [{
                     "value": 0.022,
-                    "unit": "USD"
-                }
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
 
         @apiSuccess {String} uuid Rate unique identifier
@@ -79,10 +81,12 @@ class RateViewSet(mixins.CreateModelMixin,
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                 "metric": "cpu_core_per_hour",
-                "fixed_rate": {
+                "tiered_rate": [{
                     "value": 0.022,
-                    "unit": "USD"
-                }
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().create(request=request, args=args, kwargs=kwargs)
@@ -116,19 +120,23 @@ class RateViewSet(mixins.CreateModelMixin,
                                     "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                                     "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                                     "metric": "cpu_core_per_hour",
-                                    "fixed_rate": {
+                                    "tiered_rate": [{
                                         "value": 0.022,
-                                        "unit": "USD"
-                                    }
+                                        "unit": "USD",
+                                        "usage_start": null,
+                                        "usage_end": null,
+                                    }]
                                 },
                                 {
                                     "uuid": "20ecdcd0-397c-4ede-8940-f3439bf40212",
                                     "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                                     "metric": "memory_gb_per_hour",
-                                    "fixed_rate": {
+                                    "tiered_rate": [{
                                         "value": 0.022,
-                                        "unit": "USD"
-                                    }
+                                        "unit": "USD",
+                                        "usage_start": null,
+                                        "usage_end": null,
+                                    }]
                                 }
                             ]
             }
@@ -161,10 +169,12 @@ class RateViewSet(mixins.CreateModelMixin,
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                 "metric": "cpu_core_per_hour",
-                "fixed_rate": {
+                "tiered_rate": [{
                     "value": 0.022,
-                    "unit": "USD"
-                }
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -212,10 +222,12 @@ class RateViewSet(mixins.CreateModelMixin,
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
                 "metric": "cpu_core_per_hour",
-                "fixed_rate": {
-                    "value": 0.024,
-                    "unit": "USD"
-                }
+                "tiered_rate": [{
+                    "value": 0.022,
+                    "unit": "USD",
+                    "usage_start": null,
+                    "usage_end": null,
+                }]
             }
         """
         return super().update(request=request, args=args, kwargs=kwargs)
