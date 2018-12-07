@@ -21,6 +21,7 @@ from dateutil import relativedelta
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from tests import MasuTestCase
@@ -53,6 +54,8 @@ class AWSReportDBCleanerTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['reservation']
         ]
 
+        cls.today = DateAccessor().today_with_timezone('UTC')
+
     @classmethod
     def tearDownClass(cls):
         """Close the DB session."""
@@ -61,7 +64,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def setUp(self):
         """"Set up a test with database objects."""
-        bill_id = self.creator.create_cost_entry_bill()
+        bill_id = self.creator.create_cost_entry_bill(self.today)
         cost_entry_id = self.creator.create_cost_entry(bill_id)
         product_id = self.creator.create_cost_entry_product()
         pricing_id = self.creator.create_cost_entry_pricing()
@@ -155,8 +158,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
         cutoff_date = first_bill.billing_period_start
         later_date = cutoff_date + relativedelta.relativedelta(months=+1)
-
-        later_cutoff = cutoff_date.replace(month=later_date.month, day=15)
+        later_cutoff = later_date.replace(day=15)
 
         self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
         self.assertIsNotNone(self.accessor._get_db_obj_query(line_item_table_name).first())
