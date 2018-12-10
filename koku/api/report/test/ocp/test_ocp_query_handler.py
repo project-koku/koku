@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+import copy
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -99,19 +100,51 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
                          current_totals.get('charge').quantize(Decimal('0.001')))
 
-    def test_get_cluster_capacity(self):
-        """Test that cluster capacity returns."""
-        query_params = {}
+    def test_get_cluster_capacity_monthly_resolution(self):
+        """Test that cluster capacity returns a full month's capacity."""
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        query_data = [{'row': 1}]
+        query_data, total_capacity = handler.get_cluster_capacity(query_data)
+        self.assertTrue('capacity' in total_capacity)
+        self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
+        self.assertTrue('capacity' in query_data[0])
+        self.assertEqual(query_data[0].get('capacity'),
+                         total_capacity.get('capacity'))
+
+    def test_get_cluster_capacity_daily_resolution(self):
+        """Test that cluster capacity is unaltered for daily resolution."""
+        query_params = {
+            'filter': {
+                'resolution': 'daily',
+                'time_scope_value': -2,
+                'time_scope_units': 'month'
+            }
+        }
         handler = OCPReportQueryHandler(
             query_params,
             '',
             self.tenant,
             **{'report_type': 'cpu'}
         )
-
-        total_capacity = handler.get_cluster_capacity()
+        query_data = [{'capacity': -1}]
+        expected = copy.deepcopy(query_data)
+        query_data, total_capacity = handler.get_cluster_capacity(query_data)
         self.assertTrue('capacity' in total_capacity)
         self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
+        self.assertEqual(query_data, expected)
 
     @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')

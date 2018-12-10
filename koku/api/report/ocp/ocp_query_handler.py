@@ -16,7 +16,6 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-from collections import defaultdict
 from decimal import Decimal, DivisionByZero
 
 from django.db.models import F, Value, Window
@@ -129,7 +128,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
-            total_capacity = self.get_cluster_capacity()
+            query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
                 query_sum.update(total_capacity)
 
@@ -163,27 +162,28 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         return self.execute_sum_query()
 
-    def get_cluster_capacity(self):
+    def get_cluster_capacity(self, query_data):
         """Calculate cluster capacity for all nodes over the date range."""
         annotations = self._mapper._report_type_map.get('capacity_aggregate')
         if not annotations:
-            return {}
+            return query_data, {}
 
         cap_key = list(annotations.keys())[0]
-        cluster_capacity = defaultdict(Decimal)
+        total_capacity = Decimal(0)
         q_table = self._mapper._operation_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['usage_start']
 
         with tenant_context(self.tenant):
-            query_data = query.values(*query_group_by).annotate(**annotations)
-            for entry in query_data:
-                date = self.date_to_string(entry.get('usage_start'))
-                if entry.get(cap_key):
-                    cluster_capacity[date] += entry.get(cap_key)
-            total_capacity = Decimal(sum(cluster_capacity.values()))
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                total_capacity += entry.get(cap_key, 0)
 
-        return {cap_key: total_capacity}
+        if self.resolution == 'monthly':
+            for row in query_data:
+                row[cap_key] = total_capacity
+
+        return query_data, {cap_key: total_capacity}
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
