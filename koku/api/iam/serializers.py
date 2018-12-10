@@ -126,9 +126,10 @@ class UserSerializer(serializers.ModelSerializer):
             json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
             if (json_rh_auth and 'identity' in json_rh_auth and  # noqa: W504
                 'account_number' in json_rh_auth['identity'] and  # noqa: W504
-                    'org_id' in json_rh_auth['identity']):
+                    'internal' in json_rh_auth['identity'] and  # noqa: 504
+                    'org_id' in json_rh_auth['identity']['internal']):
                 account = json_rh_auth['identity']['account_number']
-                org = json_rh_auth['identity']['org_id']
+                org = json_rh_auth['identity']['internal']['org_id']
             if account and org:
                 schema_name = create_schema_name(account, org)
                 customer = Customer.objects.get(schema_name=schema_name)
