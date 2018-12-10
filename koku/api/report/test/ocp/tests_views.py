@@ -20,7 +20,7 @@ from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
 from dateutil import relativedelta
-from django.db.models import F, Sum
+from django.db.models import Count, F, Sum
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from rest_framework.request import Request
@@ -689,3 +689,89 @@ class OCPReportViewTest(IamTestCase):
             delta_percent = (values.get(delta_one) /  # noqa: W504
                              values.get(delta_two) * 100) if values.get(delta_two) else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+
+    def test_execute_query_group_by_project(self):
+        """Test that grouping by project filters data."""
+        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
+        with tenant_context(self.tenant):
+            # Force Django to do GROUP BY to get nodes
+            projects = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=ten_days_ago)\
+                .values(*['namespace'])\
+                .annotate(project_count=Count('namespace'))\
+                .all()
+            project_of_interest = projects[0].get('namespace')
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {'group_by[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for project in entry.get('projects', []):
+                self.assertEqual(project.get('project'), project_of_interest)
+
+    def test_execute_query_group_by_cluster(self):
+        """Test that grouping by cluster filters data."""
+        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
+        with tenant_context(self.tenant):
+            # Force Django to do GROUP BY to get nodes
+            clusters = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=ten_days_ago)\
+                .values(*['cluster_id'])\
+                .annotate(cluster_count=Count('cluster_id'))\
+                .all()
+            cluster_of_interest = clusters[0].get('cluster_id')
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {'group_by[cluster]': cluster_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for cluster in entry.get('clusters', []):
+                self.assertEqual(cluster.get('cluster'), cluster_of_interest)
+
+    def test_execute_query_group_by_pod_fails(self):
+        """Test that grouping by pod filters data."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {'group_by[pod]': '*'}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_execute_query_group_by_node(self):
+        """Test that grouping by node filters data."""
+        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
+        with tenant_context(self.tenant):
+            # Force Django to do GROUP BY to get nodes
+            nodes = OCPUsageLineItemDailySummary.objects\
+                .values(*['node'])\
+                .filter(usage_start__gte=ten_days_ago)\
+                .values(*['node'])\
+                .annotate(node_count=Count('node'))\
+                .all()
+            node_of_interest = nodes[0].get('node')
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {'group_by[node]': node_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for node in entry.get('nodes', []):
+                self.assertEqual(node.get('node'), node_of_interest)
