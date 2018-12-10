@@ -233,6 +233,8 @@ class ProviderMap(object):
                                 'operation': 'icontains'},
                     'pod': {'field': 'pod',
                             'operation': 'icontains'},
+                    'node': {'field': 'node',
+                             'operation': 'icontains'},
                 },
                 'report_type': {
                     'charge': {
