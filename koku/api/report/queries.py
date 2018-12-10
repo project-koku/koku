@@ -18,7 +18,7 @@
 import copy
 import datetime
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
@@ -264,14 +264,14 @@ class ProviderMap(object):
                             'limit': Sum('pod_limit_cpu_core_hours')
                         },
                         'capacity_aggregate': {
-                            'capacity': Max('node_capacity_cpu_core_hours')
+                            'capacity': Max('cluster_capacity_cpu_core_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
                             'limit': Sum('pod_limit_cpu_core_hours'),
-
+                            'capacity': Max('cluster_capacity_cpu_core_hours'),
                             'charge': Sum('pod_charge_cpu_core_hours'),
                             'units': Value('Core-Hours', output_field=CharField())
                         },
@@ -292,13 +292,13 @@ class ProviderMap(object):
                             'limit': Sum('pod_limit_memory_gigabyte_hours')
                         },
                         'capacity_aggregate': {
-                            'capacity': Max('node_capacity_memory_gigabyte_hours')
+                            'capacity': Max('cluster_capacity_memory_gigabyte_hours')
                         },
                         'default_ordering': {'usage': 'desc'},
                         'annotations': {
                             'usage': Sum('pod_usage_memory_gigabyte_hours'),
                             'request': Sum('pod_request_memory_gigabyte_hours'),
-
+                            'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
                             'charge': Sum('pod_charge_memory_gigabyte_hours'),
                             'limit': Sum('pod_limit_memory_gigabyte_hours'),
                             'units': Value('GB-Hours', output_field=CharField())
@@ -785,6 +785,8 @@ class ReportQueryHandler(object):
             bucket_by_date[date_string] = []
 
         for result in query_data:
+            if self._limit:
+                del result['rank']
             date_string = result.get('date')
             date_bucket = bucket_by_date.get(date_string)
             if date_bucket is not None:
@@ -792,8 +794,6 @@ class ReportQueryHandler(object):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            if self._limit:
-                data = self._ranked_list(data_list)
             group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
@@ -822,6 +822,28 @@ class ReportQueryHandler(object):
 
         return out_data
 
+    def order_by(self, data, order_fields):
+        """Order a list of dictionaries by dictionary keys.
+
+        Args:
+            data (list): Query data that has been converted from QuerySet to list.
+            order_fields (list): The list of dictionary keys to order by.
+
+        Returns
+            (list): The sorted/ordered list
+
+        """
+        sorted_data = data
+        for field in reversed(order_fields):
+            reverse = False
+            field = field.replace('delta', 'delta_percent')
+            if '-' in field:
+                reverse = True
+                field = field.replace('-', '')
+            sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
+                                 reverse=reverse)
+        return sorted_data
+
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
 
@@ -848,37 +870,58 @@ class ReportQueryHandler(object):
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
-        ranked_list = []
-        others_list = []
-        other = None
-        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        rank_limited_data = OrderedDict()
+        date_grouped_data = self.date_group_data(data_list)
+
+        for date in date_grouped_data:
+            other = None
+            ranked_list = []
+            others_list = []
+            other_sums = {column: 0 for column in self._mapper.sum_columns}
+            for data in date_grouped_data[date]:
+                if other is None:
+                    other = copy.deepcopy(data)
+                rank = data.get('rank')
+                if rank <= self._limit:
+                    ranked_list.append(data)
+                else:
+                    others_list.append(data)
+                    for column in self._mapper.sum_columns:
+                        other_sums[column] += data.get(column) if data.get(column) else 0
+
+            if other is not None and others_list:
+                num_others = len(others_list)
+                others_label = '{} Others'.format(num_others)
+                if num_others == 1:
+                    others_label = '{} Other'.format(num_others)
+                other.update(other_sums)
+                other['rank'] = self._limit + 1
+                group_by = self._get_group_by()
+                for group in group_by:
+                    other[group] = others_label
+                if 'account' in group_by:
+                    other['account_alias'] = others_label
+                ranked_list.append(other)
+            rank_limited_data[date] = ranked_list
+
+        return self.unpack_date_grouped_data(rank_limited_data)
+
+    def date_group_data(self, data_list):
+        """Group data by date."""
+        date_grouped_data = defaultdict(list)
+
         for data in data_list:
-            if other is None:
-                other = copy.deepcopy(data)
-            rank = data.get('rank')
-            if rank <= self._limit:
-                del data['rank']
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) if data.get(column) else 0
+            key = data.get('date')
+            date_grouped_data[key].append(data)
+        return date_grouped_data
 
-        if other is not None and others_list:
-            num_others = len(others_list)
-            others_label = '{} Others'.format(num_others)
-            if num_others == 1:
-                others_label = '{} Other'.format(num_others)
-            other.update(other_sums)
-            del other['rank']
-            group_by = self._get_group_by()
-            for group in group_by:
-                other[group] = others_label
-            if 'account' in group_by:
-                other['account_alias'] = others_label
-            ranked_list.append(other)
-
-        return ranked_list
+    def unpack_date_grouped_data(self, date_grouped_data):
+        """Return date grouped data to a flatter form."""
+        return_data = []
+        for date, values in date_grouped_data.items():
+            for value in values:
+                return_data.append(value)
+        return return_data
 
     def _create_previous_totals(self, previous_query, query_group_by):
         """Get totals from the time period previous to the current report.

@@ -17,11 +17,9 @@
 """OCP Query Handling for Reports."""
 import copy
 from collections import defaultdict
-from decimal import Decimal
+from decimal import Decimal, DivisionByZero
 
-from django.db.models import (F,
-                              Value,
-                              Window)
+from django.db.models import F, Value, Window
 from django.db.models.functions import Concat
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
@@ -100,25 +98,30 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
+            query_order_by = ['-date']
+            query_order_by.extend([self.order])
 
-            query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
+
+                if self.order_field == 'delta' and '__' in self._delta:
+                    delta_field_one, delta_field_two = self._delta.split('__')
+                    rank_order = getattr(
+                        F(delta_field_one) / F(delta_field_two),
+                        self.order_direction
+                    )()
+
                 rank_by_total = Window(
                     expression=RowNumber(),
                     partition_by=F('date'),
                     order_by=rank_order
                 )
                 query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by = query_order_by + ('rank',)
-
-            if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
+                query_order_by.insert(1, 'rank')
+                query_data = self._ranked_list(query_data)
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -126,9 +129,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
+            total_capacity = self.get_cluster_capacity()
+            if total_capacity:
+                query_sum.update(total_capacity)
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+
+            query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:
@@ -139,10 +148,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-        capacity_by_date, total_capacity = self.get_cluster_capacity()
-        query_sum.update(total_capacity)
         query_sum.update({'units': self._mapper.units_key})
-        data = self.add_capacity_to_data(capacity_by_date, data)
 
         self.query_sum = query_sum
         self.query_data = data
@@ -161,13 +167,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Calculate cluster capacity for all nodes over the date range."""
         annotations = self._mapper._report_type_map.get('capacity_aggregate')
         if not annotations:
-            return {}, {}
+            return {}
 
         cap_key = list(annotations.keys())[0]
         cluster_capacity = defaultdict(Decimal)
         q_table = self._mapper._operation_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
-        query_group_by = ['node', 'usage_start']
+        query_group_by = ['usage_start']
 
         with tenant_context(self.tenant):
             query_data = query.values(*query_group_by).annotate(**annotations)
@@ -176,12 +182,51 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if entry.get(cap_key):
                     cluster_capacity[date] += entry.get(cap_key)
             total_capacity = Decimal(sum(cluster_capacity.values()))
-        return cluster_capacity, {cap_key: total_capacity}
 
-    def add_capacity_to_data(self, capacity, data):
-        """Inject cluster capacity to the resultset."""
-        for entry in data:
-            date = entry.get('date')
-            capacity_on_date = capacity.get(date, Decimal(0))
-            entry['capacity'] = capacity_on_date
-        return data
+        return {cap_key: total_capacity}
+
+    def add_deltas(self, query_data, query_sum):
+        """Calculate and add cost deltas to a result set.
+
+        Args:
+            query_data (list) The existing query data from execute_query
+            query_sum (list) The sum returned by calculate_totals
+
+        Returns:
+            (dict) query data with new with keys "value" and "percent"
+
+        """
+        if '__' in self._delta:
+            return self.add_current_month_deltas(query_data, query_sum)
+        else:
+            return super().add_deltas(query_data, query_sum)
+
+    def add_current_month_deltas(self, query_data, query_sum):
+        """Add delta to the resultset using current month comparisons."""
+        delta_field_one, delta_field_two = self._delta.split('__')
+
+        for row in query_data:
+            delta_value = (Decimal(row.get(delta_field_one, 0)) -  # noqa: W504
+                           Decimal(row.get(delta_field_two, 0)))
+
+            row['delta_value'] = delta_value
+            try:
+                row['delta_percent'] = (row.get(delta_field_one, 0) /  # noqa: W504
+                                        row.get(delta_field_two, 0) * 100)
+            except (DivisionByZero, ZeroDivisionError):
+                row['delta_percent'] = 0
+
+        total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -  # noqa: W504
+                       Decimal(query_sum.get(delta_field_two, 0)))
+        try:
+            total_delta_percent = (query_sum.get(delta_field_one, 0) /  # noqa: W504
+                                   query_sum.get(delta_field_two, 0) * 100)
+        except (DivisionByZero, ZeroDivisionError):
+                total_delta_percent = 0
+
+        self.query_delta = {
+            'value': total_delta,
+            'percent': total_delta_percent
+        }
+
+        return query_data
