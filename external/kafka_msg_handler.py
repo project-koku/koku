@@ -23,6 +23,7 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 from tarfile import ReadError, TarFile
 
 import requests
@@ -251,7 +252,7 @@ async def listen_for_messages(consumer):  # pragma: no cover
         await consumer.start()
     except KafkaConnectionError:
         await consumer.stop()
-        raise KafkaMsgHandlerError('Unable to connect to kafka server.  Closing consumer.')
+        raise KafkaMsgHandlerError('Unable to connect to kafka server.')
 
     LOG.info('Listener started.  Waiting for messages...')
     try:
@@ -274,18 +275,25 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
-    consumer = AIOKafkaConsumer(
-        AVAILABLE_TOPIC, HCCM_TOPIC,
-        loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
-        group_id='hccm-group'
-    )
-
-    loop.create_task(process_messages())
-
     try:
-        loop.run_until_complete(listen_for_messages(consumer))
-    except KafkaMsgHandlerError as err:
-        LOG.info('Stopping kafka worker thread.  Error: %s', str(err))
+        while True:
+            consumer = AIOKafkaConsumer(
+                AVAILABLE_TOPIC, HCCM_TOPIC,
+                loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
+                group_id='hccm-group'
+            )
+
+            loop.create_task(process_messages())
+
+            try:
+                loop.run_until_complete(listen_for_messages(consumer))
+            except KafkaMsgHandlerError as err:
+                LOG.info('Kafka connection failure.  Error: %s', str(err))
+            time.sleep(Config.INSIGHTS_KAFKA_CONN_RETRY_INTERVAL)
+            LOG.info('Attempting to reconnect')
+
+    except KeyboardInterrupt:
+        exit(0)
 
 
 def initialize_kafka_handler():  # pragma: no cover
