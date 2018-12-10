@@ -262,8 +262,8 @@ class ProviderMap(object):
                         'aggregates': {
                             'usage': Sum('pod_usage_cpu_core_hours'),
                             'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours'),
-                            'limit': Sum('pod_limit_cpu_core_hours')
+                            'limit': Sum('pod_limit_cpu_core_hours'),
+                            'charge': Sum('pod_charge_cpu_core_hours')
                         },
                         'capacity_aggregate': {
                             'capacity': Max('cluster_capacity_cpu_core_hours')
@@ -290,8 +290,8 @@ class ProviderMap(object):
                         'aggregates': {
                             'usage': Sum('pod_usage_memory_gigabyte_hours'),
                             'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
-                            'limit': Sum('pod_limit_memory_gigabyte_hours')
+                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours')
                         },
                         'capacity_aggregate': {
                             'capacity': Max('cluster_capacity_memory_gigabyte_hours')
@@ -301,8 +301,8 @@ class ProviderMap(object):
                             'usage': Sum('pod_usage_memory_gigabyte_hours'),
                             'request': Sum('pod_request_memory_gigabyte_hours'),
                             'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
                             'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
                             'units': Value('GB-Hours', output_field=CharField())
                         },
                         'delta_key': {
