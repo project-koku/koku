@@ -149,7 +149,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-        self.query_sum = query_sum
+        key_order = list(set(['units'] + list(annotations.keys())))
+        ordered_total = {total_key: query_sum[total_key]
+                         for total_key in key_order if total_key in query_sum}
+        ordered_total.update(query_sum)
+
+        self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
 

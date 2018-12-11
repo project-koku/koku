@@ -149,7 +149,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         query_sum.update({'units': self._mapper.units_key})
 
-        self.query_sum = query_sum
+        ordered_total = {total_key: query_sum[total_key]
+                         for total_key in annotations.keys() if total_key in query_sum}
+        ordered_total.update(query_sum)
+
+        self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
 
