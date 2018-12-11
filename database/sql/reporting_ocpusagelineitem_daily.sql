@@ -1,4 +1,4 @@
--- Place our query in a temporary table
+-- Calculate cluster capacity at daily level
 CREATE TEMPORARY TABLE ocp_cluster_capacity_{uuid} AS (
     SELECT cc.cluster_id,
         date(cc.interval_start) as usage_start,
@@ -24,6 +24,51 @@ CREATE TEMPORARY TABLE ocp_cluster_capacity_{uuid} AS (
             date(cc.interval_start)
 );
 
+-- Aggregate pod labels from hourly to daily level
+CREATE TEMPORARY TABLE ocp_daily_labels_{uuid} AS (
+    SELECT pl.cluster_id,
+        pl.namespace,
+        pl.pod,
+        date(pl.interval_start) as usage_start,
+        jsonb_object_agg(key, value) as pod_labels
+    FROM (
+        SELECT rp.cluster_id,
+            li.namespace,
+            li.pod,
+            ur.interval_start,
+            key,
+            value
+        FROM (
+            SELECT report_id,
+                report_period_id,
+                namespace,
+                pod,
+                key,
+                value
+            FROM reporting_ocpusagelineitem AS li,
+                jsonb_each_text(li.pod_labels) labels
+        ) li
+        JOIN reporting_ocpusagereport AS ur
+            ON li.report_id = ur.id
+        JOIN reporting_ocpusagereportperiod AS rp
+            ON li.report_period_id = rp.id
+        WHERE date(ur.interval_start) >= '{start_date}'
+            AND date(ur.interval_start) <= '{end_date}'
+        GROUP BY rp.cluster_id,
+            li.namespace,
+            li.pod,
+            key,
+            value,
+            ur.interval_start
+    ) pl
+    GROUP BY pl.cluster_id,
+        pl.namespace,
+        pl.pod,
+        date(pl.interval_start)
+)
+;
+
+-- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
     SELECT  rp.cluster_id,
         date(ur.interval_start) as usage_start,
@@ -31,6 +76,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         li.namespace,
         li.pod,
         li.node,
+        dl.pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -52,13 +98,19 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
     JOIN ocp_cluster_capacity_{uuid} as cc
         ON rp.cluster_id = cc.cluster_id
             AND date(ur.interval_start) = cc.usage_start
+    JOIN ocp_daily_labels_{uuid} as dl
+        ON rp.cluster_id = dl.cluster_id
+            AND li.namespace = dl.namespace
+            AND li.pod = dl.pod
+            AND date(ur.interval_start) = dl.usage_start
     WHERE date(ur.interval_start) >= '{start_date}'
         AND date(ur.interval_start) <= '{end_date}'
     GROUP BY rp.cluster_id,
         date(ur.interval_start),
         li.namespace,
         li.pod,
-        li.node
+        li.node,
+        dl.pod_labels
 )
 ;
 
@@ -76,6 +128,7 @@ INSERT INTO reporting_ocpusagelineitem_daily (
     namespace,
     pod,
     node,
+    pod_labels,
     pod_usage_cpu_core_seconds,
     pod_request_cpu_core_seconds,
     pod_limit_cpu_core_seconds,
@@ -96,6 +149,7 @@ INSERT INTO reporting_ocpusagelineitem_daily (
         namespace,
         pod,
         node,
+        pod_labels,
         pod_usage_cpu_core_seconds,
         pod_request_cpu_core_seconds,
         pod_limit_cpu_core_seconds,
