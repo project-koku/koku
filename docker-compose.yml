@@ -4,15 +4,16 @@ services:
   server:
       build:
           context: .
-          dockerfile: dockerfile-env
+          dockerfile: Dockerfile-env
       working_dir: /koku
       entrypoint:
         - /koku/run_migrations.sh
       environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
         - DATABASE_NAME=koku
-        - DATABASE_HOST=db
-        - DATABASE_PORT=5432
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
         - DATABASE_USER=kokuadmin
         - DATABASE_PASSWORD=admin123
         - AWS_ACCESS_KEY_ID
@@ -29,12 +30,11 @@ services:
           - db
 
   db:
-    image: centos/postgresql-96-centos7
+    image: postgres
     environment:
-    - POSTGRESQL_DATABASE=koku
-    - POSTGRESQL_USER=kokuadmin
-    - POSTGRESQL_PASSWORD=admin123
-    - POSTGRESQL_ADMIN_PASSWORD=admin123
+    - POSTGRES_DB=koku
+    - POSTGRES_USER=kokuadmin
+    - POSTGRES_PASSWORD=admin123
     ports:
       - "15432:5432"
     volumes:
