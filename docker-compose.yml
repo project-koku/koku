@@ -27,7 +27,7 @@ services:
       links:
         - db
       depends_on:
-          - db
+        - db
 
   db:
     image: postgres
@@ -39,3 +39,8 @@ services:
       - "15432:5432"
     volumes:
       - ./pg_data:/var/lib/pgsql/data
+
+networks:
+  default:
+    external:
+      name: koku-network
