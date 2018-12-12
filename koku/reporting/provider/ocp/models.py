@@ -307,6 +307,14 @@ class OCPUsageLineItemDailySummary(models.Model):
                 fields=['node'],
                 name='summary_node_idx',
             ),
+            models.Index(
+                fields=['pod_label_key'],
+                name='pod_label_key_idx',
+            ),
+            models.Index(
+                fields=['pod_label_value'],
+                name='pod_label_value_idx',
+            ),
         ]
 
     id = models.BigAutoField(primary_key=True)
@@ -322,6 +330,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
+
+    pod_label_key = models.CharField(max_length=253, null=True)
+    pod_label_value = models.CharField(max_length=253, null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(
         max_digits=24,
