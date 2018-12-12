@@ -235,6 +235,7 @@ class ProviderMap(object):
                     'node': {'field': 'node',
                              'operation': 'icontains'},
                 },
+                'tag_column': 'pod_labels',
                 'report_type': {
                     'charge': {
                         'aggregates': {
@@ -424,7 +425,7 @@ class ReportQueryHandler(object):
 
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'group_by', 'report_type']
+            elements = ['accept_type', 'delta', 'group_by', 'report_type', 'tag_keys']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -487,6 +488,15 @@ class ReportQueryHandler(object):
         if self.check_query_params(dictkey, key):
             value = self.query_parameters.get(dictkey).get(key)
         return value
+
+    def get_tag_filter_keys(self):
+        """Create filters for tags."""
+        tag_filters = []
+        filters = self.query_parameters.get('filter')
+        for filt, value in filters.items():
+            if filt in self._tag_keys:
+                tag_filters.append(filt)
+        return tag_filters
 
     @property
     def order_field(self):
@@ -663,9 +673,39 @@ class ReportQueryHandler(object):
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 
+        filters = self._set_tag_filters(filters)
+
         composed_filters = filters.compose()
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
+
+    def _set_tag_filters(self, filters):
+        """Create tag_filters."""
+        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_filters = self.get_tag_filter_keys()
+        for tag in tag_filters:
+            tag_db_name = tag_column + '__' + tag
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.get_query_param_data('group_by', tag, list())
+            filter_ = self.get_query_param_data('filter', tag, list())
+            list_ = list(set(group_by + filter_))    # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(parameter=item, **filt)
+                    filters.add(q_filter)
+        return filters
+
+    # def _update_tag_filters(self, filters):
+    #     """Modify incoming tag filters with a column prefix."""
+    #     tag_column = self._mapper._operation_map.get('tag_column')
+
+    #     for i, filt in enumerate(filters):
+    #         if filt in self._tag_keys:
+    #             filters[i] = tag_column + '__' + filt
+    #     return filters
 
     def _get_date_delta(self):
         """Return a time delta."""
