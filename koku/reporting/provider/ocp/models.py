@@ -18,6 +18,7 @@
 """Models for OCP cost entry tables."""
 
 from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -307,13 +308,9 @@ class OCPUsageLineItemDailySummary(models.Model):
                 fields=['node'],
                 name='summary_node_idx',
             ),
-            models.Index(
-                fields=['pod_label_key'],
-                name='pod_label_key_idx',
-            ),
-            models.Index(
-                fields=['pod_label_value'],
-                name='pod_label_value_idx',
+            GinIndex(
+                fields=['pod_labels'],
+                name='pod_labels_idx',
             ),
         ]
 
@@ -331,8 +328,7 @@ class OCPUsageLineItemDailySummary(models.Model):
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
 
-    pod_label_key = models.CharField(max_length=253, null=True)
-    pod_label_value = models.CharField(max_length=253, null=True)
+    pod_labels = JSONField(null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(
         max_digits=24,
