@@ -23,6 +23,9 @@ services:
         - DJANGO_DEBUG=True
       ports:
           - "8050:8000"
+          - 4444:4444 # https://medium.com/@vladyslav.krylasov/how-to-use-pdb-inside-a-docker-container-eeb230de4d11
+      stdin_open: true
+      tty: true
       volumes:
         - '.:/koku/'
       links:
