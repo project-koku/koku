@@ -24,7 +24,7 @@ from itertools import groupby
 
 from dateutil import relativedelta
 from django.db.models import CharField, Count, F, Max, Q, Sum, Value
-from django.db.models.functions import TruncDay, TruncMonth
+from django.db.models.functions import Coalesce, TruncDay, TruncMonth
 
 from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
@@ -77,11 +77,14 @@ class ProviderMap(object):
                         'aggregate': {'value': Sum('unblended_cost')},
                         'aggregate_key': 'unblended_cost',
                         'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Max('currency_code')},
+                                        'units': Coalesce(Max('currency_code'),
+                                        Value('USD'))
+                        },
                         'count': None,
                         'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
+                        'units_fallback': 'USD',
                         'sum_columns': ['total'],
                         'default_ordering': {'total': 'desc'},
                     },
@@ -96,7 +99,8 @@ class ProviderMap(object):
                                         # The summary table already already has counts
                                         'count': Sum('resource_count'),
                                         'total': Sum('usage_amount'),
-                                        'units': Max('unit')},
+                                        'units': Coalesce(Max('unit'),
+                                        Value('Hrs'))},
                         'count': 'resource_count',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -105,6 +109,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'unit',
+                        'units_fallback': 'Hrs',
                         'sum_columns': ['total'],
                         'default_ordering': {'total': 'desc'},
                     },
@@ -116,7 +121,8 @@ class ProviderMap(object):
                         'aggregate_key': 'usage_amount',
                         'annotations': {'cost': Sum('unblended_cost'),
                                         'total': Sum('usage_amount'),
-                                        'units': Max('unit')},
+                                        'units': Coalesce(Max('unit'),
+                                        Value('GB-Mo'))},
                         'count': None,
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -125,6 +131,7 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'unit',
+                        'units_fallback': 'GB-Mo',
                         'sum_columns': ['total'],
                         'default_ordering': {'total': 'desc'},
                     },
@@ -160,11 +167,13 @@ class ProviderMap(object):
                         },
                         'aggregate_key': 'unblended_cost',
                         'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Max('currency_code')},
+                                        'units': Coalesce(Max('currency_code'),
+                                        Value('USD'))},
                         'count': None,
                         'delta_key': {'total': Sum('unblended_cost')},
                         'filter': {},
                         'units_key': 'currency_code',
+                        'units_fallback': 'USD',
                         'sum_columns': ['total'],
                     },
                     'instance_type': {
@@ -177,7 +186,8 @@ class ProviderMap(object):
                         'annotations': {'cost': Sum('unblended_cost'),
                                         'count': Count('resource_id', distinct=True),
                                         'total': Sum('usage_amount'),
-                                        'units': Max('cost_entry_pricing__unit')},
+                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
+                                        Value('Hrs'))},
                         'count': 'resource_id',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -187,6 +197,7 @@ class ProviderMap(object):
                             'parameter': False
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'units_fallback': 'Hrs',
                         'sum_columns': ['total'],
                     },
                     'storage': {
@@ -199,7 +210,8 @@ class ProviderMap(object):
                         'annotations': {'cost': Sum('unblended_cost'),
                                         'count': Count('resource_id', distinct=True),
                                         'total': Sum('usage_amount'),
-                                        'units': Max('cost_entry_pricing__unit')},
+                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
+                                        Value('GB-Mo'))},
                         'count': 'resource_id',
                         'delta_key': {'total': Sum('usage_amount')},
                         'filter': {
@@ -209,6 +221,7 @@ class ProviderMap(object):
                             'parameter': 'Storage'
                         },
                         'units_key': 'cost_entry_pricing__unit',
+                        'units_fallback': 'GB-Mo',
                         'sum_columns': ['total'],
                     },
                 },
