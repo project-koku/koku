@@ -22,6 +22,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.cluster_capacity_memory_byte_seconds / 3600 * 1e-9 as cluster_capacity_memory_gigabyte_hours
     FROM reporting_ocpusagelineitem_daily AS li,
         jsonb_each_text(li.pod_labels) labels
+    WHERE usage_start >= '{start_date}'
+        AND usage_start <= '{end_date}'
 )
 ;
 
