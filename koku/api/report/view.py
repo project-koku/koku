@@ -165,8 +165,6 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
         (Response): The report in a Response object
 
     """
-    LOG.info(f'API: {request.path} USER: {request.user.username}')
-
     url_data = request.GET.urlencode()
     validation, params = process_query_parameters(url_data, provider_parameter_serializer)
     if not validation:

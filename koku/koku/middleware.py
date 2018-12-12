@@ -157,6 +157,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         if (username and email and account and org):
             # Check for customer creation & user creation
+            logger.info(f'API: {request.path}?{request.META["QUERY_STRING"]}'  # pylint: disable=W1203
+                        ' -- ACCOUNT: {account} USER: {username}')
             try:
                 customer = Customer.objects.filter(account_id=account, org_id=org).get()
             except Customer.DoesNotExist:
