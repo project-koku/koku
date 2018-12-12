@@ -204,6 +204,8 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
     else:
         kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
 
+    kwargs['tag_keys'] = tag_keys
+
     handler = provider_query_hdlr(params,
                                   url_data,
                                   tenant,
