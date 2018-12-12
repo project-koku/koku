@@ -234,7 +234,6 @@ class OCPQueryParamSerializer(serializers.Serializer):
     )
 
     group_by = GroupBySerializer(required=False)
-    filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
     operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
                                         required=False)
@@ -244,6 +243,10 @@ class OCPQueryParamSerializer(serializers.Serializer):
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
+        self.fields.update(
+            {'filter': FilterSerializer(required=False, tag_keys=self.tag_keys)}
+        )
+
 
     def validate(self, data):
         """Validate incoming data.
