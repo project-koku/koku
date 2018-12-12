@@ -67,7 +67,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         units_fallback = self._mapper._report_type_map.get('units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
-            'units': Coalesce(Concat(self._mapper.units_key, Value('')), Value(units_fallback))
+            'units': Coalesce(self._mapper.units_key, Value(units_fallback))
         }
 
         # { query_param: database_field_name }
@@ -132,8 +132,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if query.exists():
                 units_fallback = self._mapper._report_type_map.get('units_fallback')
                 sum_annotations = {
-                    'units': Coalesce(Value(units_fallback),
-                                      Concat(self._mapper.units_key, Value('')))
+                    'units': Coalesce(self._mapper.units_key, Value(units_fallback))
                 }
                 sum_query = query.annotate(**sum_annotations)
                 units_value = sum_query.values('units').first().get('units')
