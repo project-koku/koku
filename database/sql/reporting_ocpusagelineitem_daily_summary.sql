@@ -6,8 +6,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.node,
         li.usage_start,
         li.usage_end,
-        labels.key as pod_label_key,
-        labels.value as pod_label_value,
+        li.pod_labels,
         li.pod_usage_cpu_core_seconds / 3600 as pod_usage_cpu_core_hours,
         li.pod_request_cpu_core_seconds / 3600 as pod_request_cpu_core_hours,
         li.pod_limit_cpu_core_seconds / 3600 as pod_limit_cpu_core_hours,
@@ -20,8 +19,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.node_capacity_memory_byte_seconds / 3600 * 1e-9 as node_capacity_memory_gigabyte_hours,
         li.cluster_capacity_cpu_core_seconds / 3600 as cluster_capacity_cpu_core_hours,
         li.cluster_capacity_memory_byte_seconds / 3600 * 1e-9 as cluster_capacity_memory_gigabyte_hours
-    FROM reporting_ocpusagelineitem_daily AS li,
-        jsonb_each_text(li.pod_labels) labels
+    FROM reporting_ocpusagelineitem_daily AS li
     WHERE usage_start >= '{start_date}'
         AND usage_start <= '{end_date}'
 )
@@ -41,8 +39,7 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
     node,
     usage_start,
     usage_end,
-    pod_label_key,
-    pod_label_value,
+    pod_labels,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_limit_cpu_core_hours,
@@ -62,8 +59,7 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
         node,
         usage_start,
         usage_end,
-        pod_label_key,
-        pod_label_value,
+        pod_labels,
         pod_usage_cpu_core_hours,
         pod_request_cpu_core_hours,
         pod_limit_cpu_core_hours,
