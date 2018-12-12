@@ -285,11 +285,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         summary_columns = [
             'cluster_id', 'namespace', 'node', 'node_capacity_cpu_core_hours',
             'node_capacity_cpu_cores', 'node_capacity_memory_gigabyte_hours',
-            'node_capacity_memory_gigabytes', 'pod', 'pod_label_key',
-            'pod_label_value', 'pod_limit_cpu_core_hours',
-            'pod_limit_memory_gigabyte_hours', 'pod_request_cpu_core_hours',
-            'pod_request_memory_gigabyte_hours', 'pod_usage_cpu_core_hours',
-            'pod_usage_memory_gigabyte_hours', 'usage_end', 'usage_start'
+            'node_capacity_memory_gigabytes', 'pod', 'pod_labels',
+            'pod_limit_cpu_core_hours', 'pod_limit_memory_gigabyte_hours',
+            'pod_request_cpu_core_hours', 'pod_request_memory_gigabyte_hours',
+            'pod_usage_cpu_core_hours', 'pod_usage_memory_gigabyte_hours',
+            'usage_end', 'usage_start'
         ]
 
         for column in summary_columns:
