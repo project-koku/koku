@@ -18,20 +18,38 @@
 """View for Reports."""
 import logging
 
+from django.db.models import Count
 from django.utils.translation import ugettext as _
 from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant, User
 from api.utils import UnitConverter
+from api.report.functions import JSONBObjectKeys
+from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
 
-def process_query_parameters(url_data, provider_serializer):
+def get_tag_keys(tenant):
+    """Get a list of tag keys to validate filters."""
+    with tenant_context(tenant):
+        tag_keys = OCPUsageLineItemDailySummary.objects\
+            .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+            .values('tag_keys')\
+            .annotate(tag_count=Count('tag_keys'))\
+            .all()
+
+        tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+
+    return tag_keys
+
+
+def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     """Process query parameters and raise any validation errors.
 
     Args:
@@ -42,7 +60,7 @@ def process_query_parameters(url_data, provider_serializer):
     """
     output = None
     query_params = parser.parse(url_data)
-    qps = provider_serializer(data=query_params)
+    qps = provider_serializer(data=query_params, tag_keys=tag_keys)
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
@@ -166,16 +184,21 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
 
     """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
+    tenant = get_tenant(request.user)
+    tag_keys = get_tag_keys(tenant)
 
     url_data = request.GET.urlencode()
-    validation, params = process_query_parameters(url_data, provider_parameter_serializer)
+    validation, params = process_query_parameters(
+        url_data,
+        provider_parameter_serializer,
+        tag_keys
+    )
     if not validation:
         return Response(
             data=params,
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    tenant = get_tenant(request.user)
     if kwargs:
         kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
     else:
