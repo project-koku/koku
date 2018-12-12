@@ -43,7 +43,7 @@ def handle_invalid_fields(this, data):
     return data
 
 
-def validate_field(this, field, serializer_cls, value):
+def validate_field(this, field, serializer_cls, value, **kwargs):
     """Validate the provided fields.
 
     Args:
@@ -56,7 +56,7 @@ def validate_field(this, field, serializer_cls, value):
         (ValidationError): if field inputs are invalid
     """
     field_param = this.initial_data.get(field)
-    serializer = serializer_cls(data=field_param)
+    serializer = serializer_cls(data=field_param, **kwargs)
     serializer.is_valid(raise_exception=True)
     return value
 
@@ -174,6 +174,19 @@ class FilterSerializer(serializers.Serializer):
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the FilterSerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+
+        super().__init__(*args, **kwargs)
+
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add OCP tag keys to allowable fields
+            self.fields.update(tag_keys)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -214,7 +227,6 @@ class FilterSerializer(serializers.Serializer):
 
 class OCPQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
-
     # Tuples are (key, display_name)
     OPERATION_CHOICES = (
         ('sum', 'sum'),
@@ -226,6 +238,12 @@ class OCPQueryParamSerializer(serializers.Serializer):
     units = serializers.CharField(required=False)
     operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
                                         required=False)
+
+    def __init__(self, *args, **kwargs):
+
+        # Grab tag keys to pass to filter serializer
+        self.tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
 
     def validate(self, data):
         """Validate incoming data.
@@ -263,7 +281,8 @@ class OCPQueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if filter field inputs are invalid
         """
-        validate_field(self, 'filter', FilterSerializer, value)
+        validate_field(self, 'filter', FilterSerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):
