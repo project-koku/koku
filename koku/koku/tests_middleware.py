@@ -83,6 +83,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                                             create_customer=False)
         self.request = self.request_context['request']
         self.request.path = '/api/v1/providers/'
+        self.request.META['QUERY_STRING'] = ''
 
     def test_process_status(self):
         """Test that the request gets a user."""
