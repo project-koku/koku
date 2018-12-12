@@ -230,7 +230,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         summary_columns = [
             'cluster_id', 'namespace', 'node', 'node_capacity_cpu_core_seconds',
             'node_capacity_cpu_cores', 'node_capacity_memory_byte_seconds',
-            'node_capacity_memory_bytes', 'pod',
+            'node_capacity_memory_bytes', 'pod', 'pod_labels',
             'pod_limit_cpu_core_seconds', 'pod_limit_memory_byte_seconds',
             'pod_request_cpu_core_seconds', 'pod_request_memory_byte_seconds',
             'pod_usage_cpu_core_seconds', 'pod_usage_memory_byte_seconds',
@@ -285,7 +285,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         summary_columns = [
             'cluster_id', 'namespace', 'node', 'node_capacity_cpu_core_hours',
             'node_capacity_cpu_cores', 'node_capacity_memory_gigabyte_hours',
-            'node_capacity_memory_gigabytes', 'pod', 'pod_limit_cpu_core_hours',
+            'node_capacity_memory_gigabytes', 'pod', 'pod_label_key',
+            'pod_label_value', 'pod_limit_cpu_core_hours',
             'pod_limit_memory_gigabyte_hours', 'pod_request_cpu_core_hours',
             'pod_request_memory_gigabyte_hours', 'pod_usage_cpu_core_hours',
             'pod_usage_memory_gigabyte_hours', 'usage_end', 'usage_start'
