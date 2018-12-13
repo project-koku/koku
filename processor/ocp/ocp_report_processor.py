@@ -333,15 +333,13 @@ class OCPReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        report_period_id = None
         opener, mode = self._get_file_opener(self._compression)
 
         with opener(self._report_path, mode) as f:
             LOG.info('File %s opened for processing', str(f))
             reader = csv.DictReader(f)
             for row in reader:
-                if report_period_id is None:
-                    report_period_id = self._create_report_period(row, self._cluster_id)
+                report_period_id = self._create_report_period(row, self._cluster_id)
                 report_id = self._create_report(row, report_period_id)
                 self._create_usage_report_line_item(row, report_period_id, report_id)
 
