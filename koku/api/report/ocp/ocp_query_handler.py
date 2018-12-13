@@ -217,8 +217,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             try:
                 row['delta_percent'] = (row.get(delta_field_one, 0) /  # noqa: W504
                                         row.get(delta_field_two, 0) * 100)
-            except (DivisionByZero, ZeroDivisionError):
-                row['delta_percent'] = 0
+            except (DivisionByZero, ZeroDivisionError, InvalidOperation):
+                row['delta_percent'] = None
 
         total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -  # noqa: W504
                        Decimal(query_sum.get(delta_field_two, 0)))

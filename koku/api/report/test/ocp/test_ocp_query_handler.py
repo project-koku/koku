@@ -226,8 +226,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(handler.query_delta.get('percent'), expected_total)
 
-    def test_add_current_month_deltas_no_previous_data(self):
-        """Test that current month deltas are calculated."""
+    def test_add_current_month_deltas_no_previous_data_wo_query_data(self):
+        """Test that current month deltas are calculated with no previous month data."""
         OCPReportDataGenerator(self.tenant).remove_data_from_tenant()
         OCPReportDataGenerator(self.tenant, current_month_only=True).add_data_to_tenant()
 
@@ -267,4 +267,47 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(result, query_data)
             self.assertEqual(handler.query_delta['value'], Decimal(0))
+            self.assertIsNone(handler.query_delta['percent'])
+
+    def test_add_current_month_deltas_no_previous_data_w_query_data(self):
+        """Test that current month deltas are calculated with no previous data for field two."""
+        OCPReportDataGenerator(self.tenant).remove_data_from_tenant()
+        OCPReportDataGenerator(self.tenant, current_month_only=True).add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'limit': 1},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[limit]=1'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        handler._delta = 'usage__foo'
+
+        q_table = handler._mapper._operation_map.get('tables').get('query')
+        with tenant_context(self.tenant):
+            query = q_table.objects.filter(handler.query_filter)
+            query_data = query.annotate(**handler.annotations)
+            group_by_value = handler._get_group_by()
+            query_group_by = ['date'] + group_by_value
+            query_order_by = ('-date', )
+            query_order_by += (handler.order,)
+
+            annotations = handler._mapper._report_type_map.get('annotations')
+            query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            aggregates = handler._mapper._report_type_map.get('aggregates')
+            metric_sum = query.aggregate(**aggregates)
+            query_sum = {key: metric_sum.get(key) if metric_sum.get(key) else Decimal(0) for key in aggregates}
+
+            result = handler.add_current_month_deltas(query_data, query_sum)
+
+            self.assertEqual(result, query_data)
+            self.assertIsNotNone(handler.query_delta['value'])
             self.assertIsNone(handler.query_delta['percent'])
