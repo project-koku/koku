@@ -35,7 +35,7 @@ from reporting.models import (OCPUsageLineItem,
 class OCPReportDataGenerator:
     """Populate the database with OCP report data."""
 
-    def __init__(self, tenant):
+    def __init__(self, tenant, current_month_only=False):
         """Set up the class."""
         self.tenant = tenant
         self.fake = Faker()
@@ -46,15 +46,24 @@ class OCPReportDataGenerator:
 
         self.last_month = self.dh.last_month_start
 
-        self.period_ranges = [
-            (self.dh.last_month_start, self.dh.last_month_end),
-            (self.dh.this_month_start, self.dh.this_month_end),
-        ]
+        if current_month_only:
+            self.period_ranges = [
+                (self.dh.this_month_start, self.dh.this_month_end),
+            ]
+            self.report_ranges = [
+                (self.today - relativedelta(days=i) for i in range(10)),
+            ]
 
-        self.report_ranges = [
-            (self.one_month_ago - relativedelta(days=i) for i in range(10)),
-            (self.today - relativedelta(days=i) for i in range(10)),
-        ]
+        else:
+            self.period_ranges = [
+                (self.dh.last_month_start, self.dh.last_month_end),
+                (self.dh.this_month_start, self.dh.this_month_end),
+            ]
+
+            self.report_ranges = [
+                (self.one_month_ago - relativedelta(days=i) for i in range(10)),
+                (self.today - relativedelta(days=i) for i in range(10)),
+            ]
 
     def add_data_to_tenant(self):
         """Populate tenant with data."""
