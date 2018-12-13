@@ -18,6 +18,22 @@
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+def validate_field(this, field, serializer_cls, value):
+    """Validate the provided fields.
+
+    Args:
+        field    (String): the field to be validated
+        serializer_cls (Class): a serializer class for validation
+        value    (Object): the field value
+    Returns:
+        (Dict): Validated value
+    Raises:
+        (ValidationError): if field inputs are invalid
+    """
+    field_param = this.initial_data.get(field)
+    serializer = serializer_cls(data=field_param)
+    serializer.is_valid(raise_exception=True)
+    return value
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.
@@ -39,40 +55,102 @@ def handle_invalid_fields(this, data):
         raise serializers.ValidationError(error)
     return data
 
+class FilterSerializer(serializers.Serializer):
+    """Serializer for handling query parameter filter."""
 
-def validate_field(this, field, serializer_cls, value):
-    """Validate the provided fields.
+    RESOLUTION_CHOICES = (
+        ('daily', 'daily'),
+        ('monthly', 'monthly'),
+    )
+    TIME_CHOICES = (
+        ('-10', '-10'),
+        ('-30', '-30'),
+        ('-1', '1'),
+        ('-2', '-2'),
+    )
+    TIME_UNIT_CHOICES = (
+        ('day', 'day'),
+        ('month', 'month'),
+    )
 
-    Args:
-        field    (String): the field to be validated
-        serializer_cls (Class): a serializer class for validation
-        value    (Object): the field value
-    Returns:
-        (Dict): Validated value
-    Raises:
-        (ValidationError): if field inputs are invalid
-    """
-    field_param = this.initial_data.get(field)
-    serializer = serializer_cls(data=field_param)
-    serializer.is_valid(raise_exception=True)
-    return value
+    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
+                                         required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
+                                               required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
+                                               required=False)
 
 
-class StringOrListField(serializers.ListField):
-    """Serializer field to handle types that are string or list.
-
-    Converts everything to a list.
-    """
-
-    def to_internal_value(self, data):
-        """Handle string data then call super.
+    def validate(self, data):
+        """Validate incoming data.
 
         Args:
-            data    (String or List): data to be converted
+            data    (Dict): data to be validated
         Returns:
-            (List): Transformed data
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
         """
-        list_data = data
-        if isinstance(data, str):
-            list_data = [data]
-        return super().to_internal_value(list_data)
+        handle_invalid_fields(self, data)
+
+        resolution = data.get('resolution')
+        time_scope_value = data.get('time_scope_value')
+        time_scope_units = data.get('time_scope_units')
+
+        if time_scope_units and time_scope_value:
+            msg = 'Valid values are {} when time_scope_units is {}'
+            if (time_scope_units == 'day' and  # noqa: W504
+                (time_scope_value == '-1' or time_scope_value == '-2')):
+                valid_values = ['-10', '-30']
+                valid_vals = ', '.join(valid_values)
+                error = {'time_scope_value': msg.format(valid_vals, 'day')}
+                raise serializers.ValidationError(error)
+            if (time_scope_units == 'day' and resolution == 'monthly'):
+                valid_values = ['daily']
+                valid_vals = ', '.join(valid_values)
+                error = {'resolution': msg.format(valid_vals, 'day')}
+                raise serializers.ValidationError(error)
+            if (time_scope_units == 'month' and  # noqa: W504
+                    (time_scope_value == '-10' or time_scope_value == '-30')):
+                valid_values = ['-1', '-2']
+                valid_vals = ', '.join(valid_values)
+                error = {'time_scope_value': msg.format(valid_vals, 'month')}
+                raise serializers.ValidationError(error)
+        return data
+
+class OCPTagsQueryParamSerializer(serializers.Serializer):
+    """Serializer for handling query parameters."""
+
+    filter = FilterSerializer(required=False)
+
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
+        error = {}
+        if 'delta' in data.get('order_by', {}) and 'delta' not in data:
+            error['order_by'] = _('Cannot order by delta without a delta param')
+            raise serializers.ValidationError(error)
+
+        handle_invalid_fields(self, data)
+        return data
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+        """
+        validate_field(self, 'filter', FilterSerializer, value)
+        return value

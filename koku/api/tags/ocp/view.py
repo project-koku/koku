@@ -24,8 +24,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from rest_framework.response import Response
-
-from .serializers import 
+from api.report.view import _generic_report  # Move this outside of report to something more general.
+from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
+from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
@@ -129,5 +130,6 @@ def ocp_tags(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    output = {'foo': 'bar'}
-    return Response(output)
+    extras = {}
+    return _generic_report(request, OCPTagsQueryParamSerializer,
+                           OCPTagQueryHandler, **extras)
