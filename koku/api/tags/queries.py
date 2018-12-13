@@ -48,15 +48,54 @@ class TagQueryHandler(object):
                  tenant, **kwargs):
         LOG.debug(f'Query Params: {query_parameters}')
         self.query_parameters = query_parameters
+        self.default_ordering = {'pod_labels': 'asc'}
         self.url_data = url_data  # TODO only used in groupby, maybe don't need this
         self.tenant = tenant
         self.resolution = None
+        self._accept_type = None
         self.time_scope_units = None
         self.time_scope_value = None
         self.start_datetime = None
         self.end_datetime = None
-        # self.query_filter = self._get_filter()
         self._get_timeframe()
+        self.query_filter = self._get_filter()
+
+    @property
+    def order_direction(self):
+        """Order-by orientation value.
+
+        Returns:
+            (str) 'asc' or 'desc'; default is 'desc'
+
+        """
+        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        return list(order_by.values()).pop()
+
+    def _get_filter(self):
+        """Create dictionary for filter parameters.
+
+        Args:
+            delta (Boolean): Construct timeframe for delta
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        filters = QueryFilterCollection()
+
+        start = self.start_datetime
+        end = self.end_datetime
+
+        start_filter = QueryFilter(field='usage_start', operation='gte',
+                                   parameter=start)
+        end_filter = QueryFilter(field='usage_end', operation='lte',
+                                 parameter=end)
+        filters.add(query_filter=start_filter)
+        filters.add(query_filter=end_filter)
+
+        composed_filters = filters.compose()
+
+        LOG.debug(f'_get_filter: {composed_filters}')
+        return composed_filters
 
     def check_query_params(self, key, in_key):
         """Test if query parameters has a given key and key within it.
