@@ -36,7 +36,7 @@ unique_user_counter = Counter('unique_user', 'Unique User Counter', ['account', 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'apidoc']
+    no_auth_list = ['status', 'apidoc', 'metrics']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -162,8 +162,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         if (username and email and account and org):
             # Check for customer creation & user creation
-            logger.info(f'API: {request.path}?{request.META["QUERY_STRING"]}'  # pylint: disable=W1203
-                        ' -- ACCOUNT: {account} USER: {username}')
+            query_string = ''
+            if request.META['QUERY_STRING']:
+                query_string = '?{}'.format(request.META['QUERY_STRING'])
+            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
+                        f' -- ACCOUNT: {account} USER: {username}')
             try:
                 customer = Customer.objects.filter(account_id=account, org_id=org).get()
             except Customer.DoesNotExist:
