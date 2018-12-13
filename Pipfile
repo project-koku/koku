@@ -20,8 +20,11 @@ querystring-parser = ">=1.2.3"
 djangorestframework-csv = "==2.1.0"
 pint = "==0.8.1"
 pytz = "==2018.5"
+django-prometheus = "==1.0.15"
+prometheus-client = "==0.5.0"
 
 [dev-packages]
+astroid = "==2.0.4"
 pylint = "==2.0.1"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"

@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'querystring_parser',
+    'django_prometheus',
 
     # local apps
     'api',
@@ -105,6 +106,7 @@ TENANT_APPS = (
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
@@ -113,11 +115,12 @@ MIDDLEWARE = [
     'koku.middleware.KokuTenantMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
 if DEVELOPMENT:
-    MIDDLEWARE.insert(4, 'koku.dev_middleware.DevelopmentIdentityHeaderMiddleware')
+    MIDDLEWARE.insert(5, 'koku.dev_middleware.DevelopmentIdentityHeaderMiddleware')
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
@@ -155,6 +158,7 @@ DATABASE_ROUTERS = (
 #
 TENANT_MODEL = 'api.Tenant'
 
+PROMETHEUS_EXPORT_MIGRATIONS = False
 
 # Password validation
 # https://docs.djangoproject.com/en/2.0/ref/settings/#auth-password-validators
