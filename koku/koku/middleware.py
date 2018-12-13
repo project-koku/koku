@@ -21,6 +21,7 @@ from json.decoder import JSONDecodeError
 
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
+from prometheus_client import Counter
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
@@ -107,6 +108,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         customer.save()
         tenant = Tenant(schema_name=schema_name)
         tenant.save()
+        unique_account_counter = Counter('unique_account', 'Unique Account Counter')
+        unique_account_counter.inc()
         logger.info('Created new customer from account_id %s and org_id %s.',
                     account, org)
         return customer
@@ -132,6 +135,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if serializer.is_valid(raise_exception=True):
             new_user = serializer.save()
 
+        unique_user_counter = Counter('unique_user', 'Unique User Counter', ['account', 'user'])
+        unique_user_counter.labels(account=customer.account_id, user=username).inc()
         logger.info('Created new user %s for customer(account_id %s, org_id %s).',
                     username, customer.account_id, customer.org_id)
         return new_user
