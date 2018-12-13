@@ -30,8 +30,8 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-unique_account_counter = Counter('unique_account', 'Unique Account Counter')  # pylint: disable=invalid-name
-unique_user_counter = Counter('unique_user', 'Unique User Counter', ['account', 'user'])  # pylint: disable=invalid-name
+unique_account_counter = Counter('hccm_unique_account', 'Unique Account Counter')  # pylint: disable=invalid-name
+unique_user_counter = Counter('hccm_unique_user', 'Unique User Counter', ['account', 'user'])  # pylint: disable=invalid-name
 
 
 def is_no_auth(request):
