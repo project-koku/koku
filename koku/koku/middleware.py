@@ -30,6 +30,8 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+unique_account_counter = Counter('unique_account', 'Unique Account Counter')  # pylint: disable=invalid-name
+unique_user_counter = Counter('unique_user', 'Unique User Counter', ['account', 'user'])  # pylint: disable=invalid-name
 
 
 def is_no_auth(request):
@@ -108,7 +110,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         customer.save()
         tenant = Tenant(schema_name=schema_name)
         tenant.save()
-        unique_account_counter = Counter('unique_account', 'Unique Account Counter')
         unique_account_counter.inc()
         logger.info('Created new customer from account_id %s and org_id %s.',
                     account, org)
@@ -135,7 +136,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if serializer.is_valid(raise_exception=True):
             new_user = serializer.save()
 
-        unique_user_counter = Counter('unique_user', 'Unique User Counter', ['account', 'user'])
         unique_user_counter.labels(account=customer.account_id, user=username).inc()
         logger.info('Created new user %s for customer(account_id %s, org_id %s).',
                     username, customer.account_id, customer.org_id)
