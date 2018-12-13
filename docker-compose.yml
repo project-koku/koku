@@ -31,7 +31,7 @@ services:
         - db
 
   db:
-    image: postgres
+    image: postgres:9.6
     environment:
     - POSTGRES_DB=koku
     - POSTGRES_USER=kokuadmin
