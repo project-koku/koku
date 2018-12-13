@@ -21,6 +21,7 @@ from json.decoder import JSONDecodeError
 
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
+from prometheus_client import Counter
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
@@ -29,11 +30,16 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
+                                 'Unique Account Counter')
+unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
+                              'Unique User Counter',
+                              ['account', 'user'])
 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'apidoc']
+    no_auth_list = ['status', 'apidoc', 'metrics']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -107,6 +113,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         customer.save()
         tenant = Tenant(schema_name=schema_name)
         tenant.save()
+        unique_account_counter.inc()
         logger.info('Created new customer from account_id %s and org_id %s.',
                     account, org)
         return customer
@@ -132,6 +139,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if serializer.is_valid(raise_exception=True):
             new_user = serializer.save()
 
+        unique_user_counter.labels(account=customer.account_id, user=username).inc()
         logger.info('Created new user %s for customer(account_id %s, org_id %s).',
                     username, customer.account_id, customer.org_id)
         return new_user
@@ -157,8 +165,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         if (username and email and account and org):
             # Check for customer creation & user creation
-            logger.info(f'API: {request.path}?{request.META["QUERY_STRING"]}'  # pylint: disable=W1203
-                        ' -- ACCOUNT: {account} USER: {username}')
+            query_string = ''
+            if request.META['QUERY_STRING']:
+                query_string = '?{}'.format(request.META['QUERY_STRING'])
+            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
+                        f' -- ACCOUNT: {account} USER: {username}')
             try:
                 customer = Customer.objects.filter(account_id=account, org_id=org).get()
             except Customer.DoesNotExist:
