@@ -26,7 +26,8 @@ from api.views import (ProviderViewSet,
                        instance_type,
                        memory,
                        status,
-                       storage)
+                       storage,
+                       ocp_tags)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
@@ -35,6 +36,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
+    url(r'^tags/ocp/$', ocp_tags, name='ocp-tags'),
     url(r'^reports/costs/aws/$', costs, name='reports-costs'),
     url(r'^reports/charges/ocp/$', charges, name='reports-ocp-charges'),
     url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-instance-type'),

@@ -19,6 +19,7 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.status.views import status
+from api.tags.ocp.view import ocp_tags
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.provider.view import ProviderViewSet
 from api.report.aws.view import costs, instance_type, storage
