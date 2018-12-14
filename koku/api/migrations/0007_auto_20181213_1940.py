@@ -17,10 +17,6 @@ def migrate_customer_schema_name(apps, schema_editor):
     migrate_schema_name(apps, schema_editor, 'Customer')
 
 
-def migrate_tenant_schema_name(apps, schema_editor):
-    migrate_schema_name(apps, schema_editor, 'Tenant')
-
-
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -41,6 +37,5 @@ class Migration(migrations.Migration):
             model_name='customer',
             name='org_id',
         ),
-        migrations.RunPython(migrate_tenant_schema_name),
         migrations.RunPython(migrate_customer_schema_name)
     ]
