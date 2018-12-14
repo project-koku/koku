@@ -448,41 +448,6 @@ class ReportQueryHandler(QueryHandler):
             return False
         return any(WILDCARD == item for item in in_list)
 
-    @property
-    def order_field(self):
-        """Order-by field name.
-
-        The default is 'total'
-        """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        return list(order_by.keys()).pop()
-
-    @property
-    def order_direction(self):
-        """Order-by orientation value.
-
-        Returns:
-            (str) 'asc' or 'desc'; default is 'desc'
-
-        """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
-        return list(order_by.values()).pop()
-
-    @property
-    def order(self):
-        """Extract order_by parameter and apply ordering to the appropriate field.
-
-        Returns:
-            (String): Ordering value. Default is '-total'
-
-        Example:
-            `order_by[total]=asc` returns `total`
-            `order_by[total]=desc` returns `-total`
-
-        """
-        order_map = {'asc': '', 'desc': '-'}
-        return f'{order_map[self.order_direction]}{self.order_field}'
-
     def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
 
