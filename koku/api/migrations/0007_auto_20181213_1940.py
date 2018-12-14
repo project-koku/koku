@@ -8,9 +8,11 @@ def migrate_schema_name(apps, schema_editor, model_name):
 
     for current_model in Model.objects.all():
         cur_schema_name = current_model.schema_name
-        newschema_name = cur_schema_name[:cur_schema_name.index('org')]
-        current_model.schema_name = newschema_name
-        current_model.save()
+        org_index = cur_schema_name.index('org')
+        if org_index > 0:
+            newschema_name = cur_schema_name[:org_index]
+            current_model.schema_name = newschema_name
+            current_model.save()
 
 
 def migrate_customer_schema_name(apps, schema_editor):
