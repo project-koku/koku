@@ -24,7 +24,6 @@ from api.utils import DateHelper
 from django.db.models.functions import TruncDay, TruncMonth
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
 
 
 class TruncMonthString(TruncMonth):
@@ -54,6 +53,7 @@ class QueryHandler(object):
         self.tenant = tenant
         self.default_ordering = default_ordering
         self.resolution = None
+        self.time_interval = []
         self.time_scope_units = None
         self.time_scope_value = None
         self.start_datetime = None

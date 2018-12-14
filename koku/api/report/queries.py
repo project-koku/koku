@@ -26,6 +26,7 @@ from dateutil import relativedelta
 from django.db.models import CharField, Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce, TruncDay, TruncMonth
 
+from api.query_handler import QueryHandler
 from api.report.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 from reporting.models import (AWSCostEntryLineItem,
@@ -399,7 +400,7 @@ class TruncMonthString(TruncMonth):
         return value.strftime('%Y-%m')
 
 
-class ReportQueryHandler(object):
+class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
     def __init__(self, query_parameters, url_data,
@@ -414,27 +415,6 @@ class ReportQueryHandler(object):
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
-        self.group_by_options = group_by_options
-        self._accept_type = None
-        self._group_by = None
-        self.end_datetime = None
-        self.resolution = None
-        self.start_datetime = None
-        self.time_interval = []
-        self.time_scope_units = None
-        self.time_scope_value = None
-
-        self.query_parameters = query_parameters
-        self.tenant = tenant
-        self.url_data = url_data
-
-        self.operation = self.query_parameters.get('operation', OPERATION_SUM)
-
-        self._delta = self.query_parameters.get('delta')
-        self._limit = self.get_query_param_data('filter', 'limit')
-        self._get_timeframe()
-        self.query_delta = {'value': None, 'percent': None}
-
         if kwargs:
             # view parameters
             elements = ['accept_type', 'delta', 'group_by', 'report_type']
@@ -444,10 +424,35 @@ class ReportQueryHandler(object):
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
+        self.operation = query_parameters.get('operation', OPERATION_SUM)
         self._mapper = ProviderMap(provider=kwargs.get('provider'),
                                    operation=self.operation,
                                    report_type=self._report_type)
-        self.default_ordering = self._mapper._report_type_map.get('default_ordering')
+        default_ordering = self._mapper._report_type_map.get('default_ordering')
+
+        super().__init__(query_parameters, url_data,
+                         tenant, default_ordering,  **kwargs)
+
+        self.group_by_options = group_by_options
+        self._accept_type = None
+        self._group_by = None
+        # self.end_datetime = None
+        # self.resolution = None
+        # self.start_datetime = None
+        # self.time_interval = []
+        # self.time_scope_units = None
+        # self.time_scope_value = None
+
+        # self.query_parameters = query_parameters
+        # self.tenant = tenant
+        # self.url_data = url_data
+
+
+        self._delta = self.query_parameters.get('delta')
+        self._limit = self.get_query_param_data('filter', 'limit')
+        # self._get_timeframe()
+        self.query_delta = {'value': None, 'percent': None}
+
         self.query_filter = self._get_filter()
 
     @property
@@ -699,25 +704,10 @@ class ReportQueryHandler(object):
             (Dict): query filter dictionary
 
         """
-        filters = QueryFilterCollection()
+        filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
         filters.add(**self._mapper._report_type_map.get('filter'))
-
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        start_filter = QueryFilter(field='usage_start', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end', operation='lte',
-                                 parameter=end)
-        filters.add(query_filter=start_filter)
-        filters.add(query_filter=end_filter)
 
         # define filter parameters using API query params.
         composed_filters = self._get_search_filter(filters)
