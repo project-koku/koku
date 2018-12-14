@@ -20,7 +20,7 @@ from api.tags.queries import TagQueryHandler
 from django.db.models import F, Count, Window
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import tenant_context
-
+from api.report.functions import JSONBObjectKeys
 from reporting.models import OCPUsageLineItemDailySummary
 
 class OCPTagQueryHandler(TagQueryHandler):
@@ -70,6 +70,19 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         return out_data
 
+    def get_tag_keys(self, tenant):
+        """Get a list of tag keys to validate filters."""
+        with tenant_context(tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+
+            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+
+        return tag_keys
+
     def execute_query(self):
         """Execute query and return provided data when self.is_sum == True.
 
@@ -80,27 +93,16 @@ class OCPTagQueryHandler(TagQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = OCPUsageLineItemDailySummary
         with tenant_context(self.tenant):
-            import pdb; pdb.set_trace()
-            query = q_table.objects.filter(self.query_filter)
 
-            query_data = query.values('pod_labels')
+            tag_keys = self.get_tag_keys(self.tenant)
+
+            query_data = sorted(tag_keys)
 
             # annotations = self._mapper._report_type_map.get('annotations')
             # query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             # is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
-            data = list(query_data)
-            data = self._transform_data(0, data)
-
-        query_sum.update({'units': self._mapper.units_key})
-
-        ordered_total = {total_key: query_sum[total_key]
-                         for total_key in annotations.keys() if total_key in query_sum}
-        ordered_total.update(query_sum)
-
-        self.query_sum = ordered_total
-        self.query_data = data
+        self.query_data = query_data
         return self._format_query_response()
