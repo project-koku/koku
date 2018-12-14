@@ -94,9 +94,9 @@ def extract_header(request, header):
     return json_rh_auth
 
 
-def create_schema_name(account, org):
+def create_schema_name(account):
     """Create a database schema name."""
-    return f'acct{account}org{org}'
+    return f'acct{account}'
 
 
 def error_obj(key, message):
@@ -125,13 +125,10 @@ class UserSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'META'):
             json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
             if (json_rh_auth and 'identity' in json_rh_auth and  # noqa: W504
-                'account_number' in json_rh_auth['identity'] and  # noqa: W504
-                    'internal' in json_rh_auth['identity'] and  # noqa: 504
-                    'org_id' in json_rh_auth['identity']['internal']):
+                'account_number' in json_rh_auth['identity']):
                 account = json_rh_auth['identity']['account_number']
-                org = json_rh_auth['identity']['internal']['org_id']
-            if account and org:
-                schema_name = create_schema_name(account, org)
+            if account:
+                schema_name = create_schema_name(account)
                 customer = Customer.objects.get(schema_name=schema_name)
             else:
                 key = 'customer'
@@ -153,7 +150,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'account_id', 'org_id', 'date_created')
+        fields = ('uuid', 'account_id', 'date_created')
 
 
 class AdminCustomerSerializer(CustomerSerializer):
@@ -163,7 +160,7 @@ class AdminCustomerSerializer(CustomerSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ('uuid', 'account_id', 'org_id', 'date_created', 'schema_name')
+        fields = ('uuid', 'account_id', 'date_created', 'schema_name')
 
 
 class NestedUserSerializer(serializers.ModelSerializer):

@@ -724,14 +724,10 @@ definitions:
   Customer:
     required:
       - account_id
-      - org_id
     properties:
       account_id:
         type: string
         example: '11838292'
-      org_id:
-        type: string
-        example: '1555276'
   CustomerOut:
     allOf:
       - $ref: '#/definitions/Customer'
