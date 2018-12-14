@@ -23,7 +23,6 @@ from django.db.models.functions import TruncDay, TruncMonth
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
 
 class TruncMonthString(TruncMonth):
     """Class to handle string formated day truncation."""
@@ -47,12 +46,11 @@ class TagQueryHandler(object):
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
         LOG.debug(f'Query Params: {query_parameters}')
+        self.default_ordering = {'tags': 'asc'}
         self.query_parameters = query_parameters
-        self.default_ordering = {'pod_labels': 'asc'}
-        self.url_data = url_data  # TODO only used in groupby, maybe don't need this
+        self.url_data = url_data
         self.tenant = tenant
         self.resolution = None
-        self._accept_type = None
         self.time_scope_units = None
         self.time_scope_value = None
         self.start_datetime = None

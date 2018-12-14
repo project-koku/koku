@@ -17,11 +17,11 @@
 """OCP Tag Query Handling."""
 import copy
 from api.tags.queries import TagQueryHandler
-from django.db.models import F, Count, Window
-from django.db.models.functions import RowNumber
+from django.db.models import Count
 from tenant_schemas.utils import tenant_context
 from api.report.functions import JSONBObjectKeys
 from reporting.models import OCPUsageLineItemDailySummary
+
 
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
@@ -51,29 +51,11 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         return output
 
-    def _transform_data(self, group_index, data):
-        """Transform dictionary data points to lists."""
-
-        out_data = []
-        label = 'data'
-        group_type = groups[group_index]
-        next_group_index = (group_index + 1)
-
-        if next_group_index < groups_len:
-            label = groups[next_group_index] + 's'
-
-        for group, group_value in data.items():
-            cur = {group_type: group,
-                   label: self._transform_data(groups, next_group_index,
-                                               group_value)}
-            out_data.append(cur)
-
-        return out_data
-
     def get_tag_keys(self, tenant):
         """Get a list of tag keys to validate filters."""
         with tenant_context(tenant):
             tag_keys = OCPUsageLineItemDailySummary.objects\
+                .filter(self.query_filter)\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
@@ -90,19 +72,9 @@ class OCPTagQueryHandler(TagQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        query_sum = {'value': 0}
-        data = []
-
         with tenant_context(self.tenant):
-
             tag_keys = self.get_tag_keys(self.tenant)
-
-            query_data = sorted(tag_keys)
-
-            # annotations = self._mapper._report_type_map.get('annotations')
-            # query_data = query_data.values(*query_group_by).annotate(**annotations)
-
-            # is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
         return self._format_query_response()
