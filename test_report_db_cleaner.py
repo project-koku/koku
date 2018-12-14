@@ -37,7 +37,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = AWSReportDBAccessor(
-            schema='acct10001org20002',
+            schema='acct10001',
             column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema
@@ -100,7 +100,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001org20002')
+        cleaner = AWSReportDBCleaner('acct10001')
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -126,7 +126,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001org20002')
+        cleaner = AWSReportDBCleaner('acct10001')
 
         # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -152,7 +152,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001org20002')
+        cleaner = AWSReportDBCleaner('acct10001')
 
         # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -180,7 +180,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001org20002')
+        cleaner = AWSReportDBCleaner('acct10001')
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()

@@ -35,7 +35,7 @@ class OCPRateDBAccessorTest(MasuTestCase):
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = OCPRateDBAccessor(
-            schema='acct10001org20002',
+            schema='acct10001',
             provider_uuid='3c6e687e-1a09-4a05-970c-2ccf44b0952e',
             column_map=cls.column_map
         )

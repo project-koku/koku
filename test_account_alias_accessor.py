@@ -26,7 +26,7 @@ class AccountAliasAccessorTest(MasuTestCase):
     def setUp(self):
         """Setup test cases."""
         self.account_id = '123456789'
-        self.schema = 'acct10001org20002'
+        self.schema = 'acct10001'
         self.accessor = AccountAliasAccessor(self.account_id, self.schema)
         self.accessor.commit()
 
