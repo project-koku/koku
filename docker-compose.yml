@@ -21,6 +21,7 @@ services:
         - DJANGO_READ_DOT_ENV_FILE=True
         - DEVELOPMENT=True
         - DJANGO_DEBUG=True
+      privileged: true        
       ports:
           - 8050:8000
       volumes:
