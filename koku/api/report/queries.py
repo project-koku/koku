@@ -640,7 +640,7 @@ class ReportQueryHandler(QueryHandler):
         try:
             return Decimal((a - b) / b * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
-            return Decimal(0)
+            return None
 
     def _ranked_list(self, data_list):
         """Get list of ranked items less than top.

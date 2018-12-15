@@ -1,7 +1,6 @@
 ---
 customer:
   account_id: 10001
-  org_id: 20002
   email: test@example.com
   user: test_customer
   providers:
