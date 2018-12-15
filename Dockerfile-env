@@ -3,7 +3,7 @@ ENV PYTHONUNBUFFERED 1
 
 RUN apk add --no-cache --virtual .build-deps \
     ca-certificates gcc postgresql-dev linux-headers musl-dev \
-    libffi-dev jpeg-dev zlib-dev
+    libffi-dev jpeg-dev zlib-dev git
 
 ADD Pipfile /Pipfile
 ADD Pipfile.lock /Pipfile.lock
