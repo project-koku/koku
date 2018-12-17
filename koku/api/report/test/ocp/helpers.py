@@ -46,14 +46,6 @@ class OCPReportDataGenerator:
 
         self.last_month = self.dh.last_month_start
 
-        self.apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                     self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        self.organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                              self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        self.markets = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                        self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        self.versions = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                         self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
         if current_month_only:
             self.period_ranges = [
                 (self.dh.this_month_start, self.dh.this_month_end),
@@ -138,13 +130,22 @@ class OCPReportDataGenerator:
         report.save()
         return report
 
-    def _gen_pod_labels(self):
+    def _gen_pod_labels(self, report):
         """Create pod labels for output data."""
+        apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                         self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        markets = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                   self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        versions = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                    self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+
         seeded_labels = {'environment': ['dev', 'ci', 'qa', 'stage', 'prod'],
-                         'app': self.apps,
-                         'organization': self.organizations,
-                         'market': self.markets,
-                         'version': self.versions
+                         'app': apps,
+                         'organization': organizations,
+                         'market': markets,
+                         'version': versions
                          }
         gen_label_keys = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
                           self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
@@ -153,12 +154,14 @@ class OCPReportDataGenerator:
         chosen_label_keys = random.choices(all_label_keys, k=num_labels)
 
         labels = {}
-
         for label_key in chosen_label_keys:
             label_value = self.fake.word()  # pylint: disable=no-member
             if label_key in seeded_labels:
                 label_value = random.choice(seeded_labels[label_key])
-            labels['label_{}'.format(label_key)] = label_value
+            labels['{}-{}-{}*{}_label'.format(report.interval_start.month,
+                                              report.interval_start.day,
+                                              report.interval_start.year,
+                                              label_key)] = label_value
 
         return labels
 
@@ -183,7 +186,7 @@ class OCPReportDataGenerator:
                 'node_capacity_cpu_core_seconds': Decimal(node_cpu_cores * 3600),
                 'node_capacity_memory_bytes': Decimal(node_memory_gb * 1e9),
                 'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e9 * 3600),
-                'pod_labels': self._gen_pod_labels()
+                'pod_labels': self._gen_pod_labels(report)
             }
             line_item = OCPUsageLineItem(**data)
             line_item.save()

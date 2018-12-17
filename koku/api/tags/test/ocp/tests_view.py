@@ -15,30 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the tag view."""
+import calendar
 import datetime
-from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
-from dateutil import relativedelta
-from django.db.models import Count, F, Sum
-from django.http import HttpRequest, QueryDict
+from dateutil.relativedelta import relativedelta
 from django.urls import reverse
-from rest_framework.request import Request
-from rest_framework.response import Response
 from rest_framework.test import APIClient
-from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import User
-from api.query_handler import TruncDayString
-from api.report.aws.serializers import QueryParamSerializer
-from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
-from api.report.view import _generic_report
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -59,269 +47,48 @@ class OCPReportViewTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             serializer.save()
 
-        self.tag_ocp = {
-            "filter": {
-                "resolution": "monthly",
-                "time_scope_value": "-1",
-                "time_scope_units": "month"
-            },
-            "data": [
-                "Democrat",
-                "PM",
-                "actually",
-                "add",
-                "admit",
-                "adult",
-                "again",
-                "age",
-                "agent",
-                "always",
-                "among",
-                "answer",
-                "app",
-                "apply",
-                "area",
-                "argue",
-                "as",
-                "attorney",
-                "authority",
-                "away",
-                "bank",
-                "be",
-                "beat",
-                "because",
-                "behavior",
-                "best",
-                "beyond",
-                "bit",
-                "body",
-                "box",
-                "build",
-                "business",
-                "by",
-                "can",
-                "care",
-                "carry",
-                "catch",
-                "cell",
-                "chair",
-                "child",
-                "choose",
-                "civil",
-                "clear",
-                "coach",
-                "college",
-                "compare",
-                "concern",
-                "condition",
-                "consider",
-                "create",
-                "culture",
-                "customer",
-                "decide",
-                "degree",
-                "design",
-                "develop",
-                "difficult",
-                "discussion",
-                "do",
-                "dream",
-                "drive",
-                "drug",
-                "east",
-                "economic",
-                "economy",
-                "edge",
-                "else",
-                "employee",
-                "energy",
-                "enter",
-                "entire",
-                "environment",
-                "establish",
-                "evening",
-                "event",
-                "executive",
-                "few",
-                "field",
-                "fill",
-                "financial",
-                "firm",
-                "floor",
-                "fly",
-                "foreign",
-                "free",
-                "fund",
-                "general",
-                "generation",
-                "get",
-                "glass",
-                "goal",
-                "good",
-                "ground",
-                "guess",
-                "hair",
-                "hear",
-                "heart",
-                "help",
-                "herself",
-                "history",
-                "human",
-                "husband",
-                "idea",
-                "image",
-                "impact",
-                "improve",
-                "indicate",
-                "instead",
-                "institution",
-                "its",
-                "job",
-                "keep",
-                "last",
-                "lawyer",
-                "letter",
-                "listen",
-                "loss",
-                "lot",
-                "low",
-                "magazine",
-                "main",
-                "make",
-                "management",
-                "manager",
-                "market",
-                "marriage",
-                "material",
-                "matter",
-                "may",
-                "meeting",
-                "mention",
-                "military",
-                "miss",
-                "modern",
-                "morning",
-                "most",
-                "mouth",
-                "much",
-                "music",
-                "near",
-                "need",
-                "nothing",
-                "notice",
-                "officer",
-                "official",
-                "often",
-                "ok",
-                "organization",
-                "painting",
-                "party",
-                "people",
-                "per",
-                "phone",
-                "pick",
-                "politics",
-                "population",
-                "production",
-                "project",
-                "property",
-                "question",
-                "ready",
-                "reality",
-                "realize",
-                "receive",
-                "recognize",
-                "record",
-                "reflect",
-                "remain",
-                "require",
-                "respond",
-                "responsibility",
-                "reveal",
-                "rise",
-                "risk",
-                "rock",
-                "safe",
-                "score",
-                "sea",
-                "section",
-                "security",
-                "send",
-                "shake",
-                "she",
-                "similar",
-                "since",
-                "sister",
-                "size",
-                "skin",
-                "so",
-                "some",
-                "somebody",
-                "speech",
-                "spend",
-                "spring",
-                "stay",
-                "step",
-                "store",
-                "strategy",
-                "student",
-                "stuff",
-                "subject",
-                "summer",
-                "sure",
-                "take",
-                "talk",
-                "tax",
-                "teach",
-                "tell",
-                "ten",
-                "than",
-                "them",
-                "themselves",
-                "thing",
-                "third",
-                "though",
-                "thought",
-                "together",
-                "tonight",
-                "tree",
-                "true",
-                "try",
-                "us",
-                "use",
-                "version",
-                "visit",
-                "wait",
-                "walk",
-                "water",
-                "way",
-                "we",
-                "western",
-                "when",
-                "which",
-                "white",
-                "whose",
-                "will",
-                "wind",
-                "yard",
-                "yeah",
-                "yet"
-            ]
-        }
+    def _calculate_expected_range(self, time_scope_value, time_scope_units):
+        today = self.dh.today
 
-    def test_execute_query_ocp_tags_this_month(self):
-        """Test that tag data is returned for the full month."""
-        url = reverse('ocp-tags')
-        client = APIClient()
-        params = {
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month'
-        }
-        url = url + '?' + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
+        if time_scope_value == '-1' and time_scope_units == 'month':
+            start_range = today.replace(day=1).date()
+        elif time_scope_value == '-2' and time_scope_units == 'month':
+            start_range = (today - relativedelta(months=1)).replace(day=1).date()
+        elif time_scope_value == '-10' and time_scope_units == 'day':
+            start_range = (today - relativedelta(days=10)).date()
+        elif time_scope_value == '-30' and time_scope_units == 'day':
+            start_range = (today - relativedelta(days=30)).date()
 
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertTrue(data.get('data'))
-        self.assertTrue(isinstance(data.get('data'), list))
+        end_range = today.replace(day=calendar.monthrange(today.year, today.month)[1]).date()
+
+        return start_range, end_range
+
+    def test_execute_ocp_tags_queries(self):
+        """Test that tag data is for the correct time queries."""
+        test_cases = [{'value': '-1', 'unit': 'month', 'resolution': 'monthly'},
+                      {'value': '-2', 'unit': 'month', 'resolution': 'monthly'},
+                      {'value': '-10', 'unit': 'day', 'resolution': 'daily'},
+                      {'value': '-30', 'unit': 'day', 'resolution': 'daily'}]
+
+        for case in test_cases:
+            url = reverse('ocp-tags')
+            client = APIClient()
+            params = {
+                'filter[resolution]': case.get('resolution'),
+                'filter[time_scope_value]': case.get('value'),
+                'filter[time_scope_units]': case.get('unit')
+            }
+            url = url + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
+
+            for label in data.get('data'):
+                label_date = datetime.datetime.strptime(label.split('*')[0], '%m-%d-%Y')
+                self.assertGreaterEqual(label_date.date(), start_range)
+                self.assertLessEqual(label_date.date(), end_range)
+
+            self.assertTrue(data.get('data'))
+            self.assertTrue(isinstance(data.get('data'), list))
