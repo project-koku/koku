@@ -150,7 +150,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 else:
                     data = list(query_data)
             else:
-                data = self._apply_group_by(list(query_data))
+                # Pass in a copy of the group by without the added
+                # tag column name prefix
+                groups = copy.deepcopy(query_group_by)
+                groups.remove('date')
+                data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
         query_sum.update({'units': self._mapper.units_key})

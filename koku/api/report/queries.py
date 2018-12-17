@@ -859,11 +859,12 @@ class ReportQueryHandler(object):
                 out_data[key] = grouped
         return out_data
 
-    def _apply_group_by(self, query_data):
+    def _apply_group_by(self, query_data, group_by=None):
         """Group data by date for given time interval then group by list.
 
         Args:
             query_data  (List(Dict)): Queried data
+            group_by (list): An optional list of groups
         Returns:
             (Dict): Dictionary of grouped dictionaries
 
@@ -883,7 +884,8 @@ class ReportQueryHandler(object):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            group_by = self._get_group_by()
+            if group_by is None:
+                group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
             bucket_by_date[date] = grouped
