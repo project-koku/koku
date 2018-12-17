@@ -91,6 +91,19 @@ class GroupBySerializer(serializers.Serializer):
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the FilterSerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+
+        super().__init__(*args, **kwargs)
+
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add OCP tag keys to allowable fields
+            self.fields.update(tag_keys)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -243,10 +256,13 @@ class OCPQueryParamSerializer(serializers.Serializer):
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
-        self.fields.update(
-            {'filter': FilterSerializer(required=False, tag_keys=self.tag_keys)}
-        )
 
+        tag_fields = {
+            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
+            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
+        }
+
+        self.fields.update(tag_fields)
 
     def validate(self, data):
         """Validate incoming data.
@@ -276,7 +292,8 @@ class OCPQueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if group_by field inputs are invalid
         """
-        validate_field(self, 'group_by', GroupBySerializer, value)
+        validate_field(self, 'group_by', GroupBySerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_filter(self, value):
