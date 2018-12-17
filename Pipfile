@@ -30,7 +30,7 @@ prometheus-client = "==0.5.0"
 [dev-packages]
 
 astroid = "==2.1.0"
-pylint = "==2.0.1"
+pylint = "==2.2.2"
 sphinx-rtd-theme = ">=0.3.0"
 sphinx = ">=1.7.0"
 tox = ">=3.0.0"
