@@ -136,11 +136,6 @@ class OCPTagsQueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if field inputs are invalid
         """
-        error = {}
-        if 'delta' in data.get('order_by', {}) and 'delta' not in data:
-            error['order_by'] = _('Cannot order by delta without a delta param')
-            raise serializers.ValidationError(error)
-
         handle_invalid_fields(self, data)
         return data
 
