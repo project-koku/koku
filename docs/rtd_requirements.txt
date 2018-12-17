@@ -13,7 +13,7 @@ djangorestframework==3.9.0
 docutils==0.14
 drf-nested-routers==0.91
 gunicorn==19.9.0
-idna==2.7
+idna==2.8
 jmespath==0.9.3
 pint==0.8.1
 psycopg2-binary==2.7.5
