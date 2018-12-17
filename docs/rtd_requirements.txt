@@ -7,7 +7,7 @@ django-cors-headers==2.4.0
 django-environ==0.4.5
 django-filter==2.0.0
 django-tenant-schemas==1.9.0
-django==2.1.2
+django==2.1.4
 djangorestframework-csv==2.1.0
 djangorestframework==3.9.0
 docutils==0.14
