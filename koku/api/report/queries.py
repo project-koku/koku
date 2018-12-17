@@ -16,19 +16,16 @@
 #
 """Query Handling for Reports."""
 import copy
-import datetime
 import logging
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
-from dateutil import relativedelta
 from django.db.models import CharField, Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Coalesce, TruncDay, TruncMonth
+from django.db.models.functions import Coalesce
 
 from api.query_handler import QueryHandler
-from api.report.query_filter import QueryFilter, QueryFilterCollection
-from api.utils import DateHelper
+from api.report.query_filter import QueryFilter
 from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
@@ -396,6 +393,8 @@ class ReportQueryHandler(QueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         LOG.debug(f'Query Params: {query_parameters}')
+        self._accept_type = None
+        self._group_by = None
 
         if kwargs:
             # view parameters
@@ -413,11 +412,9 @@ class ReportQueryHandler(QueryHandler):
         default_ordering = self._mapper._report_type_map.get('default_ordering')
 
         super().__init__(query_parameters, url_data,
-                         tenant, default_ordering,  **kwargs)
+                         tenant, default_ordering, **kwargs)
 
         self.group_by_options = group_by_options
-        self._accept_type = None
-        self._group_by = None
 
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')

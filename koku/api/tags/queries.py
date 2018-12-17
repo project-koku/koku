@@ -15,11 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Query Handling for Tags."""
-import datetime
 import logging
-from api.report.query_filter import QueryFilter, QueryFilterCollection  # TODO Move this somewhere generic
+
 from api.query_handler import QueryHandler
-from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
 
@@ -29,9 +27,17 @@ class TagQueryHandler(QueryHandler):
 
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
+        """Establish tag query handler.
+
+        Args:
+            query_parameters    (Dict): parameters for query
+            url_data        (String): URL string to provide order information
+            tenant    (String): the tenant to use to access CUR data
+            kwargs    (Dict): A dictionary for internal query alteration based on path
+        """
         default_ordering = {'tags': 'asc'}
         super().__init__(query_parameters, url_data,
-                         tenant, default_ordering,  **kwargs)
+                         tenant, default_ordering, **kwargs)
         self.query_filter = self._get_filter()
 
     def _get_filter(self, delta=False):

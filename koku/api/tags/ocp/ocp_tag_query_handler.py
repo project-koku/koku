@@ -16,10 +16,12 @@
 #
 """OCP Tag Query Handling."""
 import copy
-from api.tags.queries import TagQueryHandler
+
 from django.db.models import Count
 from tenant_schemas.utils import tenant_context
+
 from api.report.functions import JSONBObjectKeys
+from api.tags.queries import TagQueryHandler
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -27,7 +29,7 @@ class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
     def __init__(self, query_parameters, url_data,
-                tenant, **kwargs):
+                 tenant, **kwargs):
         """Establish OCP report query handler.
 
         Args:
@@ -37,7 +39,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         super().__init__(query_parameters, url_data,
-                            tenant, **kwargs)
+                         tenant, **kwargs)
 
     def _format_query_response(self):
         """Format the query response with data.

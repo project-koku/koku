@@ -23,10 +23,10 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
-from rest_framework.response import Response
 from api.report.view import _generic_report  # Move this outside of report to something more general.
-from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.ocp.serializers import OCPTagsQueryParamSerializer
+
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])

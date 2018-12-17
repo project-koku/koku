@@ -14,14 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-import logging
+"""Query Handling for all APIs."""
 import datetime
+import logging
 
 from dateutil import relativedelta
+from django.db.models.functions import TruncDay, TruncMonth
+
 from api.report.query_filter import QueryFilter, QueryFilterCollection  # TODO Move this somewhere generic
 from api.utils import DateHelper
-
-from django.db.models.functions import TruncDay, TruncMonth
 
 LOG = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class TruncMonthString(TruncMonth):
         value = super().convert_value(value, expression, connection)
         return value.strftime('%Y-%m')
 
+
 class TruncDayString(TruncDay):
     """Class to handle string formated day truncation."""
 
@@ -42,11 +44,21 @@ class TruncDayString(TruncDay):
         value = super().convert_value(value, expression, connection)
         return value.strftime('%Y-%m-%d')
 
+
 class QueryHandler(object):
     """Handles report queries and responses."""
 
     def __init__(self, query_parameters, url_data,
                  tenant, default_ordering, **kwargs):
+        """Establish query handler.
+
+        Args:
+            query_parameters    (Dict): parameters for query
+            url_data        (String): URL string to provide order information
+            tenant    (String): the tenant to use to access CUR data
+            default_ordering (String) default ordering of response items
+            kwargs    (Dict): A dictionary for internal query alteration based on path
+        """
         LOG.debug(f'Query Params: {query_parameters}')
         self.query_parameters = query_parameters
         self.url_data = url_data
@@ -269,7 +281,6 @@ class QueryHandler(object):
         end_filter = QueryFilter(field='usage_end', operation='lte',
                                  parameter=end)
         return start_filter, end_filter
-    
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.

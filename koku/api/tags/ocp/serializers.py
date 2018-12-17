@@ -18,6 +18,7 @@
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+
 def validate_field(this, field, serializer_cls, value):
     """Validate the provided fields.
 
@@ -34,6 +35,7 @@ def validate_field(this, field, serializer_cls, value):
     serializer = serializer_cls(data=field_param)
     serializer.is_valid(raise_exception=True)
     return value
+
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.
@@ -54,6 +56,7 @@ def handle_invalid_fields(this, data):
             error[unknown_key] = _('Unsupported parameter')
         raise serializers.ValidationError(error)
     return data
+
 
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling query parameter filter."""
@@ -79,7 +82,6 @@ class FilterSerializer(serializers.Serializer):
                                                required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
                                                required=False)
-
 
     def validate(self, data):
         """Validate incoming data.
@@ -118,11 +120,11 @@ class FilterSerializer(serializers.Serializer):
                 raise serializers.ValidationError(error)
         return data
 
+
 class OCPTagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     filter = FilterSerializer(required=False)
-
 
     def validate(self, data):
         """Validate incoming data.

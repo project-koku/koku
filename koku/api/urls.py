@@ -25,9 +25,9 @@ from api.views import (ProviderViewSet,
                        cpu,
                        instance_type,
                        memory,
+                       ocp_tags,
                        status,
-                       storage,
-                       ocp_tags)
+                       storage)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
