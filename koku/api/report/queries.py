@@ -411,6 +411,7 @@ class ReportQueryHandler(object):
         self.time_interval = []
         self.time_scope_units = None
         self.time_scope_value = None
+        self._tag_keys = []
 
         self.query_parameters = query_parameters
         self.tenant = tenant
