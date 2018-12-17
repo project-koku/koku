@@ -138,6 +138,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
+            query_data, query_group_by = self.strip_label_column_name(
+                query_data,
+                query_group_by
+            )
             query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
@@ -158,6 +162,24 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
+
+    def strip_label_column_name(self, data, group_by):
+        """Remove the column name from tags."""
+        tag_column = self._mapper._operation_map.get('tag_column')
+        val_to_strip = tag_column + '__'
+        new_data = []
+        for entry in data:
+            new_entry = {}
+            for key, value in entry.items():
+                key = key.replace(val_to_strip, '')
+                new_entry[key] = value
+
+            new_data.append(new_entry)
+
+        for i, group in enumerate(group_by):
+            group_by[i] = group.replace(val_to_strip, '')
+
+        return new_data, group_by
 
     def execute_query(self):
         """Execute query and return provided data.
