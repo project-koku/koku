@@ -438,6 +438,7 @@ class ReportQueryHandler(object):
                                    report_type=self._report_type)
         self.default_ordering = self._mapper._report_type_map.get('default_ordering')
         self.query_filter = self._get_filter()
+        self.query_exclusions = self._get_exclusions()
 
     @property
     def is_sum(self):
@@ -753,6 +754,31 @@ class ReportQueryHandler(object):
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
+    def _get_exclusions(self, delta=False):
+        """Create dictionary for filter parameters for exclude clause.
+
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        exclusions = QueryFilterCollection()
+        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_group_by = self.get_tag_group_by_keys()
+        if tag_group_by:
+            for tag in tag_group_by:
+                tag_db_name = tag_column + '__' + tag
+                filt = {
+                    'field': tag_db_name,
+                    'operation': 'isnull',
+                    'parameter': True
+                }
+                q_filter = QueryFilter(**filt)
+                exclusions.add(q_filter)
+
+        composed_exclusions = exclusions.compose()
+
+        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        return composed_exclusions
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
