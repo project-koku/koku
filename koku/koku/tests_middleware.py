@@ -34,8 +34,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
         super().setUp()
         self.user_data = self._create_user_data()
         self.customer = self._create_customer_data()
-        self.schema_name = create_schema_name(self.customer['account_id'],
-                                              self.customer['org_id'])
+        self.schema_name = create_schema_name(self.customer['account_id'])
         self.request_context = self._create_request_context(self.customer,
                                                             self.user_data)
         request = self.request_context['request']
@@ -76,13 +75,13 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         super().setUp()
         self.user_data = self._create_user_data()
         self.customer = self._create_customer_data()
-        self.schema_name = create_schema_name(self.customer['account_id'],
-                                              self.customer['org_id'])
+        self.schema_name = create_schema_name(self.customer['account_id'])
         self.request_context = self._create_request_context(self.customer,
                                                             self.user_data,
                                                             create_customer=False)
         self.request = self.request_context['request']
         self.request.path = '/api/v1/providers/'
+        self.request.META['QUERY_STRING'] = ''
 
     def test_process_status(self):
         """Test that the request gets a user."""
@@ -97,8 +96,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, 'user'))
-        customer = Customer.objects.get(account_id=self.customer['account_id'],
-                                        org_id=self.customer['org_id'])
+        customer = Customer.objects.get(account_id=self.customer['account_id'])
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data['username'])
         self.assertIsNotNone(user)
@@ -119,8 +117,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, 'user'))
         with self.assertRaises(Customer.DoesNotExist):
-            customer = Customer.objects.get(account_id=account_id,
-                                            org_id=customer['org_id'])
+            customer = Customer.objects.get(account_id=account_id)
 
         with self.assertRaises(User.DoesNotExist):
             User.objects.get(username=self.user_data['username'])

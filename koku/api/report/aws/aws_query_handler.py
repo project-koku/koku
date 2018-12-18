@@ -64,9 +64,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
+        units_fallback = self._mapper._report_type_map.get('units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
-            'units': Concat(self._mapper.units_key, Value(''))
+            'units': Coalesce(self._mapper.units_key, Value(units_fallback))
         }
 
         # { query_param: database_field_name }
@@ -106,12 +107,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-
             query_group_by = ['date'] + self._get_group_by()
-
-            query_order_by = ('-date', )
-            if self.order_field != 'delta':
-                query_order_by += (self.order,)
+            query_order_by = ['-date', ]
+            query_order_by.extend([self.order])
 
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -128,20 +126,25 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     order_by=rank_order
                 )
                 query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by = query_order_by + ('rank',)
-
-            if self.order_field != 'delta':
-                query_data = query_data.order_by(*query_order_by)
+                query_order_by.insert(1, 'rank')
+                query_data = self._ranked_list(query_data)
 
             if query.exists():
-                units_key = self._mapper.units_key
-                units_value = query.values(units_key).first().get(units_key)
+                units_fallback = self._mapper._report_type_map.get('units_fallback')
+                sum_annotations = {
+                    'units': Coalesce(self._mapper.units_key, Value(units_fallback))
+                }
+                sum_query = query.annotate(**sum_annotations)
+                units_value = sum_query.values('units').first().get('units')
                 query_sum = self.calculate_total(units_value)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+
+            query_data = self.order_by(query_data, query_order_by)
+
             if is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
@@ -151,7 +154,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data))
                 data = self._transform_data(query_group_by, 0, data)
 
-        self.query_sum = query_sum
+        key_order = list(['units'] + list(annotations.keys()))
+        ordered_total = {total_key: query_sum[total_key]
+                         for total_key in key_order if total_key in query_sum}
+        ordered_total.update(query_sum)
+
+        self.query_sum = ordered_total
         self.query_data = data
         return self._format_query_response()
 

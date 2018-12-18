@@ -21,6 +21,7 @@ from json.decoder import JSONDecodeError
 
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
+from prometheus_client import Counter
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
@@ -29,11 +30,16 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
+                                 'Unique Account Counter')
+unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
+                              'Unique User Counter',
+                              ['account', 'user'])
 
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'apidoc']
+    no_auth_list = ['status', 'apidoc', 'metrics']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -91,24 +97,23 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
     header = RH_IDENTITY_HEADER
 
     @staticmethod
-    def _create_customer(account, org):
+    def _create_customer(account):
         """Create a customer.
 
         Args:
             account (str): The account identifier
-            org (str): The organization identifier
 
         Returns:
             (Customer) The created customer
 
         """
-        schema_name = create_schema_name(account, org)
-        customer = Customer(account_id=account, org_id=org, schema_name=schema_name)
+        schema_name = create_schema_name(account)
+        customer = Customer(account_id=account, schema_name=schema_name)
         customer.save()
         tenant = Tenant(schema_name=schema_name)
         tenant.save()
-        logger.info('Created new customer from account_id %s and org_id %s.',
-                    account, org)
+        unique_account_counter.inc()
+        logger.info('Created new customer from account_id %s.', account)
         return customer
 
     @staticmethod
@@ -132,8 +137,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         if serializer.is_valid(raise_exception=True):
             new_user = serializer.save()
 
-        logger.info('Created new user %s for customer(account_id %s, org_id %s).',
-                    username, customer.account_id, customer.org_id)
+        unique_user_counter.labels(account=customer.account_id, user=username).inc()
+        logger.info('Created new user %s for customer(account_id %s).',
+                    username, customer.account_id)
         return new_user
 
     def process_request(self, request):  # noqa: C901
@@ -148,19 +154,23 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             return
         try:
             json_rh_auth = extract_header(request, self.header)
-            username = json_rh_auth['identity']['username']
-            email = json_rh_auth['identity']['email']
+            username = json_rh_auth['identity']['user']['username']
+            email = json_rh_auth['identity']['user']['email']
             account = json_rh_auth['identity']['account_number']
-            org = json_rh_auth['identity']['org_id']
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
             return
-        if (username and email and account and org):
+        if (username and email and account):
             # Check for customer creation & user creation
+            query_string = ''
+            if request.META['QUERY_STRING']:
+                query_string = '?{}'.format(request.META['QUERY_STRING'])
+            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
+                        f' -- ACCOUNT: {account} USER: {username}')
             try:
-                customer = Customer.objects.filter(account_id=account, org_id=org).get()
+                customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware._create_customer(account, org)
+                customer = IdentityHeaderMiddleware._create_customer(account)
 
             try:
                 user = User.objects.get(username=username)

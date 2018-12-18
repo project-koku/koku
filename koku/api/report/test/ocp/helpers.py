@@ -35,7 +35,7 @@ from reporting.models import (OCPUsageLineItem,
 class OCPReportDataGenerator:
     """Populate the database with OCP report data."""
 
-    def __init__(self, tenant):
+    def __init__(self, tenant, current_month_only=False):
         """Set up the class."""
         self.tenant = tenant
         self.fake = Faker()
@@ -46,15 +46,24 @@ class OCPReportDataGenerator:
 
         self.last_month = self.dh.last_month_start
 
-        self.period_ranges = [
-            (self.dh.last_month_start, self.dh.last_month_end),
-            (self.dh.this_month_start, self.dh.this_month_end),
-        ]
+        if current_month_only:
+            self.period_ranges = [
+                (self.dh.this_month_start, self.dh.this_month_end),
+            ]
+            self.report_ranges = [
+                (self.today - relativedelta(days=i) for i in range(10)),
+            ]
 
-        self.report_ranges = [
-            (self.one_month_ago - relativedelta(days=i) for i in range(10)),
-            (self.today - relativedelta(days=i) for i in range(10)),
-        ]
+        else:
+            self.period_ranges = [
+                (self.dh.last_month_start, self.dh.last_month_end),
+                (self.dh.this_month_start, self.dh.this_month_end),
+            ]
+
+            self.report_ranges = [
+                (self.one_month_ago - relativedelta(days=i) for i in range(10)),
+                (self.today - relativedelta(days=i) for i in range(10)),
+            ]
 
     def add_data_to_tenant(self):
         """Populate tenant with data."""
@@ -165,15 +174,34 @@ class OCPReportDataGenerator:
             'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
             'cluster_id': F('report_period__cluster_id'),
             'node_capacity_cpu_cores': Max('node_capacity_cpu_cores'),
-            'node_capacity_cpu_core_seconds': Sum('node_capacity_cpu_core_seconds'),
+            'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
             'node_capacity_memory_bytes': Max('node_capacity_memory_bytes'),
-            'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
+            'node_capacity_memory_byte_seconds': Max('node_capacity_memory_byte_seconds')
         }
         entries = OCPUsageLineItem.objects\
             .values(*included_fields)\
             .annotate(**annotations)
+
+        cluster_capacity_cpu_core_seconds = Decimal(0)
+        cluster_capacity_memory_byte_seconds = Decimal(0)
+
+        cluster_cap = OCPUsageLineItem.objects\
+            .values(*['node'])\
+            .annotate(
+                **{
+                    'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
+                    'node_capacity_memory_byte_seconds': Sum('node_capacity_memory_byte_seconds')
+                }
+            )
+
+        for node in cluster_cap:
+            cluster_capacity_cpu_core_seconds += node.get('node_capacity_cpu_core_seconds')
+            cluster_capacity_memory_byte_seconds += node.get('node_capacity_memory_byte_seconds')
+
         for entry in entries:
             entry['total_seconds'] = 3600
+            entry['cluster_capacity_cpu_core_seconds'] = cluster_capacity_cpu_core_seconds
+            entry['cluster_capacity_memory_byte_seconds'] = cluster_capacity_memory_byte_seconds
             daily = OCPUsageLineItemDaily(**entry)
             daily.save()
 
@@ -222,6 +250,11 @@ class OCPReportDataGenerator:
             'node_capacity_memory_gigabytes': F('node_capacity_memory_bytes') * 1e-9,
             'node_capacity_memory_gigabyte_hours': ExpressionWrapper(
                 F('node_capacity_memory_byte_seconds') / 3600,
+                output_field=DecimalField()
+            ) * 1e-9,
+            'cluster_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
+            'cluster_capacity_memory_gigabyte_hours': ExpressionWrapper(
+                F('cluster_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
             ) * 1e-9,
         }

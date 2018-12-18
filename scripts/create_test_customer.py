@@ -62,7 +62,6 @@ class KokuCustomerOnboarder:
         self.endpoint_base = f'http://{self.koku.get("host")}:{self.koku.get("port")}/api/v1/'
 
         self.auth_token = self.get_token(self.customer.get('account_id'),
-                                         self.customer.get('org_id'),
                                          self.customer.get('user'),
                                          self.customer.get('email'),)
 
@@ -164,12 +163,12 @@ class KokuCustomerOnboarder:
         """returns HTTP Token Auth header"""
         return {'x-rh-identity': token}
 
-    def get_token(self, account_id, org_id, username, email):
+    def get_token(self, account_id, username, email):
         """Authenticate with the Koku API and obtain an auth token."""
         identity = {'account_number': account_id,
-                    'org_id': org_id,
+                    'user': {
                     'username': username,
-                    'email': email}
+                    'email': email}}
         header = {'identity': identity}
         json_identity = json_dumps(header)
         token = b64encode(json_identity.encode('utf-8'))

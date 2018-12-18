@@ -41,6 +41,7 @@ urlpatterns = [
     url(r'^{}(?!/?apidoc/)(?P<path>.*\..*)$'.format(API_PATH_PREFIX),
         RedirectView.as_view(url='apidoc/%(path)s', permanent=False),
         name='apidoc'),
+    path('', include('django_prometheus.urls')),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

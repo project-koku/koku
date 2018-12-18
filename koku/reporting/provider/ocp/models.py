@@ -18,6 +18,7 @@
 """Models for OCP cost entry tables."""
 
 from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -261,6 +262,18 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
+    cluster_capacity_cpu_core_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_memory_byte_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
     total_seconds = models.IntegerField()
 
     pod_labels = JSONField(null=True)
@@ -295,6 +308,10 @@ class OCPUsageLineItemDailySummary(models.Model):
                 fields=['node'],
                 name='summary_node_idx',
             ),
+            GinIndex(
+                fields=['pod_labels'],
+                name='pod_labels_idx',
+            ),
         ]
 
     id = models.BigAutoField(primary_key=True)
@@ -310,6 +327,8 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
+
+    pod_labels = JSONField(null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(
         max_digits=24,
@@ -378,6 +397,18 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
 
     node_capacity_memory_gigabyte_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_cpu_core_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True

@@ -19,7 +19,7 @@ import copy
 import random
 import re
 from collections import OrderedDict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import (CharField, Count, DateTimeField, IntegerField,
@@ -1494,7 +1494,7 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
         expected_delta_value = Decimal(self.current_month_total)
-        expected_delta_percent = Decimal(0)
+        expected_delta_percent = None
 
         query_params = {
             'filter': {'time_scope_value': -1},
@@ -1511,7 +1511,7 @@ class ReportQueryTest(IamTestCase):
 
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
-        self.assertIsNotNone(delta.get('percent'))
+        self.assertIsNone(delta.get('percent'))
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
@@ -1561,14 +1561,10 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            current_delta = Decimal(-9000)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('delta_percent'))
-                data_point_delta = month_item.get('values')[0].get('delta_percent')
-                self.assertLessEqual(current_delta, data_point_delta)
-                current_delta = data_point_delta
+                self.assertIsNone(month_item.get('values')[0].get('delta_percent'))
 
     def test_execute_query_with_account_alias(self):
         """Test execute_query when account alias is avaiable."""
@@ -1665,9 +1661,9 @@ class ReportQueryTest(IamTestCase):
             {'account': '4', 'account_alias': '4', 'total': 2, 'rank': 4}
         ]
         expected = [
-            {'account': '1', 'account_alias': '1', 'total': 5},
-            {'account': '2', 'account_alias': '2', 'total': 4},
-            {'account': '2 Others', 'account_alias': '2 Others', 'total': 5}
+            {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
+            {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
+            {'account': '2 Others', 'account_alias': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1688,9 +1684,9 @@ class ReportQueryTest(IamTestCase):
             {'service': '4', 'total': 2, 'rank': 4}
         ]
         expected = [
-            {'service': '1', 'total': 5},
-            {'service': '2', 'total': 4},
-            {'service': '2 Others', 'total': 5}
+            {'service': '1', 'total': 5, 'rank': 1},
+            {'service': '2', 'total': 4, 'rank': 2},
+            {'service': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1797,3 +1793,111 @@ class ReportQueryTest(IamTestCase):
                         self.assertGreater(value.get('cost'), Decimal(0))
                         self.assertIsInstance(value.get('total'), float)
                         self.assertGreater(value.get('total'), 0.0)
+
+    def test_order_by(self):
+        """Test that order_by returns properly sorted data."""
+        today = datetime.utcnow()
+        yesterday = today - timedelta(days=1)
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month'
+            }
+        }
+        handler = AWSReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'costs'}
+        )
+
+        unordered_data = [
+            {
+                'date': today,
+                'delta_percent': 8,
+                'total': 6.2,
+                'rank': 2
+            },
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 1
+            },
+            {
+                'date': today,
+                'delta_percent': 7,
+                'total': 8.2,
+                'rank': 1
+            },
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 2
+            },
+        ]
+
+        order_fields = ['date', 'rank']
+        expected = [
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 1
+            },
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 2
+            },
+            {
+                'date': today,
+                'delta_percent': 7,
+                'total': 8.2,
+                'rank': 1
+            },
+            {
+                'date': today,
+                'delta_percent': 8,
+                'total': 6.2,
+                'rank': 2
+            },
+
+        ]
+
+        ordered_data = handler.order_by(unordered_data, order_fields)
+        self.assertEqual(ordered_data, expected)
+
+        order_fields = ['date', '-delta']
+        expected = [
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 1
+            },
+            {
+                'date': yesterday,
+                'delta_percent': 4,
+                'total': 2.2,
+                'rank': 2
+            },
+            {
+                'date': today,
+                'delta_percent': 8,
+                'total': 6.2,
+                'rank': 2
+            },
+            {
+                'date': today,
+                'delta_percent': 7,
+                'total': 8.2,
+                'rank': 1
+            },
+        ]
+
+        ordered_data = handler.order_by(unordered_data, order_fields)
+        self.assertEqual(ordered_data, expected)
