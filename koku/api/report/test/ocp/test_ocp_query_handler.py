@@ -225,3 +225,31 @@ class OCPReportQueryHandlerTest(IamTestCase):
             expected_total = field_one_total / field_two_total * 100 if field_two_total != 0 else 0
 
             self.assertEqual(handler.query_delta.get('percent'), expected_total)
+
+    def test_strip_label_column_name(self):
+        """Test that the tag column name is stripped from results."""
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        data = [
+            {'pod_label__tag_key1': 'value'},
+            {'pod_label__tag_key2': 'value'}
+        ]
+        group_by = ['date', 'pod_label__tag_key1', 'pod_label__tag_key2']
+
+        expected_data = [
+            {'tag_key1': 'value'},
+            {'tag_key2': 'value'}
+        ]
+        expected_group_by = ['date', 'tag_key1', 'tag_key2']
+
+        result_data, result_group_by = handler.strip_label_column_name(
+            data, group_by
+        )
+
+        self.assertEqual(result_data, expected_data)
+        self.assertEqual(result_group_by, expected_group_by)
