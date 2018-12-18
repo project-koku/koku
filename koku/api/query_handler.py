@@ -21,7 +21,7 @@ import logging
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
 
-from api.report.query_filter import QueryFilter, QueryFilterCollection  # TODO Move this somewhere generic
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)

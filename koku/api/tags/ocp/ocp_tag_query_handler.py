@@ -20,7 +20,7 @@ import copy
 from django.db.models import Count
 from tenant_schemas.utils import tenant_context
 
-from api.report.functions import JSONBObjectKeys
+from api.functions import JSONBObjectKeys
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPUsageLineItemDailySummary
 
