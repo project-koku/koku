@@ -23,6 +23,7 @@ import sys
 
 from flask import Flask
 from flask.logging import default_handler
+from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
 from masu.api.blueprint import api_v1
 from masu.api.status import ApplicationStatus
@@ -30,6 +31,8 @@ from masu.celery import celery as celery_app, update_celery_config
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 logger.addHandler(default_handler)
+
+metrics = GunicornPrometheusMetrics(app=None)  # pylint: disable=invalid-name
 
 
 def create_app(test_config=None):
@@ -62,6 +65,8 @@ def create_app(test_config=None):
 
     try:
         os.makedirs(app.instance_path)
+        if not test_config:
+            metrics.init_app(app)
     # pylint: disable=invalid-name
     except OSError as e:
         # ignore "File exists"
