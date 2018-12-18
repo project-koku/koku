@@ -49,8 +49,7 @@ class ProviderManagerTest(IamTestCase):
         """Set up the provider manager tests."""
         super().setUp()
         self.customer = Customer.objects.get(
-            account_id=self.customer_data['account_id'],
-            org_id=self.customer_data['org_id']
+            account_id=self.customer_data['account_id']
         )
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):

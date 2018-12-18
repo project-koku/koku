@@ -16,7 +16,7 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-from decimal import Decimal, DivisionByZero
+from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
 from django.db.models.functions import Concat
@@ -227,16 +227,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
             try:
                 row['delta_percent'] = (row.get(delta_field_one, 0) /  # noqa: W504
                                         row.get(delta_field_two, 0) * 100)
-            except (DivisionByZero, ZeroDivisionError):
-                row['delta_percent'] = 0
+            except (DivisionByZero, ZeroDivisionError, InvalidOperation):
+                row['delta_percent'] = None
 
         total_delta = (Decimal(query_sum.get(delta_field_one, 0)) -  # noqa: W504
                        Decimal(query_sum.get(delta_field_two, 0)))
         try:
             total_delta_percent = (query_sum.get(delta_field_one, 0) /  # noqa: W504
                                    query_sum.get(delta_field_two, 0) * 100)
-        except (DivisionByZero, ZeroDivisionError):
-                total_delta_percent = 0
+        except (DivisionByZero, ZeroDivisionError, InvalidOperation):
+                total_delta_percent = None
 
         self.query_delta = {
             'value': total_delta,

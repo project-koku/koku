@@ -60,10 +60,8 @@ class IamTestCase(TestCase):
     def _create_customer_data(cls):
         """Create customer data."""
         account = cls.fake.ean8()
-        org = cls.fake.ean8()
-        schema = f'acct{account}org{org}'
+        schema = f'acct{account}'
         customer = {'account_id': account,
-                    'org_id': org,
                     'schema_name': schema}
         return customer
 
@@ -75,20 +73,19 @@ class IamTestCase(TestCase):
         return user_data
 
     @classmethod
-    def _create_customer(cls, account, org, create_tenant=False):
+    def _create_customer(cls, account, create_tenant=False):
         """Create a customer.
 
         Args:
             account (str): The account identifier
-            org (str): The organization identifier
 
         Returns:
             (Customer) The created customer
 
         """
         connection.set_schema_to_public()
-        schema_name = create_schema_name(account, org)
-        customer = Customer(account_id=account, org_id=org, schema_name=schema_name)
+        schema_name = create_schema_name(account)
+        customer = Customer(account_id=account, schema_name=schema_name)
         customer.save()
         if create_tenant:
             tenant = Tenant(schema_name=schema_name)
@@ -101,18 +98,13 @@ class IamTestCase(TestCase):
         """Create the request context for a user."""
         customer = customer_data
         account = customer.get('account_id')
-        org = customer.get('org_id')
         if create_customer:
             cls.customer = cls._create_customer(
                 account,
-                org,
                 create_tenant=create_tenant
             )
         identity = {
             'identity': {
-                'internal': {
-                    'org_id': org,
-                },
                 'account_number': account,
                 'type': 'User',
                 'user': {

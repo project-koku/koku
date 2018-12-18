@@ -31,9 +31,9 @@ from tenant_schemas.utils import tenant_context
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.query_handler import TruncDayString
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.queries import TruncDayString
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.utils import DateHelper

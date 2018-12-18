@@ -1494,7 +1494,7 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
         expected_delta_value = Decimal(self.current_month_total)
-        expected_delta_percent = Decimal(0)
+        expected_delta_percent = None
 
         query_params = {
             'filter': {'time_scope_value': -1},
@@ -1511,7 +1511,7 @@ class ReportQueryTest(IamTestCase):
 
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
-        self.assertIsNotNone(delta.get('percent'))
+        self.assertIsNone(delta.get('percent'))
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
@@ -1561,14 +1561,10 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            current_delta = Decimal(-9000)
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('delta_percent'))
-                data_point_delta = month_item.get('values')[0].get('delta_percent')
-                self.assertLessEqual(current_delta, data_point_delta)
-                current_delta = data_point_delta
+                self.assertIsNone(month_item.get('values')[0].get('delta_percent'))
 
     def test_execute_query_with_account_alias(self):
         """Test execute_query when account alias is avaiable."""

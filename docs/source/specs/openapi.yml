@@ -715,6 +715,32 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
+  /tags/ocp/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain OCP tag keys
+      operationId: getOCPTagData
+      produces:
+      - 'application/json'
+      parameters:
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the query as a URL encoded dictionary.'
+        type: 'string'
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/TagsOCP'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
 securityDefinitions:
   api_key:
     type: 'apiKey'
@@ -724,14 +750,10 @@ definitions:
   Customer:
     required:
       - account_id
-      - org_id
     properties:
       account_id:
         type: string
         example: '11838292'
-      org_id:
-        type: string
-        example: '1555276'
   CustomerOut:
     allOf:
       - $ref: '#/definitions/Customer'
@@ -1557,6 +1579,30 @@ definitions:
           django.utils.six: 1.10.0
           django_filters: 1.0.4
           http.server: '0.6'
+  TagsFilterOCP:
+    type: object
+    properties:
+      resolution:
+        $ref: '#/definitions/ReportResolution'
+      time_scope_value:
+        $ref: '#/definitions/ReportTimeScopeValue'
+      time_scope_units:
+        $ref: '#/definitions/ReportTimeScopeUnits'
+  TagsOCP:
+    required:
+      - filter
+    properties:
+      filter:
+        $ref: '#/definitions/TagsFilterOCP'
+      data:
+        type: array
+        items:
+          type: list
+          example: [
+                "production",
+                "staging",
+                "test"
+            ]
   User:
     required:
       - username
