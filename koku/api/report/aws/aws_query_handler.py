@@ -21,8 +21,8 @@ from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
+from api.query_filter import QueryFilterCollection
 from api.report.queries import ReportQueryHandler
-from api.report.query_filter import QueryFilterCollection
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'cost_entry_product_id', 'cost_entry_pricing_id',
