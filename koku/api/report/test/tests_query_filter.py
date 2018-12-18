@@ -22,7 +22,7 @@ from django.db.models import Q
 from django.test import TestCase
 from faker import Faker
 
-from api.report.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilter, QueryFilterCollection
 
 
 class QueryFilterTest(TestCase):
