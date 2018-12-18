@@ -249,7 +249,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 }
             }
         """
-        return super().retrieve(request=request, args=args, kwargs=kwargs)
+        response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        manager = ProviderManager(kwargs['uuid'])
+        provider_stats = manager.provider_statistics()
+        response.data['stats'] = provider_stats
+        return response
 
     def destroy(self, request, *args, **kwargs):
             """Delete a provider.

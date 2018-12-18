@@ -23,7 +23,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from requests.exceptions import ConnectionError
-
+from reporting_common.models import CostUsageReportStatus, CostUsageReportManifest
 from api.provider.models import Provider
 from rates.models import Rate
 
@@ -62,6 +62,19 @@ class ProviderManager:
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
         return self.model.customer == current_user.customer
+
+    def provider_statistics(self):
+        """Return a json object of latest provider statistics."""
+        status = {}
+
+        provider_manifest = CostUsageReportManifest.objects.filter(provider=self.model).latest('manifest_creation_datetime')
+        report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
+        status['current_assembly_id'] = provider_manifest.assembly_id
+        status['billing_period_start'] = provider_manifest.billing_period_start_datetime
+        status['files_processed'] = '{}/{}'.format(provider_manifest.num_processed_files, provider_manifest.num_total_files)
+        status['last_process_start_date'] = report_status.last_started_datetime
+        status['last_process_complete_date'] = report_status.last_completed_datetime
+        return status
 
     @transaction.atomic
     def remove(self, current_user, customer_remove_context=False):
