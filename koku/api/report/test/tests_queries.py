@@ -1350,57 +1350,6 @@ class ReportQueryTest(IamTestCase):
             month_val = data_item.get('date')
             self.assertEqual(month_val, cmonth_str)
 
-    def test_execute_query_current_month_export_json(self):
-        """Test execute_query for current month on monthly export raw json data."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'operation': 'none'}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
-        query_output = handler.execute_query()
-
-        data = query_output.get('data')
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get('total'))
-
-        total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
-
-        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 24)
-        for data_item in data:
-            month = data_item.get('date')
-            self.assertEqual(month, cmonth_str)
-
-    def test_execute_query_current_month_export_csv(self):
-        """Test execute_query for current month on monthly export raw csv data."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'operation': 'none'}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'accept_type': 'text/csv',
-                                            'report_type': 'costs'})
-        query_output = handler.execute_query()
-
-        data = query_output.get('data')
-        self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get('total'))
-
-        total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
-
-        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 24)
-        for data_item in data:
-            month = data_item.get('date')
-            self.assertEqual(month, cmonth_str)
-
     def test_execute_query_curr_month_by_account_w_limit_csv(self):
         """Test execute_query for current month on monthly by account with limt as csv."""
         for _ in range(5):

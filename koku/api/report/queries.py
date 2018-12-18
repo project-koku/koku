@@ -21,13 +21,12 @@ from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 
-from django.db.models import CharField, Count, F, Max, Q, Sum, Value
+from django.db.models import CharField, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter
 from api.query_handler import QueryHandler
-from reporting.models import (AWSCostEntryLineItem,
-                              AWSCostEntryLineItemAggregates,
+from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
@@ -35,7 +34,6 @@ from reporting.models import (AWSCostEntryLineItem,
 LOG = logging.getLogger(__name__)
 WILDCARD = '*'
 OPERATION_SUM = 'sum'
-OPERATION_NONE = 'none'
 
 
 class ProviderMap(object):
@@ -139,95 +137,6 @@ class ProviderMap(object):
                            'query': AWSCostEntryLineItemDailySummary,
                            'total': AWSCostEntryLineItemAggregates},
             },
-            OPERATION_NONE: {
-                'alias': 'account_alias__account_alias',
-                'annotations': {'account': 'usage_account_id',
-                                'service': 'product_code',
-                                'avail_zone': 'availability_zone',
-                                'region': 'cost_entry_product__region'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'account': {'field': 'account_alias__account_alias',
-                                'operation': 'icontains'},
-                    'service': {'field': 'product_code',
-                                'operation': 'icontains'},
-                    'avail_zone': {'field': 'availability_zone',
-                                   'operation': 'icontains'},
-                    'region': {'field': 'availability_zone',
-                               'operation': 'icontains',
-                               'table': 'cost_entry_product'}
-                },
-                'report_type': {
-                    'costs': {
-                        'aggregate': {
-                            'value': Sum('unblended_cost'),
-                            'cost': Sum('unblended_cost')
-                        },
-                        'aggregate_key': 'unblended_cost',
-                        'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Coalesce(Max('currency_code'),
-                                        Value('USD'))},
-                        'count': None,
-                        'delta_key': {'total': Sum('unblended_cost')},
-                        'filter': {},
-                        'units_key': 'currency_code',
-                        'units_fallback': 'USD',
-                        'sum_columns': ['total'],
-                    },
-                    'instance_type': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count '),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'count': Count('resource_id', distinct=True),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
-                                        Value('Hrs'))},
-                        'count': 'resource_id',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'instance_type',
-                            'table': 'cost_entry_product',
-                            'operation': 'isnull',
-                            'parameter': False
-                        },
-                        'units_key': 'cost_entry_pricing__unit',
-                        'units_fallback': 'Hrs',
-                        'sum_columns': ['total'],
-                    },
-                    'storage': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count'),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'count': Count('resource_id', distinct=True),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
-                                        Value('GB-Mo'))},
-                        'count': 'resource_id',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'product_family',
-                            'table': 'cost_entry_product',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        },
-                        'units_key': 'cost_entry_pricing__unit',
-                        'units_fallback': 'GB-Mo',
-                        'sum_columns': ['total'],
-                    },
-                },
-                'start_date': 'usage_start',
-                'tables': {'query': AWSCostEntryLineItem,
-                           'previous_query': AWSCostEntryLineItem,
-                           'total': AWSCostEntryLineItemAggregates},
-            }
         },
     }, {
         'provider': 'OCP',

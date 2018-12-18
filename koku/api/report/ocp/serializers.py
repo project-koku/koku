@@ -218,7 +218,6 @@ class OCPQueryParamSerializer(serializers.Serializer):
     # Tuples are (key, display_name)
     OPERATION_CHOICES = (
         ('sum', 'sum'),
-        ('none', 'none'),
     )
 
     group_by = GroupBySerializer(required=False)

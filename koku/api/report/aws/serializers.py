@@ -155,7 +155,6 @@ class QueryParamSerializer(serializers.Serializer):
     # Tuples are (key, display_name)
     OPERATION_CHOICES = (
         ('sum', 'sum'),
-        ('none', 'none'),
     )
 
     DELTA_CHOICES = (
