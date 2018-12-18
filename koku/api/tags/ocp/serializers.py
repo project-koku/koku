@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Common serializer logic."""
+"""OCP tag serializer logic."""
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -59,7 +59,7 @@ def handle_invalid_fields(this, data):
 
 
 class FilterSerializer(serializers.Serializer):
-    """Serializer for handling query parameter filter."""
+    """Serializer for handling tag query parameter filter."""
 
     RESOLUTION_CHOICES = (
         ('daily', 'daily'),

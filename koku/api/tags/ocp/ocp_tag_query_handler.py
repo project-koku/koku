@@ -68,10 +68,10 @@ class OCPTagQueryHandler(TagQueryHandler):
         return tag_keys
 
     def execute_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
-            (Dict): Dictionary response of query params, data, and total
+            (Dict): Dictionary response of query params and data
 
         """
         with tenant_context(self.tenant):
