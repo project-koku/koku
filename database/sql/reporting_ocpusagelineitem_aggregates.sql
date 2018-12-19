@@ -8,9 +8,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_aggregates_{uuid} AS (
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
-        sum(li.pod_usage_memory_byte_seconds / li.total_seconds)  * 1e-9 as pod_usage_memory_gigabytes,
-        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_request_memory_gigabytes,
-        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_limit_memory_gigabytes
+        sum(li.pod_usage_memory_byte_seconds / li.total_seconds)  * POWER(2, -30) as pod_usage_memory_gigabytes,
+        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_request_memory_gigabytes,
+        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_limit_memory_gigabytes
     FROM reporting_ocpusagelineitem_daily as li
     WHERE li.usage_start >= current_date - INTERVAL '29 days'
     GROUP BY li.cluster_id, li.namespace, li.pod, li.node
@@ -25,9 +25,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_aggregates_{uuid} AS (
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
-        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_usage_memory_gigabytes,
-        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_request_memory_gigabytes,
-        max(li.pod_limit_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_limit_memory_gigabytes
+        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_usage_memory_gigabytes,
+        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_request_memory_gigabytes,
+        max(li.pod_limit_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_limit_memory_gigabytes
     FROM reporting_ocpusagelineitem_daily as li
     WHERE li.usage_start >= current_date - INTERVAL '9 days'
     GROUP BY li.cluster_id, li.namespace, li.pod, li.node
@@ -42,9 +42,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_aggregates_{uuid} AS (
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
-        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_usage_memory_gigabytes,
-        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_request_memory_gigabytes,
-        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_limit_memory_gigabytes
+        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_usage_memory_gigabytes,
+        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_request_memory_gigabytes,
+        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_limit_memory_gigabytes
     FROM reporting_ocpusagelineitem_daily as li
     WHERE li.usage_start >= date_trunc('month', current_date)::date
     GROUP BY li.cluster_id, li.namespace, li.pod, li.node
@@ -60,9 +60,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_aggregates_{uuid} AS (
         sum(li.pod_usage_cpu_core_seconds) / 3600 as pod_usage_cpu_core_hours,
         sum(li.pod_request_cpu_core_seconds) / 3600 as pod_request_cpu_core_hours,
         sum(li.pod_limit_cpu_core_seconds) / 3600 as pod_limit_cpu_core_hours,
-        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_usage_memory_gigabytes,
-        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_request_memory_gigabytes,
-        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * 1e-9 as pod_limit_memory_gigabytes
+        sum(li.pod_usage_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_usage_memory_gigabytes,
+        sum(li.pod_request_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_request_memory_gigabytes,
+        sum(li.pod_limit_memory_byte_seconds / li.total_seconds) * POWER(2, -30) as pod_limit_memory_gigabytes
     FROM reporting_ocpusagelineitem_daily as li
     WHERE li.usage_start >= (date_trunc('month', current_date) - interval '1 month')
         AND li.usage_start < date_trunc('month', current_date)
