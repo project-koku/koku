@@ -82,7 +82,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return output
 
     def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total

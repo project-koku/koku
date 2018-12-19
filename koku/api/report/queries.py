@@ -261,16 +261,16 @@ class ProviderMap(object):
         op_data = ProviderMap.operation_data(operation, provider)
         return op_data.get('report_type').get(report_type)
 
-    def __init__(self, provider, operation, report_type):
+    def __init__(self, provider, report_type):
         """Constructor."""
         self._provider = provider
-        self._operation = operation
+        self._operation = OPERATION_SUM
         self._report_type = report_type
 
         self._map = ProviderMap.mapping
         self._provider_map = ProviderMap.provider_data(provider)
-        self._operation_map = ProviderMap.operation_data(operation, provider)
-        self._report_type_map = ProviderMap.report_type_data(report_type, operation, provider)
+        self._operation_map = ProviderMap.operation_data(OPERATION_SUM, provider)
+        self._report_type_map = ProviderMap.report_type_data(report_type, OPERATION_SUM, provider)
 
     @property
     def count(self):
@@ -314,9 +314,7 @@ class ReportQueryHandler(QueryHandler):
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
-        self.operation = query_parameters.get('operation', OPERATION_SUM)
         self._mapper = ProviderMap(provider=kwargs.get('provider'),
-                                   operation=self.operation,
                                    report_type=self._report_type)
         default_ordering = self._mapper._report_type_map.get('default_ordering')
 
@@ -330,16 +328,6 @@ class ReportQueryHandler(QueryHandler):
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
-
-    @property
-    def is_sum(self):
-        """Determine the type of API call this is.
-
-        is_sum == True -> API Summary data
-        is_sum == False -> Full data download
-
-        """
-        return self.operation == OPERATION_SUM
 
     @staticmethod
     def has_wildcard(in_list):

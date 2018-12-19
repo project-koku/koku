@@ -170,33 +170,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        if self.is_sum:
-            return self.execute_sum_query()
-
-        query_sum = {'value': 0}
-        data = []
-
-        q_table = self._mapper._operation_map.get('tables').get('query')
-        with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
-            query_data = query.annotate(**self.annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-            query_group_by_with_units = query_group_by + ['units']
-
-            query_order_by = ('-date',)
-            query_data = query_data.order_by(*query_order_by)
-            values_out = query_group_by_with_units + EXPORT_COLUMNS
-            data = list(query_data.values(*values_out))
-
-            if query.exists():
-                units_key = self._mapper.units_key
-                units_value = query.values(units_key).first().get(units_key)
-                query_sum = self.calculate_total(units_value)
-
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
+        return self.execute_sum_query()
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.
