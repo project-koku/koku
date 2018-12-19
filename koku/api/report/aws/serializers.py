@@ -153,11 +153,6 @@ class QueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    OPERATION_CHOICES = (
-        ('sum', 'sum'),
-        ('none', 'none'),
-    )
-
     DELTA_CHOICES = (
         ('total', 'total')
     )
@@ -167,8 +162,6 @@ class QueryParamSerializer(serializers.Serializer):
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
-    operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
-                                        required=False)
 
     def validate(self, data):
         """Validate incoming data.

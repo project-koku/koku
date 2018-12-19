@@ -195,7 +195,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -249,7 +249,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -292,7 +292,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__foo'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)

@@ -59,7 +59,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         annotations = {'date': self.date_trunc('usage_start')}
 
         # { query_param: database_field_name }
-        fields = self._mapper._operation_map.get('annotations')
+        fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -82,7 +82,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return output
 
     def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
@@ -91,7 +91,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             if self.query_exclusions:
@@ -184,7 +184,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        q_table = self._mapper._provider_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['usage_start']
 

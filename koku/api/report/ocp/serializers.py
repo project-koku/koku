@@ -242,15 +242,8 @@ class OCPQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    OPERATION_CHOICES = (
-        ('sum', 'sum'),
-        ('none', 'none'),
-    )
-
     group_by = GroupBySerializer(required=False)
     units = serializers.CharField(required=False)
-    operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
-                                        required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
