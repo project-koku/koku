@@ -700,6 +700,7 @@ class ReportQueryTest(IamTestCase):
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
+        import pdb; pdb.set_trace()
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         self.assertEqual(handler.get_time_scope_value(), -10)

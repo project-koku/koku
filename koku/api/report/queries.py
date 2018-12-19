@@ -51,194 +51,190 @@ class ProviderMap(object):
     # this data should be considered static and read-only.
     mapping = [{
         'provider': 'AWS',
-        'operation': {
-            OPERATION_SUM: {
-                'alias': 'account_alias__account_alias',
-                'annotations': {'account': 'usage_account_id',
-                                'service': 'product_code',
-                                'avail_zone': 'availability_zone'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'account': {'field': 'account_alias__account_alias',
+        'maps': {
+            'alias': 'account_alias__account_alias',
+            'annotations': {'account': 'usage_account_id',
+                            'service': 'product_code',
+                            'avail_zone': 'availability_zone'},
+            'end_date': 'usage_end',
+            'filters': {
+                'account': {'field': 'account_alias__account_alias',
+                            'operation': 'icontains'},
+                'service': {'field': 'product_code',
+                            'operation': 'icontains'},
+                'avail_zone': {'field': 'availability_zone',
                                 'operation': 'icontains'},
-                    'service': {'field': 'product_code',
-                                'operation': 'icontains'},
-                    'avail_zone': {'field': 'availability_zone',
-                                   'operation': 'icontains'},
-                    'region': {'field': 'availability_zone',
-                               'operation': 'icontains'}
-                },
-                'report_type': {
-                    'costs': {
-                        'aggregate': {'value': Sum('unblended_cost')},
-                        'aggregate_key': 'unblended_cost',
-                        'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Coalesce(Max('currency_code'),
-                                        Value('USD'))
-                        },
-                        'count': None,
-                        'delta_key': {'total': Sum('unblended_cost')},
-                        'filter': {},
-                        'units_key': 'currency_code',
-                        'units_fallback': 'USD',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                    'instance_type': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count'),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        # The summary table already already has counts
-                                        'count': Sum('resource_count'),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('unit'),
-                                        Value('Hrs'))},
-                        'count': 'resource_count',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'instance_type',
-                            'operation': 'isnull',
-                            'parameter': False
-                        },
-                        'units_key': 'unit',
-                        'units_fallback': 'Hrs',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                    'storage': {
-                        'aggregate': {
-                            'value': Sum('usage_amount'),
-                            'cost': Sum('unblended_cost')
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('unit'),
-                                        Value('GB-Mo'))},
-                        'count': None,
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'product_family',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        },
-                        'units_key': 'unit',
-                        'units_fallback': 'GB-Mo',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                },
-                'start_date': 'usage_start',
-                'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
-                           'query': AWSCostEntryLineItemDailySummary,
-                           'total': AWSCostEntryLineItemAggregates},
+                'region': {'field': 'availability_zone',
+                            'operation': 'icontains'}
             },
+            'report_type': {
+                'costs': {
+                    'aggregate': {'value': Sum('unblended_cost')},
+                    'aggregate_key': 'unblended_cost',
+                    'annotations': {'total': Sum('unblended_cost'),
+                                    'units': Coalesce(Max('currency_code'),
+                                    Value('USD'))
+                    },
+                    'count': None,
+                    'delta_key': {'total': Sum('unblended_cost')},
+                    'filter': {},
+                    'units_key': 'currency_code',
+                    'units_fallback': 'USD',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
+                'instance_type': {
+                    'aggregate': {
+                        'cost': Sum('unblended_cost'),
+                        'count': Sum('resource_count'),
+                        'value': Sum('usage_amount'),
+                    },
+                    'aggregate_key': 'usage_amount',
+                    'annotations': {'cost': Sum('unblended_cost'),
+                                    # The summary table already already has counts
+                                    'count': Sum('resource_count'),
+                                    'total': Sum('usage_amount'),
+                                    'units': Coalesce(Max('unit'),
+                                    Value('Hrs'))},
+                    'count': 'resource_count',
+                    'delta_key': {'total': Sum('usage_amount')},
+                    'filter': {
+                        'field': 'instance_type',
+                        'operation': 'isnull',
+                        'parameter': False
+                    },
+                    'units_key': 'unit',
+                    'units_fallback': 'Hrs',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
+                'storage': {
+                    'aggregate': {
+                        'value': Sum('usage_amount'),
+                        'cost': Sum('unblended_cost')
+                    },
+                    'aggregate_key': 'usage_amount',
+                    'annotations': {'cost': Sum('unblended_cost'),
+                                    'total': Sum('usage_amount'),
+                                    'units': Coalesce(Max('unit'),
+                                    Value('GB-Mo'))},
+                    'count': None,
+                    'delta_key': {'total': Sum('usage_amount')},
+                    'filter': {
+                        'field': 'product_family',
+                        'operation': 'contains',
+                        'parameter': 'Storage'
+                    },
+                    'units_key': 'unit',
+                    'units_fallback': 'GB-Mo',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
+            },
+            'start_date': 'usage_start',
+            'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
+                        'query': AWSCostEntryLineItemDailySummary,
+                        'total': AWSCostEntryLineItemAggregates},
         },
     }, {
         'provider': 'OCP',
-        'operation': {
-            OPERATION_SUM: {
-                'annotations': {'cluster': 'cluster_id',
-                                'project': 'namespace'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'project': {'field': 'namespace',
-                                'operation': 'icontains'},
-                    'cluster': {'field': 'cluster_id',
-                                'operation': 'icontains'},
-                    'pod': {'field': 'pod',
+        'maps': {
+            'annotations': {'cluster': 'cluster_id',
+                            'project': 'namespace'},
+            'end_date': 'usage_end',
+            'filters': {
+                'project': {'field': 'namespace',
                             'operation': 'icontains'},
-                    'node': {'field': 'node',
-                             'operation': 'icontains'},
-                },
-                'report_type': {
-                    'charge': {
-                        'aggregates': {
-                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
-                        },
-                        'default_ordering': {'charge': 'desc'},
-                        'annotations': {
-
-                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                            'units': Value('USD', output_field=CharField())
-                        },
-                        'capacity_aggregate': {},
-                        'delta_key': {
-                            'charge': Sum(
-                                F('pod_charge_cpu_core_hours') +  # noqa: W504
-                                F('pod_charge_memory_gigabyte_hours')
-                            )
-                        },
-                        'filter': {},
-                        'units_key': 'USD',
-                        'sum_columns': ['charge'],
-                    },
-                    'cpu': {
-                        'aggregates': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Sum('pod_limit_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours')
-                        },
-                        'capacity_aggregate': {
-                            'capacity': Max('cluster_capacity_cpu_core_hours')
-                        },
-                        'default_ordering': {'usage': 'desc'},
-                        'annotations': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Sum('pod_limit_cpu_core_hours'),
-                            'capacity': Max('cluster_capacity_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours'),
-                            'units': Value('Core-Hours', output_field=CharField())
-                        },
-                        'delta_key': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours')
-                        },
-                        'filter': {},
-                        'units_key': 'Core-Hours',
-                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                    },
-                    'mem': {
-                        'aggregates': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours')
-                        },
-                        'capacity_aggregate': {
-                            'capacity': Max('cluster_capacity_memory_gigabyte_hours')
-                        },
-                        'default_ordering': {'usage': 'desc'},
-                        'annotations': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                            'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
-                            'units': Value('GB-Hours', output_field=CharField())
-                        },
-                        'delta_key': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours')
-                        },
-                        'filter': {},
-                        'units_key': 'GB-Hours',
-                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                    }
-                },
-                'start_date': 'usage_start',
-                'tables': {'previous_query': OCPUsageLineItemDailySummary,
-                           'query': OCPUsageLineItemDailySummary,
-                           'total': OCPUsageLineItemAggregates},
+                'cluster': {'field': 'cluster_id',
+                            'operation': 'icontains'},
+                'pod': {'field': 'pod',
+                        'operation': 'icontains'},
+                'node': {'field': 'node',
+                            'operation': 'icontains'},
             },
+            'report_type': {
+                'charge': {
+                    'aggregates': {
+                        'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
+                    },
+                    'default_ordering': {'charge': 'desc'},
+                    'annotations': {
+
+                        'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'units': Value('USD', output_field=CharField())
+                    },
+                    'capacity_aggregate': {},
+                    'delta_key': {
+                        'charge': Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours')
+                        )
+                    },
+                    'filter': {},
+                    'units_key': 'USD',
+                    'sum_columns': ['charge'],
+                },
+                'cpu': {
+                    'aggregates': {
+                        'usage': Sum('pod_usage_cpu_core_hours'),
+                        'request': Sum('pod_request_cpu_core_hours'),
+                        'limit': Sum('pod_limit_cpu_core_hours'),
+                        'charge': Sum('pod_charge_cpu_core_hours')
+                    },
+                    'capacity_aggregate': {
+                        'capacity': Max('cluster_capacity_cpu_core_hours')
+                    },
+                    'default_ordering': {'usage': 'desc'},
+                    'annotations': {
+                        'usage': Sum('pod_usage_cpu_core_hours'),
+                        'request': Sum('pod_request_cpu_core_hours'),
+                        'limit': Sum('pod_limit_cpu_core_hours'),
+                        'capacity': Max('cluster_capacity_cpu_core_hours'),
+                        'charge': Sum('pod_charge_cpu_core_hours'),
+                        'units': Value('Core-Hours', output_field=CharField())
+                    },
+                    'delta_key': {
+                        'usage': Sum('pod_usage_cpu_core_hours'),
+                        'request': Sum('pod_request_cpu_core_hours'),
+                        'charge': Sum('pod_charge_cpu_core_hours')
+                    },
+                    'filter': {},
+                    'units_key': 'Core-Hours',
+                    'sum_columns': ['usage', 'request', 'limit', 'charge'],
+                },
+                'mem': {
+                    'aggregates': {
+                        'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                        'request': Sum('pod_request_memory_gigabyte_hours'),
+                        'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                        'charge': Sum('pod_charge_memory_gigabyte_hours')
+                    },
+                    'capacity_aggregate': {
+                        'capacity': Max('cluster_capacity_memory_gigabyte_hours')
+                    },
+                    'default_ordering': {'usage': 'desc'},
+                    'annotations': {
+                        'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                        'request': Sum('pod_request_memory_gigabyte_hours'),
+                        'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                        'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
+                        'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                        'units': Value('GB-Hours', output_field=CharField())
+                    },
+                    'delta_key': {
+                        'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                        'request': Sum('pod_request_memory_gigabyte_hours'),
+                        'charge': Sum('pod_charge_memory_gigabyte_hours')
+                    },
+                    'filter': {},
+                    'units_key': 'GB-Hours',
+                    'sum_columns': ['usage', 'request', 'limit', 'charge'],
+                }
+            },
+            'start_date': 'usage_start',
+            'tables': {'previous_query': OCPUsageLineItemDailySummary,
+                        'query': OCPUsageLineItemDailySummary,
+                        'total': OCPUsageLineItemAggregates},
         },
     }]
 
@@ -250,16 +246,17 @@ class ProviderMap(object):
                 return item
 
     @staticmethod
-    def operation_data(operation, provider):
+    def operation_data(provider):
         """Return operation portion of map structure."""
         prov = ProviderMap.provider_data(provider)
-        return prov.get('operation').get(operation)
+        return prov.get('maps')
 
     @staticmethod
     def report_type_data(report_type, operation, provider):
         """Return report_type portion of map structure."""
-        op_data = ProviderMap.operation_data(operation, provider)
-        return op_data.get('report_type').get(report_type)
+        prov = ProviderMap.provider_data(provider)
+        maps = prov.get('maps')
+        return maps.get('report_type').get(report_type)
 
     def __init__(self, provider, report_type):
         """Constructor."""
@@ -269,7 +266,7 @@ class ProviderMap(object):
 
         self._map = ProviderMap.mapping
         self._provider_map = ProviderMap.provider_data(provider)
-        self._operation_map = ProviderMap.operation_data(OPERATION_SUM, provider)
+        self._operation_map = ProviderMap.operation_data(provider)
         self._report_type_map = ProviderMap.report_type_data(report_type, OPERATION_SUM, provider)
 
     @property
