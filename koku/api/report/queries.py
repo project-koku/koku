@@ -20,6 +20,7 @@ import logging
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
+from urllib.parse import quote_plus
 
 from django.db.models import CharField, Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
@@ -452,7 +453,7 @@ class ReportQueryHandler(QueryHandler):
         """Get tag keys from filter arguments."""
         tag_filters = []
         filters = self.query_parameters.get('filter', {})
-        for filt, value in filters.items():
+        for filt in filters:
             if filt in self._tag_keys:
                 tag_filters.append(filt)
         return tag_filters
@@ -587,6 +588,7 @@ class ReportQueryHandler(QueryHandler):
             tag_db_name = tag_column + '__' + tag
             group_data = self.get_query_param_data('group_by', tag)
             if group_data:
+                tag = quote_plus(tag)
                 group_pos = self.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
         return group_by
