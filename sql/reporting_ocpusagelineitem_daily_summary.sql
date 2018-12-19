@@ -10,15 +10,15 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.pod_usage_cpu_core_seconds / 3600 as pod_usage_cpu_core_hours,
         li.pod_request_cpu_core_seconds / 3600 as pod_request_cpu_core_hours,
         li.pod_limit_cpu_core_seconds / 3600 as pod_limit_cpu_core_hours,
-        li.pod_usage_memory_byte_seconds / 3600 * 1e-9 as pod_usage_memory_gigabyte_hours,
-        li.pod_request_memory_byte_seconds / 3600 * 1e-9 as pod_request_memory_gigabyte_hours,
-        li.pod_limit_memory_byte_seconds / 3600 * 1e-9 as pod_limit_memory_gigabyte_hours,
+        li.pod_usage_memory_byte_seconds / 3600 * POWER(2, -30) as pod_usage_memory_gigabyte_hours,
+        li.pod_request_memory_byte_seconds / 3600 * POWER(2, -30) as pod_request_memory_gigabyte_hours,
+        li.pod_limit_memory_byte_seconds / 3600 * POWER(2, -30) as pod_limit_memory_gigabyte_hours,
         li.node_capacity_cpu_cores,
         li.node_capacity_cpu_core_seconds / 3600 as node_capacity_cpu_core_hours,
-        li.node_capacity_memory_bytes * 1e-9 as node_capacity_memory_gigabytes,
-        li.node_capacity_memory_byte_seconds / 3600 * 1e-9 as node_capacity_memory_gigabyte_hours,
+        li.node_capacity_memory_bytes * POWER(2, -30) as node_capacity_memory_gigabytes,
+        li.node_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
         li.cluster_capacity_cpu_core_seconds / 3600 as cluster_capacity_cpu_core_hours,
-        li.cluster_capacity_memory_byte_seconds / 3600 * 1e-9 as cluster_capacity_memory_gigabyte_hours
+        li.cluster_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours
     FROM reporting_ocpusagelineitem_daily AS li
     WHERE usage_start >= '{start_date}'
         AND usage_start <= '{end_date}'
