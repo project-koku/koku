@@ -71,7 +71,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         }
 
         # { query_param: database_field_name }
-        fields = self._mapper._operation_map.get('annotations')
+        fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -103,7 +103,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
@@ -116,7 +116,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
-                    F(self._mapper._operation_map.get('alias')), 'usage_account_id'))
+                    F(self._mapper._provider_map.get('alias')), 'usage_account_id'))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
@@ -196,7 +196,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         else:
             total_filter = total_filter & time_and_report_filter
 
-        q_table = self._mapper._operation_map.get('tables').get('total')
+        q_table = self._mapper._provider_map.get('tables').get('total')
         aggregates = self._mapper._report_type_map.get('aggregate')
         total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
         total_query['units'] = units_value
