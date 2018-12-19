@@ -24,7 +24,7 @@ from itertools import groupby
 from django.db.models import CharField, Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
-from api.query_filter import QueryFilter
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItem,
                               AWSCostEntryLineItemAggregates,

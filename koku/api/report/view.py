@@ -35,20 +35,6 @@ from reporting.models import OCPUsageLineItemDailySummary
 LOG = logging.getLogger(__name__)
 
 
-def get_tag_keys(tenant):
-    """Get a list of tag keys to validate filters."""
-    with tenant_context(tenant):
-        tag_keys = OCPUsageLineItemDailySummary.objects\
-            .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-            .values('tag_keys')\
-            .annotate(tag_count=Count('tag_keys'))\
-            .all()
-
-        tag_keys = [tag.get('tag_keys') for tag in tag_keys]
-
-    return tag_keys
-
-
 def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     """Process query parameters and raise any validation errors.
 
@@ -60,7 +46,10 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     """
     output = None
     query_params = parser.parse(url_data)
-    qps = provider_serializer(data=query_params, tag_keys=tag_keys)
+    if tag_keys:
+        qps = provider_serializer(data=query_params, tag_keys=tag_keys)
+    else:
+        qps = provider_serializer(data=query_params)
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
@@ -185,7 +174,12 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
     """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
     tenant = get_tenant(request.user)
-    tag_keys = get_tag_keys(tenant)
+    if kwargs:
+        kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
+    else:
+        kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
+
+    tag_keys = kwargs.get('tag_keys', [])
 
     url_data = request.GET.urlencode()
     validation, params = process_query_parameters(
@@ -198,13 +192,6 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
             data=params,
             status=status.HTTP_400_BAD_REQUEST
         )
-
-    if kwargs:
-        kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
-    else:
-        kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
-
-    kwargs['tag_keys'] = tag_keys
 
     handler = provider_query_hdlr(params,
                                   url_data,

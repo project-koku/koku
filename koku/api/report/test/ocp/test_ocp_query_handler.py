@@ -321,11 +321,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant,
             **{'report_type': 'cpu'}
         )
+        tag_column = handler._mapper._operation_map.get('tag_column')
         data = [
-            {'pod_label__tag_key1': 'value'},
-            {'pod_label__tag_key2': 'value'}
+            {f'{tag_column}__tag_key1': 'value'},
+            {f'{tag_column}__tag_key2': 'value'}
         ]
-        group_by = ['date', 'pod_label__tag_key1', 'pod_label__tag_key2']
+        group_by = ['date', f'{tag_column}__tag_key1', f'{tag_column}__tag_key2']
 
         expected_data = [
             {'tag_key1': 'value'},

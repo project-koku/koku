@@ -170,12 +170,6 @@ class QueryParamSerializer(serializers.Serializer):
     operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
                                         required=False)
 
-    def __init__(self, *args, **kwargs):
-
-        # Remove tag keys for now until AWS tags are implemented
-        self.tag_keys = kwargs.pop('tag_keys', None)
-        super().__init__(*args, **kwargs)
-
 
     def validate(self, data):
         """Validate incoming data.
