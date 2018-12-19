@@ -19,6 +19,7 @@
 import csv
 import datetime
 import io
+from math import pow
 import uuid
 import random
 from decimal import Decimal
@@ -192,7 +193,7 @@ class ReportObjectCreator:
 
         for key in data:
             if 'byte' in key:
-                data[key] = data[key] * Decimal(1e9)
+                data[key] = data[key] * Decimal(pow(2, 30))
 
         row = self.db_accessor.create_db_object(table_name, data)
 
