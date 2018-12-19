@@ -570,14 +570,13 @@ class ReportQueryHandler(QueryHandler):
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))
 
-        tag_group_by  = self._get_tag_group_by()
+        tag_group_by = self._get_tag_group_by()
         group_by.extend(tag_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
         if self._group_by:
             group_by += self._group_by
         return group_by
-
 
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""

@@ -24,10 +24,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.report.view import _generic_report, get_tenant
+from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 
 
 def get_tag_keys(request):
@@ -341,7 +341,7 @@ def charges(request):
     tag_keys = get_tag_keys(request)
     extras = {
         'report_type': 'charge',
-        'tag_keys': 'tag_keys'
+        'tag_keys': tag_keys
     }
     return _generic_report(request, OCPChargeQueryParamSerializer,
                            OCPReportQueryHandler, **extras)

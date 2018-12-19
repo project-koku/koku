@@ -170,7 +170,6 @@ class QueryParamSerializer(serializers.Serializer):
     operation = serializers.ChoiceField(choices=OPERATION_CHOICES,
                                         required=False)
 
-
     def validate(self, data):
         """Validate incoming data.
 

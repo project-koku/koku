@@ -96,7 +96,7 @@ class FilterSerializerTest(TestCase):
     def test_tag_keys_dynamic_field_validation_success(self):
         """Test that tag keys are validated as fields."""
         tag_keys = ['valid_tag']
-        query_params =  {'valid_tag': 'value'}
+        query_params = {'valid_tag': 'value'}
         serializer = FilterSerializer(data=query_params,
                                       tag_keys=tag_keys)
         self.assertTrue(serializer.is_valid())
@@ -242,7 +242,6 @@ class OCPQueryParamSerializerTest(TestCase):
                                              tag_keys=tag_keys)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
-
 
 
 class OCPInventoryQueryParamSerializerTest(TestCase):

@@ -18,19 +18,15 @@
 """View for Reports."""
 import logging
 
-from django.db.models import Count
 from django.utils.translation import ugettext as _
 from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant, User
 from api.utils import UnitConverter
-from api.report.functions import JSONBObjectKeys
-from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 

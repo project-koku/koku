@@ -240,6 +240,7 @@ class FilterSerializer(serializers.Serializer):
 
 class OCPQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
+
     # Tuples are (key, display_name)
     OPERATION_CHOICES = (
         ('sum', 'sum'),
@@ -252,7 +253,7 @@ class OCPQueryParamSerializer(serializers.Serializer):
                                         required=False)
 
     def __init__(self, *args, **kwargs):
-
+        """Initialize the OCP query param serializer."""
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)

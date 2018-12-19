@@ -22,7 +22,7 @@ from unittest.mock import patch
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilterCollection
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
@@ -422,7 +422,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         filters = handler._set_tag_filters(filters)
 
-        expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """
+        expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
 
         self.assertEqual(repr(filters), expected)
 
