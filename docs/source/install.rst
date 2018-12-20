@@ -33,6 +33,18 @@ To deploy individual components, there are also ``make`` commands provided for y
     Deploy the API web application: ``make oc-create-koku``
     Deploy the PostgreSQL database: ``make oc-create-db``
 
+The Koku API can also be deployed with Docker Compose with the following steps:
+    Create a Docker bridge network named ``koku-network``:
+        ``docker network create koku-network``
+
+    Set AWS credential environment variables: ``AWS_SECRET_ACCESS_KEY`` and ``AWS_ACCESS_KEY_ID``
+
+    Start koku server and database:
+        ``make docker-up``
+
+    This command will run database migraitons and start the API server.  Once complete the API server will be running on port 8000 on your localhost.
+
+
 Deploying the Koku UI
 ----------------------
 
@@ -46,3 +58,9 @@ Deploying Masu
 The Masu application contains several components - a web service, message bus, and workers. Masu also uses the Koku database. Configuration and management of the database are controlled from the Koku API application.
 
 Instructions for deploying Masu can be found here: https://github.com/project-koku/masu#getting-started
+
+Masu can alternatively be deployed with Docker Compose:
+    Follow the steps above to start the Koku API with Docker Compose
+
+    Start masu services:
+        ```make docker-up```
