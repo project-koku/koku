@@ -14,13 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""PostgreSQL DB functions for use by Django ORM."""
+from django.db.models.aggregates import Func
 
-"""API views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from api.status.views import status
-from api.tags.ocp.view import ocp_tags
-from api.iam.view.user_preference import UserPreferenceViewSet
-from api.provider.view import ProviderViewSet
-from api.report.aws.view import costs, instance_type, storage
-from api.report.ocp.view import charges, cpu, memory
+
+class JSONBObjectKeys(Func):
+    """Helper to get json keys."""
+
+    function = 'jsonb_object_keys'
+    template = '%(function)s(%(expressions)s)'
+    arity = 1

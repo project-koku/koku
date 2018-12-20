@@ -21,8 +21,8 @@ from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
+from api.query_filter import QueryFilterCollection
 from api.report.queries import ReportQueryHandler
-from api.report.query_filter import QueryFilterCollection
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'cost_entry_product_id', 'cost_entry_pricing_id',
@@ -71,7 +71,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         }
 
         # { query_param: database_field_name }
-        fields = self._mapper._operation_map.get('annotations')
+        fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -103,7 +103,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
@@ -116,7 +116,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
-                    F(self._mapper._operation_map.get('alias')), 'usage_account_id'))
+                    F(self._mapper._provider_map.get('alias')), 'usage_account_id'))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
@@ -170,33 +170,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        if self.is_sum:
-            return self.execute_sum_query()
-
-        query_sum = {'value': 0}
-        data = []
-
-        q_table = self._mapper._operation_map.get('tables').get('query')
-        with tenant_context(self.tenant):
-            query = q_table.objects.filter(self.query_filter)
-            query_data = query.annotate(**self.annotations)
-
-            query_group_by = ['date'] + self._get_group_by()
-            query_group_by_with_units = query_group_by + ['units']
-
-            query_order_by = ('-date',)
-            query_data = query_data.order_by(*query_order_by)
-            values_out = query_group_by_with_units + EXPORT_COLUMNS
-            data = list(query_data.values(*values_out))
-
-            if query.exists():
-                units_key = self._mapper.units_key
-                units_value = query.values(units_key).first().get(units_key)
-                query_sum = self.calculate_total(units_value)
-
-        self.query_sum = query_sum
-        self.query_data = data
-        return self._format_query_response()
+        return self.execute_sum_query()
 
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.
@@ -222,7 +196,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         else:
             total_filter = total_filter & time_and_report_filter
 
-        q_table = self._mapper._operation_map.get('tables').get('total')
+        q_table = self._mapper._provider_map.get('tables').get('total')
         aggregates = self._mapper._report_type_map.get('aggregate')
         total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
         total_query['units'] = units_value
