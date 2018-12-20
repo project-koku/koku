@@ -7,7 +7,7 @@ services:
           dockerfile: Dockerfile-env
       working_dir: /koku
       entrypoint:
-        - /koku/run_migrations.sh
+        - /koku/run_server.sh
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
@@ -23,7 +23,7 @@ services:
         - DJANGO_DEBUG=True
       privileged: true        
       ports:
-          - 8050:8000
+          - 8000:8000
       volumes:
         - '.:/koku/'
       links:
