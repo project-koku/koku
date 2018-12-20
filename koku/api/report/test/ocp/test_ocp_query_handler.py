@@ -18,6 +18,7 @@
 import copy
 from decimal import Decimal
 from unittest.mock import patch
+from urllib.parse import quote_plus, urlencode
 
 from tenant_schemas.utils import tenant_context
 
@@ -455,14 +456,16 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
         group_by_key = tag_keys[0]
-        group_by_value = 'group_By'
+        group_by_value = 'group_by'
         query_params = {
             'group_by': {group_by_key: [group_by_value]}
         }
 
+        param_string = urlencode(query_params, quote_via=quote_plus)
+
         handler = OCPReportQueryHandler(
             query_params,
-            f'?group_by[{group_by_key}]={group_by_value}',
+            param_string,
             self.tenant,
             **{
                 'report_type': 'cpu',
