@@ -375,7 +375,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _set_tag_filters(self, filters):
         """Create tag_filters."""
-        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_column = self._mapper._provider_map.get('tag_column')
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
@@ -423,7 +423,7 @@ class ReportQueryHandler(QueryHandler):
 
         """
         exclusions = QueryFilterCollection()
-        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_column = self._mapper._provider_map.get('tag_column')
         tag_group_by = self.get_tag_group_by_keys()
         if tag_group_by:
             for tag in tag_group_by:
@@ -461,7 +461,7 @@ class ReportQueryHandler(QueryHandler):
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""
         group_by = []
-        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_column = self._mapper._provider_map.get('tag_column')
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = tag_column + '__' + tag

@@ -323,7 +323,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant,
             **{'report_type': 'cpu'}
         )
-        tag_column = handler._mapper._operation_map.get('tag_column')
+        tag_column = handler._mapper._provider_map.get('tag_column')
         data = [
             {f'{tag_column}__tag_key1': 'value'},
             {f'{tag_column}__tag_key2': 'value'}

@@ -247,7 +247,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def strip_label_column_name(self, data, group_by):
         """Remove the column name from tags."""
-        tag_column = self._mapper._operation_map.get('tag_column')
+        tag_column = self._mapper._provider_map.get('tag_column')
         val_to_strip = tag_column + '__'
         new_data = []
         for entry in data:
