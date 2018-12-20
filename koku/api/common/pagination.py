@@ -16,8 +16,9 @@
 #
 
 """Common pagination class."""
-
 from rest_framework.pagination import PageNumberPagination
+
+HTTP_REFERER = 'HTTP_REFERER'
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -26,3 +27,28 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 1000
+
+    @staticmethod
+    def link_rewrite(request, link):
+        """Rewrite the link based on the referer header."""
+        url = link
+        if HTTP_REFERER in request.META:
+            api_index = link.index('api')
+            http_referer = request.META.get(HTTP_REFERER)
+            referer_link = '{}{}'
+            url = referer_link.format(http_referer, link[api_index:])
+        return url
+
+    def get_next_link(self):
+        """Create next link with referer rewrite."""
+        next_link = super().get_next_link()
+        if next_link is None:
+            return next_link
+        return StandardResultsSetPagination.link_rewrite(self.request, next_link)
+
+    def get_previous_link(self):
+        """Create previous link with referer rewrite."""
+        previous_link = super().get_previous_link()
+        if previous_link is None:
+            return previous_link
+        return StandardResultsSetPagination.link_rewrite(self.request, previous_link)
