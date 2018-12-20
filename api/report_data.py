@@ -38,12 +38,21 @@ def report_data():
     params = request.args
 
     provider_uuid = params.get('provider_uuid')
+    provider_type = params.get('provider_type')
 
-    if provider_uuid is None:
-        errmsg = 'provider_uuid is a required parameter.'
+    if provider_uuid is None and provider_type is None:
+        errmsg = 'provider_uuid or provider_type must be supplied as a parameter.'
         return jsonify({'Error': errmsg}), 400
 
-    provider = ProviderDBAccessor(provider_uuid).get_type()
+    if provider_uuid:
+        provider = ProviderDBAccessor(provider_uuid).get_type()
+    else:
+        provider = provider_type
+
+    if provider_type and provider_type != provider:
+        errmsg = 'provider_uuid and provider_type have mismatched provider types.'
+        return jsonify({'Error': errmsg}), 400
+
     schema_name = params.get('schema')
     start_date = params.get('start_date')
     end_date = params.get('end_date')
