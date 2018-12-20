@@ -189,10 +189,11 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
 
     updater = ReportSummaryUpdater(schema_name, provider)
     updater.update_summary_tables(start_date, end_date, manifest_id)
-    update_charge_info.delay(
-        schema_name,
-        provider_uuid
-    )
+    if provider_uuid:
+        update_charge_info.delay(
+            schema_name,
+            provider_uuid
+        )
 
 
 @celery.task(name='masu.processor.tasks.update_charge_info',
