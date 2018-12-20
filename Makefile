@@ -209,7 +209,7 @@ docker-logs:
 	docker-compose logs -f
 
 docker-shell:
-	docker-compose run --service-ports --build server
+	docker-compose run --service-ports server
 
 docker-test-all:
 	docker-compose -f koku-test.yml up --build
