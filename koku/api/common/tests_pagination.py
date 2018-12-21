@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the API pagination module."""
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
-from .pagination import HTTP_REFERER, StandardResultsSetPagination
+from .pagination import PATH_INFO, StandardResultsSetPagination
 
 
 class PaginationTest(TestCase):
@@ -28,11 +28,19 @@ class PaginationTest(TestCase):
     def test_link_rewrite(self):
         """Test the link rewrite."""
         request = Mock()
-        request.META = {HTTP_REFERER: 'https://api.koku.com/'}
+        request.META = {PATH_INFO: '/api/v1/providers/'}
         link = 'http://localhost:8000/api/v1/providers/?page=2'
-        expected = 'https://api.koku.com/api/v1/providers/?page=2'
+        expected = '/api/v1/providers/?page=2'
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(expected, result)
+
+    def test_link_rewrite_err(self):
+        """Test the link rewrite."""
+        request = Mock()
+        request.META = {PATH_INFO: 'https://api.koku.com/v1/providers/'}
+        link = 'http://localhost:8000/api/v1/providers/?page=2'
+        result = StandardResultsSetPagination.link_rewrite(request, link)
+        self.assertEqual(link, result)
 
     def test_link_now_rewrite(self):
         """Test the no link rewrite."""
@@ -41,3 +49,41 @@ class PaginationTest(TestCase):
         link = 'http://localhost:8000/api/v1/providers/?page=2'
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(link, result)
+
+    @patch('api.common.pagination.PageNumberPagination.get_next_link',
+           return_value=None)
+    def test_get_next_link_none(self, mock_super):
+        """Test the get next link method when super returns none."""
+        paginator = StandardResultsSetPagination()
+        link = paginator.get_next_link()
+        self.assertIsNone(link)
+
+    @patch('api.common.pagination.PageNumberPagination.get_previous_link',
+           return_value=None)
+    def test_get_previous_link_none(self, mock_super):
+        """Test the get previous link method when super returns none."""
+        paginator = StandardResultsSetPagination()
+        link = paginator.get_previous_link()
+        self.assertIsNone(link)
+
+    @patch('api.common.pagination.PageNumberPagination.get_next_link')
+    def test_get_next_link_value(self, mock_super):
+        """Test the get next link method when super returns a value."""
+        expected = 'http://localhost:8000/api/v1/providers/?page=2'
+        mock_super.return_value = expected
+        paginator = StandardResultsSetPagination()
+        paginator.request = Mock
+        paginator.request.META = {}
+        link = paginator.get_next_link()
+        self.assertEqual(link, expected)
+
+    @patch('api.common.pagination.PageNumberPagination.get_previous_link')
+    def test_get_previous_link_value(self, mock_super):
+        """Test the get previous link method when super returns a value."""
+        expected = 'http://localhost:8000/api/v1/providers/?page=2'
+        mock_super.return_value = expected
+        paginator = StandardResultsSetPagination()
+        paginator.request = Mock
+        paginator.request.META = {}
+        link = paginator.get_previous_link()
+        self.assertEqual(link, expected)
