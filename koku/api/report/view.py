@@ -31,7 +31,7 @@ from api.utils import UnitConverter
 LOG = logging.getLogger(__name__)
 
 
-def process_query_parameters(url_data, provider_serializer):
+def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     """Process query parameters and raise any validation errors.
 
     Args:
@@ -42,7 +42,10 @@ def process_query_parameters(url_data, provider_serializer):
     """
     output = None
     query_params = parser.parse(url_data)
-    qps = provider_serializer(data=query_params)
+    if tag_keys:
+        qps = provider_serializer(data=query_params, tag_keys=tag_keys)
+    else:
+        qps = provider_serializer(data=query_params)
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
@@ -165,19 +168,26 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
         (Response): The report in a Response object
 
     """
-    url_data = request.GET.urlencode()
-    validation, params = process_query_parameters(url_data, provider_parameter_serializer)
-    if not validation:
-        return Response(
-            data=params,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
+    LOG.info(f'API: {request.path} USER: {request.user.username}')
     tenant = get_tenant(request.user)
     if kwargs:
         kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
     else:
         kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
+
+    tag_keys = kwargs.get('tag_keys', [])
+
+    url_data = request.GET.urlencode()
+    validation, params = process_query_parameters(
+        url_data,
+        provider_parameter_serializer,
+        tag_keys
+    )
+    if not validation:
+        return Response(
+            data=params,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     handler = provider_query_hdlr(params,
                                   url_data,

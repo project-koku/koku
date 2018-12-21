@@ -15,10 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
+from django.db.models import Count
+from tenant_schemas.utils import tenant_context
+
+from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPTagQueryHandlerTest(IamTestCase):
@@ -133,3 +138,61 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
         self.assertEqual(handler.time_scope_value, -2)
+
+    def test_get_tag_keys_filter_true(self):
+        """Test that not all tag keys are returned with a filter."""
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -2,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-2&' + \
+                       'filter[time_scope_units]=month&'
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        with tenant_context(self.tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+
+            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+
+        result = handler.get_tag_keys(filters=True)
+
+        self.assertNotEqual(sorted(result), sorted(tag_keys))
+
+    def test_get_tag_keys_filter_false(self):
+        """Test that all tag keys are returned with no filter."""
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -2,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-2&' + \
+                       'filter[time_scope_units]=month&'
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        with tenant_context(self.tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+
+            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+
+        result = handler.get_tag_keys(filters=False)
+
+        self.assertEqual(sorted(result), sorted(tag_keys))
