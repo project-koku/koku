@@ -71,6 +71,7 @@ CREATE TEMPORARY TABLE ocp_daily_labels_{uuid} AS (
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
     SELECT  rp.cluster_id,
+        coalesce(max(p.name), rp.cluster_id) as cluster_alias,
         date(ur.interval_start) as usage_start,
         date(ur.interval_start) as usage_end,
         li.namespace,
@@ -103,6 +104,8 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
             AND li.namespace = dl.namespace
             AND li.pod = dl.pod
             AND date(ur.interval_start) = dl.usage_start
+    LEFT JOIN public.api_provider as p
+        ON rp.provider_id = p.id
     WHERE date(ur.interval_start) >= '{start_date}'
         AND date(ur.interval_start) <= '{end_date}'
     GROUP BY rp.cluster_id,
@@ -123,6 +126,7 @@ WHERE usage_start >= '{start_date}'
 -- Populate the daily aggregate line item data
 INSERT INTO reporting_ocpusagelineitem_daily (
     cluster_id,
+    cluster_alias,
     usage_start,
     usage_end,
     namespace,
@@ -144,6 +148,7 @@ INSERT INTO reporting_ocpusagelineitem_daily (
     total_seconds
 )
     SELECT cluster_id,
+        cluster_alias,
         usage_start,
         usage_end,
         namespace,
