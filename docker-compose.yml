@@ -11,11 +11,11 @@ services:
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=koku
+        - DATABASE_NAME=postgres
         - POSTGRES_SQL_SERVICE_HOST=db
         - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=kokuadmin
-        - DATABASE_PASSWORD=admin123
+        - DATABASE_USER=postgres
+        - DATABASE_PASSWORD=postgres
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
@@ -34,9 +34,9 @@ services:
   db:
     image: postgres:9.6
     environment:
-    - POSTGRES_DB=koku
-    - POSTGRES_USER=kokuadmin
-    - POSTGRES_PASSWORD=admin123
+    - POSTGRES_DB=postgres
+    - POSTGRES_USER=postgres
+    - POSTGRES_PASSWORD=postgres
     ports:
       - "15432:5432"
     volumes:
