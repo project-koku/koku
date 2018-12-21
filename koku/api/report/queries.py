@@ -393,6 +393,13 @@ class ReportQueryHandler(QueryHandler):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
+            elif list_ and ReportQueryHandler.has_wildcard(list_):
+                wild_card_filt = {
+                    'field': tag_column,
+                    'operation': 'has_key'
+                }
+                q_filter = QueryFilter(parameter=tag, **wild_card_filt)
+                filters.add(q_filter)
         return filters
 
     def _get_filter(self, delta=False):
