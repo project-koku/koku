@@ -94,6 +94,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
@@ -136,6 +138,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
+            query_data, query_group_by = self.strip_label_column_name(
+                query_data,
+                query_group_by
+            )
             query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
@@ -144,7 +150,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 else:
                     data = list(query_data)
             else:
-                data = self._apply_group_by(list(query_data))
+                # Pass in a copy of the group by without the added
+                # tag column name prefix
+                groups = copy.deepcopy(query_group_by)
+                groups.remove('date')
+                data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
         query_sum.update({'units': self._mapper.units_key})
@@ -234,3 +244,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
 
         return query_data
+
+    def strip_label_column_name(self, data, group_by):
+        """Remove the column name from tags."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        val_to_strip = tag_column + '__'
+        new_data = []
+        for entry in data:
+            new_entry = {}
+            for key, value in entry.items():
+                key = key.replace(val_to_strip, '')
+                new_entry[key] = value
+
+            new_data.append(new_entry)
+
+        for i, group in enumerate(group_by):
+            group_by[i] = group.replace(val_to_strip, '')
+
+        return new_data, group_by
