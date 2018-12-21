@@ -92,7 +92,7 @@ class GroupBySerializer(serializers.Serializer):
                              required=False)
 
     def __init__(self, *args, **kwargs):
-         """Initialize the GroupBySerializer."""
+        """Initialize the GroupBySerializer."""
         tag_keys = kwargs.pop('tag_keys', None)
 
         super().__init__(*args, **kwargs)
