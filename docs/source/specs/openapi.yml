@@ -728,6 +728,10 @@ paths:
         in: 'query'
         description: 'The filter to apply to the query as a URL encoded dictionary.'
         type: 'string'
+      - name: 'key_only'
+        in: 'query'
+        description: 'Flag to indicate whether or not only the tag key values will be returned.'
+        type: 'Boolean'
       responses:
         '200':
           description: A report object
@@ -1591,6 +1595,7 @@ definitions:
   TagsOCP:
     required:
       - filter
+      - key_only
     properties:
       filter:
         $ref: '#/definitions/TagsFilterOCP'
@@ -1603,6 +1608,14 @@ definitions:
                 "staging",
                 "test"
             ]
+            example_key_only_true:
+              [{
+                "key": "key_name",
+                "values": [
+                            "value_1",
+                            "value_2"
+                ]
+              }]
   User:
     required:
       - username
