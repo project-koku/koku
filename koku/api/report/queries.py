@@ -33,7 +33,6 @@ from reporting.models import (AWSCostEntryLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
 
 
 class ProviderMap(object):
@@ -316,19 +315,6 @@ class ReportQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
         self.query_exclusions = self._get_exclusions()
 
-    @staticmethod
-    def has_wildcard(in_list):
-        """Check if list has wildcard.
-
-        Args:
-            in_list (List[String]): List of strings to check for wildcard
-        Return:
-            (Boolean): if wildcard is present in list
-        """
-        if not in_list:
-            return False
-        return any(WILDCARD == item for item in in_list)
-
     def get_tag_filter_keys(self):
         """Get tag keys from filter arguments."""
         tag_filters = []
@@ -363,7 +349,6 @@ class ReportQueryHandler(QueryHandler):
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
-                    import pdb; pdb.set_trace()
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 

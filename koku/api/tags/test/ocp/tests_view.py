@@ -76,7 +76,8 @@ class OCPReportViewTest(IamTestCase):
             params = {
                 'filter[resolution]': case.get('resolution'),
                 'filter[time_scope_value]': case.get('value'),
-                'filter[time_scope_units]': case.get('unit')
+                'filter[time_scope_units]': case.get('unit'),
+                'key_only': True
             }
             url = url + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)

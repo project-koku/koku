@@ -38,6 +38,7 @@ class StringOrListField(serializers.ListField):
             list_data = [data]
         return super().to_internal_value(list_data)
 
+
 def validate_field(this, field, serializer_cls, value):
     """Validate the provided fields.
 
@@ -147,6 +148,7 @@ class OCPTagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     filter = FilterSerializer(required=False)
+    key_only = serializers.BooleanField(default=False)
 
     def validate(self, data):
         """Validate incoming data.
