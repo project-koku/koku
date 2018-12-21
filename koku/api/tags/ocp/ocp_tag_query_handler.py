@@ -110,7 +110,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
         else:
             tags = self.get_tags(self.tenant)
-            query_data = tags
+            query_data = sorted(tags, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
         return self._format_query_response()

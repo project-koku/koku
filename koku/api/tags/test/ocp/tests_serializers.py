@@ -34,6 +34,24 @@ class FilterSerializerTest(TestCase):
         serializer = FilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
+    def test_parse_filter_params_w_project_success(self):
+        """Test parse of a filter param with project successfully."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'project': 'myproject'}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_filter_params_w_project_failure(self):
+        """Test parse of a filter param with an invalid project."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'project': 3}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
+
     def test_parse_filter_no_params_success(self):
         """Test parse of a filter param successfully."""
         filter_params = {}
