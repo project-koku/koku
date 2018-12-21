@@ -192,6 +192,8 @@ class OCPUsageLineItemDaily(models.Model):
 
     cluster_id = models.CharField(max_length=50, null=True)
 
+    cluster_alias = models.CharField(max_length=256, null=True)
+
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
@@ -317,6 +319,8 @@ class OCPUsageLineItemDailySummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
+
+    cluster_alias = models.CharField(max_length=256, null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
