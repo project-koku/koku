@@ -37,6 +37,15 @@ class StandardResultsSetPagination(PageNumberPagination):
             http_referer = request.META.get(HTTP_REFERER)
             referer_link = '{}{}'
             url = referer_link.format(http_referer, link[api_index:])
+            print('#' * 90)
+            print('http_referer=' + http_referer)
+            print('link[api_index:]=' + link[api_index:])
+            print('url=' + url)
+            print('#' * 90)
+        else:
+            print('*' * 90)
+            print('No Referer header')
+            print('*' * 90)
         return url
 
     def get_next_link(self):
