@@ -20,7 +20,6 @@ import logging
 
 from rest_framework.pagination import PageNumberPagination
 
-HTTP_REFERER = 'HTTP_REFERER'
 PATH_INFO = 'PATH_INFO'
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -34,7 +33,7 @@ class StandardResultsSetPagination(PageNumberPagination):
 
     @staticmethod
     def link_rewrite(request, link):
-        """Rewrite the link based on the referer header."""
+        """Rewrite the link based on the path header to only provide partial url."""
         url = link
         if PATH_INFO in request.META:
             try:
@@ -43,30 +42,20 @@ class StandardResultsSetPagination(PageNumberPagination):
                 path_api_index = path.index('api/')
                 path_link = '{}{}'
                 url = path_link.format(path[:path_api_index],
-                                          link[local_api_index:])
+                                       link[local_api_index:])
             except ValueError:
                 logger.warning('Unable to rewrite link as "api" was not found.')
-        # if HTTP_REFERER in request.META:
-        #     try:
-        #         http_referer = request.META.get(HTTP_REFERER)
-        #         local_api_index = link.index('api/')
-        #         referer_api_index = http_referer.index('api/')
-        #         referer_link = '{}{}'
-        #         url = referer_link.format(http_referer[:referer_api_index],
-        #                                   link[local_api_index:])
-        #     except ValueError:
-        #         logger.warning('Unable to rewrite link as "api" was not found.')
         return url
 
     def get_next_link(self):
-        """Create next link with referer rewrite."""
+        """Create next link with partial url rewrite."""
         next_link = super().get_next_link()
         if next_link is None:
             return next_link
         return StandardResultsSetPagination.link_rewrite(self.request, next_link)
 
     def get_previous_link(self):
-        """Create previous link with referer rewrite."""
+        """Create previous link with partial url rewrite."""
         previous_link = super().get_previous_link()
         if previous_link is None:
             return previous_link
