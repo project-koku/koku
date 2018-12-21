@@ -20,11 +20,12 @@ import logging
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
+from urllib.parse import quote_plus
 
 from django.db.models import CharField, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
-from api.query_filter import QueryFilter
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
@@ -148,6 +149,7 @@ class ProviderMap(object):
             'node': {'field': 'node',
                         'operation': 'icontains'},
         },
+        'tag_column': 'pod_labels',
         'report_type': {
             'charge': {
                 'aggregates': {
@@ -287,10 +289,11 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f'Query Params: {query_parameters}')
         self._accept_type = None
         self._group_by = None
+        self._tag_keys = []
 
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'group_by', 'report_type']
+            elements = ['accept_type', 'delta', 'group_by', 'report_type', 'tag_keys']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -311,6 +314,7 @@ class ReportQueryHandler(QueryHandler):
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
+        self.query_exclusions = self._get_exclusions()
 
     @staticmethod
     def has_wildcard(in_list):
@@ -324,6 +328,24 @@ class ReportQueryHandler(QueryHandler):
         if not in_list:
             return False
         return any(WILDCARD == item for item in in_list)
+
+    def get_tag_filter_keys(self):
+        """Get tag keys from filter arguments."""
+        tag_filters = []
+        filters = self.query_parameters.get('filter', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_filters.append(filt)
+        return tag_filters
+
+    def get_tag_group_by_keys(self):
+        """Get tag keys from group by arguments."""
+        tag_groups = []
+        filters = self.query_parameters.get('group_by', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_groups.append(filt)
+        return tag_groups
 
     def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
@@ -344,9 +366,41 @@ class ReportQueryHandler(QueryHandler):
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 
+        # Update filters with tag filters
+        filters = self._set_tag_filters(filters)
+
         composed_filters = filters.compose()
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
+
+    def _set_tag_filters(self, filters):
+        """Create tag_filters."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
+        for tag in tag_filters:
+            # Update the filter to use the label column name
+            tag_db_name = tag_column + '__' + tag
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.get_query_param_data('group_by', tag, list())
+            filter_ = self.get_query_param_data('filter', tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(parameter=item, **filt)
+                    filters.add(q_filter)
+            elif list_ and ReportQueryHandler.has_wildcard(list_):
+                wild_card_filt = {
+                    'field': tag_column,
+                    'operation': 'has_key'
+                }
+                q_filter = QueryFilter(parameter=tag, **wild_card_filt)
+                filters.add(q_filter)
+        return filters
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
@@ -368,6 +422,32 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
+    def _get_exclusions(self, delta=False):
+        """Create dictionary for filter parameters for exclude clause.
+
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        exclusions = QueryFilterCollection()
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_group_by = self.get_tag_group_by_keys()
+        if tag_group_by:
+            for tag in tag_group_by:
+                tag_db_name = tag_column + '__' + tag
+                filt = {
+                    'field': tag_db_name,
+                    'operation': 'isnull',
+                    'parameter': True
+                }
+                q_filter = QueryFilter(**filt)
+                exclusions.add(q_filter)
+
+        composed_exclusions = exclusions.compose()
+
+        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        return composed_exclusions
+
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
@@ -377,10 +457,26 @@ class ReportQueryHandler(QueryHandler):
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))
 
+        tag_group_by = self._get_tag_group_by()
+        group_by.extend(tag_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
         if self._group_by:
             group_by += self._group_by
+        return group_by
+
+    def _get_tag_group_by(self):
+        """Create list of tag based group by parameters."""
+        group_by = []
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_groups = self.get_tag_group_by_keys()
+        for tag in tag_groups:
+            tag_db_name = tag_column + '__' + tag
+            group_data = self.get_query_param_data('group_by', tag)
+            if group_data:
+                tag = quote_plus(tag)
+                group_pos = self.url_data.index(tag)
+                group_by.append((tag_db_name, group_pos))
         return group_by
 
     @property
@@ -427,11 +523,12 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped
         return out_data
 
-    def _apply_group_by(self, query_data):
+    def _apply_group_by(self, query_data, group_by=None):
         """Group data by date for given time interval then group by list.
 
         Args:
             query_data  (List(Dict)): Queried data
+            group_by (list): An optional list of groups
         Returns:
             (Dict): Dictionary of grouped dictionaries
 
@@ -451,7 +548,8 @@ class ReportQueryHandler(QueryHandler):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            group_by = self._get_group_by()
+            if group_by is None:
+                group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
             bucket_by_date[date] = grouped

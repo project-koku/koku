@@ -36,6 +36,7 @@ from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
+from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
@@ -48,6 +49,7 @@ class OCPReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -472,10 +474,9 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         data = response.json()
 
-        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['usage_start'])\
                 .annotate(total=Sum('pod_usage_memory_gigabyte_hours'))
 
@@ -692,11 +693,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_group_by_project(self):
         """Test that grouping by project filters data."""
-        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             projects = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['namespace'])\
                 .annotate(project_count=Count('namespace'))\
                 .all()
@@ -717,11 +717,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_group_by_cluster(self):
         """Test that grouping by cluster filters data."""
-        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             clusters = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['cluster_id'])\
                 .annotate(cluster_count=Count('cluster_id'))\
                 .all()
@@ -752,12 +751,11 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_group_by_node(self):
         """Test that grouping by node filters data."""
-        ten_days_ago = self.dh.n_days_ago(self.dh._now, 10)
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
             nodes = OCPUsageLineItemDailySummary.objects\
                 .values(*['node'])\
-                .filter(usage_start__gte=ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['node'])\
                 .annotate(node_count=Count('node'))\
                 .all()
@@ -775,3 +773,99 @@ class OCPReportViewTest(IamTestCase):
         for entry in data.get('data', []):
             for node in entry.get('nodes', []):
                 self.assertEqual(node.get('node'), node_of_interest)
+
+    def test_execute_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            labels = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=filter_key)\
+                .values(*['pod_labels'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
+
+            totals = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(**{f'pod_labels__{filter_key}': filter_value})\
+                .aggregate(
+                    **{
+                        'usage': Sum('pod_usage_cpu_core_hours'),
+                        'request': Sum('pod_request_cpu_core_hours'),
+                        'limit': Sum('pod_limit_cpu_core_hours'),
+                        'charge': Sum('pod_charge_cpu_core_hours')
+                    }
+                )
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {f'filter[{filter_key}]': filter_value}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data_totals = data.get('total')
+        for key in totals:
+            expected = round(float(totals[key]), 6)
+            result = data_totals.get(key)
+            self.assertEqual(result, expected)
+
+    def test_execute_query_with_wildcard_tag_filter(self):
+        """Test that data is filtered to include entries with tag key."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            totals = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(**{'pod_labels__has_key': filter_key})\
+                .aggregate(
+                    **{
+                        'usage': Sum('pod_usage_cpu_core_hours'),
+                        'request': Sum('pod_request_cpu_core_hours'),
+                        'limit': Sum('pod_limit_cpu_core_hours'),
+                        'charge': Sum('pod_charge_cpu_core_hours')
+                    }
+                )
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {f'filter[{filter_key}]': '*'}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data_totals = data.get('total')
+        for key in totals:
+            expected = round(float(totals[key]), 6)
+            result = data_totals.get(key)
+            self.assertEqual(result, expected)
+
+    def test_execute_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {f'group_by[{group_by_key}]': '*'}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
