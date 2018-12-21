@@ -19,8 +19,7 @@ import copy
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
-from django.db.models.functions import Concat
-from django.db.models.functions import RowNumber
+from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -104,6 +103,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            if 'cluster' in query_group_by or 'cluster' in self.query_filter:
+                query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
+                                                                        'cluster_id'))
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
