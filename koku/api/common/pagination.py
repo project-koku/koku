@@ -16,9 +16,12 @@
 #
 
 """Common pagination class."""
+import logging
+
 from rest_framework.pagination import PageNumberPagination
 
 HTTP_REFERER = 'HTTP_REFERER'
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -33,19 +36,15 @@ class StandardResultsSetPagination(PageNumberPagination):
         """Rewrite the link based on the referer header."""
         url = link
         if HTTP_REFERER in request.META:
-            api_index = link.index('api')
-            http_referer = request.META.get(HTTP_REFERER)
-            referer_link = '{}{}'
-            url = referer_link.format(http_referer, link[api_index:])
-            print('#' * 90)
-            print('http_referer=' + http_referer)
-            print('link[api_index:]=' + link[api_index:])
-            print('url=' + url)
-            print('#' * 90)
-        else:
-            print('*' * 90)
-            print('No Referer header')
-            print('*' * 90)
+            try:
+                http_referer = request.META.get(HTTP_REFERER)
+                local_api_index = link.index('api/')
+                referer_api_index = http_referer.index('api/')
+                referer_link = '{}{}'
+                url = referer_link.format(http_referer[:referer_api_index],
+                                          link[local_api_index:])
+            except ValueError:
+                logger.warning('Unable to rewrite link as "api" was not found.')
         return url
 
     def get_next_link(self):
