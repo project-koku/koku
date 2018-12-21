@@ -18,6 +18,7 @@
 import logging
 
 from api.query_handler import QueryHandler
+from api.query_filter import QueryFilter
 
 LOG = logging.getLogger(__name__)
 
@@ -50,6 +51,13 @@ class TagQueryHandler(QueryHandler):
 
         """
         filters = super()._get_filter(delta)
+
+        project = self.get_query_param_data('filter', 'project', list())
+        if project:
+            proj_filter = {'field': 'namespace', 'operation': 'icontains'}
+
+            q_filter = QueryFilter(parameter=project[0], **proj_filter)
+            filters.add(q_filter)
 
         composed_filters = filters.compose()
 

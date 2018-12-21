@@ -62,10 +62,38 @@ class OCPTagQueryHandler(TagQueryHandler):
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
-
             tag_keys = [tag.get('tag_keys') for tag in tag_keys]
 
         return tag_keys
+
+    @staticmethod
+    def get_dictionary_for_key(merged_data, key):
+        for di in merged_data:
+            if key in di.keys():
+                return di
+        return None
+
+    def get_tags(self, tenant):
+        """Get a list of tag key and values to validate filters."""
+        with tenant_context(tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects\
+                .filter(self.query_filter)\
+                .values('pod_labels')\
+                .all()
+            tag_keys = [tag.get('pod_labels') for tag in tag_keys]
+
+            merged_data = []
+            for item in tag_keys:
+                for key, value in item.items():
+                    key_dict = self.get_dictionary_for_key(merged_data, key)
+                    if not key_dict:
+                        new_dict = {}
+                        new_dict[key] = [value]
+                        merged_data.append(new_dict)
+                    else:
+                        if value not in key_dict[key]:
+                            key_dict[key].append(value)
+        return merged_data
 
     def execute_query(self):
         """Execute query and return provided data.
@@ -75,8 +103,12 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         """
         with tenant_context(self.tenant):
-            tag_keys = self.get_tag_keys(self.tenant)
-            query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
+            if self.query_parameters.get('filter'):
+                tags = self.get_tags(self.tenant)
+                query_data = tags
+            else:
+                tag_keys = self.get_tag_keys(self.tenant)
+                query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
         return self._format_query_response()

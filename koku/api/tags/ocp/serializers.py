@@ -19,6 +19,25 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 
+class StringOrListField(serializers.ListField):
+    """Serializer field to handle types that are string or list.
+
+    Converts everything to a list.
+    """
+
+    def to_internal_value(self, data):
+        """Handle string data then call super.
+
+        Args:
+            data    (String or List): data to be converted
+        Returns:
+            (List): Transformed data
+        """
+        list_data = data
+        if isinstance(data, str):
+            list_data = [data]
+        return super().to_internal_value(list_data)
+
 def validate_field(this, field, serializer_cls, value):
     """Validate the provided fields.
 
@@ -82,6 +101,9 @@ class FilterSerializer(serializers.Serializer):
                                                required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
                                                required=False)
+
+    project = StringOrListField(child=serializers.CharField(),
+                                required=False)
 
     def validate(self, data):
         """Validate incoming data.

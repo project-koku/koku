@@ -341,6 +341,7 @@ class ReportQueryHandler(QueryHandler):
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
+                    import pdb; pdb.set_trace()
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 
