@@ -53,12 +53,14 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         return output
 
-    def get_tag_keys(self, tenant):
+    def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
-        with tenant_context(tenant):
-            tag_keys = OCPUsageLineItemDailySummary.objects\
-                .filter(self.query_filter)\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+        with tenant_context(self.tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects
+            if filters is True:
+                tag_keys = tag_keys.filter(self.query_filter)
+
+            tag_keys = tag_keys.annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
@@ -102,13 +104,12 @@ class OCPTagQueryHandler(TagQueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        with tenant_context(self.tenant):
-            if self.query_parameters.get('filter'):
-                tags = self.get_tags(self.tenant)
-                query_data = tags
-            else:
-                tag_keys = self.get_tag_keys(self.tenant)
-                query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
+        if self.query_parameters.get('filter'):
+            tags = self.get_tags(self.tenant)
+            query_data = tags
+        else:
+            tag_keys = self.get_tag_keys()
+            query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
         return self._format_query_response()

@@ -16,9 +16,12 @@
 #
 
 """Common pagination class."""
+import logging
+
 from rest_framework.pagination import PageNumberPagination
 
-HTTP_REFERER = 'HTTP_REFERER'
+PATH_INFO = 'PATH_INFO'
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -30,24 +33,29 @@ class StandardResultsSetPagination(PageNumberPagination):
 
     @staticmethod
     def link_rewrite(request, link):
-        """Rewrite the link based on the referer header."""
+        """Rewrite the link based on the path header to only provide partial url."""
         url = link
-        if HTTP_REFERER in request.META:
-            api_index = link.index('api')
-            http_referer = request.META.get(HTTP_REFERER)
-            referer_link = '{}{}'
-            url = referer_link.format(http_referer, link[api_index:])
+        if PATH_INFO in request.META:
+            try:
+                local_api_index = link.index('api/')
+                path = request.META.get(PATH_INFO)
+                path_api_index = path.index('api/')
+                path_link = '{}{}'
+                url = path_link.format(path[:path_api_index],
+                                       link[local_api_index:])
+            except ValueError:
+                logger.warning('Unable to rewrite link as "api" was not found.')
         return url
 
     def get_next_link(self):
-        """Create next link with referer rewrite."""
+        """Create next link with partial url rewrite."""
         next_link = super().get_next_link()
         if next_link is None:
             return next_link
         return StandardResultsSetPagination.link_rewrite(self.request, next_link)
 
     def get_previous_link(self):
-        """Create previous link with referer rewrite."""
+        """Create previous link with partial url rewrite."""
         previous_link = super().get_previous_link()
         if previous_link is None:
             return previous_link
