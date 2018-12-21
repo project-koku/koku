@@ -68,15 +68,15 @@ class OCPTagQueryHandler(TagQueryHandler):
 
         return tag_keys
 
-    def get_tags(self, tenant):
-        """Get a list of tag key and values to validate filters."""
+    def get_tags(self):
+        """Get a list of tags and values to validate filters."""
         def get_dictionary_for_key(merged_data, key):
             for di in merged_data:
                 if key in di.get('key'):
                     return di
             return None
 
-        with tenant_context(tenant):
+        with tenant_context(self.tenant):
             tag_keys = OCPUsageLineItemDailySummary.objects\
                 .filter(self.query_filter)\
                 .values('pod_labels')\
@@ -109,7 +109,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             tag_keys = self.get_tag_keys()
             query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
         else:
-            tags = self.get_tags(self.tenant)
+            tags = self.get_tags()
             query_data = sorted(tags, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
