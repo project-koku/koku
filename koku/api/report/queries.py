@@ -142,7 +142,7 @@ class ProviderMap(object):
         'filters': {
             'project': {'field': 'namespace',
                         'operation': 'icontains'},
-            'cluster': {'field': 'cluster_id',
+            'cluster': {'field': 'cluster_alias',
                         'operation': 'icontains'},
             'pod': {'field': 'pod',
                     'operation': 'icontains'},
