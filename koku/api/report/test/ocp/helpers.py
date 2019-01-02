@@ -47,11 +47,16 @@ class OCPReportDataGenerator:
         self.last_month = self.dh.last_month_start
 
         if current_month_only:
+            report_days = 10
+            first_of_month = self.today.replace(microsecond=0, second=0, minute=0, day=1)
+            diff_from_first = self.today - first_of_month
+            if diff_from_first.days < 10:
+                report_days = 1 + diff_from_first.days
             self.period_ranges = [
                 (self.dh.this_month_start, self.dh.this_month_end),
             ]
             self.report_ranges = [
-                (self.today - relativedelta(days=i) for i in range(10)),
+                (self.today - relativedelta(days=i) for i in range(report_days)),
             ]
 
         else:

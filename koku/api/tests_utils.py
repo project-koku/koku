@@ -20,6 +20,7 @@ import datetime
 import random
 
 import pint
+from dateutil.relativedelta import relativedelta
 from django.test import TestCase
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
@@ -101,7 +102,7 @@ class DateHelperTest(TestCase):
         """Test the next_month method."""
         current_month = datetime.datetime.now().replace(microsecond=0, second=0,
                                                         minute=0, hour=0, day=1)
-        last_month = current_month.replace(month=(current_month.month - 1))
+        last_month = current_month - relativedelta(months=1)
         self.assertEqual(current_month,
                          DateHelper().next_month(last_month))
 
@@ -109,7 +110,7 @@ class DateHelperTest(TestCase):
         """Test the previous_month method."""
         current_month = datetime.datetime.now().replace(microsecond=0, second=0,
                                                         minute=0, hour=0, day=1)
-        last_month = current_month.replace(month=(current_month.month - 1))
+        last_month = current_month - relativedelta(months=1)
         self.assertEqual(last_month,
                          DateHelper().previous_month(current_month))
 
