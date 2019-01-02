@@ -97,6 +97,29 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, 'day')
         self.assertEqual(handler.time_scope_value, -30)
 
+    def test_execute_query_10_day_parameters_only_keys(self):
+        """Test that the execute query runs properly with 10 day query."""
+        query_params = {'filter': {'resolution': 'daily',
+                                   'time_scope_value': -10,
+                                   'time_scope_units': 'day',
+                                   'key_only': True}
+                        }
+        query_string = '?filter[resolution]=daily&' + \
+                       'filter[time_scope_value]=-10&' + \
+                       'filter[time_scope_units]=day&' + \
+                       'key_only=True'
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertEqual(handler.time_scope_units, 'day')
+        self.assertEqual(handler.time_scope_value, -10)
+
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
         query_params = {'filter': {'resolution': 'monthly',
@@ -138,6 +161,37 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
         self.assertEqual(handler.time_scope_value, -2)
+
+    def test_execute_query_for_project(self):
+        """Test that the execute query runs properly with 10 day query."""
+        namespace = None
+        with tenant_context(self.tenant):
+            namespace_obj = OCPUsageLineItemDailySummary.objects\
+                .values('namespace')\
+                .first()
+            namespace = namespace_obj.get('namespace')
+
+        query_params = {'filter': {'resolution': 'daily',
+                                   'time_scope_value': -10,
+                                   'time_scope_units': 'day',
+                                   'project': namespace},
+                        }
+        query_string = '?filter[resolution]=daily&' + \
+                       'filter[time_scope_value]=-10&' + \
+                       'filter[time_scope_units]=day&' + \
+                       'filter[project]={}'.format(namespace)
+
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertEqual(handler.time_scope_units, 'day')
+        self.assertEqual(handler.time_scope_value, -10)
 
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
