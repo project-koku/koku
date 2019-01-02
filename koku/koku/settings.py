@@ -55,7 +55,7 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Default value: False
-DEBUG = False if os.getenv('DJANGO_DEBUG', 'False') == 'False' else True
+DEBUG = False if os.getenv('DJANGO_DEBUG', 'False') == 'False' else True  # pylint: disable=R1719
 
 ALLOWED_HOSTS = ['*']
 
