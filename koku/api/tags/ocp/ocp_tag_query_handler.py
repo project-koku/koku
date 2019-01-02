@@ -64,10 +64,39 @@ class OCPTagQueryHandler(TagQueryHandler):
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
-
             tag_keys = [tag.get('tag_keys') for tag in tag_keys]
 
         return tag_keys
+
+    def get_tags(self):
+        """Get a list of tags and values to validate filters."""
+        def get_dictionary_for_key(merged_data, key):
+            for di in merged_data:
+                if key in di.get('key'):
+                    return di
+            return None
+
+        with tenant_context(self.tenant):
+            tag_keys = OCPUsageLineItemDailySummary.objects\
+                .filter(self.query_filter)\
+                .values('pod_labels')\
+                .all()
+            tag_keys = [tag.get('pod_labels') for tag in tag_keys]
+
+            merged_data = []
+            for item in tag_keys:
+                for key, value in item.items():
+                    key_dict = get_dictionary_for_key(merged_data, key)
+                    if not key_dict:
+                        new_dict = {}
+                        new_dict['key'] = key
+                        new_dict['values'] = [value]
+                        merged_data.append(new_dict)
+                    else:
+                        if value not in key_dict.get('values'):
+                            key_dict['values'].append(value)
+                            key_dict['values'].sort()
+        return merged_data
 
     def execute_query(self):
         """Execute query and return provided data.
@@ -76,8 +105,12 @@ class OCPTagQueryHandler(TagQueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        tag_keys = self.get_tag_keys()
-        query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
+        if self.query_parameters.get('key_only'):
+            tag_keys = self.get_tag_keys()
+            query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
+        else:
+            tags = self.get_tags()
+            query_data = sorted(tags, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
         return self._format_query_response()
