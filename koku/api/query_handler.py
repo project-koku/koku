@@ -25,6 +25,7 @@ from api.query_filter import QueryFilter, QueryFilterCollection
 from api.utils import DateHelper
 
 LOG = logging.getLogger(__name__)
+WILDCARD = '*'
 
 
 class TruncMonthString(TruncMonth):
@@ -72,6 +73,19 @@ class QueryHandler(object):
         self.end_datetime = None
 
         self._get_timeframe()
+
+    @staticmethod
+    def has_wildcard(in_list):
+        """Check if list has wildcard.
+
+        Args:
+            in_list (List[String]): List of strings to check for wildcard
+        Return:
+            (Boolean): if wildcard is present in list
+        """
+        if not in_list:
+            return False
+        return any(WILDCARD == item for item in in_list)
 
     @property
     def order(self):
