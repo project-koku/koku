@@ -16,6 +16,7 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
@@ -187,18 +188,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
+        capacity_by_cluster = defaultdict(Decimal)
         q_table = self._mapper._provider_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
-        query_group_by = ['usage_start']
+        query_group_by = ['usage_start', 'cluster_id']
 
         with tenant_context(self.tenant):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
+                cluster_id = entry.get('cluster_id', '')
+                capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
 
         if self.resolution == 'monthly':
             for row in query_data:
-                row[cap_key] = total_capacity
+                cluster_id = row.get('cluster')
+                if cluster_id:
+                    row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
+                else:
+                    row[cap_key] = total_capacity
 
         return query_data, {cap_key: total_capacity}
 
