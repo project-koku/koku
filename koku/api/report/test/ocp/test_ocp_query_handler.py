@@ -16,10 +16,12 @@
 #
 """Test the Report Queries."""
 import copy
+from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
+from django.db.models import Max
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -126,6 +128,56 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue('capacity' in query_data[0])
         self.assertEqual(query_data[0].get('capacity'),
                          total_capacity.get('capacity'))
+
+    def test_get_cluster_capacity_monthly_resolution_multiple_clusters(self):
+        """Test that cluster capacity returns capacity by cluster."""
+        # Add data for a second cluster
+        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        'group_by': {'cluster': ['*']},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'group_by[cluster]=*'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        query_data = handler.execute_query()
+
+        capacity_by_cluster = defaultdict(Decimal)
+        total_capacity = Decimal(0)
+        query_filter = handler.query_filter
+        query_group_by = ['usage_start', 'cluster_id']
+        annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
+        cap_key = list(annotations.keys())[0]
+
+        q_table = handler._mapper._provider_map.get('tables').get('query')
+        query = q_table.objects.filter(query_filter)
+
+        with tenant_context(self.tenant):
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                cluster_id = entry.get('cluster_id', '')
+                capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
+                total_capacity += entry.get(cap_key, 0)
+
+        for entry in query_data.get('data', []):
+            for cluster in entry.get('clusters', []):
+                cluster_name = cluster.get('cluster', '')
+                capacity = cluster.get('values')[0].get('capacity')
+                self.assertEqual(capacity, capacity_by_cluster[cluster_name])
+
+        self.assertEqual(query_data.get('total', {}).get('capacity'),
+                         total_capacity)
 
     def test_get_cluster_capacity_daily_resolution(self):
         """Test that cluster capacity is unaltered for daily resolution."""
