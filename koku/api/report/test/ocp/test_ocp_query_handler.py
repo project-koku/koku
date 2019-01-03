@@ -21,9 +21,9 @@ from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
+from django.db.models import Max
 from tenant_schemas.utils import tenant_context
 
-from django.db.models import Max
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
