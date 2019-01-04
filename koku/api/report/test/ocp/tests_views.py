@@ -803,7 +803,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse('reports-ocp-cpu')
         client = APIClient()
-        params = {f'filter[{filter_key}]': filter_value}
+        params = {f'filter[tag:{filter_key}]': filter_value}
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -837,7 +837,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse('reports-ocp-cpu')
         client = APIClient()
-        params = {f'filter[{filter_key}]': '*'}
+        params = {f'filter[tag:{filter_key}]': '*'}
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -858,7 +858,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse('reports-ocp-cpu')
         client = APIClient()
-        params = {f'group_by[{group_by_key}]': '*'}
+        params = {f'group_by[tag:{group_by_key}]': '*'}
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)

@@ -34,7 +34,9 @@ def get_tag_keys(request):
     """Get a list of tag keys to validate filters."""
     tenant = get_tenant(request.user)
     handler = OCPTagQueryHandler('', {}, tenant)
-    return handler.get_tag_keys(filters=False)
+    tags = handler.get_tag_keys(filters=False)
+    tags = [':'.join(['tag', tag]) for tag in tags]
+    return tags
 
 
 @api_view(http_method_names=['GET'])
