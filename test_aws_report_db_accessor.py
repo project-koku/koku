@@ -23,7 +23,7 @@ import types
 import random
 import string
 import uuid
-from mock import patch
+from unittest.mock import patch
 
 import psycopg2
 from dateutil import relativedelta
