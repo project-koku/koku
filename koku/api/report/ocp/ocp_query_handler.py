@@ -110,7 +110,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                                                         'cluster_id'))
 
             if self._limit and group_by_value:
-                rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
+                rank_field = group_by_value.pop()
+
+                if tag_column in rank_field:
+                    rank_order = self.get_tag_order_by(rank_field)
+                else:
+                    rank_order = getattr(rank_field, self.order_direction)()
 
                 if self.order_field == 'delta' and '__' in self._delta:
                     delta_field_one, delta_field_two = self._delta.split('__')
