@@ -22,7 +22,7 @@ from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
 from django.db.models import Max
-from django.db.models.expressions import OrderBy, RawSQL
+from django.db.models.expressions import OrderBy
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase

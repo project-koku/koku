@@ -869,3 +869,69 @@ class OCPReportViewTest(IamTestCase):
         expected_keys = ['date', group_by_key + 's']
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
+
+    def test_execute_query_with_group_by_and_limit(self):
+        """Test that data is grouped by tag key and limited."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'group_by[node]': '*',
+            'filter[limit]': 1
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        for entry in data:
+            other = entry.get('nodes', [])[-1:]
+            self.assertIn('Other', other[0].get('node'))
+
+    def test_execute_query_with_group_by_order_by_and_limit(self):
+        """Test that data is grouped by tag key and limited on order by."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[node]': '*',
+            'order_by[usage]': 'desc',
+            'filter[limit]': 1
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('usage')
+        for entry in data[0].get('nodes', []):
+            current_usage = entry.get('values', [])[0].get('usage')
+            self.assertTrue(current_usage <= previous_usage)
+            previous_usage = current_usage
+
+    def test_execute_query_with_group_by_order_by_asc_and_limit(self):
+        """Test that data is grouped by tag key and limited by order by asc."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[node]': '*',
+            'order_by[usage]': 'asc',
+            'filter[limit]': 1
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('usage')
+        for entry in data[0].get('nodes', []):
+            current_usage = entry.get('values', [])[0].get('usage')
+            self.assertTrue(current_usage >= previous_usage)
+            previous_usage = current_usage
