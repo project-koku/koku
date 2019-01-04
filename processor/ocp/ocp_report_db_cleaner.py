@@ -40,8 +40,7 @@ class OCPReportDBCleaner():
         Args:
             schema (str): The customer schema to associate with
         """
-        self._accessor = OCPReportDBAccessor(schema,
-                                             ReportingCommonDBAccessor().column_map)
+        self._schema = schema
 
     def purge_expired_report_data(self, expired_date=None, provider_id=None,
                                   simulate=False):
@@ -56,37 +55,39 @@ class OCPReportDBCleaner():
             ([{}]) List of dictionaries containing 'usage_period_id' and 'interval_start'
 
         """
-        if ((expired_date is not None and provider_id is not None) or  # noqa: W504
-                (expired_date is None and provider_id is None)):
-            err = 'This method must be called with expired_date or provider_id'
-            raise OCPReportDBCleanerError(err)
-        removed_items = []
+        with ReportingCommonDBAccessor() as reporting_common:
+            column_map = reporting_common.column_map
 
-        if expired_date is not None:
-            usage_period_objs = self._accessor.get_usage_period_before_date(expired_date)
-        else:
-            usage_period_objs = self._accessor.get_usage_period_query_by_provider(provider_id)
-        for usage_period in usage_period_objs.all():
-            report_period_id = usage_period.id
-            removed_usage_start_period = usage_period.report_period_start
+        with OCPReportDBAccessor(self._schema, column_map) as accessor:
+            if ((expired_date is not None and provider_id is not None) or  # noqa: W504
+                    (expired_date is None and provider_id is None)):
+                err = 'This method must be called with expired_date or provider_id'
+                raise OCPReportDBCleanerError(err)
+            removed_items = []
+
+            if expired_date is not None:
+                usage_period_objs = accessor.get_usage_period_before_date(expired_date)
+            else:
+                usage_period_objs = accessor.get_usage_period_query_by_provider(provider_id)
+            for usage_period in usage_period_objs.all():
+                report_period_id = usage_period.id
+                removed_usage_start_period = usage_period.report_period_start
+
+                if not simulate:
+                    qty = accessor.get_item_query_report_period_id(report_period_id).delete()
+                    LOG.info('Removing %s usage period line items for usage period id %s',
+                             qty, report_period_id)
+
+                    qty = accessor.get_report_query_report_period_id(report_period_id).delete()
+                    LOG.info('Removing %s usage period items for usage period id %s',
+                             qty, report_period_id)
+
+                LOG.info('Report data removed for usage period ID: %s with interval start: %s',
+                         report_period_id, removed_usage_start_period)
+                removed_items.append({'usage_period_id': report_period_id,
+                                      'interval_start': str(removed_usage_start_period)})
 
             if not simulate:
-                qty = self._accessor.get_item_query_report_period_id(report_period_id).delete()
-                LOG.info('Removing %s usage period line items for usage period id %s',
-                         qty, report_period_id)
-
-                qty = self._accessor.get_report_query_report_period_id(report_period_id).delete()
-                LOG.info('Removing %s usage period items for usage period id %s',
-                         qty, report_period_id)
-
-            LOG.info('Report data removed for usage period ID: %s with interval start: %s',
-                     report_period_id, removed_usage_start_period)
-            removed_items.append({'usage_period_id': report_period_id,
-                                  'interval_start': str(removed_usage_start_period)})
-
-        if not simulate:
-            usage_period_objs.delete()
-            self._accessor.commit()
-        self._accessor.close_connections()
-        self._accessor.close_session()
+                usage_period_objs.delete()
+                accessor.commit()
         return removed_items

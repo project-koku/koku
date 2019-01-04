@@ -43,6 +43,14 @@ class KokuDBAccess(ABC):
         self._session = self._create_session()
         self._base = self._prepare_base()
 
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Context manager close session."""
+        self.close_session()
+
     def _create_metadata(self):
         """Create database metadata to for a specific schema.
 

@@ -39,10 +39,8 @@ class AWSReportSummaryUpdater:
             schema (str): The customer schema to associate with
         """
         self._schema_name = schema
-        self._accessor = AWSReportDBAccessor(
-            schema,
-            ReportingCommonDBAccessor().column_map
-        )
+        with ReportingCommonDBAccessor() as reporting_common:
+            self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
         self.manifest = None
 
@@ -72,50 +70,51 @@ class AWSReportSummaryUpdater:
         LOG.info('Using end date: %s', end_date)
 
         # Default to this month's bill
-        bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
-            .replace(day=1).date()
-        bills = self._accessor.get_cost_entry_bills_by_date(bill_date)
+        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+            bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
+                .replace(day=1).date()
+            bills = accessor.get_cost_entry_bills_by_date(bill_date)
 
-        if manifest_id is not None:
-            manifest_accessor = ReportManifestDBAccessor()
-            self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.close_session()
-            # Override the bill date to correspond with the manifest
-            bill_date = self.manifest.billing_period_start_datetime.date()
-            provider_id = self.manifest.provider_id
-            bills = self._accessor.get_cost_entry_bills_query_by_provider(
-                provider_id
-            )
-            bills = bills.filter_by(billing_period_start=bill_date).all()
+            if manifest_id is not None:
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
-            do_month_update = self._determine_if_full_summary_update_needed(
-                bills[0]
-            )
-            if do_month_update:
-                last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-                start_date = bill_date.strftime('%Y-%m-%d')
-                end_date = bill_date.replace(day=last_day_of_month)
-                end_date = end_date.strftime('%Y-%m-%d')
-                LOG.info('Overriding start and end date to process full month.')
+                # Override the bill date to correspond with the manifest
+                bill_date = self.manifest.billing_period_start_datetime.date()
+                provider_id = self.manifest.provider_id
+                bills = accessor.get_cost_entry_bills_query_by_provider(
+                    provider_id
+                )
+                bills = bills.filter_by(billing_period_start=bill_date).all()
 
-        LOG.info('Updating report summary tables for %s from %s to %s',
-                 self._schema_name, start_date, end_date)
+                do_month_update = self._determine_if_full_summary_update_needed(
+                    bills[0]
+                )
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(
+                        bill_date.year,
+                        bill_date.month
+                    )[1]
+                    start_date = bill_date.strftime('%Y-%m-%d')
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    end_date = end_date.strftime('%Y-%m-%d')
+                    LOG.info('Overriding start and end date to process full month.')
 
-        self._accessor.populate_line_item_daily_table(start_date, end_date)
-        self._accessor.populate_line_item_daily_summary_table(start_date, end_date)
-        self._accessor.populate_line_item_aggregate_table()
+            LOG.info('Updating report summary tables for %s from %s to %s',
+                     self._schema_name, start_date, end_date)
 
-        for bill in bills:
-            if bill.summary_data_creation_datetime is None:
-                bill.summary_data_creation_datetime = \
+            accessor.populate_line_item_daily_table(start_date, end_date)
+            accessor.populate_line_item_daily_summary_table(start_date, end_date)
+            accessor.populate_line_item_aggregate_table()
+
+            for bill in bills:
+                if bill.summary_data_creation_datetime is None:
+                    bill.summary_data_creation_datetime = \
+                        self._date_accessor.today_with_timezone('UTC')
+                bill.summary_data_updated_datetime = \
                     self._date_accessor.today_with_timezone('UTC')
-            bill.summary_data_updated_datetime = \
-                self._date_accessor.today_with_timezone('UTC')
 
-        self._accessor.commit()
+            accessor.commit()
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
@@ -141,8 +140,3 @@ class AWSReportSummaryUpdater:
             return True
 
         return False
-
-    def close_session(self):
-        """Close database connections and sessions."""
-        self._accessor.close_connections()
-        self._accessor.close_session()

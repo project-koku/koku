@@ -79,6 +79,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         self._pg2_conn = self._get_psycopg2_connection()
         self._cursor = self._get_psycopg2_cursor()
 
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Context manager close connections."""
+        super().__exit__(exception_type, exception_value, traceback)
+        self.close_connections()
+
     @property
     def decimal_precision(self):
         """Return database precision for decimal values."""

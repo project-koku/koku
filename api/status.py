@@ -29,6 +29,7 @@ from flask import jsonify, request
 from masu.api import API_VERSION
 from masu.celery import celery as celery_app
 from masu.config import Config
+from masu.database.engine import DB_ENGINE
 from masu.external.date_accessor import DateAccessor
 from masu.util.blueprint import application_route
 
@@ -48,6 +49,7 @@ def get_status():
 
     app_status = ApplicationStatus()
     response = {
+        'connection_pool': DB_ENGINE.pool.status(),
         'api_version': app_status.api_version,
         'celery_status': app_status.celery_status,
         'commit': app_status.commit,

@@ -32,6 +32,7 @@ class OCPReportChargeUpdaterError(Exception):
     pass
 
 
+# pylint: disable=too-few-public-methods
 class OCPReportChargeUpdater:
     """Class to update OCP report summary data with charge information."""
 
@@ -41,15 +42,10 @@ class OCPReportChargeUpdater:
         Args:
             schema (str): The customer schema to associate with
         """
-        self._accessor = OCPReportDBAccessor(
-            schema,
-            ReportingCommonDBAccessor().column_map
-        )
-        self._rate_accessor = OCPRateDBAccessor(
-            schema,
-            provider_uuid,
-            ReportingCommonDBAccessor().column_map
-        )
+        self._schema = schema
+        with ReportingCommonDBAccessor() as reporting_common:
+            self._column_map = reporting_common.column_map
+        self._provider_uuid = provider_uuid
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -146,34 +142,46 @@ class OCPReportChargeUpdater:
     def _update_cpu_charge(self):
         """Calculate and store total CPU charges."""
         try:
-            cpu_usage = self._accessor.get_pod_usage_cpu_core_hours()
-            cpu_usage_rates = self._rate_accessor.get_cpu_core_usage_per_hour_rates()
-            cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
+            with OCPRateDBAccessor(self._schema, self._provider_uuid,
+                                   self._column_map) as rate_accessor:
+                cpu_usage_rates = rate_accessor.get_cpu_core_usage_per_hour_rates()
+                cpu_request_rates = rate_accessor.get_cpu_core_request_per_hour_rates()
 
-            cpu_request = self._accessor.get_pod_request_cpu_core_hours()
-            cpu_request_rates = self._rate_accessor.get_cpu_core_request_per_hour_rates()
-            cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
+            with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                cpu_usage = report_accessor.get_pod_usage_cpu_core_hours()
+                cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
 
-            total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
+                cpu_request = report_accessor.get_pod_request_cpu_core_hours()
+                cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
-            self._accessor.populate_cpu_charge(total_cpu_charge)
+                total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
+
+                report_accessor.populate_cpu_charge(total_cpu_charge)
+                report_accessor.commit()
+
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate CPU charge. Error: %s', str(error))
 
     def _update_memory_charge(self):
         """Calculate and store total Memory charges."""
         try:
-            mem_usage = self._accessor.get_pod_usage_memory_gigabyte_hours()
-            mem_usage_rates = self._rate_accessor.get_memory_gb_usage_per_hour_rates()
-            mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
+            with OCPRateDBAccessor(self._schema, self._provider_uuid,
+                                   self._column_map) as rate_accessor:
+                mem_usage_rates = rate_accessor.get_memory_gb_usage_per_hour_rates()
+                mem_request_rates = rate_accessor.get_memory_gb_request_per_hour_rates()
 
-            mem_request = self._accessor.get_pod_request_memory_gigabyte_hours()
-            mem_request_rates = self._rate_accessor.get_memory_gb_request_per_hour_rates()
-            mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
+            with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                mem_usage = report_accessor.get_pod_usage_memory_gigabyte_hours()
+                mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
 
-            total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
+                mem_request = report_accessor.get_pod_request_memory_gigabyte_hours()
+                mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
 
-            self._accessor.populate_memory_charge(total_memory_charge)
+                total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
+
+                report_accessor.populate_memory_charge(total_memory_charge)
+                report_accessor.commit()
+
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate memory charge. Error: %s', str(error))
 
@@ -191,10 +199,3 @@ class OCPReportChargeUpdater:
 
         self._update_cpu_charge()
         self._update_memory_charge()
-
-        self._accessor.commit()
-
-    def close_session(self):
-        """Close database connections and sessions."""
-        self._accessor.close_connections()
-        self._accessor.close_session()

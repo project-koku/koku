@@ -39,10 +39,8 @@ class OCPReportSummaryUpdater:
             schema (str): The customer schema to associate with
         """
         self._schema_name = schema
-        self._accessor = OCPReportDBAccessor(
-            schema,
-            ReportingCommonDBAccessor().column_map
-        )
+        with ReportingCommonDBAccessor() as reporting_common:
+            self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()
         self.manifest = None
 
@@ -71,55 +69,55 @@ class OCPReportSummaryUpdater:
         LOG.info('Using end date: %s', end_date)
 
         # Default to this month's bill
-        report_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
-            .replace(day=1).date()
-        report_periods = self._accessor.get_usage_periods_by_date(report_date)
+        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+            report_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
+                .replace(day=1).date()
+            report_periods = accessor.get_usage_periods_by_date(report_date)
 
-        if manifest_id is not None:
-            manifest_accessor = ReportManifestDBAccessor()
-            self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.close_session()
-            # Override the bill date to correspond with the manifest
-            bill_date = self.manifest.billing_period_start_datetime.date()
-            provider_id = self.manifest.provider_id
-            report_periods = self._accessor.get_usage_period_query_by_provider(
-                provider_id
-            )
-            report_periods = report_periods.filter_by(
-                report_period_start=bill_date
-            ).all()
+            if manifest_id is not None:
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
-            do_month_update = True
-            if report_periods is not None and len(report_periods) > 0:
-                do_month_update = self._determine_if_full_summary_update_needed(
-                    report_periods[0]
+                # Override the bill date to correspond with the manifest
+                bill_date = self.manifest.billing_period_start_datetime.date()
+                provider_id = self.manifest.provider_id
+                report_periods = accessor.get_usage_period_query_by_provider(
+                    provider_id
                 )
-            if do_month_update:
-                last_day_of_month = calendar.monthrange(
-                    bill_date.year,
-                    bill_date.month
-                )[1]
-                start_date = bill_date.strftime('%Y-%m-%d')
-                end_date = bill_date.replace(day=last_day_of_month)
-                end_date = end_date.strftime('%Y-%m-%d')
-                LOG.info('Overriding start and end date to process full month.')
+                report_periods = report_periods.filter_by(
+                    report_period_start=bill_date
+                ).all()
 
-        LOG.info('Updating report summary tables for %s from %s to %s',
-                 self._schema_name, start_date, end_date)
+                do_month_update = True
+                if report_periods is not None and len(report_periods) > 0:
+                    do_month_update = self._determine_if_full_summary_update_needed(
+                        report_periods[0]
+                    )
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(
+                        bill_date.year,
+                        bill_date.month
+                    )[1]
+                    start_date = bill_date.strftime('%Y-%m-%d')
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    end_date = end_date.strftime('%Y-%m-%d')
+                    LOG.info('Overriding start and end date to process full month.')
 
-        self._accessor.populate_line_item_daily_table(start_date, end_date)
-        self._accessor.populate_line_item_daily_summary_table(start_date,
-                                                              end_date)
-        self._accessor.populate_line_item_aggregate_table()
+            LOG.info('Updating report summary tables for %s from %s to %s',
+                     self._schema_name, start_date, end_date)
 
-        for period in report_periods:
-            if period.summary_data_creation_datetime is None:
-                period.summary_data_creation_datetime = \
+            accessor.populate_line_item_daily_table(start_date, end_date)
+            accessor.populate_line_item_daily_summary_table(start_date, end_date)
+            accessor.populate_line_item_aggregate_table()
+
+            for period in report_periods:
+                if period.summary_data_creation_datetime is None:
+                    period.summary_data_creation_datetime = \
+                        self._date_accessor.today_with_timezone('UTC')
+                period.summary_data_updated_datetime = \
                     self._date_accessor.today_with_timezone('UTC')
-            period.summary_data_updated_datetime = \
-                self._date_accessor.today_with_timezone('UTC')
 
-        self._accessor.commit()
+            accessor.commit()
 
     def _determine_if_full_summary_update_needed(self, report_period):
         """Decide whether to update summary tables for full billing period."""
@@ -136,8 +134,3 @@ class OCPReportSummaryUpdater:
             return True
 
         return False
-
-    def close_session(self):
-        """Close database connections and sessions."""
-        self._accessor.close_connections()
-        self._accessor.close_session()

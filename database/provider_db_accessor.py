@@ -116,8 +116,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         obj = self._get_db_obj_query().first()
         authentication_id = obj.authentication_id
-        auth_accessor = ProviderAuthDBAccessor(authentication_id)
-        return auth_accessor.get_provider_resource_name()
+        with ProviderAuthDBAccessor(authentication_id) as auth_accessor:
+            provider_resource_name = auth_accessor.get_provider_resource_name()
+        return provider_resource_name
 
     def get_billing_source(self):
         """
@@ -131,8 +132,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         obj = self._get_db_obj_query().first()
         billing_source_id = obj.billing_source_id
-        billing_accessor = ProviderBillingSourceDBAccessor(billing_source_id)
-        return billing_accessor.get_bucket()
+        with ProviderBillingSourceDBAccessor(billing_source_id) as billing_accessor:
+            bucket = billing_accessor.get_bucket()
+        return bucket
 
     def get_setup_complete(self):
         """
@@ -170,8 +172,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         obj = self._get_db_obj_query().first()
         customer_id = obj.customer_id
-        customer_accessor = CustomerDBAccessor(customer_id)
-        return customer_accessor.get_uuid()
+        with CustomerDBAccessor(customer_id) as customer_accessor:
+            uuid = customer_accessor.get_uuid()
+        return uuid
 
     def get_customer_name(self):
         """
@@ -196,6 +199,6 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         obj = self._get_db_obj_query().first()
         customer_id = obj.customer_id
-        customer_accessor = CustomerDBAccessor(customer_id)
-        schema_name = customer_accessor.get_schema_name()
+        with CustomerDBAccessor(customer_id) as customer_accessor:
+            schema_name = customer_accessor.get_schema_name()
         return schema_name
