@@ -110,25 +110,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                                                         'cluster_id'))
 
             if self._limit and group_by_value:
-                rank_field = group_by_value.pop()
-
-                if tag_column in rank_field:
-                    rank_order = self.get_tag_order_by(rank_field)
-                else:
-                    rank_order = getattr(rank_field, self.order_direction)()
-
-                if self.order_field == 'delta' and '__' in self._delta:
-                    delta_field_one, delta_field_two = self._delta.split('__')
-                    rank_order = getattr(
-                        F(delta_field_one) / F(delta_field_two),
-                        self.order_direction
-                    )()
-
-                rank_by_total = Window(
-                    expression=RowNumber(),
-                    partition_by=F('date'),
-                    order_by=rank_order
-                )
+                rank_by_total = self.get_rank_window_function(group_by_value)
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by.insert(1, 'rank')
                 query_data = self._ranked_list(query_data)
@@ -184,6 +166,37 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         return self.execute_sum_query()
+
+    def get_rank_window_function(self, group_by_value):
+        """Generate a limit ranking a window function."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        rank_orders = []
+        rank_field = group_by_value.pop()
+
+        if self.order_field == 'delta' and '__' in self._delta:
+            delta_field_one, delta_field_two = self._delta.split('__')
+            rank_orders.append(
+                getattr(
+                    F(delta_field_one) / F(delta_field_two),
+                    self.order_direction
+                )()
+            )
+        elif self.query_parameters.get('order_by'):
+            rank_orders.append(
+                getattr(F(self.order_field), self.order_direction)()
+            )
+        if tag_column in rank_field:
+            rank_orders.append(self.get_tag_order_by(rank_field))
+        else:
+            rank_orders.append(
+                getattr(F(rank_field), self.order_direction)()
+            )
+
+        return Window(
+            expression=RowNumber(),
+            partition_by=F('date'),
+            order_by=rank_orders
+        )
 
     def get_cluster_capacity(self, query_data):
         """Calculate cluster capacity for all nodes over the date range."""
