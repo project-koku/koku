@@ -22,6 +22,7 @@ from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
 from django.db.models import Max
+from django.db.models.expressions import OrderBy, RawSQL
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -530,3 +531,23 @@ class OCPReportQueryHandlerTest(IamTestCase):
         expected = 'pod_labels__' + group_by_key
         self.assertEqual(len(group_by), 1)
         self.assertEqual(group[0], expected)
+
+    def test_get_tag_order_by(self):
+        """Verify that a propery order by is returned."""
+        tag = 'pod_labels__key'
+
+        expected_param = (tag.split('__')[1], )
+
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        result = handler.get_tag_order_by(tag)
+        expression = result.expression
+
+        self.assertIsInstance(result, OrderBy)
+        self.assertEqual(expression.sql, 'pod_labels -> %s')
+        self.assertEqual(expression.params, expected_param)
