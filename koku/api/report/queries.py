@@ -35,6 +35,11 @@ from reporting.models import (AWSCostEntryLineItemAggregates,
 LOG = logging.getLogger(__name__)
 
 
+def strip_tag_prefix(tag):
+        """Remove the query tag prefix from a tag key."""
+        return tag.replace('tag:', '')
+
+
 class ProviderMap(object):
     """Data structure mapping between API params and DB Model names.
 
@@ -366,6 +371,7 @@ class ReportQueryHandler(QueryHandler):
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
         for tag in tag_filters:
+            tag = strip_tag_prefix(tag)
             # Update the filter to use the label column name
             tag_db_name = tag_column + '__' + tag
             filt = {
@@ -420,6 +426,7 @@ class ReportQueryHandler(QueryHandler):
         tag_group_by = self.get_tag_group_by_keys()
         if tag_group_by:
             for tag in tag_group_by:
+                tag = strip_tag_prefix(tag)
                 tag_db_name = tag_column + '__' + tag
                 filt = {
                     'field': tag_db_name,
@@ -457,6 +464,7 @@ class ReportQueryHandler(QueryHandler):
         tag_column = self._mapper._provider_map.get('tag_column')
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
+            tag = strip_tag_prefix(tag)
             tag_db_name = tag_column + '__' + tag
             group_data = self.get_query_param_data('group_by', tag)
             if group_data:
