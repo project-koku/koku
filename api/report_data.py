@@ -45,7 +45,8 @@ def report_data():
         return jsonify({'Error': errmsg}), 400
 
     if provider_uuid:
-        provider = ProviderDBAccessor(provider_uuid).get_type()
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_type()
     else:
         provider = provider_type
 

@@ -38,20 +38,19 @@ class CURAccountsDB(CURAccountsInterface):
             ([{}]) : A list of dicts
 
         """
-        collector = ProviderCollector()
-        all_providers = collector.get_providers()
-        collector.close_session()
+        with ProviderCollector() as collector:
+            all_providers = collector.get_providers()
 
         accounts = []
         for provider in all_providers:
-            provider_accessor = ProviderDBAccessor(provider.uuid)
-            accounts.append({
-                'authentication': provider_accessor.get_authentication(),
-                'billing_source': provider_accessor.get_billing_source(),
-                'customer_name': provider_accessor.get_customer_name(),
-                'provider_type': provider_accessor.get_type(),
-                'schema_name': provider_accessor.get_schema(),
-                'provider_uuid': provider_accessor.get_uuid()
-            })
-            provider_accessor.close_session()
+            with ProviderDBAccessor(provider.uuid) as provider_accessor:
+                accounts.append({
+                    'authentication': provider_accessor.get_authentication(),
+                    'billing_source': provider_accessor.get_billing_source(),
+                    'customer_name': provider_accessor.get_customer_name(),
+                    'provider_type': provider_accessor.get_type(),
+                    'schema_name': provider_accessor.get_schema(),
+                    'provider_uuid': provider_accessor.get_uuid()
+                })
+
         return accounts

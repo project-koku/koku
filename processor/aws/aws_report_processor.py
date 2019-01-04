@@ -92,27 +92,21 @@ class AWSReportProcessor(ReportProcessorBase):
         self.processed_report = ProcessedReport()
 
         # Gather database accessors
-        self.report_common_db = ReportingCommonDBAccessor()
-        self.column_map = self.report_common_db.column_map
-        self.report_common_db.close_session()
+        with ReportingCommonDBAccessor() as report_common_db:
+            self.column_map = report_common_db.column_map
 
-        self.report_db = AWSReportDBAccessor(schema=self._schema_name,
-                                             column_map=self.column_map)
-        self.report_schema = self.report_db.report_schema
+        with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            self.report_schema = report_db.report_schema
+            self.existing_bill_map = report_db.get_cost_entry_bills()
+            self.existing_cost_entry_map = report_db.get_cost_entries()
+            self.existing_product_map = report_db.get_products()
+            self.existing_pricing_map = report_db.get_pricing()
+            self.existing_reservation_map = report_db.get_reservations()
 
-        self.temp_table = self.report_db.create_temp_table(
-            AWS_CUR_TABLE_MAP['line_item']
-        )
         self.line_item_columns = None
 
         self.hasher = Hasher(hash_function='sha256')
         self.hash_columns = self._get_line_item_hash_columns()
-
-        self.existing_bill_map = self.report_db.get_cost_entry_bills()
-        self.existing_cost_entry_map = self.report_db.get_cost_entries()
-        self.existing_product_map = self.report_db.get_products()
-        self.existing_pricing_map = self.report_db.get_pricing()
-        self.existing_reservation_map = self.report_db.get_reservations()
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_name, self._schema_name)
@@ -139,32 +133,55 @@ class AWSReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
-            LOG.info('File %s opened for processing', str(f))
-            reader = csv.DictReader(f)
-            for row in reader:
-                if bill_id is None:
-                    bill_id = self._create_cost_entry_bill(row)
-
-                cost_entry_id = self._create_cost_entry(row, bill_id)
-                product_id = self._create_cost_entry_product(row)
-                pricing_id = self._create_cost_entry_pricing(row)
-                reservation_id = self._create_cost_entry_reservation(row)
-
-                self._create_cost_entry_line_item(
-                    row,
-                    cost_entry_id,
-                    bill_id,
-                    product_id,
-                    pricing_id,
-                    reservation_id
+            with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
+                temp_table = report_db.create_temp_table(
+                    AWS_CUR_TABLE_MAP['line_item']
                 )
 
-                if len(self.processed_report.line_items) >= self._batch_size:
-                    self._save_to_db()
+                LOG.info('File %s opened for processing', str(f))
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if bill_id is None:
+                        bill_id = self._create_cost_entry_bill(row, report_db)
 
-                    self.report_db.merge_temp_table(
+                    cost_entry_id = self._create_cost_entry(row, bill_id, report_db)
+                    product_id = self._create_cost_entry_product(row, report_db)
+                    pricing_id = self._create_cost_entry_pricing(row, report_db)
+                    reservation_id = self._create_cost_entry_reservation(row, report_db)
+                    self._create_cost_entry_line_item(
+                        row,
+                        cost_entry_id,
+                        bill_id,
+                        product_id,
+                        pricing_id,
+                        reservation_id,
+                        report_db
+                    )
+
+                    if len(self.processed_report.line_items) >= self._batch_size:
+                        self._save_to_db(temp_table, report_db)
+
+                        report_db.merge_temp_table(
+                            AWS_CUR_TABLE_MAP['line_item'],
+                            temp_table,
+                            self.line_item_columns,
+                            self.line_item_condition_column,
+                            self.line_item_conflict_columns
+                        )
+
+                        LOG.info('Saving report rows %d to %d for %s', row_count,
+                                 row_count + len(self.processed_report.line_items),
+                                 self._report_name)
+                        row_count += len(self.processed_report.line_items)
+
+                        self._update_mappings()
+
+                if self.processed_report.line_items:
+                    self._save_to_db(temp_table, report_db)
+
+                    report_db.merge_temp_table(
                         AWS_CUR_TABLE_MAP['line_item'],
-                        self.temp_table,
+                        temp_table,
                         self.line_item_columns,
                         self.line_item_condition_column,
                         self.line_item_conflict_columns
@@ -173,29 +190,8 @@ class AWSReportProcessor(ReportProcessorBase):
                     LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
+
                     row_count += len(self.processed_report.line_items)
-
-                    self._update_mappings()
-
-            if self.processed_report.line_items:
-                self._save_to_db()
-
-                self.report_db.merge_temp_table(
-                    AWS_CUR_TABLE_MAP['line_item'],
-                    self.temp_table,
-                    self.line_item_columns,
-                    self.line_item_condition_column,
-                    self.line_item_conflict_columns
-                )
-
-                LOG.info('Saving report rows %d to %d for %s', row_count,
-                         row_count + len(self.processed_report.line_items),
-                         self._report_name)
-
-                row_count += len(self.processed_report.line_items)
-
-            self.report_db.close_session()
-            self.report_db.close_connections()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
@@ -215,14 +211,14 @@ class AWSReportProcessor(ReportProcessorBase):
                     manifest_json = json.load(manifest_file_handle)
                     current_assembly_id = manifest_json.get('assemblyId')
             else:
-                stats = ReportStatsDBAccessor(file, manifest_id)
-                completed_date = stats.get_last_completed_datetime()
-                if completed_date:
-                    assembly_id = extract_uuids_from_string(file).pop()
+                with ReportStatsDBAccessor(file, manifest_id) as stats:
+                    completed_date = stats.get_last_completed_datetime()
+                    if completed_date:
+                        assembly_id = extract_uuids_from_string(file).pop()
 
-                    victim_list.append({'file': file_path,
-                                        'completed_date': completed_date,
-                                        'assemblyId': assembly_id})
+                        victim_list.append({'file': file_path,
+                                            'completed_date': completed_date,
+                                            'assemblyId': assembly_id})
 
         removed_files = []
         for victim in victim_list:
@@ -252,18 +248,18 @@ class AWSReportProcessor(ReportProcessorBase):
             return gzip.open, 'rt'
         return open, 'r'    # assume uncompressed by default
 
-    def _save_to_db(self):
+    def _save_to_db(self, temp_table, report_db_accessor):
         """Save current batch of records to the database."""
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
 
         # This will commit all pricing, products, and reservations
         # on the session
-        self.report_db.commit()
-
-        self.report_db.bulk_insert_rows(
+        report_db_accessor.commit()
+        LOG.error('temp_table %s.', temp_table)
+        report_db_accessor.bulk_insert_rows(
             csv_file,
-            self.temp_table,
+            temp_table,
             columns)
 
     def _update_mappings(self):
@@ -352,7 +348,7 @@ class AWSReportProcessor(ReportProcessorBase):
         start, end = interval.split('/')
         return start, end
 
-    def _create_cost_entry_bill(self, row):
+    def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
 
         Args:
@@ -378,7 +374,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data['provider_id'] = self._provider_id
 
-        bill_id = self.report_db.insert_on_conflict_do_nothing(
+        bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data
         )
@@ -387,7 +383,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    def _create_cost_entry(self, row, bill_id):
+    def _create_cost_entry(self, row, bill_id, report_db_accessor):
         """Create a cost entry object.
 
         Args:
@@ -415,7 +411,7 @@ class AWSReportProcessor(ReportProcessorBase):
             'interval_end': end
         }
 
-        cost_entry_id = self.report_db.insert_on_conflict_do_nothing(
+        cost_entry_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data
         )
@@ -430,7 +426,8 @@ class AWSReportProcessor(ReportProcessorBase):
                                      bill_id,
                                      product_id,
                                      pricing_id,
-                                     reservation_id):
+                                     reservation_id,
+                                     report_db_accesor):
         """Create a cost entry line item object.
 
         Args:
@@ -447,7 +444,7 @@ class AWSReportProcessor(ReportProcessorBase):
         """
         table_name = AWS_CUR_TABLE_MAP['line_item']
         data = self._get_data_for_table(row, table_name)
-        data = self.report_db.clean_data(
+        data = report_db_accesor.clean_data(
             data,
             table_name
         )
@@ -467,7 +464,7 @@ class AWSReportProcessor(ReportProcessorBase):
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
 
-    def _create_cost_entry_pricing(self, row):
+    def _create_cost_entry_pricing(self, row, report_db_accessor):
         """Create a cost entry pricing object.
 
         Args:
@@ -497,7 +494,7 @@ class AWSReportProcessor(ReportProcessorBase):
         if value_set == {''}:
             return
 
-        pricing_id = self.report_db.insert_on_conflict_do_nothing(
+        pricing_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data
         )
@@ -505,7 +502,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return pricing_id
 
-    def _create_cost_entry_product(self, row):
+    def _create_cost_entry_product(self, row, report_db_accessor):
         """Create a cost entry product object.
 
         Args:
@@ -535,7 +532,7 @@ class AWSReportProcessor(ReportProcessorBase):
         if value_set == {''}:
             return
 
-        product_id = self.report_db.insert_on_conflict_do_nothing(
+        product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
             conflict_columns=['sku', 'product_name', 'region']
@@ -544,7 +541,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         return product_id
 
-    def _create_cost_entry_reservation(self, row):
+    def _create_cost_entry_reservation(self, row, report_db_accessor):
         """Create a cost entry reservation object.
 
         Args:
@@ -577,14 +574,14 @@ class AWSReportProcessor(ReportProcessorBase):
 
         # Special rows with additional reservation information
         if line_item_type == 'rifee':
-            reservation_id = self.report_db.insert_on_conflict_do_update(
+            reservation_id = report_db_accessor.insert_on_conflict_do_update(
                 table_name,
                 data,
                 conflict_columns=['reservation_arn'],
                 set_columns=list(data.keys())
             )
         else:
-            reservation_id = self.report_db.insert_on_conflict_do_nothing(
+            reservation_id = report_db_accessor.insert_on_conflict_do_nothing(
                 table_name,
                 data,
                 conflict_columns=['reservation_arn']

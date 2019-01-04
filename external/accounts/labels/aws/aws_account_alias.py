@@ -44,9 +44,8 @@ class AWSAccountAlias():
             (String, String) Account ID, Account Alias
         """
         account_id, account_alias = get_account_alias_from_role_arn(self._role_arn)
-        alias_accessor = AccountAliasAccessor(account_id, self._schema)
-        alias_accessor.set_account_alias(account_alias)
-        alias_accessor.commit()
-        alias_accessor.close_session()
+        with AccountAliasAccessor(account_id, self._schema) as alias_accessor:
+            alias_accessor.set_account_alias(account_alias)
+            alias_accessor.commit()
 
         return account_id, account_alias

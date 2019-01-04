@@ -51,26 +51,26 @@ class ReportDownloaderBase():
         """Insert or update the manifest DB record."""
         LOG.info(f'Inserting manifest database record for assembly_id: %s', assembly_id)
 
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest_entry = manifest_accessor.get_manifest(
-            assembly_id,
-            self._provider_id
-        )
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_entry = manifest_accessor.get_manifest(
+                assembly_id,
+                self._provider_id
+            )
 
-        if not manifest_entry:
-            LOG.info('No manifest entry found.  Adding for bill period start: %s', billing_start)
-            manifest_dict = {
-                'assembly_id': assembly_id,
-                'billing_period_start_datetime': billing_start,
-                'num_total_files': num_of_files,
-                'provider_id': self._provider_id
-            }
-            manifest_entry = manifest_accessor.add(manifest_dict)
+            if not manifest_entry:
+                LOG.info('No manifest entry found.  Adding for bill period start: %s',
+                         billing_start)
+                manifest_dict = {
+                    'assembly_id': assembly_id,
+                    'billing_period_start_datetime': billing_start,
+                    'num_total_files': num_of_files,
+                    'provider_id': self._provider_id
+                }
+                manifest_entry = manifest_accessor.add(manifest_dict)
 
-        manifest_accessor.commit()
-        manifest_accessor.mark_manifest_as_updated(manifest_entry)
-        manifest_accessor.commit()
-        manifest_id = manifest_entry.id
-        manifest_accessor.close_session()
+            manifest_accessor.commit()
+            manifest_accessor.mark_manifest_as_updated(manifest_entry)
+            manifest_accessor.commit()
+            manifest_id = manifest_entry.id
 
         return manifest_id
