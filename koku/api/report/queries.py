@@ -580,6 +580,7 @@ class ReportQueryHandler(QueryHandler):
             (list): The sorted/ordered list
 
         """
+        numeric_ordering = ['date', 'rank', 'delta', 'delta_percent', 'total', 'charge', 'usage']
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
@@ -587,8 +588,12 @@ class ReportQueryHandler(QueryHandler):
             if '-' in field:
                 reverse = True
                 field = field.replace('-', '')
-            sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
-                                 reverse=reverse)
+            if field in numeric_ordering:
+                sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
+                                     reverse=reverse)
+            else:
+                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
+                                     reverse=reverse)
         return sorted_data
 
     def _percent_delta(self, a, b):
