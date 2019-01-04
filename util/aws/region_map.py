@@ -35,13 +35,13 @@ def update_region_mapping():
     data = json.loads(parse_page())
     mapped = get_region_map(data)
 
-    accessor = ReportingCommonDBAccessor()
-    for key, val in mapped.items():
-        try:
-            accessor.add('region_mapping', {'region': key, 'region_name': val})
-        except IntegrityError:
-            LOG.warning(f'Duplicate entry in DB: "{key}" - "{val}"')
-    accessor.commit()
+    with ReportingCommonDBAccessor() as accessor:
+        for key, val in mapped.items():
+            try:
+                accessor.add('region_mapping', {'region': key, 'region_name': val})
+            except IntegrityError:
+                LOG.warning(f'Duplicate entry in DB: "{key}" - "{val}"')
+        accessor.commit()
     return True
 
 

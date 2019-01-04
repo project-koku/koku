@@ -86,21 +86,14 @@ class OCPReportProcessor(ReportProcessorBase):
 
         self.processed_report = ProcessedOCPReport()
 
-        self.report_common_db = ReportingCommonDBAccessor()
-        self.column_map = self.report_common_db.column_map
-        self.report_common_db.close_session()
+        with ReportingCommonDBAccessor() as report_common_db:
+            self.column_map = report_common_db.column_map
 
-        self.report_db = OCPReportDBAccessor(schema=self._schema_name,
-                                             column_map=self.column_map)
-
-        self.temp_table = self.report_db.create_temp_table(
-            OCP_REPORT_TABLE_MAP['line_item']
-        )
+        with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+            self.existing_report_periods_map = report_db.get_report_periods()
+            self.existing_report_map = report_db.get_reports()
 
         self.line_item_columns = None
-
-        self.existing_report_periods_map = self.report_db.get_report_periods()
-        self.existing_report_map = self.report_db.get_reports()
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
@@ -137,7 +130,7 @@ class OCPReportProcessor(ReportProcessorBase):
                 for key, value in row.items()
                 if key in column_map}
 
-    def _create_report(self, row, report_period_id):
+    def _create_report(self, row, report_period_id, report_db_accessor):
         """Create a report object.
 
         Args:
@@ -164,7 +157,7 @@ class OCPReportProcessor(ReportProcessorBase):
             'interval_start': start,
             'interval_end': end
         }
-        report_id = self.report_db.insert_on_conflict_do_nothing(
+        report_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data
         )
@@ -173,7 +166,7 @@ class OCPReportProcessor(ReportProcessorBase):
 
         return report_id
 
-    def _create_report_period(self, row, cluster_id):
+    def _create_report_period(self, row, cluster_id, report_db_accessor):
         """Create a report period object.
 
         Args:
@@ -202,7 +195,7 @@ class OCPReportProcessor(ReportProcessorBase):
             'provider_id': self._provider_id
         }
 
-        report_period_id = self.report_db.insert_on_conflict_do_nothing(
+        report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data
         )
@@ -214,7 +207,8 @@ class OCPReportProcessor(ReportProcessorBase):
     def _create_usage_report_line_item(self,
                                        row,
                                        report_period_id,
-                                       report_id):
+                                       report_id,
+                                       report_db_accessor):
         """Create a cost entry line item object.
 
         Args:
@@ -233,7 +227,7 @@ class OCPReportProcessor(ReportProcessorBase):
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
 
-        data = self.report_db.clean_data(
+        data = report_db_accessor.clean_data(
             data,
             table_name
         )
@@ -289,18 +283,18 @@ class OCPReportProcessor(ReportProcessorBase):
 
         return file_obj
 
-    def _save_to_db(self):
+    def _save_to_db(self, temp_table, report_db_accessor):
         """Save current batch of records to the database."""
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
 
         # This will commit all pricing, products, and reservations
         # on the session
-        self.report_db.commit()
+        report_db_accessor.commit()
 
-        self.report_db.bulk_insert_rows(
+        report_db_accessor.bulk_insert_rows(
             csv_file,
-            self.temp_table,
+            temp_table,
             columns)
 
     def _update_mappings(self):
@@ -336,19 +330,42 @@ class OCPReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
 
         with opener(self._report_path, mode) as f:
-            LOG.info('File %s opened for processing', str(f))
-            reader = csv.DictReader(f)
-            for row in reader:
-                report_period_id = self._create_report_period(row, self._cluster_id)
-                report_id = self._create_report(row, report_period_id)
-                self._create_usage_report_line_item(row, report_period_id, report_id)
+            with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
+                temp_table = report_db.create_temp_table(
+                    OCP_REPORT_TABLE_MAP['line_item']
+                )
 
-                if len(self.processed_report.line_items) >= self._batch_size:
-                    self._save_to_db()
+                LOG.info('File %s opened for processing', str(f))
+                reader = csv.DictReader(f)
+                for row in reader:
+                    report_period_id = self._create_report_period(row, self._cluster_id, report_db)
+                    report_id = self._create_report(row, report_period_id, report_db)
+                    self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
 
-                    self.report_db.merge_temp_table(
+                    if len(self.processed_report.line_items) >= self._batch_size:
+                        self._save_to_db(temp_table, report_db)
+
+                        report_db.merge_temp_table(
+                            OCP_REPORT_TABLE_MAP['line_item'],
+                            temp_table,
+                            self.line_item_columns,
+                            self.line_item_condition_column,
+                            self.line_item_conflict_columns
+                        )
+
+                        LOG.info('Saving report rows %d to %d for %s', row_count,
+                                 row_count + len(self.processed_report.line_items),
+                                 self._report_name)
+                        row_count += len(self.processed_report.line_items)
+
+                        self._update_mappings()
+
+                if self.processed_report.line_items:
+                    self._save_to_db(temp_table, report_db)
+
+                    report_db.merge_temp_table(
                         OCP_REPORT_TABLE_MAP['line_item'],
-                        self.temp_table,
+                        temp_table,
                         self.line_item_columns,
                         self.line_item_condition_column,
                         self.line_item_conflict_columns
@@ -357,29 +374,8 @@ class OCPReportProcessor(ReportProcessorBase):
                     LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
+
                     row_count += len(self.processed_report.line_items)
-
-                    self._update_mappings()
-
-            if self.processed_report.line_items:
-                self._save_to_db()
-
-                self.report_db.merge_temp_table(
-                    OCP_REPORT_TABLE_MAP['line_item'],
-                    self.temp_table,
-                    self.line_item_columns,
-                    self.line_item_condition_column,
-                    self.line_item_conflict_columns
-                )
-
-                LOG.info('Saving report rows %d to %d for %s', row_count,
-                         row_count + len(self.processed_report.line_items),
-                         self._report_name)
-
-                row_count += len(self.processed_report.line_items)
-
-            self.report_db.close_session()
-            self.report_db.close_connections()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_path, self._schema_name)

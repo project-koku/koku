@@ -76,10 +76,9 @@ def get_report_files(customer_name,
     for report_dict in reports:
         manifest_id = report_dict.get('manifest_id')
         file_name = os.path.basename(report_dict.get('file'))
-        stats = ReportStatsDBAccessor(file_name, manifest_id)
-        started_date = stats.get_last_started_datetime()
-        completed_date = stats.get_last_completed_datetime()
-        stats.close_session()
+        with ReportStatsDBAccessor(file_name, manifest_id) as stats:
+            started_date = stats.get_last_started_datetime()
+            completed_date = stats.get_last_completed_datetime()
 
         # Skip processing if already in progress.
         if started_date and not completed_date:
@@ -120,6 +119,7 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
     _process_report_file(schema_name, provider, provider_uuid, report_dict)
     LOG.info('Queueing update_summary_tables task for %s', schema_name)
     start_date = DateAccessor().today().strftime('%Y-%m-%d')
+
     update_summary_tables.delay(
         schema_name,
         provider,
@@ -189,6 +189,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
 
     updater = ReportSummaryUpdater(schema_name, provider)
     updater.update_summary_tables(start_date, end_date, manifest_id)
+
     if provider_uuid:
         update_charge_info.delay(
             schema_name,

@@ -140,15 +140,11 @@ class ReportDownloader:
         for report in reports:
             report_dictionary = {}
             local_file_name = self._downloader.get_local_file_for_report(report)
-            stats_recorder = ReportStatsDBAccessor(
-                local_file_name,
-                manifest_id
-            )
-            stored_etag = stats_recorder.get_etag()
-            file_name, etag = self._downloader.download_file(report, stored_etag)
-            stats_recorder.update(etag=etag)
-            stats_recorder.commit()
-            stats_recorder.close_session()
+            with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
+                stored_etag = stats_recorder.get_etag()
+                file_name, etag = self._downloader.download_file(report, stored_etag)
+                stats_recorder.update(etag=etag)
+                stats_recorder.commit()
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = report_context.get('compression')

@@ -46,7 +46,11 @@ class ReportChargeUpdater:
         """
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
-        self._provider = ProviderDBAccessor(provider_uuid).get_type()
+
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            provider_type = provider_accessor.get_type()
+        self._provider = provider_type
+
         try:
             self._updater = self._set_updater()
         except Exception as err:
@@ -84,4 +88,3 @@ class ReportChargeUpdater:
         """
         if self._updater:
             self._updater.update_summary_charge_info()
-            self._updater.close_session()
