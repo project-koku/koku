@@ -31,6 +31,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.queries import strip_tag_prefix
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
@@ -1850,3 +1851,11 @@ class ReportQueryTest(IamTestCase):
 
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
+
+    def test_strip_tag_prefix(self):
+        """Verify that our tag prefix is stripped from a string."""
+        tag_str = 'tag:project'
+
+        result = strip_tag_prefix(tag_str)
+
+        self.assertEqual(result, tag_str.replace('tag:', ''))

@@ -35,6 +35,11 @@ from reporting.models import (AWSCostEntryLineItemAggregates,
 LOG = logging.getLogger(__name__)
 
 
+def strip_tag_prefix(tag):
+        """Remove the query tag prefix from a tag key."""
+        return tag.replace('tag:', '')
+
+
 class ProviderMap(object):
     """Data structure mapping between API params and DB Model names.
 
@@ -367,7 +372,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filters.extend(tag_group_by)
         for tag in tag_filters:
             # Update the filter to use the label column name
-            tag_db_name = tag_column + '__' + tag
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
             filt = {
                 'field': tag_db_name,
                 'operation': 'icontains'
@@ -384,7 +389,8 @@ class ReportQueryHandler(QueryHandler):
                     'field': tag_column,
                     'operation': 'has_key'
                 }
-                q_filter = QueryFilter(parameter=tag, **wild_card_filt)
+                q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
+                                       **wild_card_filt)
                 filters.add(q_filter)
         return filters
 
@@ -420,7 +426,7 @@ class ReportQueryHandler(QueryHandler):
         tag_group_by = self.get_tag_group_by_keys()
         if tag_group_by:
             for tag in tag_group_by:
-                tag_db_name = tag_column + '__' + tag
+                tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
                 filt = {
                     'field': tag_db_name,
                     'operation': 'isnull',
@@ -457,7 +463,7 @@ class ReportQueryHandler(QueryHandler):
         tag_column = self._mapper._provider_map.get('tag_column')
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
-            tag_db_name = tag_column + '__' + tag
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
             group_data = self.get_query_param_data('group_by', tag)
             if group_data:
                 tag = quote_plus(tag)
