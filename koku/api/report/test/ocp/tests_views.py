@@ -959,13 +959,13 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         data = data.get('data', [])
         previous_usage = (
-            data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /
+            data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
             data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
         )
         for entry in data[0].get('nodes', []):
             current_usage = (
-            data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /
-            data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
+                data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
+                data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
         )
             self.assertTrue(current_usage >= previous_usage)
             previous_usage = current_usage

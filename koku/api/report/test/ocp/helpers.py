@@ -166,9 +166,9 @@ class OCPReportDataGenerator:
                 label_value = random.choice(seeded_labels[label_key])
             if self.dated_tags:
                 labels['{}-{}-{}*{}_label'.format(report.interval_start.month,
-                                                report.interval_start.day,
-                                                report.interval_start.year,
-                                                label_key)] = label_value
+                                                  report.interval_start.day,
+                                                  report.interval_start.year,
+                                                  label_key)] = label_value
             else:
                 labels['{}_label'.format(label_key)] = label_value
 
