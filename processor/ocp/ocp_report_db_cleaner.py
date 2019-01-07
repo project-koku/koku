@@ -27,8 +27,6 @@ LOG = logging.getLogger(__name__)
 class OCPReportDBCleanerError(Exception):
     """Raise an error during OCP report cleaning."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class OCPReportDBCleaner():

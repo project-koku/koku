@@ -32,8 +32,6 @@ LOG = logging.getLogger(__name__)
 class ReportProcessorError(Exception):
     """Report Processor error."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-arguments

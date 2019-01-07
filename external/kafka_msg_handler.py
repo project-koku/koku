@@ -46,8 +46,6 @@ FAILURE_CONFIRM_STATUS = 'failure'
 class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
-    pass
-
 
 def extract_payload(url):
     """

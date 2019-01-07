@@ -41,13 +41,9 @@ LOG = logging.getLogger(__name__)
 class AWSReportDownloaderError(Exception):
     """AWS Report Downloader error."""
 
-    pass
-
 
 class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
-
-    pass
 
 
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
