@@ -20,22 +20,24 @@ import logging
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
+from urllib.parse import quote_plus
 
-from django.db.models import CharField, Count, F, Max, Q, Sum, Value
+from django.db.models import CharField, F, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce
 
-from api.query_filter import QueryFilter
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
-from reporting.models import (AWSCostEntryLineItem,
-                              AWSCostEntryLineItemAggregates,
+from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
-WILDCARD = '*'
-OPERATION_SUM = 'sum'
-OPERATION_NONE = 'none'
+
+
+def strip_tag_prefix(tag):
+        """Remove the query tag prefix from a tag key."""
+        return tag.replace('tag:', '')
 
 
 class ProviderMap(object):
@@ -53,284 +55,188 @@ class ProviderMap(object):
     # this data should be considered static and read-only.
     mapping = [{
         'provider': 'AWS',
-        'operation': {
-            OPERATION_SUM: {
-                'alias': 'account_alias__account_alias',
-                'annotations': {'account': 'usage_account_id',
-                                'service': 'product_code',
-                                'avail_zone': 'availability_zone'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'account': {'field': 'account_alias__account_alias',
-                                'operation': 'icontains'},
-                    'service': {'field': 'product_code',
-                                'operation': 'icontains'},
-                    'avail_zone': {'field': 'availability_zone',
-                                   'operation': 'icontains'},
-                    'region': {'field': 'availability_zone',
-                               'operation': 'icontains'}
-                },
-                'report_type': {
-                    'costs': {
-                        'aggregate': {'value': Sum('unblended_cost')},
-                        'aggregate_key': 'unblended_cost',
-                        'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Coalesce(Max('currency_code'),
-                                        Value('USD'))
-                        },
-                        'count': None,
-                        'delta_key': {'total': Sum('unblended_cost')},
-                        'filter': {},
-                        'units_key': 'currency_code',
-                        'units_fallback': 'USD',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                    'instance_type': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count'),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        # The summary table already already has counts
-                                        'count': Sum('resource_count'),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('unit'),
-                                        Value('Hrs'))},
-                        'count': 'resource_count',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'instance_type',
-                            'operation': 'isnull',
-                            'parameter': False
-                        },
-                        'units_key': 'unit',
-                        'units_fallback': 'Hrs',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                    'storage': {
-                        'aggregate': {
-                            'value': Sum('usage_amount'),
-                            'cost': Sum('unblended_cost')
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('unit'),
-                                        Value('GB-Mo'))},
-                        'count': None,
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'product_family',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        },
-                        'units_key': 'unit',
-                        'units_fallback': 'GB-Mo',
-                        'sum_columns': ['total'],
-                        'default_ordering': {'total': 'desc'},
-                    },
-                },
-                'start_date': 'usage_start',
-                'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
-                           'query': AWSCostEntryLineItemDailySummary,
-                           'total': AWSCostEntryLineItemAggregates},
-            },
-            OPERATION_NONE: {
-                'alias': 'account_alias__account_alias',
-                'annotations': {'account': 'usage_account_id',
-                                'service': 'product_code',
-                                'avail_zone': 'availability_zone',
-                                'region': 'cost_entry_product__region'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'account': {'field': 'account_alias__account_alias',
-                                'operation': 'icontains'},
-                    'service': {'field': 'product_code',
-                                'operation': 'icontains'},
-                    'avail_zone': {'field': 'availability_zone',
-                                   'operation': 'icontains'},
-                    'region': {'field': 'availability_zone',
-                               'operation': 'icontains',
-                               'table': 'cost_entry_product'}
-                },
-                'report_type': {
-                    'costs': {
-                        'aggregate': {
-                            'value': Sum('unblended_cost'),
-                            'cost': Sum('unblended_cost')
-                        },
-                        'aggregate_key': 'unblended_cost',
-                        'annotations': {'total': Sum('unblended_cost'),
-                                        'units': Coalesce(Max('currency_code'),
-                                        Value('USD'))},
-                        'count': None,
-                        'delta_key': {'total': Sum('unblended_cost')},
-                        'filter': {},
-                        'units_key': 'currency_code',
-                        'units_fallback': 'USD',
-                        'sum_columns': ['total'],
-                    },
-                    'instance_type': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count '),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'count': Count('resource_id', distinct=True),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
-                                        Value('Hrs'))},
-                        'count': 'resource_id',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'instance_type',
-                            'table': 'cost_entry_product',
-                            'operation': 'isnull',
-                            'parameter': False
-                        },
-                        'units_key': 'cost_entry_pricing__unit',
-                        'units_fallback': 'Hrs',
-                        'sum_columns': ['total'],
-                    },
-                    'storage': {
-                        'aggregate': {
-                            'cost': Sum('unblended_cost'),
-                            'count': Sum('resource_count'),
-                            'value': Sum('usage_amount'),
-                        },
-                        'aggregate_key': 'usage_amount',
-                        'annotations': {'cost': Sum('unblended_cost'),
-                                        'count': Count('resource_id', distinct=True),
-                                        'total': Sum('usage_amount'),
-                                        'units': Coalesce(Max('cost_entry_pricing__unit'),
-                                        Value('GB-Mo'))},
-                        'count': 'resource_id',
-                        'delta_key': {'total': Sum('usage_amount')},
-                        'filter': {
-                            'field': 'product_family',
-                            'table': 'cost_entry_product',
-                            'operation': 'contains',
-                            'parameter': 'Storage'
-                        },
-                        'units_key': 'cost_entry_pricing__unit',
-                        'units_fallback': 'GB-Mo',
-                        'sum_columns': ['total'],
-                    },
-                },
-                'start_date': 'usage_start',
-                'tables': {'query': AWSCostEntryLineItem,
-                           'previous_query': AWSCostEntryLineItem,
-                           'total': AWSCostEntryLineItemAggregates},
-            }
+        'alias': 'account_alias__account_alias',
+        'annotations': {'account': 'usage_account_id',
+                        'service': 'product_code',
+                        'avail_zone': 'availability_zone'},
+        'end_date': 'usage_end',
+        'filters': {
+            'account': {'field': 'account_alias__account_alias',
+                        'operation': 'icontains'},
+            'service': {'field': 'product_code',
+                        'operation': 'icontains'},
+            'avail_zone': {'field': 'availability_zone',
+                            'operation': 'icontains'},
+            'region': {'field': 'availability_zone',
+                        'operation': 'icontains'}
         },
+        'report_type': {
+            'costs': {
+                'aggregate': {'value': Sum('unblended_cost')},
+                'aggregate_key': 'unblended_cost',
+                'annotations': {'total': Sum('unblended_cost'),
+                                'units': Coalesce(Max('currency_code'),
+                                Value('USD'))
+                },
+                'count': None,
+                'delta_key': {'total': Sum('unblended_cost')},
+                'filter': {},
+                'units_key': 'currency_code',
+                'units_fallback': 'USD',
+                'sum_columns': ['total'],
+                'default_ordering': {'total': 'desc'},
+            },
+            'instance_type': {
+                'aggregate': {
+                    'cost': Sum('unblended_cost'),
+                    'count': Sum('resource_count'),
+                    'value': Sum('usage_amount'),
+                },
+                'aggregate_key': 'usage_amount',
+                'annotations': {'cost': Sum('unblended_cost'),
+                                # The summary table already already has counts
+                                'count': Sum('resource_count'),
+                                'total': Sum('usage_amount'),
+                                'units': Coalesce(Max('unit'),
+                                Value('Hrs'))},
+                'count': 'resource_count',
+                'delta_key': {'total': Sum('usage_amount')},
+                'filter': {
+                    'field': 'instance_type',
+                    'operation': 'isnull',
+                    'parameter': False
+                },
+                'units_key': 'unit',
+                'units_fallback': 'Hrs',
+                'sum_columns': ['total'],
+                'default_ordering': {'total': 'desc'},
+            },
+            'storage': {
+                'aggregate': {
+                    'value': Sum('usage_amount'),
+                    'cost': Sum('unblended_cost')
+                },
+                'aggregate_key': 'usage_amount',
+                'annotations': {'cost': Sum('unblended_cost'),
+                                'total': Sum('usage_amount'),
+                                'units': Coalesce(Max('unit'),
+                                Value('GB-Mo'))},
+                'count': None,
+                'delta_key': {'total': Sum('usage_amount')},
+                'filter': {
+                    'field': 'product_family',
+                    'operation': 'contains',
+                    'parameter': 'Storage'
+                },
+                'units_key': 'unit',
+                'units_fallback': 'GB-Mo',
+                'sum_columns': ['total'],
+                'default_ordering': {'total': 'desc'},
+            },
+        },
+        'start_date': 'usage_start',
+        'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
+                    'query': AWSCostEntryLineItemDailySummary,
+                    'total': AWSCostEntryLineItemAggregates},
     }, {
         'provider': 'OCP',
-        'operation': {
-            OPERATION_SUM: {
-                'annotations': {'cluster': 'cluster_id',
-                                'project': 'namespace'},
-                'end_date': 'usage_end',
-                'filters': {
-                    'project': {'field': 'namespace',
-                                'operation': 'icontains'},
-                    'cluster': {'field': 'cluster_id',
-                                'operation': 'icontains'},
-                    'pod': {'field': 'pod',
-                            'operation': 'icontains'},
-                    'node': {'field': 'node',
-                             'operation': 'icontains'},
-                },
-                'report_type': {
-                    'charge': {
-                        'aggregates': {
-                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
-                        },
-                        'default_ordering': {'charge': 'desc'},
-                        'annotations': {
-
-                            'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                            'units': Value('USD', output_field=CharField())
-                        },
-                        'capacity_aggregate': {},
-                        'delta_key': {
-                            'charge': Sum(
-                                F('pod_charge_cpu_core_hours') +  # noqa: W504
-                                F('pod_charge_memory_gigabyte_hours')
-                            )
-                        },
-                        'filter': {},
-                        'units_key': 'USD',
-                        'sum_columns': ['charge'],
-                    },
-                    'cpu': {
-                        'aggregates': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Sum('pod_limit_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours')
-                        },
-                        'capacity_aggregate': {
-                            'capacity': Max('cluster_capacity_cpu_core_hours')
-                        },
-                        'default_ordering': {'usage': 'desc'},
-                        'annotations': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'limit': Sum('pod_limit_cpu_core_hours'),
-                            'capacity': Max('cluster_capacity_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours'),
-                            'units': Value('Core-Hours', output_field=CharField())
-                        },
-                        'delta_key': {
-                            'usage': Sum('pod_usage_cpu_core_hours'),
-                            'request': Sum('pod_request_cpu_core_hours'),
-                            'charge': Sum('pod_charge_cpu_core_hours')
-                        },
-                        'filter': {},
-                        'units_key': 'Core-Hours',
-                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                    },
-                    'mem': {
-                        'aggregates': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours')
-                        },
-                        'capacity_aggregate': {
-                            'capacity': Max('cluster_capacity_memory_gigabyte_hours')
-                        },
-                        'default_ordering': {'usage': 'desc'},
-                        'annotations': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                            'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours'),
-                            'units': Value('GB-Hours', output_field=CharField())
-                        },
-                        'delta_key': {
-                            'usage': Sum('pod_usage_memory_gigabyte_hours'),
-                            'request': Sum('pod_request_memory_gigabyte_hours'),
-                            'charge': Sum('pod_charge_memory_gigabyte_hours')
-                        },
-                        'filter': {},
-                        'units_key': 'GB-Hours',
-                        'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                    }
-                },
-                'start_date': 'usage_start',
-                'tables': {'previous_query': OCPUsageLineItemDailySummary,
-                           'query': OCPUsageLineItemDailySummary,
-                           'total': OCPUsageLineItemAggregates},
-            },
+        'annotations': {'cluster': 'cluster_id',
+                        'project': 'namespace'},
+        'end_date': 'usage_end',
+        'filters': {
+            'project': {'field': 'namespace',
+                        'operation': 'icontains'},
+            'cluster': {'field': 'cluster_alias',
+                        'operation': 'icontains'},
+            'pod': {'field': 'pod',
+                    'operation': 'icontains'},
+            'node': {'field': 'node',
+                        'operation': 'icontains'},
         },
+        'tag_column': 'pod_labels',
+        'report_type': {
+            'charge': {
+                'aggregates': {
+                    'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
+                },
+                'default_ordering': {'charge': 'desc'},
+                'annotations': {
+
+                    'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                    'units': Value('USD', output_field=CharField())
+                },
+                'capacity_aggregate': {},
+                'delta_key': {
+                    'charge': Sum(
+                        F('pod_charge_cpu_core_hours') +  # noqa: W504
+                        F('pod_charge_memory_gigabyte_hours')
+                    )
+                },
+                'filter': {},
+                'units_key': 'USD',
+                'sum_columns': ['charge'],
+            },
+            'cpu': {
+                'aggregates': {
+                    'usage': Sum('pod_usage_cpu_core_hours'),
+                    'request': Sum('pod_request_cpu_core_hours'),
+                    'limit': Sum('pod_limit_cpu_core_hours'),
+                    'charge': Sum('pod_charge_cpu_core_hours')
+                },
+                'capacity_aggregate': {
+                    'capacity': Max('cluster_capacity_cpu_core_hours')
+                },
+                'default_ordering': {'usage': 'desc'},
+                'annotations': {
+                    'usage': Sum('pod_usage_cpu_core_hours'),
+                    'request': Sum('pod_request_cpu_core_hours'),
+                    'limit': Sum('pod_limit_cpu_core_hours'),
+                    'capacity': Max('cluster_capacity_cpu_core_hours'),
+                    'charge': Sum('pod_charge_cpu_core_hours'),
+                    'units': Value('Core-Hours', output_field=CharField())
+                },
+                'delta_key': {
+                    'usage': Sum('pod_usage_cpu_core_hours'),
+                    'request': Sum('pod_request_cpu_core_hours'),
+                    'charge': Sum('pod_charge_cpu_core_hours')
+                },
+                'filter': {},
+                'units_key': 'Core-Hours',
+                'sum_columns': ['usage', 'request', 'limit', 'charge'],
+            },
+            'mem': {
+                'aggregates': {
+                    'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                    'request': Sum('pod_request_memory_gigabyte_hours'),
+                    'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                    'charge': Sum('pod_charge_memory_gigabyte_hours')
+                },
+                'capacity_aggregate': {
+                    'capacity': Max('cluster_capacity_memory_gigabyte_hours')
+                },
+                'default_ordering': {'usage': 'desc'},
+                'annotations': {
+                    'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                    'request': Sum('pod_request_memory_gigabyte_hours'),
+                    'limit': Sum('pod_limit_memory_gigabyte_hours'),
+                    'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
+                    'charge': Sum('pod_charge_memory_gigabyte_hours'),
+                    'units': Value('GB-Hours', output_field=CharField())
+                },
+                'delta_key': {
+                    'usage': Sum('pod_usage_memory_gigabyte_hours'),
+                    'request': Sum('pod_request_memory_gigabyte_hours'),
+                    'charge': Sum('pod_charge_memory_gigabyte_hours')
+                },
+                'filter': {},
+                'units_key': 'GB-Hours',
+                'sum_columns': ['usage', 'request', 'limit', 'charge'],
+            }
+        },
+        'start_date': 'usage_start',
+        'tables': {'previous_query': OCPUsageLineItemDailySummary,
+                    'query': OCPUsageLineItemDailySummary,
+                    'total': OCPUsageLineItemAggregates},
     }]
 
     @staticmethod
@@ -341,27 +247,19 @@ class ProviderMap(object):
                 return item
 
     @staticmethod
-    def operation_data(operation, provider):
-        """Return operation portion of map structure."""
-        prov = ProviderMap.provider_data(provider)
-        return prov.get('operation').get(operation)
-
-    @staticmethod
-    def report_type_data(report_type, operation, provider):
+    def report_type_data(report_type, provider):
         """Return report_type portion of map structure."""
-        op_data = ProviderMap.operation_data(operation, provider)
-        return op_data.get('report_type').get(report_type)
+        prov = ProviderMap.provider_data(provider)
+        return prov.get('report_type').get(report_type)
 
-    def __init__(self, provider, operation, report_type):
+    def __init__(self, provider, report_type):
         """Constructor."""
         self._provider = provider
-        self._operation = operation
         self._report_type = report_type
 
         self._map = ProviderMap.mapping
         self._provider_map = ProviderMap.provider_data(provider)
-        self._operation_map = ProviderMap.operation_data(operation, provider)
-        self._report_type_map = ProviderMap.report_type_data(report_type, operation, provider)
+        self._report_type_map = ProviderMap.report_type_data(report_type, provider)
 
     @property
     def count(self):
@@ -395,19 +293,18 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f'Query Params: {query_parameters}')
         self._accept_type = None
         self._group_by = None
+        self._tag_keys = []
 
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'group_by', 'report_type']
+            elements = ['accept_type', 'delta', 'group_by', 'report_type', 'tag_keys']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
 
         assert getattr(self, '_report_type'), \
             'kwargs["report_type"] is missing!'
-        self.operation = query_parameters.get('operation', OPERATION_SUM)
         self._mapper = ProviderMap(provider=kwargs.get('provider'),
-                                   operation=self.operation,
                                    report_type=self._report_type)
         default_ordering = self._mapper._report_type_map.get('default_ordering')
 
@@ -421,29 +318,25 @@ class ReportQueryHandler(QueryHandler):
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
+        self.query_exclusions = self._get_exclusions()
 
-    @property
-    def is_sum(self):
-        """Determine the type of API call this is.
+    def get_tag_filter_keys(self):
+        """Get tag keys from filter arguments."""
+        tag_filters = []
+        filters = self.query_parameters.get('filter', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_filters.append(filt)
+        return tag_filters
 
-        is_sum == True -> API Summary data
-        is_sum == False -> Full data download
-
-        """
-        return self.operation == OPERATION_SUM
-
-    @staticmethod
-    def has_wildcard(in_list):
-        """Check if list has wildcard.
-
-        Args:
-            in_list (List[String]): List of strings to check for wildcard
-        Return:
-            (Boolean): if wildcard is present in list
-        """
-        if not in_list:
-            return False
-        return any(WILDCARD == item for item in in_list)
+    def get_tag_group_by_keys(self):
+        """Get tag keys from group by arguments."""
+        tag_groups = []
+        filters = self.query_parameters.get('group_by', {})
+        for filt in filters:
+            if filt in self._tag_keys:
+                tag_groups.append(filt)
+        return tag_groups
 
     def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
@@ -454,7 +347,7 @@ class ReportQueryHandler(QueryHandler):
             (QueryFilterCollection): populated collection of query filters
         """
         # define filter parameters using API query params.
-        fields = self._mapper._operation_map.get('filters')
+        fields = self._mapper._provider_map.get('filters')
         for q_param, filt in fields.items():
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
@@ -464,9 +357,42 @@ class ReportQueryHandler(QueryHandler):
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
 
+        # Update filters with tag filters
+        filters = self._set_tag_filters(filters)
+
         composed_filters = filters.compose()
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
+
+    def _set_tag_filters(self, filters):
+        """Create tag_filters."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
+        for tag in tag_filters:
+            # Update the filter to use the label column name
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.get_query_param_data('group_by', tag, list())
+            filter_ = self.get_query_param_data('filter', tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(parameter=item, **filt)
+                    filters.add(q_filter)
+            elif list_ and ReportQueryHandler.has_wildcard(list_):
+                wild_card_filt = {
+                    'field': tag_column,
+                    'operation': 'has_key'
+                }
+                q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
+                                       **wild_card_filt)
+                filters.add(q_filter)
+        return filters
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
@@ -488,6 +414,32 @@ class ReportQueryHandler(QueryHandler):
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
+    def _get_exclusions(self, delta=False):
+        """Create dictionary for filter parameters for exclude clause.
+
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        exclusions = QueryFilterCollection()
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_group_by = self.get_tag_group_by_keys()
+        if tag_group_by:
+            for tag in tag_group_by:
+                tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+                filt = {
+                    'field': tag_db_name,
+                    'operation': 'isnull',
+                    'parameter': True
+                }
+                q_filter = QueryFilter(**filt)
+                exclusions.add(q_filter)
+
+        composed_exclusions = exclusions.compose()
+
+        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        return composed_exclusions
+
     def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
@@ -497,10 +449,26 @@ class ReportQueryHandler(QueryHandler):
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))
 
+        tag_group_by = self._get_tag_group_by()
+        group_by.extend(tag_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
         if self._group_by:
             group_by += self._group_by
+        return group_by
+
+    def _get_tag_group_by(self):
+        """Create list of tag based group by parameters."""
+        group_by = []
+        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_groups = self.get_tag_group_by_keys()
+        for tag in tag_groups:
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            group_data = self.get_query_param_data('group_by', tag)
+            if group_data:
+                tag = quote_plus(tag)
+                group_pos = self.url_data.index(tag)
+                group_by.append((tag_db_name, group_pos))
         return group_by
 
     @property
@@ -547,11 +515,12 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped
         return out_data
 
-    def _apply_group_by(self, query_data):
+    def _apply_group_by(self, query_data, group_by=None):
         """Group data by date for given time interval then group by list.
 
         Args:
             query_data  (List(Dict)): Queried data
+            group_by (list): An optional list of groups
         Returns:
             (Dict): Dictionary of grouped dictionaries
 
@@ -571,7 +540,8 @@ class ReportQueryHandler(QueryHandler):
 
         for date, data_list in bucket_by_date.items():
             data = data_list
-            group_by = self._get_group_by()
+            if group_by is None:
+                group_by = self._get_group_by()
             grouped = ReportQueryHandler._group_data_by_list(group_by, 0,
                                                              data)
             bucket_by_date[date] = grouped
@@ -610,6 +580,7 @@ class ReportQueryHandler(QueryHandler):
             (list): The sorted/ordered list
 
         """
+        numeric_ordering = ['date', 'rank', 'delta', 'delta_percent', 'total', 'charge', 'usage']
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
@@ -617,8 +588,12 @@ class ReportQueryHandler(QueryHandler):
             if '-' in field:
                 reverse = True
                 field = field.replace('-', '')
-            sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
-                                 reverse=reverse)
+            if field in numeric_ordering:
+                sorted_data = sorted(sorted_data, key=lambda entry: entry[field],
+                                     reverse=reverse)
+            else:
+                sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
+                                     reverse=reverse)
         return sorted_data
 
     def _percent_delta(self, a, b):
@@ -770,7 +745,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ['date'] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper._operation_map.get('tables').get('previous_query')
+        q_table = self._mapper._provider_map.get('tables').get('previous_query')
         previous_query = q_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query,
                                                      delta_group_by)

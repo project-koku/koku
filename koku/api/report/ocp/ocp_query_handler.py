@@ -16,11 +16,11 @@
 #
 """OCP Query Handling for Reports."""
 import copy
+from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
-from django.db.models.functions import Concat
-from django.db.models.functions import RowNumber
+from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -59,7 +59,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         annotations = {'date': self.date_trunc('usage_start')}
 
         # { query_param: database_field_name }
-        fields = self._mapper._operation_map.get('annotations')
+        fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
 
@@ -82,7 +82,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return output
 
     def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
@@ -91,9 +91,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ['date'] + group_by_value
@@ -102,6 +104,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             annotations = self._mapper._report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
+
+            if 'cluster' in query_group_by or 'cluster' in self.query_filter:
+                query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
+                                                                        'cluster_id'))
 
             if self._limit and group_by_value:
                 rank_order = getattr(F(group_by_value.pop()), self.order_direction)()
@@ -136,6 +142,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
+            query_data, query_group_by = self.strip_label_column_name(
+                query_data,
+                query_group_by
+            )
             query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
@@ -144,7 +154,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 else:
                     data = list(query_data)
             else:
-                data = self._apply_group_by(list(query_data))
+                # Pass in a copy of the group by without the added
+                # tag column name prefix
+                groups = copy.deepcopy(query_group_by)
+                groups.remove('date')
+                data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
         query_sum.update({'units': self._mapper.units_key})
@@ -174,18 +188,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
-        q_table = self._mapper._operation_map.get('tables').get('query')
+        capacity_by_cluster = defaultdict(Decimal)
+        q_table = self._mapper._provider_map.get('tables').get('query')
         query = q_table.objects.filter(self.query_filter)
-        query_group_by = ['usage_start']
+        query_group_by = ['usage_start', 'cluster_id']
 
         with tenant_context(self.tenant):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
+                cluster_id = entry.get('cluster_id', '')
+                capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
 
         if self.resolution == 'monthly':
             for row in query_data:
-                row[cap_key] = total_capacity
+                cluster_id = row.get('cluster')
+                if cluster_id:
+                    row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
+                else:
+                    row[cap_key] = total_capacity
 
         return query_data, {cap_key: total_capacity}
 
@@ -234,3 +255,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
 
         return query_data
+
+    def strip_label_column_name(self, data, group_by):
+        """Remove the column name from tags."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        val_to_strip = tag_column + '__'
+        new_data = []
+        for entry in data:
+            new_entry = {}
+            for key, value in entry.items():
+                key = key.replace(val_to_strip, '')
+                new_entry[key] = value
+
+            new_data.append(new_entry)
+
+        for i, group in enumerate(group_by):
+            group_by[i] = group.replace(val_to_strip, '')
+
+        return new_data, group_by

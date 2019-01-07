@@ -16,14 +16,19 @@
 #
 """Test the Report Queries."""
 import copy
+from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
+from urllib.parse import quote_plus, urlencode
 
+from django.db.models import Max
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.query_filter import QueryFilterCollection
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
+from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
 
@@ -124,6 +129,56 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(query_data[0].get('capacity'),
                          total_capacity.get('capacity'))
 
+    def test_get_cluster_capacity_monthly_resolution_multiple_clusters(self):
+        """Test that cluster capacity returns capacity by cluster."""
+        # Add data for a second cluster
+        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        'group_by': {'cluster': ['*']},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'group_by[cluster]=*'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        query_data = handler.execute_query()
+
+        capacity_by_cluster = defaultdict(Decimal)
+        total_capacity = Decimal(0)
+        query_filter = handler.query_filter
+        query_group_by = ['usage_start', 'cluster_id']
+        annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
+        cap_key = list(annotations.keys())[0]
+
+        q_table = handler._mapper._provider_map.get('tables').get('query')
+        query = q_table.objects.filter(query_filter)
+
+        with tenant_context(self.tenant):
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                cluster_id = entry.get('cluster_id', '')
+                capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
+                total_capacity += entry.get(cap_key, 0)
+
+        for entry in query_data.get('data', []):
+            for cluster in entry.get('clusters', []):
+                cluster_name = cluster.get('cluster', '')
+                capacity = cluster.get('values')[0].get('capacity')
+                self.assertEqual(capacity, capacity_by_cluster[cluster_name])
+
+        self.assertEqual(query_data.get('total', {}).get('capacity'),
+                         total_capacity)
+
     def test_get_cluster_capacity_daily_resolution(self):
         """Test that cluster capacity is unaltered for daily resolution."""
         query_params = {
@@ -193,7 +248,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -247,7 +302,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -290,7 +345,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__foo'
 
-        q_table = handler._mapper._operation_map.get('tables').get('query')
+        q_table = handler._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -311,3 +366,167 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertEqual(result, query_data)
             self.assertIsNotNone(handler.query_delta['value'])
             self.assertIsNone(handler.query_delta['percent'])
+
+    def test_strip_label_column_name(self):
+        """Test that the tag column name is stripped from results."""
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+        tag_column = handler._mapper._provider_map.get('tag_column')
+        data = [
+            {f'{tag_column}__tag_key1': 'value'},
+            {f'{tag_column}__tag_key2': 'value'}
+        ]
+        group_by = ['date', f'{tag_column}__tag_key1', f'{tag_column}__tag_key2']
+
+        expected_data = [
+            {'tag_key1': 'value'},
+            {'tag_key2': 'value'}
+        ]
+        expected_group_by = ['date', 'tag_key1', 'tag_key2']
+
+        result_data, result_group_by = handler.strip_label_column_name(
+            data, group_by
+        )
+
+        self.assertEqual(result_data, expected_data)
+        self.assertEqual(result_group_by, expected_group_by)
+
+    def test_get_tag_filter_keys(self):
+        """Test that filter params with tag keys are returned."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        key_of_interest = tag_keys[0]
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                key_of_interest: ['']
+            }
+        }
+        handler = OCPReportQueryHandler(
+            query_params,
+            f'?filter[{key_of_interest}]=\'\'',
+            self.tenant,
+            **{
+                'report_type': 'cpu',
+                'tag_keys': tag_keys
+            }
+        )
+
+        results = handler.get_tag_filter_keys()
+
+        self.assertEqual(results, [key_of_interest])
+
+    def test_get_tag_group_by_keys(self):
+        """Test that group_by params with tag keys are returned."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        key_of_interest = tag_keys[0]
+        query_params = {
+            'group_by': {
+                key_of_interest: ['']
+            }
+        }
+        handler = OCPReportQueryHandler(
+            query_params,
+            f'?filter[{key_of_interest}]=\'\'',
+            self.tenant,
+            **{
+                'report_type': 'cpu',
+                'tag_keys': tag_keys
+            }
+        )
+
+        results = handler.get_tag_group_by_keys()
+
+        self.assertEqual(results, [key_of_interest])
+
+    def test_set_tag_filters(self):
+        """Test that tag filters are created properly."""
+        filters = QueryFilterCollection()
+
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        filter_value = 'filter'
+        group_by_key = tag_keys[1]
+        group_by_value = 'group_By'
+
+        query_params = {
+            'filter': {filter_key: [filter_value]},
+            'group_by': {group_by_key: [group_by_value]}
+        }
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{
+                'report_type': 'cpu',
+                'tag_keys': tag_keys
+            }
+        )
+
+        filters = handler._set_tag_filters(filters)
+
+        expected = f"""<class 'api.query_filter.QueryFilterCollection'>: (AND: ('pod_labels__{filter_key}__icontains', '{filter_value}')), (AND: ('pod_labels__{group_by_key}__icontains', '{group_by_value}')), """  # noqa: E501
+
+        self.assertEqual(repr(filters), expected)
+
+    def test_get_exclusions(self):
+        """Test that exclusions are properly set."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+        group_by_value = 'group_By'
+        query_params = {
+            'group_by': {group_by_key: [group_by_value]}
+        }
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{
+                'report_type': 'cpu',
+                'tag_keys': tag_keys
+            }
+        )
+
+        exclusions = handler._get_exclusions()
+        expected = f"<Q: (AND: ('pod_labels__{group_by_key}__isnull', True))>"
+        self.assertEqual(repr(exclusions), expected)
+
+    def test_get_tag_group_by(self):
+        """Test that tag based group bys work."""
+        handler = OCPTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+        group_by_value = 'group_by'
+        query_params = {
+            'group_by': {group_by_key: [group_by_value]}
+        }
+
+        param_string = urlencode(query_params, quote_via=quote_plus)
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            param_string,
+            self.tenant,
+            **{
+                'report_type': 'cpu',
+                'tag_keys': tag_keys
+            }
+        )
+
+        group_by = handler._get_tag_group_by()
+        group = group_by[0]
+        expected = 'pod_labels__' + group_by_key
+        self.assertEqual(len(group_by), 1)
+        self.assertEqual(group[0], expected)
