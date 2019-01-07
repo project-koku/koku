@@ -20,6 +20,7 @@
 import logging
 import os
 import platform
+import socket
 import subprocess
 import sys
 
@@ -85,7 +86,7 @@ class ApplicationStatus():
         try:
             conn = celery_app.connection()
             conn.heartbeat_check()
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, socket.timeout):
             return {'Error': BROKER_CONNECTION_ERROR}
         # Now check if Celery workers are running
         stats = self._check_celery_status()
