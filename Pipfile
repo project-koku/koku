@@ -22,7 +22,7 @@ django-cors-headers = "==2.4.0"
 querystring-parser = ">=1.2.3"
 djangorestframework-csv = "==2.1.0"
 pint = "==0.8.1"
-pytz = "==2018.7"
+pytz = "==2018.9"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.5.0"
 
