@@ -29,8 +29,6 @@ LOG = logging.getLogger(__name__)
 class ReportChargeUpdaterError(Exception):
     """Expired Data Removalerror."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class ReportChargeUpdater:

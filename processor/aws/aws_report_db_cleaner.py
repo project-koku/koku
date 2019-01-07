@@ -27,8 +27,6 @@ LOG = logging.getLogger(__name__)
 class AWSReportDBCleanerError(Exception):
     """Raise an error during AWS report cleaning."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class AWSReportDBCleaner():

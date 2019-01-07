@@ -39,7 +39,6 @@ class DownloaderInterface(ABC):
                 files       - ([]): List of report files.
 
         """
-        pass
 
     @abstractmethod
     def get_local_file_for_report(self, report):
@@ -53,7 +52,6 @@ class DownloaderInterface(ABC):
             (String) Full path to report file.
 
         """
-        pass
 
     @abstractmethod
     def download_file(self, key, stored_etag=None):
@@ -68,4 +66,3 @@ class DownloaderInterface(ABC):
             (String, String) Full local file path to report, etag value.
 
         """
-        pass

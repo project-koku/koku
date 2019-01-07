@@ -32,8 +32,6 @@ LOG = logging.getLogger(__name__)
 class AWSNotificationHandlerError(Exception):
     """AWS Notification Handler error."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class AWSNotificationHandler(NotificationInterface):
@@ -70,7 +68,6 @@ class AWSNotificationHandler(NotificationInterface):
 
         """
         # Validate signature of request body.  Throw exception if verification fails
-        pass
 
     def get_billing_source(self):
         """

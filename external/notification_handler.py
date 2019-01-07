@@ -24,13 +24,9 @@ from masu.external.notifications.notification_interface import NotificationInter
 class NotificationHandlerError(Exception):
     """Notification Handler error."""
 
-    pass
-
 
 class NotificationHandlerFilter(Exception):
     """Notification Handler filter."""
-
-    pass
 
 
 # pylint: disable=too-few-public-methods
