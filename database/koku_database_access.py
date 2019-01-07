@@ -137,7 +137,6 @@ class KokuDBAccess(ABC):
         Returns:
             None
         """
-        pass
 
     def does_db_entry_exist(self):
         """

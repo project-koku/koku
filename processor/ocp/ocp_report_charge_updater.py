@@ -29,8 +29,6 @@ LOG = logging.getLogger(__name__)
 class OCPReportChargeUpdaterError(Exception):
     """OCPReportChargeUpdater error."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class OCPReportChargeUpdater:

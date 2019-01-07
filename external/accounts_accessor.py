@@ -25,8 +25,6 @@ from masu.external.accounts.network.cur_accounts_network import CURAccountsNetwo
 class AccountsAccessorError(Exception):
     """Cost Usage Report Accounts error."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class AccountsAccessor:

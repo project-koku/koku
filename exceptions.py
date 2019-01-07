@@ -20,28 +20,18 @@
 class MasuProcessingError(Exception):
     """Masu Processing Error."""
 
-    pass
-
 
 class MasuProviderError(Exception):
     """Masu Provider Error."""
-
-    pass
 
 
 class MasuConfigurationError(Exception):
     """Masu Configuration Error."""
 
-    pass
-
 
 class CURAccountsInterfaceError(Exception):
     """CURAccountsInterface error."""
 
-    pass
-
 
 class HasherError(Exception):
     """Hasher Utility class error."""
-
-    pass

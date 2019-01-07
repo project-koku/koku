@@ -22,8 +22,6 @@ from abc import ABC, abstractmethod
 class NotificationInterfaceFilter(Exception):
     """AWS Notification Handler filter."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 class NotificationInterface(ABC):
@@ -46,4 +44,3 @@ class NotificationInterface(ABC):
             (String) Name of the billing source.
 
         """
-        pass

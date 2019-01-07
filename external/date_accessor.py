@@ -30,8 +30,6 @@ LOG = logging.getLogger(__name__)
 class DateAccessorError(Exception):
     """An exception during date processing."""
 
-    pass
-
 
 # pylint: disable=too-few-public-methods
 # pylint: disable=no-self-use

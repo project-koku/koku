@@ -38,4 +38,3 @@ class CURAccountsInterface(ABC):
             None
 
         """
-        pass
