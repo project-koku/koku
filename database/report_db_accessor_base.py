@@ -120,7 +120,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         Args:
             table_name (str): The main table to insert into
             temp_table_name (str): The temp table to pull from
-            columsn (list): A list of columns to use in the insert logic
+            columns (list): A list of columns to use in the insert logic
 
         Returns:
             (None)
