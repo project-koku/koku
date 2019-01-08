@@ -50,6 +50,7 @@ class ProcessedOCPReport:
         self.report_periods = {}
         self.reports = {}
         self.line_items = []
+        self.line_item_keys = {}
 
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
@@ -236,7 +237,14 @@ class OCPReportProcessor(ReportProcessorBase):
         data['report_id'] = report_id
         data['pod_labels'] = self._process_pod_labels(pod_label_str)
 
+        # Deduplicate potential repeated rows in data
+        key = tuple(data.get(column)
+                    for column in self.line_item_conflict_columns)
+        if key in self.processed_report.line_item_keys:
+            return
+
         self.processed_report.line_items.append(data)
+        self.processed_report.line_item_keys[key] = True
 
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
@@ -314,11 +322,6 @@ class OCPReportProcessor(ReportProcessorBase):
         """Create a property to check conflict on line items."""
         return ['report_id', 'namespace', 'pod', 'node']
 
-    @property
-    def line_item_condition_column(self):
-        """Create a property with condition to check for line item inserts."""
-        return 'namespace'
-
     def process(self):
         """Process usage report file.
 
@@ -349,7 +352,6 @@ class OCPReportProcessor(ReportProcessorBase):
                             OCP_REPORT_TABLE_MAP['line_item'],
                             temp_table,
                             self.line_item_columns,
-                            self.line_item_condition_column,
                             self.line_item_conflict_columns
                         )
 
@@ -367,7 +369,6 @@ class OCPReportProcessor(ReportProcessorBase):
                         OCP_REPORT_TABLE_MAP['line_item'],
                         temp_table,
                         self.line_item_columns,
-                        self.line_item_condition_column,
                         self.line_item_conflict_columns
                     )
 
