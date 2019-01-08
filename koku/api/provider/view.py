@@ -198,7 +198,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
               ]
             }
         """
-        return super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request=request, args=args, kwargs=kwargs)
+        for provider in response.data['results']:
+            manager = ProviderManager(provider['uuid'])
+            provider_stats = manager.provider_statistics()
+            provider['stats'] = provider_stats
+        return response
 
     def retrieve(self, request, *args, **kwargs):
         """Get a provider.

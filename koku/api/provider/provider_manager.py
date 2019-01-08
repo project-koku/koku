@@ -64,17 +64,38 @@ class ProviderManager:
         return self.model.customer == current_user.customer
 
     def provider_statistics(self):
-        """Return a json object of latest provider statistics."""
-        status = {}
+        """Return a json object of provider report statistics."""
+        manifest_months_query = CostUsageReportManifest.objects\
+            .filter(provider=self.model).distinct('billing_period_start_datetime')\
+            .order_by('billing_period_start_datetime').all()
+    
+        months = []
+        for month in manifest_months_query[:2]:
+            months.append(month.billing_period_start_datetime.date())
+    
+        provider_stats = {}
+        for month in sorted(months, reverse=True):
+            provider_stats[str(month)] = []
+            month_stats = []
+            stats_query = CostUsageReportManifest.objects.\
+                filter(provider=self.model, billing_period_start_datetime=month).\
+                order_by('manifest_creation_datetime')
+            
+            for provider_manifest in stats_query.reverse()[:3]:
+                status = {}
+                report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
+                status['assembly_id'] = provider_manifest.assembly_id
+                status['billing_period_start'] = provider_manifest.billing_period_start_datetime.date()
+                status['files_processed'] = '{}/{}'.format(provider_manifest.num_processed_files,
+                                                           provider_manifest.num_total_files)
+                status['last_process_start_date'] = report_status.\
+                    last_started_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                status['last_process_complete_date'] = report_status.\
+                    last_completed_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                month_stats.append(status)
+            provider_stats[str(month)] = month_stats
 
-        provider_manifest = CostUsageReportManifest.objects.filter(provider=self.model).latest('manifest_creation_datetime')
-        report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
-        status['current_assembly_id'] = provider_manifest.assembly_id
-        status['billing_period_start'] = provider_manifest.billing_period_start_datetime
-        status['files_processed'] = '{}/{}'.format(provider_manifest.num_processed_files, provider_manifest.num_total_files)
-        status['last_process_start_date'] = report_status.last_started_datetime
-        status['last_process_complete_date'] = report_status.last_completed_datetime
-        return status
+        return provider_stats
 
     @transaction.atomic
     def remove(self, current_user, customer_remove_context=False):
