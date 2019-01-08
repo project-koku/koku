@@ -27,6 +27,7 @@ from rest_framework.response import Response
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
+from api.report.view import get_tenant
 from .provider_manager import ProviderManager
 
 
@@ -201,7 +202,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         response = super().list(request=request, args=args, kwargs=kwargs)
         for provider in response.data['results']:
             manager = ProviderManager(provider['uuid'])
-            provider_stats = manager.provider_statistics()
+            tenant = get_tenant(request.user)
+            provider_stats = manager.provider_statistics(tenant)
             provider['stats'] = provider_stats
         return response
 
@@ -255,8 +257,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
             }
         """
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
-        provider_stats = manager.provider_statistics()
+        provider_stats = manager.provider_statistics(tenant)
         response.data['stats'] = provider_stats
         return response
 
