@@ -21,7 +21,7 @@ import logging
 
 from flask import jsonify
 
-from masu.processor.orchestrator import Orchestrator
+from masu.celery.tasks import check_report_updates
 from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -32,6 +32,5 @@ API_V1_ROUTES = {}
 @application_route('/download/', API_V1_ROUTES, methods=('GET',))
 def download_report():
     """Return download file async task ID."""
-    orchestrator = Orchestrator()
-    async_download_result = orchestrator.prepare()
+    async_download_result = check_report_updates.delay()
     return jsonify({'Download Request Task ID': str(async_download_result)})
