@@ -79,8 +79,9 @@ class ProviderManager:
                 query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
                                                         billing_period_start=period_start).first()
 
-        stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
-        stats['summary_data_updated_datetime'] = query.summary_data_updated_datetime.strftime(DATE_TIME_FORMAT)
+        if query:
+            stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
+            stats['summary_data_updated_datetime'] = query.summary_data_updated_datetime.strftime(DATE_TIME_FORMAT)
 
         return stats
 

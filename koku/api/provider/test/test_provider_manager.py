@@ -19,6 +19,7 @@ import json
 import logging
 from unittest.mock import patch
 
+from dateutil import parser
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
@@ -26,6 +27,7 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from rates.models import Rate
 
 
@@ -261,3 +263,89 @@ class ProviderManagerTest(IamTestCase):
         with self.assertLogs('api.provider.provider_manager', level='INFO') as logger:
             manager._delete_report_data()
             self.assertIn(expected_message, logger.output)
+
+    def test_provider_statistics(self):
+        """Test that the provider statistics method returns report stats."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='OCP',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(provider.id)
+
+        provider_uuid = provider.uuid
+        manager = ProviderManager(provider_uuid)
+
+        stats = manager.provider_statistics(self.tenant)
+
+        self.assertIn(str(data_generator.dh.this_month_start.date()), stats.keys())
+        self.assertIn(str(data_generator.dh.last_month_start.date()), stats.keys())
+
+        for key, value in stats.items():
+            key_date_obj = parser.parse(key)
+            value_data = value.pop()
+
+            self.assertIsNotNone(value_data.get('assembly_id'))
+            self.assertIsNotNone(value_data.get('files_processed'))
+            self.assertEqual(value_data.get('billing_period_start'), key_date_obj.date())
+            self.assertGreater(parser.parse(value_data.get('last_process_start_date')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('summary_data_creation_datetime')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('summary_data_updated_datetime')), key_date_obj)
+
+    def test_provider_statistics_no_report_data(self):
+        """Test that the provider statistics method returns no report stats with no report data."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='OCP',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.remove_data_from_reporting_common()
+        data_generator.remove_data_from_tenant()
+
+        provider_uuid = provider.uuid
+        manager = ProviderManager(provider_uuid)
+
+        stats = manager.provider_statistics(self.tenant)
+        self.assertEqual(stats, {})
+
+    def test_provider_statistics_negative_case(self):
+        """Test that the provider statistics method returns None for tenant misalignment."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='AWS',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(provider.id)
+
+        provider_uuid = provider.uuid
+        manager = ProviderManager(provider_uuid)
+
+        stats = manager.provider_statistics(self.tenant)
+
+        self.assertIn(str(data_generator.dh.this_month_start.date()), stats.keys())
+        self.assertIn(str(data_generator.dh.last_month_start.date()), stats.keys())
+
+        for key, value in stats.items():
+            key_date_obj = parser.parse(key)
+            value_data = value.pop()
+
+            self.assertIsNotNone(value_data.get('assembly_id'))
+            self.assertIsNotNone(value_data.get('files_processed'))
+            self.assertEqual(value_data.get('billing_period_start'), key_date_obj.date())
+            self.assertGreater(parser.parse(value_data.get('last_process_start_date')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
+            self.assertIsNone(value_data.get('summary_data_creation_datetime'))
+            self.assertIsNone(value_data.get('summary_data_updated_datetime'))
