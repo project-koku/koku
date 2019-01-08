@@ -23,14 +23,16 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
 from requests.exceptions import ConnectionError
-from reporting.provider.aws.models import AWSCostEntryBill
-from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting_common.models import CostUsageReportStatus, CostUsageReportManifest
-from api.provider.models import Provider
-from rates.models import Rate
 from tenant_schemas.utils import tenant_context
 
+from api.provider.models import Provider
+from rates.models import Rate
+from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
+
+DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 LOG = logging.getLogger(__name__)
 
 
@@ -71,12 +73,14 @@ class ProviderManager:
         stats = {}
         with tenant_context(tenant):
             if provider.type == 'OCP':
-                query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id, report_period_start=period_start).first()
+                query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id,
+                                                            report_period_start=period_start).first()
             elif provider.type == 'AWS':
-                query = AWSCostEntryBill.objects.filter(provider_id=provider.id, billing_period_start=period_start).first()
+                query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
+                                                        billing_period_start=period_start).first()
 
-        stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime("%Y-%m-%d %H:%M:%S")
-        stats['summary_data_updated_datetime'] = query.summary_data_updated_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
+        stats['summary_data_updated_datetime'] = query.summary_data_updated_datetime.strftime(DATE_TIME_FORMAT)
 
         return stats
 
@@ -85,11 +89,11 @@ class ProviderManager:
         manifest_months_query = CostUsageReportManifest.objects\
             .filter(provider=self.model).distinct('billing_period_start_datetime')\
             .order_by('billing_period_start_datetime').all()
-    
+
         months = []
         for month in manifest_months_query[:2]:
             months.append(month.billing_period_start_datetime)
-    
+
         provider_stats = {}
         for month in sorted(months, reverse=True):
             stats_key = str(month.date())
@@ -98,7 +102,7 @@ class ProviderManager:
             stats_query = CostUsageReportManifest.objects.\
                 filter(provider=self.model, billing_period_start_datetime=month).\
                 order_by('manifest_creation_datetime')
-            
+
             for provider_manifest in stats_query.reverse()[:3]:
                 status = {}
                 report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
@@ -107,12 +111,14 @@ class ProviderManager:
                 status['files_processed'] = '{}/{}'.format(provider_manifest.num_processed_files,
                                                            provider_manifest.num_total_files)
                 status['last_process_start_date'] = report_status.\
-                    last_started_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                    last_started_datetime.strftime(DATE_TIME_FORMAT)
                 status['last_process_complete_date'] = report_status.\
-                    last_completed_datetime.strftime("%Y-%m-%d %H:%M:%S")
-                month_stats.append(status)
+                    last_completed_datetime.strftime(DATE_TIME_FORMAT)
                 schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
-                month_stats.append(schema_stats)
+                status['summary_data_creation_datetime'] = schema_stats.get('summary_data_creation_datetime')
+                status['summary_data_updated_datetime'] = schema_stats.get('summary_data_updated_datetime')
+                month_stats.append(status)
+
             provider_stats[stats_key] = month_stats
 
         return provider_stats
