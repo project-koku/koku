@@ -23,6 +23,7 @@ from itertools import groupby
 from urllib.parse import quote_plus
 
 from django.db.models import CharField, F, Max, Q, Sum, Value
+from django.db.models.expressions import OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter, QueryFilterCollection
@@ -61,8 +62,12 @@ class ProviderMap(object):
                         'avail_zone': 'availability_zone'},
         'end_date': 'usage_end',
         'filters': {
-            'account': {'field': 'account_alias__account_alias',
-                        'operation': 'icontains'},
+            'account': [{'field': 'account_alias__account_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'},
+                        {'field': 'usage_account_id',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'}],
             'service': {'field': 'product_code',
                         'operation': 'icontains'},
             'avail_zone': {'field': 'availability_zone',
@@ -146,8 +151,12 @@ class ProviderMap(object):
         'filters': {
             'project': {'field': 'namespace',
                         'operation': 'icontains'},
-            'cluster': {'field': 'cluster_alias',
-                        'operation': 'icontains'},
+            'cluster': [{'field': 'cluster_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'},
+                        {'field': 'cluster_id',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'}],
             'pod': {'field': 'pod',
                     'operation': 'icontains'},
             'node': {'field': 'node',
@@ -353,9 +362,15 @@ class ReportQueryHandler(QueryHandler):
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                for item in list_:
-                    q_filter = QueryFilter(parameter=item, **filt)
-                    filters.add(q_filter)
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
+                else:
+                    for item in list_:
+                        q_filter = QueryFilter(parameter=item, **filt)
+                        filters.add(q_filter)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -595,6 +610,27 @@ class ReportQueryHandler(QueryHandler):
                 sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
                                      reverse=reverse)
         return sorted_data
+
+    def get_tag_order_by(self, tag):
+        """Generate an OrderBy clause forcing JSON column->key to be used.
+
+        Args:
+            tag (str): The Django formatted tag string
+                       Ex. pod_labels__key
+
+        Returns:
+            OrderBy: A Django OrderBy clause using raw SQL
+
+        """
+        descending = True if self.order_direction == 'desc' else False
+        tag_column, tag_value = tag.split('__')
+        return OrderBy(
+            RawSQL(
+                f'{tag_column} -> %s',
+                (tag_value,)
+            ),
+            descending=descending
+        )
 
     def _percent_delta(self, a, b):
         """Calculate a percent delta.
