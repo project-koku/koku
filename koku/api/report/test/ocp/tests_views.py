@@ -869,3 +869,103 @@ class OCPReportViewTest(IamTestCase):
         expected_keys = ['date', group_by_key + 's']
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
+
+    def test_execute_query_with_group_by_tag_and_limit(self):
+        """Test that data is grouped by tag key and limited."""
+        data_generator = OCPReportDataGenerator(self.tenant, dated_tags=False)
+        data_generator.add_data_to_tenant()
+        group_by_key = 'app_label'
+
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            f'group_by[tag:{group_by_key}]': '*',
+            'filter[limit]': 2
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        previous_tag = data[0].get('app_labels', [])[0].get('app_label')
+
+        for entry in data[0].get('app_labels', []):
+            current_tag = entry.get('app_label')
+            self.assertTrue(current_tag <= previous_tag)
+
+    def test_execute_query_with_group_by_and_limit(self):
+        """Test that data is grouped by and limited."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'group_by[node]': '*',
+            'filter[limit]': 1
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        for entry in data:
+            other = entry.get('nodes', [])[-1:]
+            self.assertIn('Other', other[0].get('node'))
+
+    def test_execute_query_with_group_by_order_by_and_limit(self):
+        """Test that data is grouped by and limited on order by."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[node]': '*',
+            'order_by[usage]': 'desc',
+            'filter[limit]': 1
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('usage')
+        for entry in data[0].get('nodes', []):
+            current_usage = entry.get('values', [])[0].get('usage')
+            self.assertTrue(current_usage <= previous_usage)
+            previous_usage = current_usage
+
+    def test_execute_query_with_order_by_delta_and_limit(self):
+        """Test that data is grouped and limited by order by delta."""
+        url = reverse('reports-ocp-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[node]': '*',
+            'order_by[delta]': 'desc',
+            'filter[limit]': 1,
+            'delta': 'usage__capacity'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        previous_usage = (
+            data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
+            data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
+        )
+        for entry in data[0].get('nodes', []):
+            current_usage = (
+                data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
+                data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
+        )
+            self.assertTrue(current_usage >= previous_usage)
+            previous_usage = current_usage
