@@ -28,8 +28,9 @@ class QueryFilter(UserDict):
     field = None
     operation = None
     parameter = None
+    composition_key = None
 
-    def __init__(self, table=None, field=None, operation=None, parameter=None):
+    def __init__(self, table=None, field=None, operation=None, parameter=None, composition_key=None):
         """Constructor.
 
         Args:
@@ -37,6 +38,7 @@ class QueryFilter(UserDict):
             field (str) - The name of a DB field
             operation (str) - The name of a DB operation, e.g. 'in' or 'gte'
             parameter (object) - A valid query target, e.g. a list or datetime
+            composition_key(str) - A key used for composing filters on different fields into an OR
         """
         super().__init__(table=table, field=field, operation=operation,
                          parameter=parameter)
@@ -44,12 +46,20 @@ class QueryFilter(UserDict):
         self.field = field
         self.operation = operation
         self.parameter = parameter
+        self.composition_key = composition_key
 
     def composed_query_string(self):
         """Return compiled query string."""
         fields = [entry for entry in [self.table, self.field, self.operation]
                   if entry is not None]
         return self.SEP.join(fields)
+
+    def compose_key(self):
+        """Return compose key or composed_query_string."""
+        key = self.composition_key
+        if key is None:
+            key = self.composed_query_string()
+        return key
 
     def composed_Q(self):
         """Return a Q object formatted for Django's ORM."""
@@ -148,7 +158,7 @@ class QueryFilterCollection(object):
         composed_query = None
         compose_dict = defaultdict(list)
         for filt in self._filters:
-            filt_key = filt.composed_query_string()
+            filt_key = filt.compose_key()
             compose_dict[filt_key].append(filt)
 
         for filter_list in compose_dict.values():

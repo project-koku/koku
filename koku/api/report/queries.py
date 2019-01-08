@@ -62,8 +62,12 @@ class ProviderMap(object):
                         'avail_zone': 'availability_zone'},
         'end_date': 'usage_end',
         'filters': {
-            'account': {'field': 'account_alias__account_alias',
-                        'operation': 'icontains'},
+            'account': [{'field': 'account_alias__account_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'},
+                        {'field': 'usage_account_id',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'}],
             'service': {'field': 'product_code',
                         'operation': 'icontains'},
             'avail_zone': {'field': 'availability_zone',
@@ -147,8 +151,12 @@ class ProviderMap(object):
         'filters': {
             'project': {'field': 'namespace',
                         'operation': 'icontains'},
-            'cluster': {'field': 'cluster_alias',
-                        'operation': 'icontains'},
+            'cluster': [{'field': 'cluster_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'},
+                        {'field': 'cluster_id',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'}],
             'pod': {'field': 'pod',
                     'operation': 'icontains'},
             'node': {'field': 'node',
@@ -354,9 +362,15 @@ class ReportQueryHandler(QueryHandler):
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
-                for item in list_:
-                    q_filter = QueryFilter(parameter=item, **filt)
-                    filters.add(q_filter)
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        for item in list_:
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
+                else:
+                    for item in list_:
+                        q_filter = QueryFilter(parameter=item, **filt)
+                        filters.add(q_filter)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
