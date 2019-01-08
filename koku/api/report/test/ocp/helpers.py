@@ -35,11 +35,12 @@ from reporting.models import (OCPUsageLineItem,
 class OCPReportDataGenerator:
     """Populate the database with OCP report data."""
 
-    def __init__(self, tenant, current_month_only=False):
+    def __init__(self, tenant, current_month_only=False, dated_tags=None):
         """Set up the class."""
         self.tenant = tenant
         self.fake = Faker()
         self.dh = DateHelper()
+        self.dated_tags = True if dated_tags is None or dated_tags is True else False
 
         self.today = self.dh.today
         self.one_month_ago = self.today - relativedelta(months=1)
@@ -163,10 +164,13 @@ class OCPReportDataGenerator:
             label_value = self.fake.word()  # pylint: disable=no-member
             if label_key in seeded_labels:
                 label_value = random.choice(seeded_labels[label_key])
-            labels['{}-{}-{}*{}_label'.format(report.interval_start.month,
-                                              report.interval_start.day,
-                                              report.interval_start.year,
-                                              label_key)] = label_value
+            if self.dated_tags:
+                labels['{}-{}-{}*{}_label'.format(report.interval_start.month,
+                                                  report.interval_start.day,
+                                                  report.interval_start.year,
+                                                  label_key)] = label_value
+            else:
+                labels['{}_label'.format(label_key)] = label_value
 
         return labels
 
