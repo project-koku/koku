@@ -731,7 +731,7 @@ paths:
       - name: 'key_only'
         in: 'query'
         description: 'Flag to indicate whether or not only the tag key values will be returned.'
-        type: 'Boolean'
+        type: 'boolean'
       responses:
         '200':
           description: A report object
@@ -873,7 +873,7 @@ definitions:
       stats:
         type: object
         description: Dictionary key is the start of a billing month.  Value is report processing statistics.
-        example: "stats": {
+        example: {
                 "2019-01-01": [
                     {
                         "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
@@ -1618,21 +1618,7 @@ definitions:
         $ref: '#/definitions/TagsFilterOCP'
       data:
         type: array
-        items:
-          type: list
-          example: [
-                "production",
-                "staging",
-                "test"
-            ]
-            example_key_only_true:
-              [{
-                "key": "key_name",
-                "values": [
-                            "value_1",
-                            "value_2"
-                ]
-              }]
+        example: [ "production", "staging","test"]
   User:
     required:
       - username
