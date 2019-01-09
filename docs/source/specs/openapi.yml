@@ -731,7 +731,7 @@ paths:
       - name: 'key_only'
         in: 'query'
         description: 'Flag to indicate whether or not only the tag key values will be returned.'
-        type: 'Boolean'
+        type: 'boolean'
       responses:
         '200':
           description: A report object
@@ -856,6 +856,7 @@ definitions:
       - billing_source
       - customer
       - created_by
+      - stats
     properties:
       uuid:
         type: string
@@ -869,6 +870,22 @@ definitions:
         $ref: '#/definitions/CustomerOut'
       created_by:
         $ref: '#/definitions/UserOut'
+      stats:
+        type: object
+        description: Dictionary key is the start of a billing month.  Value is report processing statistics.
+        example: {
+                "2019-01-01": [
+                    {
+                        "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                        "billing_period_start": "2019-01-01",
+                        "files_processed": "1/1",
+                        "last_process_start_date": "2019-01-07 21:50:58",
+                        "last_process_complete_date": "2019-01-07 21:51:01",
+                        "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                        "summary_data_updated_datetime": "2019-01-07 21:51:32"
+                    }
+                ]
+            }
   ProviderPagination:
     allOf:
       - $ref: '#/definitions/ListPagination'
@@ -1601,21 +1618,7 @@ definitions:
         $ref: '#/definitions/TagsFilterOCP'
       data:
         type: array
-        items:
-          type: list
-          example: [
-                "production",
-                "staging",
-                "test"
-            ]
-            example_key_only_true:
-              [{
-                "key": "key_name",
-                "values": [
-                            "value_1",
-                            "value_2"
-                ]
-              }]
+        example: [ "production", "staging","test"]
   User:
     required:
       - username
