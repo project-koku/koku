@@ -27,6 +27,7 @@ from rest_framework.response import Response
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
+from api.report.view import get_tenant
 from .provider_manager import ProviderManager
 
 
@@ -193,12 +194,31 @@ class ProviderViewSet(mixins.CreateModelMixin,
                             "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                             "username": "smithj",
                             "email": "smithj@mytechco.com"
+                        },
+                        "stats": {
+                            "2019-01-01": [
+                                {
+                                    "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                    "billing_period_start": "2019-01-01",
+                                    "files_processed": "1/1",
+                                    "last_process_start_date": "2019-01-07 21:50:58",
+                                    "last_process_complete_date": "2019-01-07 21:51:01",
+                                    "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                                    "summary_data_updated_datetime": "2019-01-07 21:51:32"
+                                }
+                            ]
                         }
                     }
               ]
             }
         """
-        return super().list(request=request, args=args, kwargs=kwargs)
+        response = super().list(request=request, args=args, kwargs=kwargs)
+        for provider in response.data['results']:
+            manager = ProviderManager(provider['uuid'])
+            tenant = get_tenant(request.user)
+            provider_stats = manager.provider_statistics(tenant)
+            provider['stats'] = provider_stats
+        return response
 
     def retrieve(self, request, *args, **kwargs):
         """Get a provider.
@@ -219,6 +239,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiSuccess {Object} billing_source  The billing source information for the provider.
         @apiSuccess {Object} customer  The customer the provider is assocaited with.
         @apiSuccess {Object} created_by  The user the provider was created by.
+        @apiSuccess {Object} stats  Report processing statistics.
+
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
@@ -246,10 +268,28 @@ class ProviderViewSet(mixins.CreateModelMixin,
                     "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                     "username": "smithj",
                     "email": "smithj@mytechco.com"
+                },
+                "stats": {
+                    "2019-01-01": [
+                        {
+                            "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                            "billing_period_start": "2019-01-01",
+                            "files_processed": "1/1",
+                            "last_process_start_date": "2019-01-07 21:50:58",
+                            "last_process_complete_date": "2019-01-07 21:51:01",
+                            "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                            "summary_data_updated_datetime": "2019-01-07 21:51:32"
+                        }
+                    ]
                 }
             }
         """
-        return super().retrieve(request=request, args=args, kwargs=kwargs)
+        response = super().retrieve(request=request, args=args, kwargs=kwargs)
+        tenant = get_tenant(request.user)
+        manager = ProviderManager(kwargs['uuid'])
+        provider_stats = manager.provider_statistics(tenant)
+        response.data['stats'] = provider_stats
+        return response
 
     def destroy(self, request, *args, **kwargs):
             """Delete a provider.
