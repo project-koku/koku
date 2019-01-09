@@ -15,8 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCPReportQueryHandler base class."""
+import hashlib
 import random
 from decimal import Decimal
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import DecimalField, ExpressionWrapper, F, Max, Sum
@@ -30,6 +32,7 @@ from reporting.models import (OCPUsageLineItem,
                               OCPUsageLineItemDailySummary,
                               OCPUsageReport,
                               OCPUsageReportPeriod)
+from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
 
 class OCPReportDataGenerator:
@@ -71,7 +74,43 @@ class OCPReportDataGenerator:
                 (self.today - relativedelta(days=i) for i in range(10)),
             ]
 
-    def add_data_to_tenant(self):
+    def create_manifest_entry(self, billing_period_start, provider_id):
+        """Populate a report manifest entry."""
+        manifest_creation_datetime = billing_period_start + relativedelta(days=random.randint(1, 27))
+        manifest_updated_datetime = manifest_creation_datetime + relativedelta(days=random.randint(1, 2))
+        data = {
+            'assembly_id': uuid4(),
+            'manifest_creation_datetime': manifest_creation_datetime,
+            'manifest_updated_datetime': manifest_updated_datetime,
+            'billing_period_start_datetime': billing_period_start,
+            'num_processed_files': 1,
+            'num_total_files': 1,
+            'provider_id': provider_id
+        }
+        manifest_entry = CostUsageReportManifest(**data)
+        manifest_entry.save()
+        return manifest_entry
+
+    def create_report_status_entry(self, billing_period_start, manifest_id):
+        """Populate a report status entry."""
+        etag_hasher = hashlib.new('ripemd160')
+        etag_hasher.update(bytes(str(billing_period_start), 'utf-8'))
+        ocp_etag = etag_hasher.hexdigest()
+
+        last_started_datetime = billing_period_start + relativedelta(days=random.randint(1, 3))
+        last_completed_datetime = last_started_datetime + relativedelta(days=1)
+        data = {
+            'report_name': uuid4(),
+            'last_completed_datetime': last_completed_datetime,
+            'last_started_datetime': last_started_datetime,
+            'etag': ocp_etag,
+            'manifest_id': manifest_id,
+        }
+        status_entry = CostUsageReportStatus(**data)
+        status_entry.save()
+        return status_entry
+
+    def add_data_to_tenant(self, provider_id=None):
         """Populate tenant with data."""
         self.cluster_id = self.fake.word()
         self.namespaces = [self.fake.word() for _ in range(2)]
@@ -86,8 +125,10 @@ class OCPReportDataGenerator:
         ]
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):
-                report_period = self.create_ocp_report_period(period)
-
+                report_period = self.create_ocp_report_period(period, provider_id)
+                if provider_id:
+                    manifest_entry = self.create_manifest_entry(report_period.report_period_start, provider_id)
+                    self.create_report_status_entry(manifest_entry.billing_period_start_datetime, manifest_entry.id)
                 for report_date in self.report_ranges[i]:
                     report = self.create_ocp_report(
                         report_period,
@@ -110,7 +151,13 @@ class OCPReportDataGenerator:
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
 
-    def create_ocp_report_period(self, period):
+    def remove_data_from_reporting_common(self):
+        """Remove the public report statistics."""
+        for table in (CostUsageReportManifest,
+                      CostUsageReportStatus):
+            table.objects.all().delete()
+
+    def create_ocp_report_period(self, period, provider_id=1):
         """Create the OCP report period DB rows."""
         data = {
             'cluster_id': self.cluster_id,
@@ -118,7 +165,7 @@ class OCPReportDataGenerator:
             'report_period_end': period[1],
             'summary_data_creation_datetime': self.dh._now,
             'summary_data_updated_datetime': self.dh._now,
-            'provider_id': 1
+            'provider_id': provider_id
         }
         report_period = OCPUsageReportPeriod(**data)
         report_period.save()
