@@ -64,8 +64,9 @@ class AWSReportSummaryUpdater:
         if isinstance(end_date, datetime.date):
             end_date = end_date.strftime('%Y-%m-%d')
         elif end_date is None:
-            # Run for 1 day
-            end_date = start_date
+            # Run up to the current date
+            end_date = self._date_accessor.today_with_timezone('UTC')
+            end_date = end_date.strftime('%Y-%m-%d')
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 

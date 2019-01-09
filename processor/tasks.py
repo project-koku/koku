@@ -118,13 +118,17 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
     """
     _process_report_file(schema_name, provider, provider_uuid, report_dict)
     LOG.info('Queueing update_summary_tables task for %s', schema_name)
-    start_date = DateAccessor().today().strftime('%Y-%m-%d')
+    # Provide a buffer to catch unprocessed data
+    start_date = DateAccessor().today() - datetime.timedelta(days=2)
+    start_date = start_date.strftime('%Y-%m-%d')
+    end_date = DateAccessor().today().strftime('%Y-%m-%d')
 
     update_summary_tables.delay(
         schema_name,
         provider,
         provider_uuid,
         start_date,
+        end_date=end_date,
         manifest_id=report_dict.get('manifest_id')
     )
 
