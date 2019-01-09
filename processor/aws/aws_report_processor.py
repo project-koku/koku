@@ -318,21 +318,24 @@ class AWSReportProcessor(ReportProcessorBase):
                 if key in column_map}
 
     # pylint: disable=no-self-use
-    def _process_tags(self, row, tag_suffix='resourceTags'):
+    def _process_tags(self, row, tag_prefix='resourceTags'):
         """Return a JSON string of AWS resource tags.
 
         Args:
             row (dict): A dictionary representation of a CSV file row
-            tag_suffix (str): A specifier used to identify a value as a tag
+            tag_prefix (str): A specifier used to identify a value as a tag
 
         Returns:
             (str): A JSON string of AWS resource tags
 
         """
-        return json.dumps(
-            {key: value for key, value in row.items()
-             if tag_suffix in key and row[key]}
-        )
+        tag_dict = {}
+        for key, value in row.items():
+            if tag_prefix in key and row[key]:
+                key_value = key.split(':')
+                if len(key_value) > 1:
+                    tag_dict[key_value[-1]] = value
+        return json.dumps(tag_dict)
 
     # pylint: disable=no-self-use
     def _get_cost_entry_time_interval(self, interval):
