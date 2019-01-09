@@ -194,6 +194,19 @@ class ProviderViewSet(mixins.CreateModelMixin,
                             "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                             "username": "smithj",
                             "email": "smithj@mytechco.com"
+                        },
+                        "stats": {
+                            "2019-01-01": [
+                                {
+                                    "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                    "billing_period_start": "2019-01-01",
+                                    "files_processed": "1/1",
+                                    "last_process_start_date": "2019-01-07 21:50:58",
+                                    "last_process_complete_date": "2019-01-07 21:51:01",
+                                    "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                                    "summary_data_updated_datetime": "2019-01-07 21:51:32"
+                                }
+                            ]
                         }
                     }
               ]
@@ -226,6 +239,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiSuccess {Object} billing_source  The billing source information for the provider.
         @apiSuccess {Object} customer  The customer the provider is assocaited with.
         @apiSuccess {Object} created_by  The user the provider was created by.
+        @apiSuccess {Object} stats  Report processing statistics.
+
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
@@ -253,6 +268,19 @@ class ProviderViewSet(mixins.CreateModelMixin,
                     "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
                     "username": "smithj",
                     "email": "smithj@mytechco.com"
+                },
+                "stats": {
+                    "2019-01-01": [
+                        {
+                            "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                            "billing_period_start": "2019-01-01",
+                            "files_processed": "1/1",
+                            "last_process_start_date": "2019-01-07 21:50:58",
+                            "last_process_complete_date": "2019-01-07 21:51:01",
+                            "summary_data_creation_datetime": "2019-01-07 21:51:32",
+                            "summary_data_updated_datetime": "2019-01-07 21:51:32"
+                        }
+                    ]
                 }
             }
         """
