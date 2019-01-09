@@ -294,6 +294,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                                 null=True)
     tax_type = models.TextField(null=True)
+    tags = JSONField(null=True)
 
 
 class AWSCostEntryLineItemAggregates(models.Model):
