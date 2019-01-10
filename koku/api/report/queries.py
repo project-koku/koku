@@ -72,7 +72,7 @@ class ProviderMap(object):
                         'operation': 'icontains'},
             'avail_zone': {'field': 'availability_zone',
                             'operation': 'icontains'},
-            'region': {'field': 'availability_zone',
+            'region': {'field': 'region',
                         'operation': 'icontains'}
         },
         'report_type': {
