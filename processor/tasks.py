@@ -45,7 +45,7 @@ def get_report_files(customer_name,
                      schema_name,
                      provider_uuid):
     """
-    Task to download a Report.
+    Task to download a Report and process the report.
 
     FIXME: A 2 hour timeout is arbitrarily set for in progress processing requests.
     Once we know a realistic processing time for the largest CUR file in production
@@ -60,9 +60,7 @@ def get_report_files(customer_name,
         schema_name       (String): Name of the DB schema
 
     Returns:
-        files (List) List of filenames with full local path.
-               Example: ['/var/tmp/masu/my-report-name/aws/my-report-file.csv',
-                         '/var/tmp/masu/other-report-name/aws/other-report-file.csv']
+        None
 
     """
     reports = _get_report_files(customer_name,
@@ -94,17 +92,15 @@ def get_report_files(customer_name,
                      file_name, str(started_date), str(completed_date))
             continue
 
-        result = process_report_file.delay(schema_name, provider_type,
-                                           provider_uuid, report_dict)
-        LOG.info('Processing task queued - File: %s, Task ID: %s',
-                 report_dict.get('file'),
-                 str(result))
+        process_report_file(schema_name,
+                            provider_type,
+                            provider_uuid,
+                            report_dict)
 
 
-@celery.task(name='masu.processor.tasks.process_report_file', queue_name='process')
 def process_report_file(schema_name, provider, provider_uuid, report_dict):
     """
-    Task to process a Report.
+    Process a Report and trigger summarization task.
 
     Args:
         schema_name (String) db schema name
@@ -116,6 +112,8 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
         None
 
     """
+    LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
+             schema_name, provider_uuid, report_dict.get('file'))
     _process_report_file(schema_name, provider, provider_uuid, report_dict)
     LOG.info('Queueing update_summary_tables task for %s', schema_name)
     # Provide a buffer to catch unprocessed data
