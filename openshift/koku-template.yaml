@@ -106,7 +106,6 @@ objects:
     django-log-handlers: "console"
     django-log-directory: ""
     django-logging-file: ""
-    api-path-prefix: ''
 - apiVersion: v1
   kind: Service
   metadata:
@@ -372,12 +371,6 @@ objects:
                 configMapKeyRef:
                   name: koku-env
                   key: django-logging-file
-                  optional: true
-            - name: API_PATH_PREFIX
-              valueFrom:
-                configMapKeyRef:
-                  name: koku-env
-                  key: api-path-prefix
                   optional: true
           livenessProbe:
             failureThreshold: 3
