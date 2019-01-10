@@ -99,6 +99,14 @@ objects:
     app-domain: ${APP_DOMAIN}
     django-debug: ${DJANGO_DEBUG}
     api-path-prefix: ${API_PATH_PREFIX}
+    development: "False"
+    koku-log-level: "INFO"
+    django-log-level: "INFO"
+    django-log-formatter: "simple"
+    django-log-handlers: "console"
+    django-log-directory: ""
+    django-logging-file: ""
+    api-path-prefix: ''
 - apiVersion: v1
   kind: Service
   metadata:
@@ -322,6 +330,54 @@ objects:
                 configMapKeyRef:
                   name: koku-env
                   key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: development
+                  optional: true
+            - name: KOKU_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: koku-log-level
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: django-logging-file
+                  optional: true
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: api-path-prefix
                   optional: true
           livenessProbe:
             failureThreshold: 3
