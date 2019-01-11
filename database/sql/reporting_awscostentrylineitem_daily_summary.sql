@@ -1,3 +1,68 @@
+-- Aggregate tags by summary grouping
+CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
+    SELECT t.usage_start,
+        t.product_code,
+        t.product_family,
+        t.usage_account_id,
+        t.availability_zone,
+        t.region,
+        t.instance_type,
+        t.unit,
+        jsonb_object_agg(key, value) as tags
+    FROM (
+        SELECT li.usage_start,
+            li.usage_end,
+            li.product_code,
+            p.product_family,
+            li.usage_account_id,
+            li.availability_zone,
+            p.region,
+            p.instance_type,
+            pr.unit,
+            key,
+            value
+        FROM (
+            SELECT usage_start,
+                usage_end,
+                product_code,
+                usage_account_id,
+                availability_zone,
+                cost_entry_product_id,
+                cost_entry_pricing_id,
+                key,
+                value
+            FROM reporting_awscostentrylineitem_daily AS li,
+                jsonb_each_text(li.tags) tags
+        ) li
+        JOIN reporting_awscostentryproduct AS p
+            ON li.cost_entry_product_id = p.id
+        LEFT JOIN reporting_awscostentrypricing as pr
+            ON li.cost_entry_pricing_id = pr.id
+        WHERE date(li.usage_start) >= '{start_date}'
+            AND date(li.usage_start) <= '{end_date}'
+        GROUP BY li.usage_start,
+            li.usage_end,
+            li.product_code,
+            p.product_family,
+            li.usage_account_id,
+            li.availability_zone,
+            p.region,
+            p.instance_type,
+            pr.unit,
+            key,
+            value
+    ) t
+    GROUP BY t.usage_start,
+        t.product_code,
+        t.product_family,
+        t.usage_account_id,
+        t.availability_zone,
+        t.region,
+        t.instance_type,
+        t.unit
+)
+;
+
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
     SELECT li.usage_start,
@@ -10,6 +75,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
         p.region,
         p.instance_type,
         pr.unit,
+        '{{}}'::jsonb as tags,
         sum(li.usage_amount) as usage_amount,
         max(li.normalization_factor) as normalization_factor,
         sum(li.normalized_usage_amount) as normalized_usage_amount,
@@ -42,7 +108,41 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
 )
 ;
 
--- Clear out old entries first
+UPDATE reporting_awscostentrylineitem_daily_summary_{uuid} d
+SET tags = t.tags
+FROM aws_tag_summary_{uuid} t
+WHERE d.usage_start::date = t.usage_start::date
+    AND (
+        d.product_code = t.product_code
+        OR (d.product_code IS NULL AND t.product_code IS NULL)
+    )
+    AND (
+        d.product_family = t.product_family
+        OR (d.product_family IS NULL AND t.product_family IS NULL)
+    )
+    AND (
+        d.usage_account_id = t.usage_account_id
+        OR (d.usage_account_id IS NULL AND t.usage_account_id IS NULL)
+    )
+    AND (
+        d.availability_zone = t.availability_zone
+        OR (d.availability_zone IS NULL AND t.availability_zone IS NULL)
+    )
+    AND (
+        d.region = t.region
+        OR (d.region IS NULL AND t.region IS NULL)
+    )
+    AND (
+        d.instance_type = t.instance_type
+        OR (d.instance_type IS NULL AND t.instance_type IS NULL)
+    )
+    AND (
+        d.unit = t.unit
+        OR (d.unit IS NULL AND t.unit IS NULL)
+    )
+;
+
+-- -- Clear out old entries first
 DELETE FROM reporting_awscostentrylineitem_daily_summary
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}';
@@ -59,6 +159,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
     region,
     instance_type,
     unit,
+    tags,
     usage_amount,
     normalization_factor,
     normalized_usage_amount,
@@ -81,6 +182,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
         region,
         instance_type,
         unit,
+        tags,
         usage_amount,
         normalization_factor,
         normalized_usage_amount,
