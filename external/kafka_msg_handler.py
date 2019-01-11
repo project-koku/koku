@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import shutil
 import tempfile
 import threading
@@ -273,8 +274,16 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         None
 
     """
+    def backoff(interval, maximum=64):
+        """Exponential back-off."""
+        wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
+        LOG.info('Sleeping for %s seconds.', wait)
+        time.sleep(wait)
+
+    count = 0
     try:
         while True:
+
             consumer = AIOKafkaConsumer(
                 AVAILABLE_TOPIC, HCCM_TOPIC,
                 loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
@@ -287,7 +296,8 @@ def asyncio_worker_thread(loop):  # pragma: no cover
                 loop.run_until_complete(listen_for_messages(consumer))
             except KafkaMsgHandlerError as err:
                 LOG.info('Kafka connection failure.  Error: %s', str(err))
-            time.sleep(Config.INSIGHTS_KAFKA_CONN_RETRY_INTERVAL)
+            backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
+            count += 1
             LOG.info('Attempting to reconnect')
 
     except KeyboardInterrupt:
