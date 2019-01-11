@@ -158,7 +158,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info(f'Updating %s from %s to %s.',
+        LOG.info('Updating %s from %s to %s.',
                  table_name, start_date, end_date)
         self._cursor.execute(daily_sql)
         self._pg2_conn.commit()
@@ -187,7 +187,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info(f'Updating %s from %s to %s.',
+        LOG.info('Updating %s from %s to %s.',
                  table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
@@ -209,4 +209,4 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
-        LOG.info(f'Finished updating %s.', table_name)
+        LOG.info('Finished updating %s.', table_name)

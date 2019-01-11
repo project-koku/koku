@@ -49,7 +49,7 @@ class ReportDownloaderBase():
 
     def _process_manifest_db_record(self, assembly_id, billing_start, num_of_files):
         """Insert or update the manifest DB record."""
-        LOG.info(f'Inserting manifest database record for assembly_id: %s', assembly_id)
+        LOG.info('Inserting manifest database record for assembly_id: %s', assembly_id)
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(

@@ -127,13 +127,8 @@ class Config:
     # Insights Kafka messaging port
     INSIGHTS_KAFKA_PORT = os.getenv('INSIGHTS_KAFKA_PORT', '29092')
 
-    # Insights Kafka connection retry interval
-    try:
-        INSIGHTS_KAFKA_CONN_RETRY_INTERVAL = int(os.getenv('INSIGHTS_KAFKA_CONN_RETRY_INTERVAL',
-                                                           '30'))
-    except ValueError:
-        LOG.error('Unable to set kafka server connection retry interval.  Using 30 second default.')
-        INSIGHTS_KAFKA_CONN_RETRY_INTERVAL = 30
-
     # Insights Kafka server address
     INSIGHTS_KAFKA_ADDRESS = f'{INSIGHTS_KAFKA_HOST}:{INSIGHTS_KAFKA_PORT}'
+
+    # Maximum amount of time to wait before retrying connections to Kafka
+    INSIGHTS_KAFKA_CONN_RETRY_MAX = 300
