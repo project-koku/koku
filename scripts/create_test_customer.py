@@ -79,6 +79,10 @@ class KokuCustomerOnboarder:
         providers.append(self.customer.get('providers').get('ocp_provider'))
 
         for provider in providers:
+            if not provider:
+                continue
+
+            print(f'\nAdding: {provider}')
             data = {
                 'name': provider.get('provider_name'),
                 'type': provider.get('provider_type'),
@@ -95,7 +99,7 @@ class KokuCustomerOnboarder:
                 headers=self.get_headers(self.auth_token),
                 json=data
             )
-            print(response.text)
+            print(f'Response: {response.text}')
         return response
 
     def create_provider_db(self):
