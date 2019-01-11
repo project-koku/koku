@@ -135,7 +135,10 @@ class ReportObjectCreator:
         row.cost_entry_reservation_id = reservation.id
         row.usage_start = cost_entry.interval_start
         row.usage_end = cost_entry.interval_end
-
+        row.tags = {
+            'environment': random.choice(['dev', 'qa', 'prod']),
+            self.fake.pystr()[:8]: self.fake.pystr()[:8]
+        }
         self.db_accessor._session.add(row)
         self.db_accessor._session.commit()
 
