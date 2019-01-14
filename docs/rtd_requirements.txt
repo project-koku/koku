@@ -15,7 +15,7 @@ drf-nested-routers==0.91
 gunicorn==19.9.0
 idna==2.8
 jmespath==0.9.3
-pint==0.8.1
+pint==0.9
 psycopg2-binary==2.7.6.1
 psycopg2==2.7.6.1
 python-dateutil==2.7.5; python_version >= '2.7'
