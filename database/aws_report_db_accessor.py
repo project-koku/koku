@@ -209,4 +209,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        LOG.info(f'Finished updating %s.', table_name)
+
+    def mark_bill_as_finalized(self, bill_id):
+        """Mark a bill in the database as finalized."""
+        table_name = AWS_CUR_TABLE_MAP['bill']
+
+        bill = self._get_db_obj_query(table_name)\
+            .filter_by(id=bill_id)\
+            .first()
+
+        bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
