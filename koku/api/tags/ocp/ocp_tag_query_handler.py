@@ -33,4 +33,4 @@ class OCPTagQueryHandler(TagQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         super().__init__(query_parameters, url_data,
-                         tenant, OCPUsageLineItemDailySummary, **kwargs)
+                         tenant, OCPUsageLineItemDailySummary, 'pod_labels', **kwargs)

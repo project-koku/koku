@@ -32,7 +32,7 @@ class TagQueryHandler(QueryHandler):
     """Handles tag queries and responses."""
 
     def __init__(self, query_parameters, url_data,
-                 tenant, db_table, **kwargs):
+                 tenant, db_table, db_column, **kwargs):
         """Establish tag query handler.
 
         Args:
@@ -46,6 +46,7 @@ class TagQueryHandler(QueryHandler):
                          tenant, default_ordering, **kwargs)
         self.query_filter = self._get_filter()
         self.db_table = db_table
+        self.db_column = db_column
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -89,7 +90,7 @@ class TagQueryHandler(QueryHandler):
             if filters is True:
                 tag_keys = tag_keys.filter(self.query_filter)
 
-            tag_keys = tag_keys.annotate(tag_keys=JSONBObjectKeys('tags'))\
+            tag_keys = tag_keys.annotate(tag_keys=JSONBObjectKeys(self.db_column))\
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
@@ -108,9 +109,9 @@ class TagQueryHandler(QueryHandler):
         with tenant_context(self.tenant):
             tag_keys = self.db_table.objects\
                 .filter(self.query_filter)\
-                .values('tags')\
+                .values(self.db_column)\
                 .all()
-            tag_keys = [tag.get('tags') for tag in tag_keys]
+            tag_keys = [tag.get(self.db_column) for tag in tag_keys]
 
             merged_data = []
             for item in tag_keys:

@@ -33,4 +33,4 @@ class AWSTagQueryHandler(TagQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         super().__init__(query_parameters, url_data,
-                         tenant, AWSCostEntryLineItemDailySummary, **kwargs)
+                         tenant, AWSCostEntryLineItemDailySummary, 'tags', **kwargs)
