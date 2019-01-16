@@ -20,12 +20,12 @@ from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
                        UserPreferenceViewSet,
+                       aws_tags,
                        charges,
                        costs,
                        cpu,
                        instance_type,
                        memory,
-                       aws_tags,
                        ocp_tags,
                        status,
                        storage)
