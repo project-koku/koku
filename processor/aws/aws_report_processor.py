@@ -129,7 +129,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        bill_id = None
+        is_finalized_data = False
         opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
@@ -141,60 +141,37 @@ class AWSReportProcessor(ReportProcessorBase):
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if bill_id is None:
-                        bill_id = self._create_cost_entry_bill(row, report_db)
-
-                    cost_entry_id = self._create_cost_entry(row, bill_id, report_db)
-                    product_id = self._create_cost_entry_product(row, report_db)
-                    pricing_id = self._create_cost_entry_pricing(row, report_db)
-                    reservation_id = self._create_cost_entry_reservation(row, report_db)
-                    self._create_cost_entry_line_item(
-                        row,
-                        cost_entry_id,
-                        bill_id,
-                        product_id,
-                        pricing_id,
-                        reservation_id,
-                        report_db
-                    )
+                    bill_id = self.create_cost_entry_objects(row, report_db)
 
                     if len(self.processed_report.line_items) >= self._batch_size:
-                        self._save_to_db(temp_table, report_db)
+                        LOG.debug('Saving report rows %d to %d for %s', row_count,
+                                  row_count + len(self.processed_report.line_items),
+                                  self._report_name)
+                        is_finalized = self._save_to_db(temp_table, report_db)
+                        if not is_finalized_data:
+                            is_finalized_data = is_finalized
 
-                        report_db.merge_temp_table(
-                            AWS_CUR_TABLE_MAP['line_item'],
-                            temp_table,
-                            self.line_item_columns,
-                            self.line_item_condition_column,
-                            self.line_item_conflict_columns
-                        )
-
-                        LOG.info('Saving report rows %d to %d for %s', row_count,
-                                 row_count + len(self.processed_report.line_items),
-                                 self._report_name)
                         row_count += len(self.processed_report.line_items)
-
                         self._update_mappings()
 
                 if self.processed_report.line_items:
-                    self._save_to_db(temp_table, report_db)
-
-                    report_db.merge_temp_table(
-                        AWS_CUR_TABLE_MAP['line_item'],
-                        temp_table,
-                        self.line_item_columns,
-                        self.line_item_condition_column,
-                        self.line_item_conflict_columns
-                    )
-
-                    LOG.info('Saving report rows %d to %d for %s', row_count,
-                             row_count + len(self.processed_report.line_items),
-                             self._report_name)
+                    LOG.debug('Saving report rows %d to %d for %s', row_count,
+                              row_count + len(self.processed_report.line_items),
+                              self._report_name)
+                    is_finalized = self._save_to_db(temp_table, report_db)
+                    if not is_finalized_data:
+                        is_finalized_data = is_finalized
 
                     row_count += len(self.processed_report.line_items)
 
+                if is_finalized_data:
+                    report_db.mark_bill_as_finalized(bill_id)
+                    report_db.commit()
+
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
+
+        return is_finalized_data
 
     # pylint: disable=too-many-locals
     def remove_temp_cur_files(self, report_path, manifest_id):
@@ -256,11 +233,20 @@ class AWSReportProcessor(ReportProcessorBase):
         # This will commit all pricing, products, and reservations
         # on the session
         report_db_accessor.commit()
-        LOG.error('temp_table %s.', temp_table)
         report_db_accessor.bulk_insert_rows(
             csv_file,
             temp_table,
             columns)
+        # This will add a batch of line items
+        is_finalized = report_db_accessor.merge_temp_table(
+            AWS_CUR_TABLE_MAP['line_item'],
+            temp_table,
+            self.line_item_columns,
+            self.line_item_condition_column,
+            self.line_item_conflict_columns
+        )
+
+        return is_finalized
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
@@ -592,6 +578,25 @@ class AWSReportProcessor(ReportProcessorBase):
         self.processed_report.reservations[arn] = reservation_id
 
         return reservation_id
+
+    def create_cost_entry_objects(self, row, report_db_accesor):
+        """Create the set of objects required for a row of data."""
+        bill_id = self._create_cost_entry_bill(row, report_db_accesor)
+        cost_entry_id = self._create_cost_entry(row, bill_id, report_db_accesor)
+        product_id = self._create_cost_entry_product(row, report_db_accesor)
+        pricing_id = self._create_cost_entry_pricing(row, report_db_accesor)
+        reservation_id = self._create_cost_entry_reservation(row, report_db_accesor)
+        self._create_cost_entry_line_item(
+            row,
+            cost_entry_id,
+            bill_id,
+            product_id,
+            pricing_id,
+            reservation_id,
+            report_db_accesor
+        )
+
+        return bill_id
 
     def _get_line_item_hash_columns(self):
         """Get the column list used for creating a line item hash."""
