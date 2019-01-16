@@ -219,4 +219,5 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             .filter_by(id=bill_id)\
             .first()
 
-        bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
+        if bill.finalized_datetime is None:
+            bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
