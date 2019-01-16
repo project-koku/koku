@@ -126,6 +126,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             (None)
 
         """
+        is_finalized_data = False
         column_str = ','.join(columns)
         conflict_col_str = ','.join(conflict_columns)
 
@@ -142,6 +143,10 @@ class ReportDBAccessorBase(KokuDBAccess):
         self._cursor.execute(update_sql)
         self._pg2_conn.commit()
 
+        row_count = self._cursor.rowcount
+        if row_count > 0:
+            is_finalized_data = True
+
         insert_sql = f"""
             INSERT INTO {table_name} ({column_str})
                 SELECT {column_str}
@@ -156,6 +161,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         self._cursor.execute(delete_sql)
         self._pg2_conn.commit()
         self._vacuum_table(temp_table_name)
+
+        return is_finalized_data
 
     def _vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
