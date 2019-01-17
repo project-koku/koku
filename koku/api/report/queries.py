@@ -75,6 +75,7 @@ class ProviderMap(object):
             'region': {'field': 'region',
                         'operation': 'icontains'}
         },
+        'tag_column': 'tags',
         'report_type': {
             'costs': {
                 'aggregate': {'value': Sum('unblended_cost')},

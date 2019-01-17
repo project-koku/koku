@@ -38,6 +38,19 @@ class GroupBySerializer(serializers.Serializer):
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the GroupBySerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+
+        super().__init__(*args, **kwargs)
+
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add OCP tag keys to allowable fields
+            self.fields.update(tag_keys)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -111,6 +124,19 @@ class FilterSerializer(serializers.Serializer):
     avail_zone = StringOrListField(child=serializers.CharField(),
                                    required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the FilterSerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+        import pdb; pdb.set_trace()
+        super().__init__(*args, **kwargs)
+
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add OCP tag keys to allowable fields
+            self.fields.update(tag_keys)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -162,6 +188,19 @@ class QueryParamSerializer(serializers.Serializer):
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCP query param serializer."""
+        # Grab tag keys to pass to filter serializer
+        self.tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
+
+        tag_fields = {
+            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
+            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
+        }
+
+        self.fields.update(tag_fields)
 
     def validate(self, data):
         """Validate incoming data.
