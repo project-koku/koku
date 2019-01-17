@@ -18,6 +18,8 @@ tags:
   description: 'Operations about metered rates'
 - name: 'Report'
   description: 'Operations about report interaction'
+- name: 'Tags'
+  description: 'Operations about tags interaction'
 schemes:
 - 'http'
 paths:
@@ -718,7 +720,7 @@ paths:
   /tags/aws/:
     get:
       tags:
-        - Report
+        - Tags
       summary: Query to obtain AWS tag keys
       operationId: getAWSTagData
       produces:
@@ -748,7 +750,7 @@ paths:
   /tags/ocp/:
     get:
       tags:
-        - Report
+        - Tags
       summary: Query to obtain OCP tag keys
       operationId: getOCPTagData
       produces:
