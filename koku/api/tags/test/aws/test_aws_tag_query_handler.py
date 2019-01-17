@@ -14,16 +14,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the Report Queries."""
-from django.db.models import Count
-from tenant_schemas.utils import tenant_context
-
-from api.functions import JSONBObjectKeys
+"""Test the AWS Report Queries."""
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import AWSCostEntryLineItemDailySummary
 
 
 class AWSTagQueryHandlerTest(IamTestCase):
@@ -34,11 +28,6 @@ class AWSTagQueryHandlerTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-
-    def setUp(self):
-        """Set up the customer view tests."""
-        super().setUp()
-        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""
@@ -161,92 +150,3 @@ class AWSTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
         self.assertEqual(handler.time_scope_value, -2)
-
-    def test_execute_query_for_project(self):
-        """Test that the execute query runs properly with 10 day query."""
-        namespace = None
-        with tenant_context(self.tenant):
-            namespace_obj = AWSCostEntryLineItemDailySummary.objects\
-                .values('namespace')\
-                .first()
-            namespace = namespace_obj.get('namespace')
-
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -10,
-                                   'time_scope_units': 'day',
-                                   'project': namespace},
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-10&' + \
-                       'filter[time_scope_units]=day&' + \
-                       'filter[project]={}'.format(namespace)
-
-        handler = AWSTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get('data'))
-        self.assertEqual(handler.time_scope_units, 'day')
-        self.assertEqual(handler.time_scope_value, -10)
-
-    def test_get_tag_keys_filter_true(self):
-        """Test that not all tag keys are returned with a filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
-        handler = AWSTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
-        with tenant_context(self.tenant):
-            tag_keys = AWSCostEntryLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-                .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
-                .all()
-
-            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
-
-        result = handler.get_tag_keys(filters=True)
-
-        self.assertNotEqual(sorted(result), sorted(tag_keys))
-
-    def test_get_tag_keys_filter_false(self):
-        """Test that all tag keys are returned with no filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
-        handler = AWSTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
-        with tenant_context(self.tenant):
-            tag_keys = AWSCostEntryLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-                .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
-                .all()
-
-            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
-
-        result = handler.get_tag_keys(filters=False)
-
-        self.assertEqual(sorted(result), sorted(tag_keys))

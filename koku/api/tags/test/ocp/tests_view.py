@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the tag view."""
+"""Test the OCP tag view."""
 import calendar
 import datetime
 from urllib.parse import quote_plus, urlencode
@@ -29,7 +29,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 
 
-class OCPReportViewTest(IamTestCase):
+class OCPTagsViewTest(IamTestCase):
     """Tests the report view."""
 
     @classmethod
