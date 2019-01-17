@@ -20,6 +20,7 @@ from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
                        UserPreferenceViewSet,
+                       aws_tags,
                        charges,
                        costs,
                        cpu,
@@ -36,6 +37,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
+    url(r'^tags/aws/$', aws_tags, name='aws-tags'),
     url(r'^tags/ocp/$', ocp_tags, name='ocp-tags'),
     url(r'^reports/costs/aws/$', costs, name='reports-costs'),
     url(r'^reports/charges/ocp/$', charges, name='reports-ocp-charges'),

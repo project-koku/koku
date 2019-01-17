@@ -14,9 +14,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the OCP tag view."""
+"""Test the AWS tag view."""
 import calendar
-import datetime
 from urllib.parse import quote_plus, urlencode
 
 from dateutil.relativedelta import relativedelta
@@ -25,7 +24,6 @@ from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 
 
@@ -41,8 +39,6 @@ class OCPTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.data_generator = OCPReportDataGenerator(self.tenant)
-        self.data_generator.add_data_to_tenant()
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
@@ -63,7 +59,7 @@ class OCPTagsViewTest(IamTestCase):
 
         return start_range, end_range
 
-    def test_execute_ocp_tags_queries_keys_only(self):
+    def test_execute_aws_tags_queries_keys_only(self):
         """Test that tag key data is for the correct time queries."""
         test_cases = [{'value': '-1', 'unit': 'month', 'resolution': 'monthly'},
                       {'value': '-2', 'unit': 'month', 'resolution': 'monthly'},
@@ -71,7 +67,7 @@ class OCPTagsViewTest(IamTestCase):
                       {'value': '-30', 'unit': 'day', 'resolution': 'daily'}]
 
         for case in test_cases:
-            url = reverse('ocp-tags')
+            url = reverse('aws-tags')
             client = APIClient()
             params = {
                 'filter[resolution]': case.get('resolution'),
@@ -86,15 +82,10 @@ class OCPTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 
-            for label in data.get('data'):
-                label_date = datetime.datetime.strptime(label.split('*')[0], '%m-%d-%Y')
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
-
-            self.assertTrue(data.get('data'))
+            self.assertEqual(data.get('data'), [])
             self.assertTrue(isinstance(data.get('data'), list))
 
-    def test_execute_ocp_tags_queries(self):
+    def test_execute_aws_tags_queries(self):
         """Test that tag data is for the correct time queries."""
         test_cases = [{'value': '-1', 'unit': 'month', 'resolution': 'monthly'},
                       {'value': '-2', 'unit': 'month', 'resolution': 'monthly'},
@@ -102,7 +93,7 @@ class OCPTagsViewTest(IamTestCase):
                       {'value': '-30', 'unit': 'day', 'resolution': 'daily'}]
 
         for case in test_cases:
-            url = reverse('ocp-tags')
+            url = reverse('aws-tags')
             client = APIClient()
             params = {
                 'filter[resolution]': case.get('resolution'),
@@ -116,12 +107,5 @@ class OCPTagsViewTest(IamTestCase):
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 
-            for tag in data.get('data'):
-                label = tag.get('key')
-                label_date = datetime.datetime.strptime(label.split('*')[0], '%m-%d-%Y')
-                self.assertGreaterEqual(label_date.date(), start_range)
-                self.assertLessEqual(label_date.date(), end_range)
-                self.assertIsNotNone(tag.get('values'))
-
-            self.assertTrue(data.get('data'))
+            self.assertEqual(data.get('data'), [])
             self.assertTrue(isinstance(data.get('data'), list))
