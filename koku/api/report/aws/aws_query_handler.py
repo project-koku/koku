@@ -198,7 +198,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         q_table = self._mapper._provider_map.get('tables').get('total')
         aggregates = self._mapper._report_type_map.get('aggregate')
-        total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
+        total_query = {}
+        # total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
         total_query['units'] = units_value
 
         return total_query

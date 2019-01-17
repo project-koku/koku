@@ -190,7 +190,6 @@ class FilterSerializer(serializers.Serializer):
     def __init__(self, *args, **kwargs):
         """Initialize the FilterSerializer."""
         tag_keys = kwargs.pop('tag_keys', None)
-        import pdb; pdb.set_trace()
         super().__init__(*args, **kwargs)
 
         if tag_keys is not None:

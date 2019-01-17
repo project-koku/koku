@@ -18,9 +18,26 @@
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField, handle_invalid_fields, validate_field)
+from api.report.serializers import (StringOrListField, handle_invalid_fields)
 from api.utils import UnitConverter
 
+
+def validate_field(this, field, serializer_cls, value, **kwargs):
+    """Validate the provided fields.
+
+    Args:
+        field    (String): the field to be validated
+        serializer_cls (Class): a serializer class for validation
+        value    (Object): the field value
+    Returns:
+        (Dict): Validated value
+    Raises:
+        (ValidationError): if field inputs are invalid
+    """
+    field_param = this.initial_data.get(field)
+    serializer = serializer_cls(data=field_param, **kwargs)
+    serializer.is_valid(raise_exception=True)
+    return value
 
 class GroupBySerializer(serializers.Serializer):
     """Serializer for handling query parameter group_by."""
@@ -127,7 +144,6 @@ class FilterSerializer(serializers.Serializer):
     def __init__(self, *args, **kwargs):
         """Initialize the FilterSerializer."""
         tag_keys = kwargs.pop('tag_keys', None)
-        import pdb; pdb.set_trace()
         super().__init__(*args, **kwargs)
 
         if tag_keys is not None:
@@ -225,7 +241,8 @@ class QueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if group_by field inputs are invalid
         """
-        validate_field(self, 'group_by', GroupBySerializer, value)
+        validate_field(self, 'group_by', GroupBySerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_order_by(self, value):
@@ -251,7 +268,8 @@ class QueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if filter field inputs are invalid
         """
-        validate_field(self, 'filter', FilterSerializer, value)
+        validate_field(self, 'filter', FilterSerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):
