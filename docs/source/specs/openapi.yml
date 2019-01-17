@@ -721,7 +721,7 @@ paths:
     get:
       tags:
         - Tags
-      summary: Query to obtain AWS tag keys
+      summary: Query to obtain AWS tags
       operationId: getAWSTagData
       produces:
       - 'application/json'
@@ -751,7 +751,7 @@ paths:
     get:
       tags:
         - Tags
-      summary: Query to obtain OCP tag keys
+      summary: Query to obtain OCP tags
       operationId: getOCPTagData
       produces:
       - 'application/json'
