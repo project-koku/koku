@@ -106,7 +106,6 @@ class AWSReportProcessor(ReportProcessorBase):
         self.line_item_columns = None
 
         self.hasher = Hasher(hash_function='sha256')
-        self.hash_columns = self._get_line_item_hash_columns()
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_name, self._schema_name)
@@ -120,6 +119,16 @@ class AWSReportProcessor(ReportProcessorBase):
     def line_item_condition_column(self):
         """Create a property with condition to check for line item inserts."""
         return 'invoice_id'
+
+    @property
+    def hash_columns(self):
+        """Restrict which columns are used for calculting a hash."""
+        return (
+            'cost_entry_id', 'cost_entry_bill_id', 'cost_entry_product_id',
+            'cost_entry_pricing_id', 'cost_entry_reservation_id', 'line_item_type',
+            'usage_account_id', 'usage_start', 'usage_end', 'product_code',
+            'usage_type', 'operation', 'availability_zone', 'resource_id',
+        )
 
     def process(self):
         """Process CUR file.
@@ -597,13 +606,6 @@ class AWSReportProcessor(ReportProcessorBase):
         )
 
         return bill_id
-
-    def _get_line_item_hash_columns(self):
-        """Get the column list used for creating a line item hash."""
-        all_columns = self.column_map[AWS_CUR_TABLE_MAP['line_item']].values()
-        # Invoice id is populated when a bill is finalized so we don't want to
-        # use it to determine row uniqueness
-        return [column for column in all_columns if column != 'invoice_id']
 
     def _create_line_item_hash_string(self, data):
         """Build the string to be hashed using line item data.
