@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OCP tags."""
+"""View for AWS tags."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -24,21 +24,21 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.view import _generic_report
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.tags.serializers import TagsQueryParamSerializer
 
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def ocp_tags(request):
-    """Get OCP tags.
+def aws_tags(request):
+    """Get AWS tags.
 
-    @api {get} /api/v1/tags/ocp/
-    @apiName getOCPTagData
+    @api {get} /api/v1/tags/aws/
+    @apiName getAWSTagData
     @apiGroup Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP tag keys.
+    @apiDescription Get AWS tag keys.
 
     @apiHeader {String} token User authorization token.
 
@@ -66,4 +66,4 @@ def ocp_tags(request):
     """
     extras = {}
     return _generic_report(request, TagsQueryParamSerializer,
-                           OCPTagQueryHandler, **extras)
+                           AWSTagQueryHandler, **extras)
