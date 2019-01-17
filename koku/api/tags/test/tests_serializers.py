@@ -14,13 +14,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the OCP tag serializer."""
+"""Test the tag serializer."""
 from unittest import TestCase
 
 from rest_framework import serializers
 
-from api.tags.ocp.serializers import (FilterSerializer,
-                                      OCPTagsQueryParamSerializer)
+from api.tags.serializers import (FilterSerializer,
+                                  TagsQueryParamSerializer)
 
 
 class FilterSerializerTest(TestCase):
@@ -96,7 +96,7 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPTagsQueryParamSerializerTest(TestCase):
+class TagsQueryParamSerializerTest(TestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -105,7 +105,7 @@ class OCPTagsQueryParamSerializerTest(TestCase):
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day'},
                         }
-        serializer = OCPTagsQueryParamSerializer(data=query_params)
+        serializer = TagsQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -114,6 +114,6 @@ class OCPTagsQueryParamSerializerTest(TestCase):
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
                         'invalid': 'param'}}
-        serializer = OCPTagsQueryParamSerializer(data=query_params)
+        serializer = TagsQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

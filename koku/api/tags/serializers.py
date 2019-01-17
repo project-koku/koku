@@ -144,7 +144,7 @@ class FilterSerializer(serializers.Serializer):
         return data
 
 
-class OCPTagsQueryParamSerializer(serializers.Serializer):
+class TagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
     filter = FilterSerializer(required=False)

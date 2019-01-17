@@ -14,17 +14,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""OCP Tag Query Handling."""
+"""AWS Tag Query Handling."""
 from api.tags.queries import TagQueryHandler
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import AWSCostEntryLineItemDailySummary
 
 
-class OCPTagQueryHandler(TagQueryHandler):
-    """Handles tag queries and responses for OCP."""
+class AWSTagQueryHandler(TagQueryHandler):
+    """Handles tag queries and responses for AWS."""
 
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
-        """Establish OCP report query handler.
+        """Establish AWS report query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
@@ -33,4 +33,4 @@ class OCPTagQueryHandler(TagQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         super().__init__(query_parameters, url_data,
-                         tenant, OCPUsageLineItemDailySummary, 'pod_labels', **kwargs)
+                         tenant, AWSCostEntryLineItemDailySummary, 'tags', **kwargs)
