@@ -1567,28 +1567,6 @@ class ReportQueryTest(IamTestCase):
 
         self.assertEqual(actual, expected)
 
-    def test_calculate_total(self):
-        """Test that calculated totals return correctly."""
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month'
-            }
-        }
-        handler = AWSReportQueryHandler(
-            query_params,
-            '',
-            self.tenant,
-            **{'report_type': 'costs'}
-        )
-        expected_units = 'USD'
-        with tenant_context(self.tenant):
-            result = handler.calculate_total(expected_units)
-
-        self.assertEqual(result.get('value'), self.current_month_total)
-        self.assertEqual(result.get('units'), expected_units)
-
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
         args = [{}, '', self.tenant]

@@ -39,6 +39,7 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     serializer.is_valid(raise_exception=True)
     return value
 
+
 class GroupBySerializer(serializers.Serializer):
     """Serializer for handling query parameter group_by."""
 

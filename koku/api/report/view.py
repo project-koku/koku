@@ -54,6 +54,15 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     return (validation, output)
 
 
+def get_tag_keys(request, tag_query_handler):
+    """Get a list of tag keys to validate filters."""
+    tenant = get_tenant(request.user)
+    handler = tag_query_handler('', {}, tenant)
+    tags = handler.get_tag_keys(filters=False)
+    tags = [':'.join(['tag', tag]) for tag in tags]
+    return tags
+
+
 def get_tenant(user):
     """Get the tenant for the given user.
 

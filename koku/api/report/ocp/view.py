@@ -26,17 +26,8 @@ from rest_framework.settings import api_settings
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
-from api.report.view import _generic_report, get_tenant
+from api.report.view import _generic_report, get_tag_keys
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
-
-
-def get_tag_keys(request):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    handler = OCPTagQueryHandler('', {}, tenant)
-    tags = handler.get_tag_keys(filters=False)
-    tags = [':'.join(['tag', tag]) for tag in tags]
-    return tags
 
 
 @api_view(http_method_names=['GET'])
@@ -141,7 +132,7 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
     extras = {
         'report_type': 'mem',
         'tag_keys': tag_keys
@@ -256,7 +247,7 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
     extras = {
         'report_type': 'cpu',
         'tag_keys': tag_keys
@@ -340,7 +331,7 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
     extras = {
         'report_type': 'charge',
         'tag_keys': tag_keys
