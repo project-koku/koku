@@ -151,7 +151,7 @@ class FilterSerializer(serializers.Serializer):
             tag_keys = {key: StringOrListField(child=serializers.CharField(),
                                                required=False)
                         for key in tag_keys}
-            # Add OCP tag keys to allowable fields
+            # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
     def validate(self, data):
@@ -207,7 +207,7 @@ class QueryParamSerializer(serializers.Serializer):
     units = serializers.CharField(required=False)
 
     def __init__(self, *args, **kwargs):
-        """Initialize the OCP query param serializer."""
+        """Initialize the AWS query param serializer."""
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
