@@ -27,7 +27,7 @@ from api.report.ocp.serializers import (FilterSerializer,
                                         OrderBySerializer)
 
 
-class FilterSerializerTest(TestCase):
+class OCPFilterSerializerTest(TestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -111,7 +111,7 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class GroupBySerializerTest(TestCase):
+class OCPGroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -155,7 +155,7 @@ class GroupBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OrderBySerializerTest(TestCase):
+class OCPOrderBySerializerTest(TestCase):
     """Tests for the order_by serializer."""
 
     def test_parse_order_by_params_success(self):

@@ -66,7 +66,7 @@ class GroupBySerializer(serializers.Serializer):
             tag_keys = {key: StringOrListField(child=serializers.CharField(),
                                                required=False)
                         for key in tag_keys}
-            # Add OCP tag keys to allowable fields
+            # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
     def validate(self, data):
