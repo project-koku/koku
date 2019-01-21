@@ -375,7 +375,7 @@ objects:
           livenessProbe:
             failureThreshold: 3
             httpGet:
-              path: /api/v1/status/
+              path: ${API_PATH_PREFIX}/api/v1/status/
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 30
@@ -387,7 +387,7 @@ objects:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /api/v1/status/
+              path: ${API_PATH_PREFIX}/api/v1/status/
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 3
