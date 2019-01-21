@@ -113,7 +113,7 @@ class ProviderMap(object):
                 },
                 'units_key': 'unit',
                 'units_fallback': 'Hrs',
-                'sum_columns': ['total'],
+                'sum_columns': ['total', 'cost', 'count'],
                 'default_ordering': {'total': 'desc'},
             },
             'storage': {
@@ -135,7 +135,7 @@ class ProviderMap(object):
                 },
                 'units_key': 'unit',
                 'units_fallback': 'GB-Mo',
-                'sum_columns': ['total'],
+                'sum_columns': ['total', 'cost'],
                 'default_ordering': {'total': 'desc'},
             },
         },
