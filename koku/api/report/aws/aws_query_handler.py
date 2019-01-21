@@ -38,7 +38,7 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    group_by_options = ['service', 'account', 'region', 'avail_zone']
+    group_by_options = ['service', 'account', 'region', 'az']
 
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
