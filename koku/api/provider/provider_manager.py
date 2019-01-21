@@ -75,7 +75,7 @@ class ProviderManager:
             if provider.type == 'OCP':
                 query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id,
                                                             report_period_start=period_start).first()
-            elif provider.type == 'AWS':
+            elif provider.type == 'AWS' or provider.type == 'AWS-local':
                 query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
                                                         billing_period_start=period_start).first()
 
