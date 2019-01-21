@@ -17,10 +17,11 @@
 """AWS Query Handling for Reports."""
 import copy
 
-from django.db.models import (F, Value, Window)
+from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
+from api.query_filter import QueryFilterCollection
 from api.report.queries import ReportQueryHandler
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
@@ -135,12 +136,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 }
                 sum_query = query.annotate(**sum_annotations)
                 units_value = sum_query.values('units').first().get('units')
-                aggregates = self._mapper._report_type_map.get('aggregate')
+                query_sum = self.calculate_total(units_value)
 
-                metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: metric_sum.get(key) for key in aggregates}
-
-                query_sum['units'] = units_value
+                # aggregates = self._mapper._report_type_map.get('aggregate')
+                # metric_sum = query.aggregate(**aggregates)
+                # query_sum = {key: metric_sum.get(key) for key in aggregates}
+                # query_sum['units'] = units_value
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
@@ -174,3 +175,34 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         """
         return self.execute_sum_query()
+
+    def calculate_total(self, units_value):
+        """Calculate aggregated totals for the query.
+
+        Args:
+            units_value (str): The unit of the reported total
+
+        Returns:
+            (dict) The aggregated totals for the query
+
+        """
+        filt_collection = QueryFilterCollection()
+        total_filter = self._get_search_filter(filt_collection)
+
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value',
+                                                     -10)
+        time_and_report_filter = Q(time_scope_value=time_scope_value) & \
+            Q(report_type=self._report_type)
+
+        if total_filter is None:
+            total_filter = time_and_report_filter
+        else:
+            total_filter = total_filter & time_and_report_filter
+
+        q_table = self._mapper._provider_map.get('tables').get('total')
+        aggregates = self._mapper._report_type_map.get('aggregate')
+        total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
+        total_query['units'] = units_value
+
+        return total_query
