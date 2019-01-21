@@ -5,7 +5,7 @@ certifi==2018.11.29
 chardet==3.0.4
 django-cors-headers==2.4.0
 django-environ==0.4.5
-django-filter==2.0.0
+django-filter==2.1.0
 django-tenant-schemas==1.9.0
 django==2.1.5
 djangorestframework-csv==2.1.0
