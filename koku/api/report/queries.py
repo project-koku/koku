@@ -37,8 +37,8 @@ LOG = logging.getLogger(__name__)
 
 
 def strip_tag_prefix(tag):
-        """Remove the query tag prefix from a tag key."""
-        return tag.replace('tag:', '')
+    """Remove the query tag prefix from a tag key."""
+    return tag.replace('tag:', '')
 
 
 class ProviderMap(object):
@@ -59,7 +59,7 @@ class ProviderMap(object):
         'alias': 'account_alias__account_alias',
         'annotations': {'account': 'usage_account_id',
                         'service': 'product_code',
-                        'avail_zone': 'availability_zone'},
+                        'az': 'availability_zone'},
         'end_date': 'usage_end',
         'filters': {
             'account': [{'field': 'account_alias__account_alias',
@@ -70,7 +70,7 @@ class ProviderMap(object):
                         'composition_key': 'account_filter'}],
             'service': {'field': 'product_code',
                         'operation': 'icontains'},
-            'avail_zone': {'field': 'availability_zone',
+            'az': {'field': 'availability_zone',
                             'operation': 'icontains'},
             'region': {'field': 'region',
                         'operation': 'icontains'}
