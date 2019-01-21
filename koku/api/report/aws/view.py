@@ -250,6 +250,20 @@ def instance_type(request):
     extras = {'annotations': annotations,
               'group_by': ['instance_type'],
               'report_type': 'instance_type'}
+
+    # We don't want to also group by instance type if we are specifying
+    # the grouping and want ranks calculated
+    has_group_by = False
+    has_limit = False
+    params = request.GET
+    for param in params:
+        if 'group_by' in param:
+            has_group_by = True
+        if 'filter[limit]' in param:
+            has_limit = True
+
+    if has_group_by and has_limit:
+        extras.pop('group_by')
     return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
