@@ -1223,8 +1223,8 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'avail_zone': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[avail_zone]=*',
+                        'group_by': {'az': ['*']}}
+        handler = AWSReportQueryHandler(query_params, '?group_by[az]=*',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
@@ -1238,12 +1238,12 @@ class ReportQueryTest(IamTestCase):
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
-            month_data = data_item.get('avail_zones')
+            month_data = data_item.get('azs')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             self.assertEqual(len(month_data), 1)
             for month_item in month_data:
-                self.assertIsInstance(month_item.get('avail_zone'), str)
+                self.assertIsInstance(month_item.get('az'), str)
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('total'))
 
@@ -1253,9 +1253,9 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
-                        'group_by': {'avail_zone': [zone]}}
+                        'group_by': {'az': [zone]}}
         handler = AWSReportQueryHandler(query_params,
-                                        f'?group_by[avail_zone]={zone}',
+                                        f'?group_by[az]={zone}',
                                         self.tenant,
                                         **{'report_type': 'costs'})
         query_output = handler.execute_query()
@@ -1269,12 +1269,12 @@ class ReportQueryTest(IamTestCase):
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
-            month_data = data_item.get('avail_zones')
+            month_data = data_item.get('azs')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             self.assertEqual(1, len(month_data))
             for month_item in month_data:
-                self.assertIsInstance(month_item.get('avail_zone'), str)
+                self.assertIsInstance(month_item.get('az'), str)
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('total'))
 
@@ -1357,7 +1357,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'avail_zone': [self.fake_aws.availability_zone]}}
+                         'az': [self.fake_aws.availability_zone]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -1381,7 +1381,7 @@ class ReportQueryTest(IamTestCase):
         query_params = {'filter':
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month',
-                         'avail_zone': [self.fake_aws.availability_zone]}}
+                         'az': [self.fake_aws.availability_zone]}}
         handler = AWSReportQueryHandler(query_params, '',
                                         self.tenant,
                                         **{'accept_type': 'text/csv',
