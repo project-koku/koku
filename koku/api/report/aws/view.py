@@ -250,7 +250,6 @@ def instance_type(request):
     extras = {'annotations': annotations,
               'group_by': ['instance_type'],
               'report_type': 'instance_type'}
-
     return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
 
 
