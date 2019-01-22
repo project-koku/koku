@@ -1768,13 +1768,14 @@ class ReportQueryTest(IamTestCase):
 
         query_params = {'filter': {'resolution': 'monthly',
                                    'time_scope_value': -1,
-                                   'time_scope_units': 'month'}}
+                                   'time_scope_units': 'month'},
+                        'group_by': {'service': ['*']}}
         query_string = '?filter[resolution]=monthly&' + \
                        'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month'
+                       'filter[time_scope_units]=month&' +  \
+                       'group_by[service]=*'
         handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
-                                        **{'report_type': 'storage',
-                                           'group_by': ['service']})
+                                        **{'report_type': 'storage'})
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
