@@ -654,6 +654,55 @@ class ReportQueryTest(IamTestCase):
         service = handler.get_query_param_data('group_by', 'service')
         self.assertEqual(expected, service)
 
+    def test_get_group_by_with_group_by_and_limit_params(self):
+        """Test the _get_group_by method with limit and group by params."""
+        expected = ['account']
+        query_string = '?group_by[account]=*&filter[limit]=1'
+        handler = AWSReportQueryHandler(
+            {
+                'group_by': {'account': ['*']},
+                'filter': {'limit': 1}
+            },
+            query_string,
+            self.tenant,
+            **{'report_type': 'instance_type'}
+        )
+        group_by = handler._get_group_by()
+
+        self.assertEqual(expected, group_by)
+
+    def test_get_group_by_with_group_by_and_no_limit_params(self):
+        """Test the _get_group_by method with group by params."""
+        expected = ['account', 'instance_type']
+        query_string = '?group_by[account]=*'
+        handler = AWSReportQueryHandler(
+            {
+                'group_by': {'account': ['*']},
+            },
+            query_string,
+            self.tenant,
+            **{'report_type': 'instance_type'}
+        )
+        group_by = handler._get_group_by()
+
+        self.assertEqual(expected, group_by)
+
+    def test_get_group_by_with_limit_and_no_group_by_params(self):
+        """Test the _get_group_by method with limit params."""
+        expected = ['instance_type']
+        query_string = '?group_by[account]=*'
+        handler = AWSReportQueryHandler(
+            {
+                'filter': {'limit': 1},
+            },
+            query_string,
+            self.tenant,
+            **{'report_type': 'instance_type'}
+        )
+        group_by = handler._get_group_by()
+
+        self.assertEqual(expected, group_by)
+
     def test_get_resolution_empty_default(self):
         """Test get_resolution returns default when query params are empty."""
         query_params = {}
