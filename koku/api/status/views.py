@@ -23,6 +23,7 @@ from rest_framework.response import Response
 
 from api.status.models import Status
 from api.status.serializers import StatusSerializer
+from koku.metrics import DBSTATUS
 
 
 @api_view(['GET', 'HEAD'])
@@ -76,4 +77,5 @@ def status(request):
     serializer = StatusSerializer(status_info)
     server_info = serializer.data
     server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
+    DBSTATUS.collect()    # trigger update to prometheus metrics
     return Response(server_info)
