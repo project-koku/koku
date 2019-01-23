@@ -40,11 +40,6 @@ urlpatterns = [
     url(r'^{}api-auth/'.format(API_PATH_PREFIX), include('rest_framework.urls')),
     url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('api.urls')),
     url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('rates.urls')),
-
-    # static files (*.css, *.js, *.jpg etc.)
-    url(r'^{}(?!/?apidoc/)(?P<path>.*\..*)$'.format(API_PATH_PREFIX),
-        RedirectView.as_view(url='apidoc/%(path)s', permanent=False),
-        name='apidoc'),
     path('', include('django_prometheus.urls')),
 ]
 

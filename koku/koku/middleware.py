@@ -19,9 +19,12 @@
 import logging
 from json.decoder import JSONDecodeError
 
+from django.db import transaction
+from django.db.utils import IntegrityError
 from django.http import HttpResponse
 from django.utils.deprecation import MiddlewareMixin
 from prometheus_client import Counter
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
@@ -107,13 +110,18 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             (Customer) The created customer
 
         """
-        schema_name = create_schema_name(account)
-        customer = Customer(account_id=account, schema_name=schema_name)
-        customer.save()
-        tenant = Tenant(schema_name=schema_name)
-        tenant.save()
-        unique_account_counter.inc()
-        logger.info('Created new customer from account_id %s.', account)
+        try:
+            with transaction.atomic():
+                schema_name = create_schema_name(account)
+                customer = Customer(account_id=account, schema_name=schema_name)
+                customer.save()
+                tenant = Tenant(schema_name=schema_name)
+                tenant.save()
+                unique_account_counter.inc()
+                logger.info('Created new customer from account_id %s.', account)
+        except IntegrityError:
+            customer = Customer.objects.filter(account_id=account).get()
+
         return customer
 
     @staticmethod
@@ -131,15 +139,19 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
 
         """
         new_user = None
-        user_data = {'username': username, 'email': email}
-        context = {'request': request}
-        serializer = UserSerializer(data=user_data, context=context)
-        if serializer.is_valid(raise_exception=True):
-            new_user = serializer.save()
+        try:
+            with transaction.atomic():
+                user_data = {'username': username, 'email': email}
+                context = {'request': request}
+                serializer = UserSerializer(data=user_data, context=context)
+                if serializer.is_valid(raise_exception=True):
+                    new_user = serializer.save()
 
-        unique_user_counter.labels(account=customer.account_id, user=username).inc()
-        logger.info('Created new user %s for customer(account_id %s).',
-                    username, customer.account_id)
+                unique_user_counter.labels(account=customer.account_id, user=username).inc()
+                logger.info('Created new user %s for customer(account_id %s).',
+                            username, customer.account_id)
+        except (IntegrityError, ValidationError):
+            new_user = User.objects.get(username=username)
         return new_user
 
     def process_request(self, request):  # noqa: C901
