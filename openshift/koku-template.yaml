@@ -112,6 +112,9 @@ objects:
     annotations:
       description: Exposes and load balances the application pods
       service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}", "kind": "Service"}]'
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: '8080'
     name: ${NAME}
   spec:
     ports:
@@ -375,7 +378,7 @@ objects:
           livenessProbe:
             failureThreshold: 3
             httpGet:
-              path: /api/v1/status/
+              path: ${API_PATH_PREFIX}/api/v1/status/
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 30
@@ -387,7 +390,7 @@ objects:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /api/v1/status/
+              path: ${API_PATH_PREFIX}/api/v1/status/
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 3

@@ -28,7 +28,11 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '')
-
+if API_PATH_PREFIX != '':
+    if API_PATH_PREFIX.startswith('/'):
+        API_PATH_PREFIX = API_PATH_PREFIX[1:]
+    if not API_PATH_PREFIX.endswith('/'):
+        API_PATH_PREFIX = API_PATH_PREFIX + '/'
 
 # pylint: disable=invalid-name
 urlpatterns = [

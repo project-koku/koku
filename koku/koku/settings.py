@@ -199,7 +199,9 @@ USE_TZ = True
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '')
-STATIC_API_PATH_PREFIX = '/' + API_PATH_PREFIX
+STATIC_API_PATH_PREFIX = API_PATH_PREFIX
+if STATIC_API_PATH_PREFIX != '' and (not STATIC_API_PATH_PREFIX.endswith('/')):
+    STATIC_API_PATH_PREFIX = STATIC_API_PATH_PREFIX + '/'
 
 STATIC_URL = '{}apidoc/'.format(STATIC_API_PATH_PREFIX)
 
@@ -248,7 +250,7 @@ LOGGING = {
             'format': VERBOSE_FORMATTING
         },
         'simple': {
-            'format': '%(levelname)s %(message)s'
+            'format': '[%(asctime)s] %(levelname)s: %(message)s'
         },
     },
     'handlers': {
