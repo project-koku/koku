@@ -111,9 +111,10 @@ class ProviderMap(object):
                     'operation': 'isnull',
                     'parameter': False
                 },
+                'group_by': ['instance_type'],
                 'units_key': 'unit',
                 'units_fallback': 'Hrs',
-                'sum_columns': ['total'],
+                'sum_columns': ['total', 'cost', 'count'],
                 'default_ordering': {'total': 'desc'},
             },
             'storage': {
@@ -135,7 +136,7 @@ class ProviderMap(object):
                 },
                 'units_key': 'unit',
                 'units_fallback': 'GB-Mo',
-                'sum_columns': ['total'],
+                'sum_columns': ['total', 'cost'],
                 'default_ordering': {'total': 'desc'},
             },
         },
@@ -306,7 +307,7 @@ class ReportQueryHandler(QueryHandler):
 
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'group_by', 'report_type', 'tag_keys']
+            elements = ['accept_type', 'delta', 'report_type', 'tag_keys']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
@@ -468,8 +469,14 @@ class ReportQueryHandler(QueryHandler):
         group_by.extend(tag_group_by)
         group_by = sorted(group_by, key=lambda g_item: g_item[1])
         group_by = [item[0] for item in group_by]
-        if self._group_by:
-            group_by += self._group_by
+
+        # This is a current workaround for AWS instance-types reports
+        # It is implied that limiting is performed by account/region and
+        # not by instance type when those group by params are used.
+        # For that ranking to work we can't also group by instance_type.
+        inherent_group_by = self._mapper._report_type_map.get('group_by')
+        if (inherent_group_by and not (group_by and self._limit)):
+            group_by += inherent_group_by
         return group_by
 
     def _get_tag_group_by(self):
