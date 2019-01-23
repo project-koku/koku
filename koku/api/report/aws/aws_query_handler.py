@@ -138,10 +138,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 units_value = sum_query.values('units').first().get('units')
                 query_sum = self.calculate_total(units_value)
 
-                # aggregates = self._mapper._report_type_map.get('aggregate')
-                # metric_sum = query.aggregate(**aggregates)
-                # query_sum = {key: metric_sum.get(key) for key in aggregates}
-                # query_sum['units'] = units_value
+                aggregates = self._mapper._report_type_map.get('aggregate')
+                metric_sum = query.aggregate(**aggregates)
+                query_sum_new = {key: metric_sum.get(key) for key in aggregates}
+                query_sum_new['units'] = units_value
+                # import pdb; pdb.set_trace()
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
@@ -202,7 +203,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         q_table = self._mapper._provider_map.get('tables').get('total')
         aggregates = self._mapper._report_type_map.get('aggregate')
-        total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
+        # total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
+        total_query = {}
         total_query['units'] = units_value
 
         return total_query

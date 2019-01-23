@@ -146,7 +146,6 @@ class FilterSerializer(serializers.Serializer):
         """Initialize the FilterSerializer."""
         tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
-
         if tag_keys is not None:
             tag_keys = {key: StringOrListField(child=serializers.CharField(),
                                                required=False)
@@ -205,6 +204,19 @@ class QueryParamSerializer(serializers.Serializer):
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWS query param serializer."""
+        # Grab tag keys to pass to filter serializer
+        self.tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
+
+        tag_fields = {
+            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
+            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
+        }
+
+        self.fields.update(tag_fields)
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""
