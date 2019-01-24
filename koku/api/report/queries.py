@@ -387,6 +387,10 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
+        if not tag_filters:
+            q_filter = QueryFilter(operation='tags__iexact', parameter='{}')
+            # q_filter = QueryFilter(operation='tags__icontains', parameter='')
+            filters.add(q_filter)
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)

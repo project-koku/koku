@@ -106,6 +106,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         q_table = self._mapper._provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
+            # import pdb; pdb.set_trace()
             query_data = query.annotate(**self.annotations)
             query_group_by = ['date'] + self._get_group_by()
             query_order_by = ['-date', ]
@@ -136,13 +137,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 }
                 sum_query = query.annotate(**sum_annotations)
                 units_value = sum_query.values('units').first().get('units')
-                query_sum = self.calculate_total(units_value)
+                # query_sum = self.calculate_total(units_value)
 
                 aggregates = self._mapper._report_type_map.get('aggregate')
                 metric_sum = query.aggregate(**aggregates)
-                query_sum_new = {key: metric_sum.get(key) for key in aggregates}
-                query_sum_new['units'] = units_value
-                # import pdb; pdb.set_trace()
+                import pdb; pdb.set_trace()
+                query_sum = {key: metric_sum.get(key) for key in aggregates}
+                query_sum['units'] = units_value
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
