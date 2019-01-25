@@ -21,6 +21,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
+from django.db import connection
 from django.db.models import DecimalField, ExpressionWrapper, F, Max, Sum
 from faker import Faker
 from tenant_schemas.utils import tenant_context
@@ -139,6 +140,7 @@ class OCPReportDataGenerator:
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_charge_info()
+            self._populate_pod_label_summary_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -375,3 +377,24 @@ class OCPReportDataGenerator:
             entry.pod_charge_cpu_core_hours = cpu_charge
 
             entry.save()
+
+    def _populate_pod_label_summary_table(self):
+        """Populate pod label key and values."""
+
+        raw_sql = """
+            INSERT INTO reporting_ocpusagepodlabel_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_ocpusagelineitem_daily AS li,
+                    jsonb_each_text(li.pod_labels) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)
