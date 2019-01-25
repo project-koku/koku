@@ -17,7 +17,7 @@
 
 """Models for OCP cost entry tables."""
 
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
@@ -503,3 +503,15 @@ class OCPUsageLineItemAggregates(models.Model):
         decimal_places=6,
         null=True
     )
+
+
+class OCPUsagePodLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPUsageTagSummary."""
+
+        db_table = 'reporting_ocpusagepodlabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))

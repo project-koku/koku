@@ -43,6 +43,7 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     output = None
     query_params = parser.parse(url_data)
     if tag_keys:
+        tag_keys = process_tag_query_params(query_params, tag_keys)
         qps = provider_serializer(data=query_params, tag_keys=tag_keys)
     else:
         qps = provider_serializer(data=query_params)
@@ -52,6 +53,23 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     else:
         output = qps.data
     return (validation, output)
+
+
+def process_tag_query_params(query_params, tag_keys):
+    """Reduce the set of tag keys based on those being queried."""
+    tag_key_set = set(tag_keys)
+    param_tag_keys = set()
+    for key, value in query_params.items():
+        if isinstance(value, dict) or isinstance(value, list):
+            for inner_param_key in value:
+                if inner_param_key in tag_key_set:
+                    param_tag_keys.add(inner_param_key)
+        elif value in tag_key_set:
+            param_tag_keys.add(value)
+        if key in tag_key_set:
+            param_tag_keys.add(key)
+
+    return param_tag_keys
 
 
 def get_tenant(user):
