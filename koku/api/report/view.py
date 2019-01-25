@@ -64,10 +64,10 @@ def process_tag_query_params(query_params, tag_keys):
             for inner_param_key in value:
                 if inner_param_key in tag_key_set:
                     param_tag_keys.add(inner_param_key)
+        elif value in tag_key_set:
+            param_tag_keys.add(value)
         if key in tag_key_set:
             param_tag_keys.add(key)
-        if value in tag_key_set:
-            param_tag_keys.add(value)
 
     return param_tag_keys
 
