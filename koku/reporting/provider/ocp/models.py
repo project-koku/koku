@@ -504,6 +504,7 @@ class OCPUsageLineItemAggregates(models.Model):
         null=True
     )
 
+
 class OCPUsagePodLabelSummary(models.Model):
     """A collection of all current existing tag key and values."""
 

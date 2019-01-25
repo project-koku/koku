@@ -194,7 +194,6 @@ class ReportViewTest(IamTestCase):
         result = process_tag_query_params(query_params, tag_keys)
         self.assertEqual(result, expected)
 
-
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'

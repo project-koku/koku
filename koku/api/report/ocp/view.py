@@ -28,7 +28,6 @@ from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.report.view import _generic_report, get_tenant
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 
 

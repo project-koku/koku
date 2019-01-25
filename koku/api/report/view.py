@@ -54,6 +54,7 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
         output = qps.data
     return (validation, output)
 
+
 def process_tag_query_params(query_params, tag_keys):
     """Reduce the set of tag keys based on those being queried."""
     tag_key_set = set(tag_keys)

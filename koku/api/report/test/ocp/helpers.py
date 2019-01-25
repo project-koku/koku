@@ -380,7 +380,6 @@ class OCPReportDataGenerator:
 
     def _populate_pod_label_summary_table(self):
         """Populate pod label key and values."""
-
         raw_sql = """
             INSERT INTO reporting_ocpusagepodlabel_summary
             SELECT l.key,
