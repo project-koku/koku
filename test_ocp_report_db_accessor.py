@@ -338,6 +338,54 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for val in expected_time_scope_values:
             self.assertIn(val, time_scope_values)
 
+    def test_populate_pod_label_summary_table(self):
+        """Test that the pod label summary table is populated."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        daily_table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
+        agg_table_name = OCP_REPORT_TABLE_MAP['pod_label_summary']
+
+        agg_table = getattr(self.accessor.report_schema, agg_table_name)
+        daily_table = getattr(self.accessor.report_schema, daily_table_name)
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for start_date in (today, last_month):
+            period = self.creator.create_ocp_report_period(start_date)
+            report = self.creator.create_ocp_report(period, start_date)
+            self.creator.create_ocp_usage_line_item(
+                period,
+                report
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(agg_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_pod_label_summary_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        tags = query.all()
+        tag_keys = [tag.key for tag in tags]
+
+        self.accessor._cursor.execute(
+            """SELECT DISTINCT jsonb_object_keys(pod_labels)
+                FROM reporting_ocpusagelineitem_daily"""
+        )
+
+        expected_tag_keys = self.accessor._cursor.fetchall()
+        expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+
+        self.assertEqual(tag_keys, expected_tag_keys)
+
     def test_get_usage_period_before_date(self):
         """Test that gets a query for usage report periods before a date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
