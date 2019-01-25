@@ -141,7 +141,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
                 aggregates = self._mapper._report_type_map.get('aggregate')
                 metric_sum = query.aggregate(**aggregates)
-                import pdb; pdb.set_trace()
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
                 query_sum['units'] = units_value
             if self._delta:
