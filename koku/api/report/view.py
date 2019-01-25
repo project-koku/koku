@@ -66,6 +66,8 @@ def process_tag_query_params(query_params, tag_keys):
                     param_tag_keys.add(inner_param_key)
         if key in tag_key_set:
             param_tag_keys.add(key)
+        if value in tag_key_set:
+            param_tag_keys.add(value)
 
     return param_tag_keys
 
