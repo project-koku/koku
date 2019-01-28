@@ -326,6 +326,7 @@ class AWSCostEntryLineItemAggregates(models.Model):
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
     resource_count = models.IntegerField(null=True)
+    tags = JSONField(null=True)
 
 
 class AWSCostEntryPricing(models.Model):
