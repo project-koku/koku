@@ -15,7 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the prometheus metrics."""
+import logging
+from unittest import mock
 from unittest.mock import patch
+
+import psycopg2
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus
@@ -54,3 +58,21 @@ class DatabaseStatusTest(IamTestCase):
         dbs = DatabaseStatus()
         result = dbs._query(test_query)
         self.assertEqual(result, expected)
+
+    @mock.patch('psycopg2.connect')
+    def test_query_exception(self, mock_connect):
+        """Test _query() when an exception is thrown."""
+        logging.disable(0)
+
+        # Because of psycopg2's chained method design, we need to chain mocks...
+        # result of psycopg2.connect()
+        mock_con = mock_connect.return_value
+        # result of con.cursor()
+        mock_cur = mock_con.cursor.return_value
+        # result of cur.execute()
+        mock_cur.execute.side_effect = psycopg2.OperationalError('test exception')
+
+        test_query = 'SELECT count(*) from now()'
+        with self.assertLogs(level=logging.WARNING):
+            dbs = DatabaseStatus()
+            dbs._query(test_query)

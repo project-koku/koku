@@ -63,7 +63,7 @@ class DatabaseStatus(object):
 
         retries = 0
         rows = None
-        while retries < 10:
+        while retries < 3:
             try:
                 connection = psycopg2.connect(self.uri)
                 cursor = connection.cursor()
@@ -71,7 +71,8 @@ class DatabaseStatus(object):
                 rows = cursor.fetchall()
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
                 LOG.warning(exc)
-                time.sleep(3)
+                retries += 1
+                time.sleep(2)
                 continue
             break
 
