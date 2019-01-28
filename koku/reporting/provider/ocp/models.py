@@ -94,6 +94,9 @@ class OCPUsageLineItem(models.Model):
 
     node = models.CharField(max_length=253, null=False)
 
+    # Another node identifier used to tie the node to an EC2 instance
+    resource_id = models.CharField(max_length=253, null=True)
+
     pod_usage_cpu_core_seconds = models.DecimalField(
         max_digits=24,
         decimal_places=6,
@@ -200,6 +203,9 @@ class OCPUsageLineItemDaily(models.Model):
     pod = models.CharField(max_length=253, null=False)
 
     node = models.CharField(max_length=253, null=False)
+
+    # Another node identifier used to tie the node to an EC2 instance
+    resource_id = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
@@ -329,6 +335,9 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     node = models.CharField(max_length=253, null=False)
 
+    # Another node identifier used to tie the node to an EC2 instance
+    resource_id = models.CharField(max_length=253, null=True)
+
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
 
@@ -443,6 +452,9 @@ class OCPUsageLineItemAggregates(models.Model):
     pod = models.CharField(max_length=253, null=False)
 
     node = models.CharField(max_length=253, null=False)
+
+    # Another node identifier used to tie the node to an EC2 instance
+    resource_id = models.CharField(max_length=253, null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(
         max_digits=24,
