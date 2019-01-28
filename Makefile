@@ -27,6 +27,7 @@ Please use \`make <target>' where <target> is one of:
   lint                     run linting against the project
 
 --- Commands using local services ---
+  create-test-db-file      create a Postgres DB dump file for Masu
   collect-static           collect static files to host
   gen-apidoc               create api documentation
   make-migrations          make migrations for the database
@@ -46,7 +47,7 @@ Please use \`make <target>' where <target> is one of:
   docker-shell              run django and db containers with shell access to server (for pdb)
   docker-logs               connect to console logs for all services
   docker-test-all           run unittests
-  
+
 --- Commands using an OpenShift Cluster ---
   oc-clean                 stop openshift cluster & remove local config data
   oc-create-all            run all application services in openshift cluster
@@ -89,6 +90,14 @@ make-migrations:
 
 run-migrations:
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
+
+create-test-db-file: run-migrations
+	sleep 1
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py runserver > /dev/null 2>&1 &
+	sleep 5
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api
+	pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
+	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 gen-apidoc:
 	rm -fr $(PYDIR)/staticfiles/

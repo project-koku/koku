@@ -108,6 +108,12 @@
         "provider_type":"OCP"
     },
     {
+        "database_column":"resource_id",
+        "database_table":"reporting_ocpusagelineitem",
+        "provider_column_name":"resource_id",
+        "provider_type":"OCP"
+    },
+    {
         "database_column":"pod_labels",
         "database_table":"reporting_ocpusagelineitem",
         "provider_column_name":"pod_labels",
