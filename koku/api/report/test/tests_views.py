@@ -34,7 +34,8 @@ from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
                              _generic_report,
-                             process_query_parameters)
+                             process_query_parameters,
+                             process_tag_query_params)
 from api.utils import UnitConverter
 
 
@@ -172,6 +173,26 @@ class ReportViewTest(IamTestCase):
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
         valid, _ = process_query_parameters(qs, QueryParamSerializer)
         self.assertFalse(valid)
+
+    def test_process_tag_query_params(self):
+        """Test that a list of tag keys is reduced to those queried."""
+        query_params = {
+            'filter': {
+                'time_scope_units': 'month',
+                'time_scope_value': '-1',
+                'resolution': 'monthly',
+                'tag:environment': 'prod'
+            },
+            'group_by': {'tag:app': '*'},
+            'tag_list': ['tag:cost_center'],
+            'tag:az': 'az'
+        }
+        tag_keys = ['tag:app', 'tag:az', 'tag:environment', 'tag:cost_center',
+                    'tag:fake', 'tag:other', 'tag:this']
+        expected = set(['tag:app', 'tag:az', 'tag:environment', 'tag:cost_center'])
+
+        result = process_tag_query_params(query_params, tag_keys)
+        self.assertEqual(result, expected)
 
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""

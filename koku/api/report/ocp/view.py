@@ -22,12 +22,22 @@ from rest_framework.decorators import (api_view,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
+from tenant_schemas.utils import tenant_context
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
-from api.report.view import _generic_report, get_tag_keys
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.report.view import _generic_report, get_tenant
+from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+
+
+def get_tag_keys(request):
+    """Get a list of tag keys to validate filters."""
+    tenant = get_tenant(request.user)
+    with tenant_context(tenant):
+        tags = OCPUsagePodLabelSummary.objects.values('key')
+        tags = [':'.join(['tag', tag.get('key')]) for tag in tags]
+    return tags
 
 
 @api_view(http_method_names=['GET'])

@@ -43,6 +43,7 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     output = None
     query_params = parser.parse(url_data)
     if tag_keys:
+        tag_keys = process_tag_query_params(query_params, tag_keys)
         qps = provider_serializer(data=query_params, tag_keys=tag_keys)
     else:
         qps = provider_serializer(data=query_params)
@@ -54,13 +55,21 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
     return (validation, output)
 
 
-def get_tag_keys(request, tag_query_handler):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    handler = tag_query_handler('', {}, tenant)
-    tags = handler.get_tag_keys(filters=False)
-    tags = [':'.join(['tag', tag]) for tag in tags]
-    return tags
+def process_tag_query_params(query_params, tag_keys):
+    """Reduce the set of tag keys based on those being queried."""
+    tag_key_set = set(tag_keys)
+    param_tag_keys = set()
+    for key, value in query_params.items():
+        if isinstance(value, dict) or isinstance(value, list):
+            for inner_param_key in value:
+                if inner_param_key in tag_key_set:
+                    param_tag_keys.add(inner_param_key)
+        elif value in tag_key_set:
+            param_tag_keys.add(value)
+        if key in tag_key_set:
+            param_tag_keys.add(key)
+
+    return param_tag_keys
 
 
 def get_tenant(user):
