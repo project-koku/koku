@@ -24,12 +24,23 @@ from rest_framework.decorators import (api_view,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
+from tenant_schemas.utils import tenant_context
 
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import _generic_report, get_tag_keys
+from api.report.view import _generic_report, get_tenant
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 
+
+def get_tag_keys(request, tag_query_handler):
+    """Get a list of tag keys to validate filters."""
+    tenant = get_tenant(request.user)
+    with tenant_context(tenant):
+        handler = tag_query_handler('', {}, tenant)
+        tags = handler.get_tag_keys(filters=False)
+        tags = ['tag:' + s for s in tags]
+
+    return tags
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
