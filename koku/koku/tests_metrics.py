@@ -34,7 +34,7 @@ class DatabaseStatusTest(IamTestCase):
         self.assertIsNotNone(dbs.uri)
         self.assertRegex(dbs.uri, r'\w+://\w+:[a-zA-Z0-9\']*@\w+:\d+/\w+')
 
-    @patch('koku.metrics.DatabaseStatus._query', return_value=True)
+    @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):
         """Test schema_size()."""
         dbs = DatabaseStatus()
@@ -43,20 +43,20 @@ class DatabaseStatusTest(IamTestCase):
         self.assertTrue(result)
 
     @patch('koku.metrics.PGSQL_GAUGE.labels')
-    @patch('koku.metrics.DatabaseStatus._query', return_value=[{'schema': 'foo',
-                                                                'size': 10}])
-    def test_collect(self, mock_query, mock_gauge):
+    @patch('koku.metrics.DatabaseStatus.query', return_value=[{'schema': 'foo',
+                                                               'size': 10}])
+    def test_collect(self, _, mock_gauge):
         """Test collect()."""
         dbs = DatabaseStatus()
         dbs.collect()
-        assert mock_gauge.called
+        self.assertTrue(mock_gauge.called)
 
     def test_query(self):
         """Test _query()."""
         test_query = 'SELECT count(*) from now()'
         expected = [{'count': 1}]
         dbs = DatabaseStatus()
-        result = dbs._query(test_query)
+        result = dbs.query(test_query)
         self.assertEqual(result, expected)
 
     @mock.patch('psycopg2.connect')
@@ -75,4 +75,4 @@ class DatabaseStatusTest(IamTestCase):
         test_query = 'SELECT count(*) from now()'
         with self.assertLogs(level=logging.WARNING):
             dbs = DatabaseStatus()
-            dbs._query(test_query)
+            dbs.query(test_query)
