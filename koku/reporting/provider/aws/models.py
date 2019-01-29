@@ -17,7 +17,7 @@
 
 """Models for AWS cost entry tables."""
 
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 
 
@@ -387,3 +387,14 @@ class AWSAccountAlias(models.Model):
 
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
+
+class AWSTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPUsageTagSummary."""
+
+        db_table = 'reporting_awstags_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
