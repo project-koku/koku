@@ -142,7 +142,7 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
+    tag_keys = get_tag_keys(request)
     extras = {
         'report_type': 'mem',
         'tag_keys': tag_keys
@@ -257,7 +257,7 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
+    tag_keys = get_tag_keys(request)
     extras = {
         'report_type': 'cpu',
         'tag_keys': tag_keys
@@ -341,7 +341,7 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    tag_keys = get_tag_keys(request, OCPTagQueryHandler)
+    tag_keys = get_tag_keys(request)
     extras = {
         'report_type': 'charge',
         'tag_keys': tag_keys

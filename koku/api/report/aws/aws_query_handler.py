@@ -137,7 +137,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_query = query.annotate(**sum_annotations)
                 units_value = sum_query.values('units').first().get('units')
                 query_sum = self.calculate_total(units_value)
-                query_sum['units'] = units_value
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
