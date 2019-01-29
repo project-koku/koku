@@ -22,22 +22,12 @@ from rest_framework.decorators import (api_view,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
-from tenant_schemas.utils import tenant_context
 
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
-from api.report.view import _generic_report, get_tenant
+from api.report.view import _generic_report, get_tenant, get_tag_keys
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
-
-
-def get_tag_keys(request):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    with tenant_context(tenant):
-        tags = OCPUsagePodLabelSummary.objects.values('key')
-        tags = [':'.join(['tag', tag.get('key')]) for tag in tags]
-    return tags
 
 
 @api_view(http_method_names=['GET'])
@@ -142,7 +132,7 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
     extras = {
         'report_type': 'mem',
         'tag_keys': tag_keys
@@ -257,7 +247,7 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
     extras = {
         'report_type': 'cpu',
         'tag_keys': tag_keys
@@ -341,7 +331,7 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
     extras = {
         'report_type': 'charge',
         'tag_keys': tag_keys

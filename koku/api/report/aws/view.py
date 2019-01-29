@@ -24,22 +24,13 @@ from rest_framework.decorators import (api_view,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
-from tenant_schemas.utils import tenant_context
 
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import _generic_report, get_tenant
+from api.report.view import _generic_report, get_tenant, get_tag_keys
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from reporting.provider.aws.models import AWSTagsSummary
 
-
-def get_tag_keys(request):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    with tenant_context(tenant):
-        tags = AWSTagsSummary.objects.values('key')
-        tags = [':'.join(['tag', tag.get('key')]) for tag in tags]
-    return tags
 
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
@@ -129,7 +120,7 @@ def costs(request):
         6721340654404,2018-07,19356.197856632,USD
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, AWSTagsSummary)
     extras = {
         'report_type': 'costs',
         'tag_keys': tag_keys
@@ -260,7 +251,7 @@ def instance_type(request):
         8133889256380,2018-08-04,r4.large,10.0,Hrs
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, AWSTagsSummary)
     annotations = {'instance_type':
                    Concat('cost_entry_product__instance_type', Value(''))}
     extras = {'annotations': annotations,
@@ -385,7 +376,7 @@ def storage(request):
         2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
-    tag_keys = get_tag_keys(request)
+    tag_keys = get_tag_keys(request, AWSTagsSummary)
 
     extras = {'report_type': 'storage',
               'tag_keys': tag_keys}
