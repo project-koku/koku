@@ -305,7 +305,7 @@ class ReportQueryHandler(QueryHandler):
         self._accept_type = None
         self._group_by = None
         self._tag_keys = []
-
+        self._no_tag_query = kwargs.get('no_tag_query')
         if kwargs:
             # view parameters
             elements = ['accept_type', 'delta', 'report_type', 'tag_keys']
@@ -387,9 +387,9 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
-        if not tag_filters:
-            q_filter = QueryFilter(operation='tags__iexact', parameter='{}')
-            filters.add(q_filter)
+        if not tag_filters and self._no_tag_query:
+            filters.add(self._no_tag_query)
+
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)

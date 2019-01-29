@@ -42,6 +42,7 @@ def get_tag_keys(request, tag_query_handler):
 
     return tags
 
+
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

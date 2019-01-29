@@ -218,19 +218,6 @@ class QueryParamSerializer(serializers.Serializer):
 
         self.fields.update(tag_fields)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the AWS query param serializer."""
-        # Grab tag keys to pass to filter serializer
-        self.tag_keys = kwargs.pop('tag_keys', None)
-        super().__init__(*args, **kwargs)
-
-        tag_fields = {
-            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
-            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
-        }
-
-        self.fields.update(tag_fields)
-
     def validate(self, data):
         """Validate incoming data.
 
