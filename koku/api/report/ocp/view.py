@@ -26,7 +26,7 @@ from rest_framework.settings import api_settings
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
-from api.report.view import _generic_report, get_tenant, get_tag_keys
+from api.report.view import _generic_report, get_tag_keys
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 
 

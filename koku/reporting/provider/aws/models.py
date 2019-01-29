@@ -388,6 +388,7 @@ class AWSAccountAlias(models.Model):
     account_id = models.CharField(max_length=50, null=False, unique=True)
     account_alias = models.CharField(max_length=63, null=True)
 
+
 class AWSTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
 

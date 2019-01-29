@@ -27,8 +27,7 @@ from rest_framework.settings import api_settings
 
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import _generic_report, get_tenant, get_tag_keys
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
+from api.report.view import _generic_report, get_tag_keys
 from reporting.provider.aws.models import AWSTagsSummary
 
 
