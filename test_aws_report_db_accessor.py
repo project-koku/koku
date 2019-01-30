@@ -822,6 +822,14 @@ class ReportDBAccessorTest(MasuTestCase):
                 reservation
             )
 
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        tag_query = self.accessor._get_db_obj_query(table_name)
+        possible_keys = []
+        possible_values = []
+        for item in tag_query:
+            possible_keys += list(item.tags.keys())
+            possible_values += list(item.tags.values())
+    
         start_date, end_date = self.accessor._session.query(
             func.min(ce_table.interval_start),
             func.max(ce_table.interval_start)
@@ -863,7 +871,15 @@ class ReportDBAccessorTest(MasuTestCase):
         for column in summary_columns:
             self.assertIsNotNone(getattr(entry, column))
 
-        self.assertNotEqual(getattr(entry, 'tags'), {})
+        found_keys = []
+        found_values = []
+        for item in query.all():
+            found_keys += list(item.tags.keys())
+            found_values += list(item.tags.values())
+
+        self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
+        self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
+
 
     def test_populate_line_item_aggregates_table(self):
         """Test that the aggregates table is populated."""
@@ -894,6 +910,14 @@ class ReportDBAccessorTest(MasuTestCase):
                     pricing,
                     reservation
                 )
+
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        tag_query = self.accessor._get_db_obj_query(table_name)
+        possible_keys = []
+        possible_values = []
+        for item in tag_query:
+            possible_keys += list(item.tags.keys())
+            possible_values += list(item.tags.values())
 
         start_date, end_date = self.accessor._session.query(
             func.min(ce_table.interval_start),
@@ -926,3 +950,66 @@ class ReportDBAccessorTest(MasuTestCase):
             self.assertIn(val, time_scope_values)
         for report in expected_report_types:
             self.assertIn(report, report_types)
+
+        found_keys = []
+        found_values = []
+        for item in query.all():
+            found_keys += list(item.tags.keys())
+            found_values += list(item.tags.values())
+
+        self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
+        self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
+
+    def test_populate_awstags_summary_table(self):
+        """Test that the AWS tags summary table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        tags_summary_name = AWS_CUR_TABLE_MAP['tags_summary']
+
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for cost_entry_date in (today, last_month):
+            bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
+            for family in ['Storage', 'Compute Instance', 'Database Storage',
+                           'Database Instance']:
+                product = self.creator.create_cost_entry_product(family)
+                pricing = self.creator.create_cost_entry_pricing()
+                reservation = self.creator.create_cost_entry_reservation()
+                self.creator.create_cost_entry_line_item(
+                    bill,
+                    cost_entry,
+                    product,
+                    pricing,
+                    reservation
+                )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(ce_table.interval_start),
+            func.max(ce_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(tags_summary_name)
+        initial_count = query.count()
+    
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_summary_table(start_date,
+                                                              end_date)
+        self.accessor.populate_line_item_aggregate_table()
+        self.accessor.populate_tags_summary_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+        tags = query.all()
+        tag_keys = [tag.key for tag in tags]
+
+        self.accessor._cursor.execute(
+            """SELECT DISTINCT jsonb_object_keys(tags)
+                FROM reporting_awscostentrylineitem_daily"""
+        )
+
+        expected_tag_keys = self.accessor._cursor.fetchall()
+        expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+
+        self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))

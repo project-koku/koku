@@ -59,6 +59,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         tables.remove(AWS_CUR_TABLE_MAP['line_item_daily'])
         tables.remove(AWS_CUR_TABLE_MAP['line_item_daily_summary'])
         tables.remove(AWS_CUR_TABLE_MAP['line_item_aggregates'])
+        tables.remove(AWS_CUR_TABLE_MAP['tags_summary'])
         for table in tables:
             self.assertIn(table, keys)
 
