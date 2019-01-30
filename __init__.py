@@ -26,6 +26,7 @@ AWS_CUR_TABLE_MAP = {
     'product': 'reporting_awscostentryproduct',
     'pricing': 'reporting_awscostentrypricing',
     'reservation': 'reporting_awscostentryreservation',
+    'tags_summary': 'reporting_awstags_summary'
 }
 
 OCP_REPORT_TABLE_MAP = {
