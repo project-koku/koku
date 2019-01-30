@@ -221,3 +221,19 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         if bill.finalized_datetime is None:
             bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
+
+    # pylint: disable=invalid-name,duplicate-code
+    def populate_tags_summary_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = AWS_CUR_TABLE_MAP['tags_summary']
+
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            f'sql/reporting_awstags_summary.sql'
+        )
+
+        LOG.info('Updating %s.', table_name)
+        self._cursor.execute(agg_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating %s.', table_name)
