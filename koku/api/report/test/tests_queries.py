@@ -484,7 +484,8 @@ class ReportQueryTest(IamTestCase):
             'usage_start',
             'usage_end',
             'usage_account_id',
-            'availability_zone'
+            'availability_zone',
+            'tags'
         ]
         annotations = {
             'product_family': Concat('cost_entry_product__product_family', Value('')),
@@ -533,7 +534,8 @@ class ReportQueryTest(IamTestCase):
             included_fields = [
                 'usage_account_id',
                 'product_code',
-                'availability_zone'
+                'availability_zone',
+                'tags'
             ]
             annotations = {
                 'region': Concat('cost_entry_product__region', Value('')),
@@ -612,7 +614,8 @@ class ReportQueryTest(IamTestCase):
                 model_instances = {'cost_entry': cost_entry,
                                    'cost_entry_bill': bill,
                                    'cost_entry_product': ce_product,
-                                   'cost_entry_pricing': ce_pricing}
+                                   'cost_entry_pricing': ce_pricing,
+                                   'tags': {}}
                 line_item_data.update(model_instances)
                 line_item, _ = AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
 
@@ -1468,6 +1471,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
                         'delta': 'total'}
+
         handler = AWSReportQueryHandler(query_params,
                                         '?group_by[account]=*&delta=True',
                                         self.tenant,

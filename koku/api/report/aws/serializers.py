@@ -18,8 +18,26 @@
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField, handle_invalid_fields, validate_field)
+from api.report.serializers import (StringOrListField, handle_invalid_fields)
 from api.utils import UnitConverter
+
+
+def validate_field(this, field, serializer_cls, value, **kwargs):
+    """Validate the provided fields.
+
+    Args:
+        field    (String): the field to be validated
+        serializer_cls (Class): a serializer class for validation
+        value    (Object): the field value
+    Returns:
+        (Dict): Validated value
+    Raises:
+        (ValidationError): if field inputs are invalid
+    """
+    field_param = this.initial_data.get(field)
+    serializer = serializer_cls(data=field_param, **kwargs)
+    serializer.is_valid(raise_exception=True)
+    return value
 
 
 class GroupBySerializer(serializers.Serializer):
@@ -37,6 +55,19 @@ class GroupBySerializer(serializers.Serializer):
                                 required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the GroupBySerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+
+        super().__init__(*args, **kwargs)
+
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add AWS tag keys to allowable fields
+            self.fields.update(tag_keys)
 
     def validate(self, data):
         """Validate incoming data.
@@ -111,6 +142,17 @@ class FilterSerializer(serializers.Serializer):
     az = StringOrListField(child=serializers.CharField(),
                            required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the FilterSerializer."""
+        tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
+        if tag_keys is not None:
+            tag_keys = {key: StringOrListField(child=serializers.CharField(),
+                                               required=False)
+                        for key in tag_keys}
+            # Add AWS tag keys to allowable fields
+            self.fields.update(tag_keys)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -163,6 +205,19 @@ class QueryParamSerializer(serializers.Serializer):
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWS query param serializer."""
+        # Grab tag keys to pass to filter serializer
+        self.tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
+
+        tag_fields = {
+            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
+            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
+        }
+
+        self.fields.update(tag_fields)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -186,7 +241,8 @@ class QueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if group_by field inputs are invalid
         """
-        validate_field(self, 'group_by', GroupBySerializer, value)
+        validate_field(self, 'group_by', GroupBySerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_order_by(self, value):
@@ -212,7 +268,8 @@ class QueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if filter field inputs are invalid
         """
-        validate_field(self, 'filter', FilterSerializer, value)
+        validate_field(self, 'filter', FilterSerializer, value,
+                       tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):

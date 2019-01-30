@@ -24,11 +24,21 @@ from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant, User
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
+
+
+def get_tag_keys(request, summary_model):
+    """Get a list of tag keys to validate filters."""
+    tenant = get_tenant(request.user)
+    with tenant_context(tenant):
+        tags = summary_model.objects.values('key')
+        tags = [':'.join(['tag', tag.get('key')]) for tag in tags]
+    return tags
 
 
 def process_query_parameters(url_data, provider_serializer, tag_keys=None):

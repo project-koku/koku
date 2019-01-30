@@ -32,7 +32,7 @@ PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
                     ['schema'])
 
 
-class DatabaseStatus(object):
+class DatabaseStatus():
     """Database status information."""
 
     _last_result = None
@@ -45,7 +45,7 @@ class DatabaseStatus(object):
             cfg['ENGINE'] = 'postgresql'
         self.uri = '{ENGINE}://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}'.format(**cfg)
 
-    def _query(self, query):
+    def query(self, query):
         """Execute a SQL query, format the results.
 
         Returns:
@@ -77,7 +77,7 @@ class DatabaseStatus(object):
             break
 
         if not rows:
-            LOG.error("Query failed to return results.")
+            LOG.error('Query failed to return results.')
             return []
 
         # get column names
@@ -128,7 +128,7 @@ class DatabaseStatus(object):
             GROUP BY schema_name
             ORDER BY schema_name;
         """
-        return self._query(query)
+        return self.query(query)
 
 
 DBSTATUS = DatabaseStatus()

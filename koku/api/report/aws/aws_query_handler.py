@@ -21,7 +21,7 @@ from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import (Coalesce, Concat, RowNumber)
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilterCollection
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.report.queries import ReportQueryHandler
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
@@ -52,7 +52,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         kwargs['provider'] = 'AWS'
-
+        kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
         super().__init__(query_parameters, url_data,
                          tenant, self.group_by_options, **kwargs)
 
@@ -137,7 +137,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_query = query.annotate(**sum_annotations)
                 units_value = sum_query.values('units').first().get('units')
                 query_sum = self.calculate_total(units_value)
-
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
