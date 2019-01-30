@@ -18,6 +18,7 @@
 """Models for AWS cost entry tables."""
 
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -258,6 +259,10 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(
                 fields=['usage_account_id'],
                 name='summary_usage_account_id_idx',
+            ),
+            GinIndex(
+                fields=['tags'],
+                name='tags_idx',
             ),
         ]
 
