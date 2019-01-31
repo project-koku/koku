@@ -315,6 +315,7 @@ def initialize_kafka_handler():  # pragma: no cover
         None
 
     """
-    event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
-    event_loop_thread.daemon = True
-    event_loop_thread.start()
+    if Config.KAFKA_CONNECT:
+        event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
+        event_loop_thread.daemon = True
+        event_loop_thread.start()
