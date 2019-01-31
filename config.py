@@ -132,3 +132,7 @@ class Config:
 
     # Maximum amount of time to wait before retrying connections to Kafka
     INSIGHTS_KAFKA_CONN_RETRY_MAX = 300
+
+    # Flag to signal whether or not to connect to upload service
+    KAFKA_CONNECT = False if os.getenv(
+        'KAFKA_CONNECT', 'False') == 'False' else True
