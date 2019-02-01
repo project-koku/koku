@@ -82,6 +82,23 @@ class FilterSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_tag_keys_dynamic_field_validation_success(self):
+        """Test that tag keys are validated as fields."""
+        tag_keys = ['valid_tag']
+        query_params = {'valid_tag': 'value'}
+        serializer = FilterSerializer(data=query_params,
+                                      tag_keys=tag_keys)
+        self.assertTrue(serializer.is_valid())
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ['valid_tag']
+        query_params = {'bad_tag': 'value'}
+        serializer = FilterSerializer(data=query_params,
+                                      tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class GroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""
@@ -108,6 +125,23 @@ class GroupBySerializerTest(TestCase):
         self.assertTrue(validation)
         account_result = serializer.data.get('account')
         self.assertIsInstance(account_result, list)
+
+    def test_tag_keys_dynamic_field_validation_success(self):
+        """Test that tag keys are validated as fields."""
+        tag_keys = ['valid_tag']
+        query_params = {'valid_tag': '*'}
+        serializer = GroupBySerializer(data=query_params,
+                                       tag_keys=tag_keys)
+        self.assertTrue(serializer.is_valid())
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ['valid_tag']
+        query_params = {'bad_tag': '*'}
+        serializer = GroupBySerializer(data=query_params,
+                                       tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
 
 
 class OrderBySerializerTest(TestCase):

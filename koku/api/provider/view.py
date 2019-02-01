@@ -292,30 +292,30 @@ class ProviderViewSet(mixins.CreateModelMixin,
         return response
 
     def destroy(self, request, *args, **kwargs):
-            """Delete a provider.
+        """Delete a provider.
 
-            @api {delete} /api/v1/providers/:uuid/ Delete a provider
-            @apiName DeleteProvider
-            @apiGroup Provider
-            @apiVersion 1.0.0
-            @apiDescription Delete a provider.
+        @api {delete} /api/v1/providers/:uuid/ Delete a provider
+        @apiName DeleteProvider
+        @apiGroup Provider
+        @apiVersion 1.0.0
+        @apiDescription Delete a provider.
 
-            @apiHeader {String} token Authorization token of an authenticated user
+        @apiHeader {String} token Authorization token of an authenticated user
 
-            @apiParam {String} uuid Provider unique ID.
+        @apiParam {String} uuid Provider unique ID.
 
-            @apiSuccessExample {json} Success-Response:
-                HTTP/1.1 204 NO CONTENT
-            """
-            # Block any users not part of the organization
-            if not self.get_queryset():
-                raise PermissionDenied()
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 204 NO CONTENT
+        """
+        # Block any users not part of the organization
+        if not self.get_queryset():
+            raise PermissionDenied()
 
-            manager = ProviderManager(kwargs['uuid'])
-            try:
-                manager.remove(request.user)
-            except Exception:
-                LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, kwargs['uuid']))
-                raise ProviderDeleteException
+        manager = ProviderManager(kwargs['uuid'])
+        try:
+            manager.remove(request.user)
+        except Exception:
+            LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, kwargs['uuid']))
+            raise ProviderDeleteException
 
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -70,7 +70,7 @@ def _currency_symbols():
         try:
             locale.setlocale(locale.LC_MONETARY, locale.normalize(loc))
             currency = '{int_curr_symbol}'.format(**locale.localeconv())
-            if currency is not '':
+            if currency != '':
                 symbols.add(currency.strip())
         except (locale.Error, UnicodeDecodeError):
             continue

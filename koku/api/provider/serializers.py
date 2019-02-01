@@ -70,7 +70,7 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
 
 class ProviderSerializer(serializers.ModelSerializer):
-    """Serializer for the Provider  model."""
+    """Serializer for the Provider model."""
 
     uuid = serializers.UUIDField(read_only=True)
     name = serializers.CharField(max_length=256, required=True,

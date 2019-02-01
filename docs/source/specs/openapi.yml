@@ -1004,6 +1004,10 @@ definitions:
         type: array
         items:
           type: string
+      tag:
+        type: array
+        items:
+          type: string
   ReportFilterOCP:
     type: object
     properties:
@@ -1038,6 +1042,10 @@ definitions:
         type: array
         items:
           type: string
+      tag:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
@@ -1065,6 +1073,10 @@ definitions:
         type: array
         items:
           type: string
+      tag:
+        type: array
+        items:
+          type: string
     example: {'account': ['*']}
     description: The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable.
   ReportOCPGrouping:
@@ -1079,6 +1091,10 @@ definitions:
         items:
           type: string
       node:
+        type: array
+        items:
+          type: string
+      tag:
         type: array
         items:
           type: string

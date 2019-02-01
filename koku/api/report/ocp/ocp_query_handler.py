@@ -265,7 +265,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             total_delta_percent = (query_sum.get(delta_field_one, 0) /  # noqa: W504
                                    query_sum.get(delta_field_two, 0) * 100)
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
-                total_delta_percent = None
+            total_delta_percent = None
 
         self.query_delta = {
             'value': total_delta,
