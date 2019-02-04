@@ -834,3 +834,21 @@ class ReportQueryHandler(QueryHandler):
                                 key=lambda x: x['delta_percent'],
                                 reverse=reverse)
         return query_data
+
+    def strip_label_column_name(self, data, group_by):
+        """Remove the column name from tags."""
+        tag_column = self._mapper._provider_map.get('tag_column')
+        val_to_strip = tag_column + '__'
+        new_data = []
+        for entry in data:
+            new_entry = {}
+            for key, value in entry.items():
+                key = key.replace(val_to_strip, '')
+                new_entry[key] = value
+
+            new_data.append(new_entry)
+
+        for i, group in enumerate(group_by):
+            group_by[i] = group.replace(val_to_strip, '')
+
+        return new_data, group_by

@@ -142,6 +142,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
             is_csv_output = self._accept_type and 'text/csv' in self._accept_type
 
+            query_data, query_group_by = self.strip_label_column_name(
+                query_data,
+                query_group_by
+            )
             query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
