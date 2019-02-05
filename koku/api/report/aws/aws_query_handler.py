@@ -154,7 +154,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 else:
                     data = list(query_data)
             else:
-                data = self._apply_group_by(list(query_data))
+                groups = copy.deepcopy(query_group_by)
+                groups.remove('date')
+                data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
         key_order = list(['units'] + list(annotations.keys()))
