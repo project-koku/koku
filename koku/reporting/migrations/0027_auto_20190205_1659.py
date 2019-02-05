@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                     ocp.node_capacity_memory_bytes,
                     ocp.node_capacity_memory_byte_seconds,
                     ocp.cluster_capacity_cpu_core_seconds,
-                    ocp.cluster_capacity_memory_byte_seconds
+                    ocp.cluster_capacity_memory_byte_seconds,
                     aws.cost_entry_product_id,
                     aws.cost_entry_pricing_id,
                     aws.cost_entry_reservation_id,
