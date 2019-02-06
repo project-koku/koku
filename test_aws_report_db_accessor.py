@@ -34,6 +34,7 @@ from sqlalchemy.sql import func
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -829,7 +830,7 @@ class ReportDBAccessorTest(MasuTestCase):
         for item in tag_query:
             possible_keys += list(item.tags.keys())
             possible_values += list(item.tags.values())
-    
+
         start_date, end_date = self.accessor._session.query(
             func.min(ce_table.interval_start),
             func.max(ce_table.interval_start)
@@ -879,7 +880,6 @@ class ReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
         self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
-
 
     def test_populate_line_item_aggregates_table(self):
         """Test that the aggregates table is populated."""
@@ -993,7 +993,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(tags_summary_name)
         initial_count = query.count()
-    
+
         self.accessor.populate_line_item_daily_table(start_date, end_date)
         self.accessor.populate_line_item_daily_summary_table(start_date,
                                                               end_date)
@@ -1013,3 +1013,54 @@ class ReportDBAccessorTest(MasuTestCase):
         expected_tag_keys = [tag[0] for tag in expected_tag_keys]
 
         self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
+
+    def test_populate_ocp_on_aws_cost_daily_summary(self):
+        """Test that the OCP on AWS cost summary table is populated."""
+        summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+        resource_id = 'i-12345'
+
+        for cost_entry_date in (today, last_month):
+            bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
+            product = self.creator.create_cost_entry_product('Compute Instance')
+            pricing = self.creator.create_cost_entry_pricing()
+            reservation = self.creator.create_cost_entry_reservation()
+            self.creator.create_cost_entry_line_item(
+                bill,
+                cost_entry,
+                product,
+                pricing,
+                reservation,
+                resource_id=resource_id
+            )
+
+        self.accessor.populate_line_item_daily_table(last_month, today)
+
+        with OCPReportDBAccessor('acct10001', self.column_map) as ocp_accessor:
+            ocp_creator = ReportObjectCreator(
+                ocp_accessor,
+                self.column_map,
+                ocp_accessor.report_schema.column_types
+            )
+
+            for cost_entry_date in (today, last_month):
+                period = self.creator.create_ocp_report_period(cost_entry_date)
+                report = self.creator.create_ocp_report(period, cost_entry_date)
+                self.creator.create_ocp_usage_line_item(
+                    period,
+                    report,
+                    resource_id=resource_id
+                )
+
+            ocp_accessor.populate_line_item_daily_table(last_month, today)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month,
+                                                             today)
+
+        self.assertNotEqual(query.count(), initial_count)

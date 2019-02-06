@@ -122,7 +122,8 @@ class ReportObjectCreator:
                                     cost_entry,
                                     product,
                                     pricing,
-                                    reservation):
+                                    reservation,
+                                    resource_id=None):
         """Create a cost entry line item database object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
@@ -139,6 +140,8 @@ class ReportObjectCreator:
             'environment': random.choice(['dev', 'qa', 'prod']),
             self.fake.pystr()[:8]: self.fake.pystr()[:8]
         }
+        if resource_id:
+            row.resource_id = resource_id
         self.db_accessor._session.add(row)
         self.db_accessor._session.commit()
 
@@ -189,7 +192,8 @@ class ReportObjectCreator:
 
     def create_ocp_usage_line_item(self,
                                    report_period,
-                                   report):
+                                   report,
+                                   resource_id=None):
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
@@ -197,6 +201,9 @@ class ReportObjectCreator:
         for key in data:
             if 'byte' in key:
                 data[key] = data[key] * Decimal(pow(2, 30))
+
+        if resource_id:
+            data['resource_id'] = resource_id
 
         row = self.db_accessor.create_db_object(table_name, data)
 
