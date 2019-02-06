@@ -842,11 +842,11 @@ class OCPUStorageLineItemDaily(models.Model):
             ),
             models.Index(
                 fields=['namespace'],
-                name='namespace_idx',
+                name='storage_namespace_idx',
             ),
             models.Index(
                 fields=['pod'],
-                name='pod_idx',
+                name='storage_pod_idx',
             ),
         ]
 
@@ -908,15 +908,15 @@ class OCPStorageLineItemDailySummary(models.Model):
         indexes = [
             models.Index(
                 fields=['usage_start'],
-                name='summary_ocp_usage_idx',
+                name='storage_summary_ocp_usage_idx',
             ),
             models.Index(
                 fields=['namespace'],
-                name='summary_namespace_idx',
+                name='storage_sum_namespace_idx',
             ),
             models.Index(
                 fields=['pod'],
-                name='summary_pod_idx',
+                name='storage_summary_pod_idx',
             ),
             GinIndex(
                 fields=['persistentvolume_labels'],
