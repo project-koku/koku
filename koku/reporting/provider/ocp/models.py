@@ -789,7 +789,6 @@ class OCPStorageLineItem(models.Model):
 
     pod = models.CharField(max_length=253, null=True)
 
-    # Another node identifier used to tie the node to an EC2 instance
     persistentvolumeclaim = models.CharField(max_length=253)
 
     persistentvolume = models.CharField(max_length=253, null=True)
