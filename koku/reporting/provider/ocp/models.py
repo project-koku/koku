@@ -791,7 +791,7 @@ class OCPStorageLineItem(models.Model):
 
     persistentvolumeclaim = models.CharField(max_length=253)
 
-    persistentvolume = models.CharField(max_length=253, null=True)
+    persistentvolume = models.CharField(max_length=253)
 
     storageclass = models.CharField(max_length=50, null=True)
 
