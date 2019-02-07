@@ -24,4 +24,4 @@ from api.tags.ocp.view import ocp_tags
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.provider.view import ProviderViewSet
 from api.report.aws.view import costs as aws_costs, instance_type, storage
-from api.report.ocp.view import charges, cpu, memory
+from api.report.ocp.view import charges, cpu, memory, costs as ocp_costs

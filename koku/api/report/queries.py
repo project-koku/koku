@@ -30,6 +30,7 @@ from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
+                              OCPAWSCostLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
@@ -143,8 +144,8 @@ class ProviderMap(object):
         },
         'start_date': 'usage_start',
         'tables': {'previous_query': AWSCostEntryLineItemDailySummary,
-                    'query': AWSCostEntryLineItemDailySummary,
-                    'total': AWSCostEntryLineItemAggregates},
+                   'query': AWSCostEntryLineItemDailySummary,
+                   'total': AWSCostEntryLineItemAggregates},
     }, {
         'provider': 'OCP',
         'annotations': {'cluster': 'cluster_id',
@@ -166,6 +167,44 @@ class ProviderMap(object):
         },
         'tag_column': 'pod_labels',
         'report_type': {
+            'cost': {
+                'tables': {'query': OCPAWSCostLineItemDailySummary,},
+                'node': {
+                    'aggregates': {'total': Sum(F('unblended_cost'))},
+                    'annotations': {
+                        'total': Sum(F('unblended_cost')),
+                        'units': Value('USD', output_field=CharField())
+                    },
+                    'delta_key': {
+                        'total': Sum(F('pod_cost'))
+                    },
+                },
+                'cluster': {
+                    'aggregates': {'total': Sum(F('unblended_cost'))},
+                    'annotations': {
+                        'total': Sum(F('unblended_cost')),
+                        'units': Value('USD', output_field=CharField())
+                    },
+                    'delta_key': {
+                        'total': Sum(F('pod_cost'))
+                    },
+                },
+                'aggregates': {'total': Sum(F('pod_cost'))},
+                'default_ordering': {'total': 'desc'},
+                'annotations': {
+                    'total': Sum(F('pod_cost')),
+                    'units': Value('USD', output_field=CharField()),
+                    'account': 'usage_account_id',
+                    'service': 'product_code'
+                },
+                'capacity_aggregate': {},
+                'delta_key': {
+                    'total': Sum(F('pod_cost'))
+                },
+                'filter': {},
+                'units_key': 'USD',
+                'sum_columns': ['total'],
+            },
             'charge': {
                 'aggregates': {
                     'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
@@ -286,6 +325,13 @@ class ProviderMap(object):
     def sum_columns(self):
         """Return the sum column list for the report type."""
         return self._report_type_map.get('sum_columns')
+
+    @property
+    def query_table(self):
+        """Return the appropriate query table for the report type."""
+        report_specific_table = self._report_type_map.get('tables').get('query')
+        general_table = self._provider_map.get('tables').get('query')
+        return report_specific_table if report_specific_table else general_table
 
 
 class ReportQueryHandler(QueryHandler):
