@@ -62,6 +62,14 @@ class ProcessedOCPReport:
 class OCPReportProcessor(ReportProcessorBase):
     """OCP Usage Report processor."""
 
+    storage_columns = ['report_period_start', 'report_period_end', 'interval_start',
+                       'interval_end', 'namespace', 'pod', 'persistentvolumeclaim',
+                       'persistentvolume', 'storageclass', 'persistentvolumeclaim_capacity_bytes',
+                       'persistentvolumeclaim_capacity_byte_seconds',
+                       'volume_request_storage_byte_seconds',
+                       'persistentvolumeclaim_usage_byte_seconds', 'persistentvolume_labels',
+                       'persistentvolumeclaim_labels']
+
     def __init__(self, schema_name, report_path, compression, provider_id):
         """Initialize the report processor.
 
@@ -78,6 +86,15 @@ class OCPReportProcessor(ReportProcessorBase):
             compression=compression,
             provider_id=provider_id
         )
+
+        # Temporary check to skip storage .csv files until processor is updated.
+        with open(report_path) as f:
+            reader = csv.reader(f)
+            column_names = next(reader)
+            if sorted(column_names) == sorted(self.storage_columns):
+                LOG.info('Storage report found.  Skipping...')
+                self._report_path = None
+                return
 
         self._report_name = path.basename(report_path)
         self._cluster_id = report_path.split('/')[-2]
@@ -331,6 +348,10 @@ class OCPReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
+
+        # Temporary check to skip storage .csv files until processor is updated.
+        if not self._report_path:
+            return
 
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:

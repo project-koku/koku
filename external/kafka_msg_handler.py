@@ -48,6 +48,7 @@ class KafkaMsgHandlerError(Exception):
     """Kafka mmsg handler error."""
 
 
+# pylint: disable=too-many-locals
 def extract_payload(url):
     """
     Extract OCP usage report payload into local directory structure.
@@ -99,13 +100,16 @@ def extract_payload(url):
     try:
         mytar = TarFile.open(temp_file)
         mytar.extractall(path=temp_dir)
+        files = mytar.getnames()
+        manifest_path = [manifest for manifest in files if 'manifest.json' in manifest]
     except ReadError as error:
         LOG.error('Unable to untar file. Reason: %s', str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError('Extraction failure.')
 
     # Open manifest.json file and build the payload dictionary.
-    report_meta = utils.get_report_details(temp_dir)
+    full_manifest_path = '{}/{}'.format(temp_dir, manifest_path[0])
+    report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
 
     # Create directory tree for report.
     usage_month = utils.month_date_range(report_meta.get('date'))
@@ -120,9 +124,11 @@ def extract_payload(url):
     shutil.copy(report_meta.get('manifest_path'), manifest_destination_path)
 
     # Copy report payload
-    payload_source_path = '{}/{}'.format(temp_dir, report_meta.get('file'))
-    payload_destination_path = '{}/{}'.format(destination_dir, report_meta.get('file'))
-    shutil.copy(payload_source_path, payload_destination_path)
+    for report_file in report_meta.get('files'):
+        subdirectory = os.path.dirname(full_manifest_path)
+        payload_source_path = '{}/{}'.format(subdirectory, report_file)
+        payload_destination_path = '{}/{}'.format(destination_dir, report_file)
+        shutil.copy(payload_source_path, payload_destination_path)
 
     LOG.info('Successfully extracted OCP for %s/%s', report_meta.get('cluster_id'), usage_month)
     # Remove temporary directory and files
