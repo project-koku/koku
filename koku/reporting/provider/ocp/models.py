@@ -774,7 +774,7 @@ class OCPStorageLineItem(models.Model):
     class Meta:
         """Meta for OCPStorageLineItem."""
 
-        unique_together = ('report', 'namespace', 'pod',)
+        unique_together = ('report', 'namespace', 'persistentvolumeclaim',)
 
     id = models.BigAutoField(primary_key=True)
 
@@ -835,21 +835,6 @@ class OCPUStorageLineItemDaily(models.Model):
 
         db_table = 'reporting_ocpstoragelineitem_daily'
 
-        indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='ocp_storage_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='storage_namespace_idx',
-            ),
-            models.Index(
-                fields=['pod'],
-                name='storage_pod_idx',
-            ),
-        ]
-
     id = models.BigAutoField(primary_key=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
@@ -904,29 +889,6 @@ class OCPStorageLineItemDailySummary(models.Model):
         """Meta for OCPStorageLineItemDailySummary."""
 
         db_table = 'reporting_ocpstoragelineitem_daily_summary'
-
-        indexes = [
-            models.Index(
-                fields=['usage_start'],
-                name='storage_summary_ocp_usage_idx',
-            ),
-            models.Index(
-                fields=['namespace'],
-                name='storage_sum_namespace_idx',
-            ),
-            models.Index(
-                fields=['pod'],
-                name='storage_summary_pod_idx',
-            ),
-            GinIndex(
-                fields=['persistentvolume_labels'],
-                name='persistentvolume_labels_idx',
-            ),
-            GinIndex(
-                fields=['persistentvolumeclaim_labels'],
-                name='pvc_labels_idx',
-            ),
-        ]
 
     id = models.BigAutoField(primary_key=True)
 
