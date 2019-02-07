@@ -903,6 +903,11 @@ class OCPStorageLineItemDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
+    persistentvolumeclaim = models.CharField(max_length=253)
+
+    persistentvolume = models.CharField(max_length=253)
+
+    storageclass = models.CharField(max_length=50, null=True)
     pod = models.CharField(max_length=253, null=False)
 
     usage_start = models.DateTimeField(null=False)
