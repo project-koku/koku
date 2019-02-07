@@ -768,6 +768,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
         null=True
     )
 
+
 class OCPStorageLineItem(models.Model):
     """Raw report storage data for OpenShift pods."""
 
@@ -821,6 +822,7 @@ class OCPStorageLineItem(models.Model):
 
     persistentvolume_labels = JSONField(null=True)
     persistentvolumeclaim_labels = JSONField(null=True)
+
 
 class OCPUStorageLineItemDaily(models.Model):
     """A daily aggregation of storage line items.
@@ -881,6 +883,7 @@ class OCPUStorageLineItemDaily(models.Model):
 
     persistentvolume_labels = JSONField(null=True)
     persistentvolumeclaim_labels = JSONField(null=True)
+
 
 class OCPStorageLineItemDailySummary(models.Model):
     """A daily aggregation of storage line items.
