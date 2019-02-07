@@ -172,6 +172,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         tag_column = self._mapper._provider_map.get('tag_column')
         rank_orders = []
         rank_field = group_by_value.pop()
+        default_ordering = self._mapper._report_type_map.get('default_ordering')
 
         if self.order_field == 'delta' and '__' in self._delta:
             delta_field_one, delta_field_two = self._delta.split('__')
@@ -181,7 +182,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     self.order_direction
                 )()
             )
-        elif self.query_parameters.get('order_by'):
+        elif self.query_parameters.get('order_by', default_ordering):
             rank_orders.append(
                 getattr(F(self.order_field), self.order_direction)()
             )
