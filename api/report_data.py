@@ -22,6 +22,7 @@ import logging
 from flask import jsonify, request
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import remove_expired_data, update_summary_tables
 from masu.util.blueprint import application_route
 
@@ -30,46 +31,15 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 API_V1_ROUTES = {}
 
 LOG = logging.getLogger(__name__)
+REPORT_DATA_KEY = 'Report Data Task ID'
 
 
-@application_route('/report_data/', API_V1_ROUTES, methods=('GET',))
-def report_data():
-    """Update report summary tables in the database."""
-    params = request.args
-
-    provider_uuid = params.get('provider_uuid')
-    provider_type = params.get('provider_type')
-
-    if provider_uuid is None and provider_type is None:
-        errmsg = 'provider_uuid or provider_type must be supplied as a parameter.'
-        return jsonify({'Error': errmsg}), 400
-
-    if provider_uuid:
-        with ProviderDBAccessor(provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_type()
-    else:
-        provider = provider_type
-
-    if provider_type and provider_type != provider:
-        errmsg = 'provider_uuid and provider_type have mismatched provider types.'
-        return jsonify({'Error': errmsg}), 400
-
-    schema_name = params.get('schema')
-    start_date = params.get('start_date')
-    end_date = params.get('end_date')
-
-    if provider is None:
-        errmsg = 'Unable to determine provider type.'
-        return jsonify({'Error': errmsg}), 400
-
-    if schema_name is None:
-        errmsg = 'schema is a required parameter.'
-        return jsonify({'Error': errmsg}), 400
-
-    if start_date is None:
-        errmsg = 'start_date is a required parameter.'
-        return jsonify({'Error': errmsg}), 400
-
+def _summarize_provider(provider,
+                        provider_uuid,
+                        schema_name,
+                        start_date,
+                        end_date=None):
+    """Update report summary table for a provider in the database."""
     LOG.info('Calling update_summary_tables async task.')
 
     if end_date:
@@ -84,7 +54,71 @@ def report_data():
         async_result = update_summary_tables.delay(schema_name, provider,
                                                    provider_uuid, start_date)
 
-    return jsonify({'Report Data Task ID': str(async_result)})
+    return {REPORT_DATA_KEY: [str(async_result)]}
+
+
+@application_route('/report_data/', API_V1_ROUTES, methods=('GET',))
+def report_data():
+    """Update report summary tables in the database."""
+    params = request.args
+    task_ids = []
+    all_providers = False
+    provider_uuid = params.get('provider_uuid')
+    provider_type = params.get('provider_type')
+    schema_name = params.get('schema')
+    start_date = params.get('start_date')
+    end_date = params.get('end_date')
+
+    if provider_uuid is None and provider_type is None:
+        errmsg = 'provider_uuid or provider_type must be supplied as a parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    if provider_uuid == '*':
+        all_providers = True
+    elif provider_uuid:
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_type()
+    else:
+        provider = provider_type
+
+    if start_date is None:
+        errmsg = 'start_date is a required parameter.'
+        return jsonify({'Error': errmsg}), 400
+
+    if not all_providers:
+        if schema_name is None:
+            errmsg = 'schema is a required parameter.'
+            return jsonify({'Error': errmsg}), 400
+
+        if provider is None:
+            errmsg = 'Unable to determine provider type.'
+            return jsonify({'Error': errmsg}), 400
+
+        if provider_type and provider_type != provider:
+            errmsg = 'provider_uuid and provider_type have mismatched provider types.'
+            return jsonify({'Error': errmsg}), 400
+
+        summarize_task = _summarize_provider(provider,
+                                             provider_uuid,
+                                             schema_name,
+                                             start_date,
+                                             end_date)
+        task_ids += summarize_task
+    else:
+        # Get all providers for all schemas
+        orchestrator = Orchestrator()
+        all_accounts = orchestrator.get_accounts()
+        for account in all_accounts:
+            schema_name = account.get('schema_name')
+            provider = account.get('provider_type')
+            provider_uuid = account.get('provider_uuid')
+            summarize_task = _summarize_provider(provider,
+                                                 provider_uuid,
+                                                 schema_name,
+                                                 start_date,
+                                                 end_date)
+            task_ids += summarize_task
+    return jsonify({REPORT_DATA_KEY: task_ids})
 
 
 @application_route('/report_data/', API_V1_ROUTES, methods=('DELETE',))
