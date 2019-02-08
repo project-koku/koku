@@ -26,6 +26,16 @@ from api.query_filter import QueryFilter
 from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
+SUPPORTED_FILTERS = ['project', 'account']
+FILTER_MAP = {
+    'project': {'field': 'namespace', 'operation': 'icontains'},
+    'account': [{'field': 'account_alias__account_alias',
+                 'operation': 'icontains',
+                 'composition_key': 'account_filter'},
+                {'field': 'usage_account_id',
+                 'operation': 'icontains',
+                 'composition_key': 'account_filter'}]
+}
 
 
 class TagQueryHandler(QueryHandler):
@@ -73,12 +83,19 @@ class TagQueryHandler(QueryHandler):
         """
         filters = super()._get_filter(delta)
 
-        project = self.get_query_param_data('filter', 'project')
-
-        if project and not TagQueryHandler.has_wildcard(project):
-            proj_filter = {'field': 'namespace', 'operation': 'icontains'}
-            q_filter = QueryFilter(parameter=project[0], **proj_filter)
-            filters.add(q_filter)
+        for filter_key in SUPPORTED_FILTERS:
+            filter_value = self.get_query_param_data('filter', filter_key)
+            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+                filter_obj = FILTER_MAP.get(filter_key)
+                if isinstance(filter_obj, list):
+                    for _filt in filter_obj:
+                        for item in filter_value:
+                            q_filter = QueryFilter(parameter=item, **_filt)
+                            filters.add(q_filter)
+                else:
+                    for item in filter_value:
+                        q_filter = QueryFilter(parameter=item, **filter_obj)
+                        filters.add(q_filter)
 
         composed_filters = filters.compose()
 

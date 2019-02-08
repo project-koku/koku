@@ -163,7 +163,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_value, -2)
 
     def test_execute_query_for_project(self):
-        """Test that the execute query runs properly with 10 day query."""
+        """Test that the execute query runs properly with project query."""
         namespace = None
         with tenant_context(self.tenant):
             namespace_obj = OCPUsageLineItemDailySummary.objects\

@@ -150,3 +150,28 @@ class AWSTagQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
         self.assertEqual(handler.time_scope_value, -2)
+
+    def test_execute_query_for_account(self):
+        """Test that the execute query runs properly with account query."""
+        account = IamTestCase.fake.ean8()
+        query_params = {'filter': {'resolution': 'daily',
+                                   'time_scope_value': -10,
+                                   'time_scope_units': 'day',
+                                   'account': account},
+                        }
+        query_string = '?filter[resolution]=daily&' + \
+                       'filter[time_scope_value]=-10&' + \
+                       'filter[time_scope_units]=day&' + \
+                       'filter[account]={}'.format(account)
+
+        handler = AWSTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertEqual(handler.time_scope_units, 'day')
+        self.assertEqual(handler.time_scope_value, -10)
