@@ -24,8 +24,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.view import _generic_report
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
-from api.tags.serializers import OCPTagsQueryParamSerializer
 
 
 @api_view(http_method_names=['GET'])
@@ -64,6 +62,4 @@ def ocp_tags(request):
         }
 
     """
-    extras = {}
-    return _generic_report(request, OCPTagsQueryParamSerializer,
-                           OCPTagQueryHandler, **extras)
+    return _generic_report(request, provider='ocp', report='tags')
