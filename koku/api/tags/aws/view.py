@@ -25,7 +25,7 @@ from rest_framework.settings import api_settings
 
 from api.report.view import _generic_report
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
-from api.tags.serializers import TagsQueryParamSerializer
+from api.tags.serializers import AWSTagsQueryParamSerializer
 
 
 @api_view(http_method_names=['GET'])
@@ -65,5 +65,5 @@ def aws_tags(request):
 
     """
     extras = {}
-    return _generic_report(request, TagsQueryParamSerializer,
+    return _generic_report(request, AWSTagsQueryParamSerializer,
                            AWSTagQueryHandler, **extras)

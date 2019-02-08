@@ -19,7 +19,9 @@ from unittest import TestCase
 
 from rest_framework import serializers
 
-from api.tags.serializers import (FilterSerializer,
+from api.tags.serializers import (AWSFilterSerializer,
+                                  FilterSerializer,
+                                  OCPFilterSerializer,
                                   TagsQueryParamSerializer)
 
 
@@ -33,24 +35,6 @@ class FilterSerializerTest(TestCase):
                          'time_scope_units': 'day'}
         serializer = FilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
-
-    def test_parse_filter_params_w_project_success(self):
-        """Test parse of a filter param with project successfully."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'project': 'myproject'}
-        serializer = FilterSerializer(data=filter_params)
-        self.assertTrue(serializer.is_valid())
-
-    def test_parse_filter_params_w_project_failure(self):
-        """Test parse of a filter param with an invalid project."""
-        filter_params = {'resolution': 'daily',
-                         'time_scope_value': '-10',
-                         'time_scope_units': 'day',
-                         'project': 3}
-        serializer = FilterSerializer(data=filter_params)
-        self.assertFalse(serializer.is_valid())
 
     def test_parse_filter_no_params_success(self):
         """Test parse of a filter param successfully."""
@@ -94,6 +78,50 @@ class FilterSerializerTest(TestCase):
         serializer = FilterSerializer(data=filter_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+
+class AWSFilterSerializerTest(TestCase):
+    """Tests for the AWS filter serializer."""
+
+    def test_parse_filter_params_w_project_success(self):
+        """Test parse of a filter param with project successfully."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'account': 'myaccount'}
+        serializer = AWSFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_filter_params_w_project_failure(self):
+        """Test parse of a filter param with an invalid project."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'account': 3}
+        serializer = AWSFilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
+
+
+class OCPFilterSerializerTest(TestCase):
+    """Tests for the OCP filter serializer."""
+
+    def test_parse_filter_params_w_project_success(self):
+        """Test parse of a filter param with project successfully."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'project': 'myproject'}
+        serializer = OCPFilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_filter_params_w_project_failure(self):
+        """Test parse of a filter param with an invalid project."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'project': 3}
+        serializer = OCPFilterSerializer(data=filter_params)
+        self.assertFalse(serializer.is_valid())
 
 
 class TagsQueryParamSerializerTest(TestCase):
