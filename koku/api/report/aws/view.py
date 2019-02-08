@@ -17,18 +17,13 @@
 #
 """AWS views."""
 
-from django.db.models import Value
-from django.db.models.functions import Concat
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
-from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import _generic_report, get_tag_keys
-from reporting.provider.aws.models import AWSTagsSummary
+from api.report.view import _generic_report
 
 
 @api_view(http_method_names=['GET'])
@@ -119,12 +114,7 @@ def costs(request):
         6721340654404,2018-07,19356.197856632,USD
 
     """
-    tag_keys = get_tag_keys(request, AWSTagsSummary)
-    extras = {
-        'report_type': 'costs',
-        'tag_keys': tag_keys
-    }
-    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
+    return _generic_report(request, report='costs', provider='aws')
 
 
 @api_view(http_method_names=['GET'])
@@ -250,14 +240,7 @@ def instance_type(request):
         8133889256380,2018-08-04,r4.large,10.0,Hrs
 
     """
-    tag_keys = get_tag_keys(request, AWSTagsSummary)
-    annotations = {'instance_type':
-                   Concat('cost_entry_product__instance_type', Value(''))}
-    extras = {'annotations': annotations,
-              'group_by': ['instance_type'],
-              'report_type': 'instance_type',
-              'tag_keys': tag_keys}
-    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
+    return _generic_report(request, report='instance_type', provider='aws')
 
 
 @api_view(http_method_names=['GET'])
@@ -375,8 +358,4 @@ def storage(request):
         2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
-    tag_keys = get_tag_keys(request, AWSTagsSummary)
-
-    extras = {'report_type': 'storage',
-              'tag_keys': tag_keys}
-    return _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
+    return _generic_report(request, report='storage', provider='aws')

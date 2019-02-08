@@ -27,9 +27,83 @@ from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant, User
+from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.aws.serializers import QueryParamSerializer
+from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
+                                        OCPInventoryQueryParamSerializer)
+from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
+from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.serializers import TagsQueryParamSerializer
 from api.utils import UnitConverter
+from reporting.provider.aws.models import AWSTagsSummary
+from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+
 
 LOG = logging.getLogger(__name__)
+
+
+class ClassMapper(object):
+    """Data structure object to organize class references."""
+
+    CLASS_MAP = [{'provider': 'aws', 'reports': [{'report': 'default',
+                                                  'serializer': QueryParamSerializer,
+                                                  'query_handler': AWSReportQueryHandler,
+                                                  'tag_handler': AWSTagsSummary},
+                                                 {'report': 'tags',
+                                                  'serializer': TagsQueryParamSerializer,
+                                                  'query_handler': AWSTagQueryHandler,
+                                                  'tag_handler': AWSTagsSummary}]},
+                 {'provider': 'ocp', 'reports': [{'report': 'default',
+                                                  'serializer': OCPInventoryQueryParamSerializer,
+                                                  'query_handler': OCPReportQueryHandler,
+                                                  'tag_handler': OCPUsagePodLabelSummary},
+                                                 {'report': 'charge',
+                                                  'serializer': OCPChargeQueryParamSerializer,
+                                                  'query_handler': OCPReportQueryHandler,
+                                                  'tag_handler': OCPUsagePodLabelSummary},
+                                                 {'report': 'tags',
+                                                  'serializer': TagsQueryParamSerializer,
+                                                  'query_handler': OCPTagQueryHandler,
+                                                  'tag_handler': OCPUsagePodLabelSummary}]}]
+
+    def reports(self, provider):
+        """Return list of report dictionaries."""
+        for item in self.CLASS_MAP:
+            if provider == item.get('provider'):
+                return item.get('reports')
+
+    def report_types(self, provider):
+        """Return list of report names."""
+        reports = self.reports(provider)
+        return [rep.get('report') for rep in reports]
+
+    def get_report(self, provider, report):
+        """Return the specified report dict.
+
+        Return default report dict if named report not found.
+
+        """
+        reports = self.reports(provider)
+        for rep in reports:
+            if report == rep.get('report'):
+                return rep
+        return self.get_report(provider, 'default')
+
+    def serializer(self, provider, report):
+        """Return Serializer class from CLASS_MAP."""
+        report = self.get_report(provider, report)
+        return report.get('serializer')
+
+    def query_handler(self, provider, report):
+        """Return QueryHandler class from CLASS_MAP."""
+        report = self.get_report(provider, report)
+        return report.get('query_handler')
+
+    def tag_handler(self, provider, report):
+        """Return TagHandler class from CLASS_MAP."""
+        report = self.get_report(provider, report)
+        return report.get('tag_handler')
 
 
 def get_tag_keys(request, summary_model):
@@ -186,11 +260,13 @@ def _convert_units(converter, data, to_unit):
     return data
 
 
-def _generic_report(request, provider_parameter_serializer, provider_query_hdlr, **kwargs):
+def _generic_report(request, provider, report):
     """Generically query for reports.
 
     Args:
         request (Request): The HTTP request object
+        provider (String): Provider name (e.g. 'aws' or 'ocp')
+        report (String): Report name (e.g. 'cost', 'cpu', 'memory'); used to access ReportMap
 
     Returns:
         (Response): The report in a Response object
@@ -198,12 +274,14 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
     """
     LOG.info(f'API: {request.path} USER: {request.user.username}')
     tenant = get_tenant(request.user)
-    if kwargs:
-        kwargs['accept_type'] = request.META.get('HTTP_ACCEPT')
-    else:
-        kwargs = {'accept_type': request.META.get('HTTP_ACCEPT')}
 
-    tag_keys = kwargs.get('tag_keys', [])
+    cm = ClassMapper()
+    provider_query_hdlr = cm.query_handler(provider, report)
+    provider_parameter_serializer = cm.serializer(provider, report)
+
+    tag_keys = None
+    if report != 'tags':
+        tag_keys = get_tag_keys(request, cm.tag_handler(provider, report))
 
     url_data = request.GET.urlencode()
     validation, params = process_query_parameters(
@@ -211,6 +289,7 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
         provider_parameter_serializer,
         tag_keys
     )
+
     if not validation:
         return Response(
             data=params,
@@ -220,7 +299,9 @@ def _generic_report(request, provider_parameter_serializer, provider_query_hdlr,
     handler = provider_query_hdlr(params,
                                   url_data,
                                   tenant,
-                                  **kwargs)
+                                  accept_type=request.META.get('HTTP_ACCEPT'),
+                                  report_type=report,
+                                  tag_keys=tag_keys)
     output = handler.execute_query()
 
     if 'units' in params:

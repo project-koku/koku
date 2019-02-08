@@ -28,9 +28,9 @@ from rest_framework_csv.renderers import CSVRenderer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import (_convert_units,
+from api.report.view import (ClassMapper,
+                             _convert_units,
                              _fill_in_missing_units,
                              _find_unit,
                              _generic_report,
@@ -129,7 +129,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_costs_customer_owner(self):
         """Test costs reports runs with a customer owner."""
-        url = reverse('reports-costs')
+        url = reverse('reports-aws-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
@@ -197,7 +197,7 @@ class ReportViewTest(IamTestCase):
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-costs') + '?' + qs
+        url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
@@ -220,7 +220,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""
-        url = reverse('reports-costs')
+        url = reverse('reports-aws-costs')
         client = APIClient(HTTP_ACCEPT='text/csv')
 
         response = client.get(url, **self.headers)
@@ -318,14 +318,18 @@ class ReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        extras = {'report_type': 'costs'}
-        response = _generic_report(request, QueryParamSerializer, AWSReportQueryHandler, **extras)
+        response = _generic_report(request, provider='aws', report='costs')
         self.assertIsInstance(response, Response)
 
-    @patch('api.report.aws.aws_query_handler.AWSReportQueryHandler')
-    def test_generic_report_with_units_fails_well(self, mock_handler):
+    def test_generic_report_with_units_fails_well(self):
         """Test that validation error is thrown for bad unit conversion."""
-        mock_handler.return_value.execute_query.return_value = self.report
+        patched = patch('api.report.aws.aws_query_handler.AWSReportQueryHandler',
+                        spec=True)
+        mock_class = patched.start()
+        mock_class.return_value.execute_query.return_value = self.report
+        # replace the normal queryhandler with our mocked version
+        ClassMapper.CLASS_MAP[0]['reports'][0]['query_handler'] = mock_class
+
         # The 'bad' unit here is that the report is in GB-Mo, and can't
         # convert to seconds
         params = {
@@ -348,8 +352,7 @@ class ReportViewTest(IamTestCase):
         request.user = user
 
         with self.assertRaises(ValidationError):
-            extras = {'report_type': 'costs'}
-            _generic_report(request, QueryParamSerializer, mock_handler, **extras)
+            _generic_report(request, provider='aws', report='costs')
 
     def test_find_unit_list(self):
         """Test that the correct unit is returned."""
@@ -398,7 +401,7 @@ class ReportViewTest(IamTestCase):
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""
         qs = 'delta=total'
-        url = reverse('reports-costs') + '?' + qs
+        url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
@@ -408,7 +411,7 @@ class ReportViewTest(IamTestCase):
         bad_delta = 'Invalid'
         expected = f'"{bad_delta}" is not a valid choice.'
         qs = f'group_by[account]=*&filter[limit]=2&delta={bad_delta}'
-        url = reverse('reports-costs') + '?' + qs
+        url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         result = str(response.data.get('delta')[0])
