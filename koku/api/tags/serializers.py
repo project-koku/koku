@@ -103,9 +103,6 @@ class FilterSerializer(serializers.Serializer):
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
                                                required=False)
 
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -144,6 +141,20 @@ class FilterSerializer(serializers.Serializer):
         return data
 
 
+class OCPFilterSerializer(FilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    project = StringOrListField(child=serializers.CharField(),
+                                required=False)
+
+
+class AWSFilterSerializer(FilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    account = StringOrListField(child=serializers.CharField(),
+                                required=False)
+
+
 class TagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
@@ -173,5 +184,17 @@ class TagsQueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if filter field inputs are invalid
         """
-        validate_field(self, 'filter', FilterSerializer, value)
+        validate_field(self, 'filter', OCPFilterSerializer, value)
         return value
+
+
+class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling OCP tag query parameters."""
+
+    filter = OCPFilterSerializer(required=False)
+
+
+class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling AWS tag query parameters."""
+
+    filter = AWSFilterSerializer(required=False)

@@ -891,11 +891,13 @@ class OCPReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get('data', [])
-        previous_tag = data[0].get('app_labels', [])[0].get('app_label')
-
+        # default ordered by usage
+        previous_tag_usage = data[0].get('app_labels', [])[0].get('values', [{}])[0].get('usage', 0)
         for entry in data[0].get('app_labels', []):
-            current_tag = entry.get('app_label')
-            self.assertTrue(current_tag <= previous_tag)
+            current_tag_usage = entry.get('values', [{}])[0].get('usage', 0)
+            if 'Other' not in entry.get('app_label'):
+                self.assertTrue(current_tag_usage <= previous_tag_usage)
+                previous_tag_usage = current_tag_usage
 
     def test_execute_query_with_group_by_and_limit(self):
         """Test that data is grouped by and limited."""
