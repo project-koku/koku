@@ -15,6 +15,9 @@ def load_ocp_report_map_data(apps, schema_editor):
     data = json.loads(data)
 
     for entry in data:
+        del entry['report_type']
+        if entry['database_table'] == "reporting_ocpstoragelineitem":
+            continue
         map = ReportColumnMap(**entry)
         map.save()
 

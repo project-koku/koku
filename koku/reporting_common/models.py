@@ -55,6 +55,12 @@ class ReportColumnMap(models.Model):
     and column in a customer schema.
 
     """
+    class Meta:
+        """Meta for ReportColumnMap."""
+
+        unique_together = ('report_type', 'provider_column_name',)
+
+    report_type = models.CharField(max_length=50, null=True)
 
     provider_type = models.CharField(
         max_length=50,
@@ -66,7 +72,7 @@ class ReportColumnMap(models.Model):
     provider_column_name = models.CharField(
         max_length=128,
         null=False,
-        unique=True
+        unique=False
     )
 
     database_table = models.CharField(max_length=50, null=False)
