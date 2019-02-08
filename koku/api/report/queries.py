@@ -30,6 +30,7 @@ from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
+                              OCPAWSCostLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
@@ -75,6 +76,7 @@ class ProviderMap(object):
             'region': {'field': 'region',
                         'operation': 'icontains'}
         },
+        'group_by_options': ['service', 'account', 'region', 'az'],
         'tag_column': 'tags',
         'report_type': {
             'costs': {
@@ -164,6 +166,7 @@ class ProviderMap(object):
             'node': {'field': 'node',
                         'operation': 'icontains'},
         },
+        'group_by_options': ['service', 'account', 'region', 'az'],
         'tag_column': 'pod_labels',
         'report_type': {
             'charge': {
@@ -248,7 +251,71 @@ class ProviderMap(object):
         'tables': {'previous_query': OCPUsageLineItemDailySummary,
                     'query': OCPUsageLineItemDailySummary,
                     'total': OCPUsageLineItemAggregates},
-    }]
+    }, {
+        'provider': 'OCP_AWS',
+        'annotations': {'cluster': 'cluster_id',
+                        'project': 'namespace',
+                        'account': 'usage_account_id',
+                        'service': 'product_code',
+                        'az': 'availability_zone'},
+        'end_date': 'usage_end',
+        'filters': {
+            'project': {'field': 'namespace',
+                        'operation': 'icontains'},
+            'cluster': [{'field': 'cluster_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'},
+                        {'field': 'cluster_id',
+                        'operation': 'icontains',
+                        'composition_key': 'cluster_filter'}],
+            'node': {'field': 'node',
+                        'operation': 'icontains'},
+            'account': [{'field': 'account_alias__account_alias',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'},
+                        {'field': 'usage_account_id',
+                        'operation': 'icontains',
+                        'composition_key': 'account_filter'}],
+            'service': {'field': 'product_code',
+                        'operation': 'icontains'},
+            'az': {'field': 'availability_zone',
+                            'operation': 'icontains'},
+            'region': {'field': 'region',
+                        'operation': 'icontains'}
+        },
+        'group_by_options': ['account', 'service', 'region', 'cluster', 'project', 'node'],
+        'tag_column': 'tags',
+        'report_type': {
+            'storage': {
+                'aggregates': {
+                    'value': Sum('usage_amount'),
+                    'cost': Sum('unblended_cost')
+                },
+
+                'aggregate_key': 'usage_amount',
+                'annotations': {'cost': Sum('unblended_cost'),
+                                'total': Sum('usage_amount'),
+                                'units': Coalesce(Max('unit'),
+                                Value('GB-Mo'))},
+                'count': None,
+                'delta_key': {'total': Sum('usage_amount')},
+                'filter': {
+                    'field': 'product_family',
+                    'operation': 'contains',
+                    'parameter': 'Storage'
+                },
+                'units_key': 'unit',
+                'units_fallback': 'GB-Mo',
+                'sum_columns': ['total', 'cost'],
+                'default_ordering': {'total': 'desc'},
+            },
+        },
+        'start_date': 'usage_start',
+        'tables': {'previous_query': OCPAWSCostLineItemDailySummary,
+                    'query': OCPAWSCostLineItemDailySummary,
+                    'total': OCPAWSCostLineItemDailySummary},
+    }
+    ]
 
     @staticmethod
     def provider_data(provider):
@@ -292,7 +359,7 @@ class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
     def __init__(self, query_parameters, url_data,
-                 tenant, group_by_options, **kwargs):
+                 tenant, **kwargs):
         """Establish report query handler.
 
         Args:
@@ -322,7 +389,7 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, default_ordering, **kwargs)
 
-        self.group_by_options = group_by_options
+        self.group_by_options = self._mapper._provider_map.get('group_by_options')
 
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
