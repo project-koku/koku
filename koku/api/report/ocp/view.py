@@ -23,11 +23,7 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
-                                        OCPInventoryQueryParamSerializer)
-from api.report.view import _generic_report, get_tag_keys
-from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+from api.report.view import _generic_report
 
 
 @api_view(http_method_names=['GET'])
@@ -132,13 +128,7 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
-    extras = {
-        'report_type': 'mem',
-        'tag_keys': tag_keys
-    }
-    return _generic_report(request, OCPInventoryQueryParamSerializer,
-                           OCPReportQueryHandler, **extras)
+    return _generic_report(request, report='memory', provider='ocp')
 
 
 @api_view(http_method_names=['GET'])
@@ -247,13 +237,7 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
-    extras = {
-        'report_type': 'cpu',
-        'tag_keys': tag_keys
-    }
-    return _generic_report(request, OCPInventoryQueryParamSerializer,
-                           OCPReportQueryHandler, **extras)
+    return _generic_report(request, report='cpu', provider='ocp')
 
 
 @api_view(http_method_names=['GET'])
@@ -331,10 +315,4 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
-    extras = {
-        'report_type': 'charge',
-        'tag_keys': tag_keys
-    }
-    return _generic_report(request, OCPChargeQueryParamSerializer,
-                           OCPReportQueryHandler, **extras)
+    return _generic_report(request, report='charge', provider='ocp')
