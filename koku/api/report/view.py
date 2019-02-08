@@ -34,7 +34,7 @@ from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
-from api.tags.serializers import TagsQueryParamSerializer
+from api.tags.serializers import AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer
 from api.utils import UnitConverter
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
@@ -51,7 +51,7 @@ class ClassMapper(object):
                                                   'query_handler': AWSReportQueryHandler,
                                                   'tag_handler': AWSTagsSummary},
                                                  {'report': 'tags',
-                                                  'serializer': TagsQueryParamSerializer,
+                                                  'serializer': AWSTagsQueryParamSerializer,
                                                   'query_handler': AWSTagQueryHandler,
                                                   'tag_handler': AWSTagsSummary}]},
                  {'provider': 'ocp', 'reports': [{'report': 'default',
@@ -63,7 +63,7 @@ class ClassMapper(object):
                                                   'query_handler': OCPReportQueryHandler,
                                                   'tag_handler': OCPUsagePodLabelSummary},
                                                  {'report': 'tags',
-                                                  'serializer': TagsQueryParamSerializer,
+                                                  'serializer': OCPTagsQueryParamSerializer,
                                                   'query_handler': OCPTagQueryHandler,
                                                   'tag_handler': OCPUsagePodLabelSummary}]}]
 
