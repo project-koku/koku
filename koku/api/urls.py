@@ -25,6 +25,7 @@ from api.views import (ProviderViewSet,
                        charges,
                        cpu,
                        instance_type,
+                       ocp_aws_storage,
                        memory,
                        ocp_tags,
                        status,
@@ -45,6 +46,7 @@ urlpatterns = [
     url(r'^reports/inventory/aws/storage/$', storage, name='reports-storage'),
     url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),
     url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
+    url(r'^reports/inventory/ocp/storage/$', ocp_aws_storage, name='reports-ocp-aws-storage'),
     url(r'^', include(ROUTER.urls)),
 ]
 
