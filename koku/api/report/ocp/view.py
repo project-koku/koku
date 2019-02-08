@@ -343,10 +343,4 @@ def costs(request):
     @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
     """
-    tag_keys = get_tag_keys(request, OCPUsagePodLabelSummary)
-    extras = {
-        'report_type': 'cost',
-        'tag_keys': tag_keys
-    }
-    return _generic_report(request, OCPInventoryQueryParamSerializer,
-                           OCPReportQueryHandler, **extras)
+    return _generic_report(request, report='cost', provider='ocp')
