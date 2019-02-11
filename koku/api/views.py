@@ -26,3 +26,4 @@ from api.provider.view import ProviderViewSet
 from api.report.aws.view import costs as aws_costs, instance_type, storage
 from api.report.ocp.view import charges, cpu, memory
 from api.report.ocp_aws.view import storage as ocp_aws_storage
+from api.report.ocp.view import charges, cpu, memory, costs as ocp_costs
