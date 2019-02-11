@@ -55,6 +55,7 @@ class ReportColumnMap(models.Model):
     and column in a customer schema.
 
     """
+
     class Meta:
         """Meta for ReportColumnMap."""
 
