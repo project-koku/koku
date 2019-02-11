@@ -27,6 +27,7 @@ import io
 import json
 import logging
 from datetime import datetime
+from enum import Enum
 from os import path
 
 from masu.config import Config
@@ -37,6 +38,18 @@ from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 
 LOG = logging.getLogger(__name__)
+
+
+class OCPReportProcessorError(Exception):
+    """OCPReportProcessor Error."""
+
+
+class OCPReportTypes(Enum):
+    """Types of OCP report files."""
+
+    CPU_MEM_USAGE = 1
+    STORAGE = 2
+    UNKNOWN = 3
 
 
 class ProcessedOCPReport:
@@ -59,7 +72,7 @@ class ProcessedOCPReport:
         self.line_items = []
 
 
-class OCPReportProcessor(ReportProcessorBase):
+class OCPReportProcessor():
     """OCP Usage Report processor."""
 
     storage_columns = ['report_period_start', 'report_period_end', 'interval_start',
@@ -69,6 +82,15 @@ class OCPReportProcessor(ReportProcessorBase):
                        'volume_request_storage_byte_seconds',
                        'persistentvolumeclaim_usage_byte_seconds', 'persistentvolume_labels',
                        'persistentvolumeclaim_labels']
+
+    cpu_mem_usage_columns = ['report_period_start', 'report_period_end', 'pod', 'namespace',
+                             'node', 'resource_id', 'interval_start', 'interval_end',
+                             'pod_usage_cpu_core_seconds', 'pod_request_cpu_core_seconds',
+                             'pod_limit_cpu_core_seconds', 'pod_usage_memory_byte_seconds',
+                             'pod_request_memory_byte_seconds', 'pod_limit_memory_byte_seconds',
+                             'node_capacity_cpu_cores', 'node_capacity_cpu_core_seconds',
+                             'node_capacity_memory_bytes', 'node_capacity_memory_byte_seconds',
+                             'pod_labels']
 
     def __init__(self, schema_name, report_path, compression, provider_id):
         """Initialize the report processor.
@@ -80,6 +102,43 @@ class OCPReportProcessor(ReportProcessorBase):
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
+        self._processor = None
+        self.report_type = self._detect_report_type(report_path)
+        if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
+            self._processor = OCPCpuMemReportProcessor(schema_name, report_path,
+                                                       compression, provider_id)
+        elif self.report_type == OCPReportTypes.STORAGE:
+            self._processor = OCPStorageProcessor(schema_name, report_path,
+                                                  compression, provider_id)
+        elif self.report_type == OCPReportTypes.UNKNOWN:
+            raise OCPReportProcessorError('Unknown OCP report type.')
+
+    def _detect_report_type(self, report_path):
+        """Detect OCP report type."""
+        report_type = OCPReportTypes.UNKNOWN
+        with open(report_path) as report_file:
+            reader = csv.reader(report_file)
+            column_names = next(reader)
+            if sorted(column_names) == sorted(self.storage_columns):
+                report_type = OCPReportTypes.STORAGE
+            elif sorted(column_names) == sorted(self.cpu_mem_usage_columns):
+                report_type = OCPReportTypes.CPU_MEM_USAGE
+        return report_type
+
+    def process(self):
+        """Process report file."""
+        return self._processor.process()
+
+    def remove_temp_cur_files(self, report_path, manifest_id):
+        """Remove temporary report files."""
+        return self._processor.remove_temp_cur_files(report_path, manifest_id)
+
+
+class OCPReportProcessorBase(ReportProcessorBase):
+    """Base class for OCP report processing."""
+
+    def __init__(self, schema_name, report_path, compression, provider_id):
+        """Initialize base class."""
         super().__init__(
             schema_name=schema_name,
             report_path=report_path,
@@ -87,22 +146,11 @@ class OCPReportProcessor(ReportProcessorBase):
             provider_id=provider_id
         )
 
-        # Temporary check to skip storage .csv files until processor is updated.
-        with open(report_path) as f:
-            reader = csv.reader(f)
-            column_names = next(reader)
-            if sorted(column_names) == sorted(self.storage_columns):
-                LOG.info('Storage report found.  Skipping...')
-                self._report_path = None
-                return
-
         self._report_name = path.basename(report_path)
         self._cluster_id = report_path.split('/')[-2]
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-
-        self.processed_report = ProcessedOCPReport()
 
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
@@ -112,9 +160,7 @@ class OCPReportProcessor(ReportProcessorBase):
             self.existing_report_map = report_db.get_reports()
 
         self.line_item_columns = None
-
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_path, self._schema_name)
+        self.processed_report = ProcessedOCPReport()
 
     def _get_file_opener(self, compression):
         """Get the file opener for the file's compression.
@@ -222,50 +268,6 @@ class OCPReportProcessor(ReportProcessorBase):
 
         return report_period_id
 
-    def _create_usage_report_line_item(self,
-                                       row,
-                                       report_period_id,
-                                       report_id,
-                                       report_db_accessor):
-        """Create a cost entry line item object.
-
-        Args:
-            row (dict): A dictionary representation of a CSV file row
-            report_period_id (str): A report period object id
-            report_id (str): A report object id
-
-        Returns:
-            (None)
-
-        """
-        table_name = OCP_REPORT_TABLE_MAP['line_item']
-        data = self._get_data_for_table(row, table_name)
-
-        pod_label_str = ''
-        if 'pod_labels' in data:
-            pod_label_str = data.pop('pod_labels')
-
-        data = report_db_accessor.clean_data(
-            data,
-            table_name
-        )
-
-        data['report_period_id'] = report_period_id
-        data['report_id'] = report_id
-        data['pod_labels'] = self._process_pod_labels(pod_label_str)
-
-        # Deduplicate potential repeated rows in data
-        key = tuple(data.get(column)
-                    for column in self.line_item_conflict_columns)
-        if key in self.processed_report.line_item_keys:
-            return
-
-        self.processed_report.line_items.append(data)
-        self.processed_report.line_item_keys[key] = True
-
-        if self.line_item_columns is None:
-            self.line_item_columns = list(data.keys())
-
     def _process_pod_labels(self, label_string):
         """Convert the report string to a JSON dictionary.
 
@@ -329,8 +331,76 @@ class OCPReportProcessor(ReportProcessorBase):
 
         self.processed_report.remove_processed_rows()
 
+
+class OCPCpuMemReportProcessor(OCPReportProcessorBase):
+    """OCP Usage Report processor."""
+
+    def __init__(self, schema_name, report_path, compression, provider_id):
+        """Initialize the report processor.
+
+        Args:
+            schema_name (str): The name of the customer schema to process into
+            report_path (str): Where the report file lives in the file system
+            compression (CONST): How the report file is compressed.
+                Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
+
+        """
+        super().__init__(
+            schema_name=schema_name,
+            report_path=report_path,
+            compression=compression,
+            provider_id=provider_id
+        )
+
+        LOG.info('Initialized report processor for file: %s and schema: %s',
+                 self._report_path, self._schema_name)
+
+    def _create_usage_report_line_item(self,
+                                       row,
+                                       report_period_id,
+                                       report_id,
+                                       report_db_accessor):
+        """Create a cost entry line item object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+            report_period_id (str): A report period object id
+            report_id (str): A report object id
+
+        Returns:
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['line_item']
+        data = self._get_data_for_table(row, table_name)
+
+        pod_label_str = ''
+        if 'pod_labels' in data:
+            pod_label_str = data.pop('pod_labels')
+
+        data = report_db_accessor.clean_data(
+            data,
+            table_name
+        )
+
+        data['report_period_id'] = report_period_id
+        data['report_id'] = report_id
+        data['pod_labels'] = self._process_pod_labels(pod_label_str)
+
+        # Deduplicate potential repeated rows in data
+        key = tuple(data.get(column)
+                    for column in self.line_item_conflict_columns)
+        if key in self.processed_report.line_item_keys:
+            return
+
+        self.processed_report.line_items.append(data)
+        self.processed_report.line_item_keys[key] = True
+
+        if self.line_item_columns is None:
+            self.line_item_columns = list(data.keys())
+
     def remove_temp_cur_files(self, report_path, manifest_id):
-        """Remove temporary cost usage report files."""
+        """Remove temporary cpu and mem usage files."""
         LOG.info('Cleaning up temporary report files for %s', self._report_name)
         return []
 
@@ -348,10 +418,6 @@ class OCPReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
-
-        # Temporary check to skip storage .csv files until processor is updated.
-        if not self._report_path:
-            return
 
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
@@ -402,16 +468,37 @@ class OCPReportProcessor(ReportProcessorBase):
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
-    def update_summary_tables(self, start_date, end_date=None):
-        """Populate the summary tables for reporting.
+
+class OCPStorageProcessor(OCPReportProcessorBase):
+    """OCP Usage Report processor."""
+
+    def __init__(self, schema_name, report_path, compression, provider_id):
+        """Initialize the report processor.
 
         Args:
-            start_date (String) The date to start populating the table.
-            end_date   (String) The date to end on.
-
-        Returns
-            None
+            schema_name (str): The name of the customer schema to process into
+            report_path (str): Where the report file lives in the file system
+            compression (CONST): How the report file is compressed.
+                Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
-        LOG.info('Updating report summary tables for %s from %s to %s',
-                 self._schema_name, start_date, end_date)
+        super().__init__(
+            schema_name=schema_name,
+            report_path=report_path,
+            compression=compression,
+            provider_id=provider_id
+        )
+
+    def process(self):
+        """Process usage report file.
+
+        Returns:
+            (None)
+
+        """
+        pass
+
+    def remove_temp_cur_files(self, report_path, manifest_id):
+        """Remove temporary OCP storage report files."""
+        LOG.info('Cleaning up temporary report files for %s', self._report_name)
+        return []
