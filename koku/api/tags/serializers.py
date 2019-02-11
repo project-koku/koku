@@ -174,6 +174,12 @@ class TagsQueryParamSerializer(serializers.Serializer):
         handle_invalid_fields(self, data)
         return data
 
+
+class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling OCP tag query parameters."""
+
+    filter = OCPFilterSerializer(required=False)
+
     def validate_filter(self, value):
         """Validate incoming filter data.
 
@@ -188,13 +194,20 @@ class TagsQueryParamSerializer(serializers.Serializer):
         return value
 
 
-class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
-    """Serializer for handling OCP tag query parameters."""
-
-    filter = OCPFilterSerializer(required=False)
-
-
 class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
     """Serializer for handling AWS tag query parameters."""
 
     filter = AWSFilterSerializer(required=False)
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+        """
+        validate_field(self, 'filter', AWSFilterSerializer, value)
+        return value
