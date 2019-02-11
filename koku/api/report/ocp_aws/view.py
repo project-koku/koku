@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OCP Usage Reports."""
+"""View for OCP on AWS Usage Reports."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -51,6 +51,51 @@ def storage(request):
     @apiSuccess {Object} data  The report data.
     @apiSuccess {Object} total Aggregates statistics for the report range.
     @apiSuccessExample {json} Success-Response:
+        HTTP 200 OK
+        Allow: GET, OPTIONS
+        Content-Type: application/json
+        Vary: Accept
+
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-1",
+                "time_scope_units": "month"
+            },
+            "data": [
+                {
+                    "date": "2019-01",
+                    "projects": [
+                        {
+                            "project": "namespace_ci",
+                            "values": [
+                                {
+                                    "date": "2019-01",
+                                    "units": "GB-Mo",
+                                    "project": "namespace_ci",
+                                    "cost": 11.674377,
+                                    "total": 24.0
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "units": "GB-Mo",
+                "cost": 11.674377,
+                "total": 24.0
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        cost,date,project,total,units
+        11.674377,2019-01,namespace_ci,24.0,Hrs
 
     """
     return _generic_report(request, report='storage', provider='ocp_aws')
