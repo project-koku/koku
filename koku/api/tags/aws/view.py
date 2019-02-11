@@ -24,8 +24,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
 from api.report.view import _generic_report
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
-from api.tags.serializers import TagsQueryParamSerializer
 
 
 @api_view(http_method_names=['GET'])
@@ -64,6 +62,4 @@ def aws_tags(request):
         }
 
     """
-    extras = {}
-    return _generic_report(request, TagsQueryParamSerializer,
-                           AWSTagQueryHandler, **extras)
+    return _generic_report(request, provider='aws', report='tags')

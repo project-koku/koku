@@ -215,7 +215,7 @@ class ProviderMap(object):
                 'units_key': 'Core-Hours',
                 'sum_columns': ['usage', 'request', 'limit', 'charge'],
             },
-            'mem': {
+            'memory': {
                 'aggregates': {
                     'usage': Sum('pod_usage_memory_gigabyte_hours'),
                     'request': Sum('pod_request_memory_gigabyte_hours'),
@@ -481,6 +481,7 @@ class ReportQueryHandler(QueryHandler):
         inherent_group_by = self._mapper._report_type_map.get('group_by')
         if (inherent_group_by and not (group_by and self._limit)):
             group_by += inherent_group_by
+
         return group_by
 
     def _get_tag_group_by(self):

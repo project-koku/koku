@@ -32,8 +32,6 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.query_handler import TruncDayString
-from api.report.aws.serializers import QueryParamSerializer
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
@@ -220,9 +218,10 @@ class OCPReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        extras = {'report_type': 'cpu'}
-        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandler, **extras)
+        response = _generic_report(request, report='cpu', provider='ocp')
         self.assertIsInstance(response, Response)
+        # FIXME
+        # self.assertEqual(response.status_code, 200)
 
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_mem_success(self, mock_handler):
@@ -245,9 +244,10 @@ class OCPReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        extras = {'report_type': 'mem'}
-        response = _generic_report(request, QueryParamSerializer, OCPReportQueryHandler, **extras)
+        response = _generic_report(request, report='memory', provider='ocp')
         self.assertIsInstance(response, Response)
+        # FIXME
+        # self.assertEqual(response.status_code, 200)
 
     def test_execute_query_ocp_cpu(self):
         """Test that OCP CPU endpoint works."""
@@ -891,11 +891,13 @@ class OCPReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get('data', [])
-        previous_tag = data[0].get('app_labels', [])[0].get('app_label')
-
+        # default ordered by usage
+        previous_tag_usage = data[0].get('app_labels', [])[0].get('values', [{}])[0].get('usage', 0)
         for entry in data[0].get('app_labels', []):
-            current_tag = entry.get('app_label')
-            self.assertTrue(current_tag <= previous_tag)
+            current_tag_usage = entry.get('values', [{}])[0].get('usage', 0)
+            if 'Other' not in entry.get('app_label'):
+                self.assertTrue(current_tag_usage <= previous_tag_usage)
+                previous_tag_usage = current_tag_usage
 
     def test_execute_query_with_group_by_and_limit(self):
         """Test that data is grouped by and limited."""

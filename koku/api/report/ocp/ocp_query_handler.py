@@ -98,6 +98,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
+
             query_group_by = ['date'] + group_by_value
             query_order_by = ['-date']
             query_order_by.extend([self.order])
