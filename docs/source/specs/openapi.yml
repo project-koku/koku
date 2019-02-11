@@ -717,6 +717,52 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
+  /reports/inventory/ocp/storage/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain inventory storage data
+      operationId: getOCPAWSInventoryStorageReport
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'units'
+        in: 'query'
+        description: 'The units used to report data.'
+        type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportOCPAWSStorageInventory'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
   /tags/aws/:
     get:
       tags:
@@ -1046,6 +1092,56 @@ definitions:
         type: array
         items:
           type: string
+  ReportOCPAWSFilter:
+    type: object
+    properties:
+      limit:
+        type: integer
+        description: Limits the data points returns and aggregates remaining data.
+        example: 5
+      resolution:
+        $ref: '#/definitions/ReportResolution'
+      time_scope_value:
+        $ref: '#/definitions/ReportTimeScopeValue'
+      time_scope_units:
+        $ref: '#/definitions/ReportTimeScopeUnits'
+      resource_scope:
+        type: array
+        items:
+          $ref: '#/definitions/ReportResourceScope'
+        example: []
+      account:
+        type: array
+        items:
+          type: string
+      service:
+        type: array
+        items:
+          type: string
+      region:
+        type: array
+        items:
+          type: string
+      az:
+        type: array
+        items:
+          type: string
+      tag:
+        type: array
+        items:
+          type: string
+      project:
+        type: array
+        items:
+          type: string
+      cluster:
+        type: array
+        items:
+          type: string
+      node:
+        type: array
+        items:
+          type: string
   ReportGrouping:
     type: object
     properties:
@@ -1100,6 +1196,51 @@ definitions:
           type: string
     example: {'project': ['*']}
     description: The grouping to apply to the report. No grouping by default.
+  ReportOCPAWSGrouping:
+    type: object
+    properties:
+      account:
+        type: array
+        items:
+          type: string
+      service:
+        type: array
+        items:
+          type: string
+      region:
+        type: array
+        items:
+          type: string
+      az:
+        type: array
+        items:
+          type: string
+      instance_type:
+        type: array
+        items:
+          type: string
+      storage_type:
+        type: array
+        items:
+          type: string
+      tag:
+        type: array
+        items:
+          type: string
+      cluster:
+        type: array
+        items:
+          type: string
+      project:
+        type: array
+        items:
+          type: string
+      node:
+        type: array
+        items:
+          type: string
+    example: {'account': ['*']}
+    description: The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable.
   ReportOrdering:
     type: object
     properties:
@@ -1199,6 +1340,56 @@ definitions:
           - asc
           - desc
     example: { 'cluster': 'asc' }
+    description: The ordering to apply to the report. Default is ascending order for the data.
+  ReportOCPAWSOrdering:
+    type: object
+    properties:
+      total:
+        type: string
+        enum:
+          - asc
+          - desc
+      inventory:
+        type: string
+        enum:
+          - asc
+          - desc
+      delta:
+        type: string
+        enum:
+          - asc
+          - desc
+      account_alias:
+        type: string
+        enum:
+          - asc
+          - desc
+      region:
+        type: string
+        enum:
+          - asc
+          - desc
+      service:
+        type: string
+        enum:
+          - asc
+          - desc
+      cluster:
+        type: string
+        enum:
+          - asc
+          - desc
+      project:
+        type: string
+        enum:
+          - asc
+          - desc
+      node:
+        type: string
+        enum:
+          - asc
+          - desc
+    example: { 'total': 'asc' }
     description: The ordering to apply to the report. Default is ascending order for the data.
   ReportDelta:
     type: object
@@ -1538,6 +1729,36 @@ definitions:
                 }
                 ]
             ]
+  ReportOCPAWSStorageInventory:
+    allOf:
+      - $ref: '#/definitions/Report'
+    required:
+      - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                        {
+                            "date": "2019-01",
+                            "accounts": [
+                                {
+                                    "account": "9999999999999",
+                                    "values": [
+                                        {
+                                            "date": "2019-01",
+                                            "units": "GB-Mo",
+                                            "account": "9999999999999",
+                                            "cost": 24.0,
+                                            "total": 24.0,
+                                            "account_alias": "9999999999999"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
   ReportOCPCpu:
     allOf:
       - $ref: '#/definitions/Report'
