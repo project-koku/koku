@@ -166,7 +166,7 @@ class ProviderMap(object):
             'node': {'field': 'node',
                         'operation': 'icontains'},
         },
-        'group_by_options': ['service', 'account', 'region', 'az'],
+        'group_by_options': ['cluster', 'project', 'node'],
         'tag_column': 'pod_labels',
         'report_type': {
             'charge': {
@@ -253,6 +253,7 @@ class ProviderMap(object):
                     'total': OCPUsageLineItemAggregates},
     }, {
         'provider': 'OCP_AWS',
+        'alias': 'account_alias__account_alias',
         'annotations': {'cluster': 'cluster_id',
                         'project': 'namespace',
                         'account': 'usage_account_id',
@@ -288,11 +289,9 @@ class ProviderMap(object):
         'report_type': {
             'storage': {
                 'aggregates': {
-                    'value': Sum('usage_amount'),
+                    'total': Sum('usage_amount'),
                     'cost': Sum('unblended_cost')
                 },
-
-                'aggregate_key': 'usage_amount',
                 'annotations': {'cost': Sum('unblended_cost'),
                                 'total': Sum('usage_amount'),
                                 'units': Coalesce(Max('unit'),

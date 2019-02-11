@@ -28,74 +28,6 @@ from api.report.queries import ProviderMap
 from reporting.models import OCPAWSCostLineItemDailySummary
 
 
-
-class OCPAWSProviderMap(ProviderMap):
-    """OCP Provider Map."""
-
-    mapping = {
-        'provider': 'OCP_AWS',
-        'annotations': {'cluster': 'cluster_id',
-                        'project': 'namespace',
-                        'account': 'usage_account_id',
-                        'service': 'product_code',
-                        'az': 'availability_zone'},
-        'end_date': 'usage_end',
-        'filters': {
-            'project': {'field': 'namespace',
-                        'operation': 'icontains'},
-            'cluster': [{'field': 'cluster_alias',
-                        'operation': 'icontains',
-                        'composition_key': 'cluster_filter'},
-                        {'field': 'cluster_id',
-                        'operation': 'icontains',
-                        'composition_key': 'cluster_filter'}],
-            'node': {'field': 'node',
-                        'operation': 'icontains'},
-            'account': [{'field': 'account_alias__account_alias',
-                        'operation': 'icontains',
-                        'composition_key': 'account_filter'},
-                        {'field': 'usage_account_id',
-                        'operation': 'icontains',
-                        'composition_key': 'account_filter'}],
-            'service': {'field': 'product_code',
-                        'operation': 'icontains'},
-            'az': {'field': 'availability_zone',
-                            'operation': 'icontains'},
-            'region': {'field': 'region',
-                        'operation': 'icontains'}
-        },
-        'group_by_options': ['account', 'service', 'region', 'cluster', 'project', 'node'],
-        'tag_column': 'tags',
-        'report_type': {
-            'storage': {
-                'aggregate': {
-                    'value': Sum('usage_amount'),
-                    'cost': Sum('unblended_cost')
-                },
-                'aggregate_key': 'usage_amount',
-                'annotations': {'cost': Sum('unblended_cost'),
-                                'total': Sum('usage_amount'),
-                                'units': Coalesce(Max('unit'),
-                                Value('GB-Mo'))},
-                'count': None,
-                'delta_key': {'total': Sum('usage_amount')},
-                'filter': {
-                    'field': 'product_family',
-                    'operation': 'contains',
-                    'parameter': 'Storage'
-                },
-                'units_key': 'unit',
-                'units_fallback': 'GB-Mo',
-                'sum_columns': ['total', 'cost'],
-                'default_ordering': {'total': 'desc'},
-            },
-        },
-        'start_date': 'usage_start',
-        'tables': {'previous_query': OCPAWSCostLineItemDailySummary,
-                    'query': OCPAWSCostLineItemDailySummary,
-                    'total': OCPAWSCostLineItemDailySummary},
-    }
-
 class OCPAWSReportQueryHandler(AWSReportQueryHandler):
     """Handles report queries and responses for OCP on AWS."""
 
@@ -112,6 +44,15 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
         kwargs['provider'] = 'OCP_AWS'
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
+        self.update_cost_field()
+
+    def update_cost_field(self):
+        """Update which field is used to calculate cost by group by param."""
+        group_by = self._get_group_by()
+        self._mapper = copy.deepcopy(self._mapper)
+        if group_by and group_by[0] == 'project':
+            self._mapper._report_type_map['aggregates']['cost'] = Sum('pod_cost')
+            self._mapper._report_type_map['annotations']['cost'] = Sum('pod_cost')
 
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.

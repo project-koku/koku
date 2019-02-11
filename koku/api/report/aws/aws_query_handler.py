@@ -51,7 +51,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         if not kwargs.get('provider'):
             kwargs['provider'] = 'AWS'
-        kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
+            kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 
