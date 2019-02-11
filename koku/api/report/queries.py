@@ -290,12 +290,14 @@ class ProviderMap(object):
             'storage': {
                 'aggregates': {
                     'total': Sum('usage_amount'),
-                    'cost': Sum('unblended_cost')
+                    'cost': Sum('unblended_cost'),
+                    'units': Coalesce(Max('unit'), Value('GB-Mo'))
                 },
-                'annotations': {'cost': Sum('unblended_cost'),
-                                'total': Sum('usage_amount'),
-                                'units': Coalesce(Max('unit'),
-                                Value('GB-Mo'))},
+                'annotations': {
+                    'cost': Sum('unblended_cost'),
+                    'total': Sum('usage_amount'),
+                    'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                },
                 'count': None,
                 'delta_key': {'total': Sum('usage_amount')},
                 'filter': {
@@ -310,10 +312,12 @@ class ProviderMap(object):
             },
         },
         'start_date': 'usage_start',
-        'tables': {'previous_query': OCPAWSCostLineItemDailySummary,
-                    'query': OCPAWSCostLineItemDailySummary,
-                    'total': OCPAWSCostLineItemDailySummary},
-    }
+        'tables': {
+            'previous_query': OCPAWSCostLineItemDailySummary,
+            'query': OCPAWSCostLineItemDailySummary,
+            'total': OCPAWSCostLineItemDailySummary
+        },
+        }
     ]
 
     @staticmethod

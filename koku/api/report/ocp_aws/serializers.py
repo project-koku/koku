@@ -15,16 +15,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report Serializers."""
-from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField, handle_invalid_fields)
 from api.report.aws.serializers import (FilterSerializer,
                                         GroupBySerializer,
                                         OrderBySerializer,
                                         QueryParamSerializer,
                                         validate_field)
-from api.utils import UnitConverter
+from api.report.serializers import StringOrListField
 
 
 class OCPAWSGroupBySerializer(GroupBySerializer):

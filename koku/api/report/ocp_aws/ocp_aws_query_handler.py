@@ -16,16 +16,12 @@
 #
 """OCP Query Handling for Reports."""
 import copy
-from collections import defaultdict
-from decimal import Decimal, DivisionByZero, InvalidOperation
 
-from django.db.models import F, Max, Sum, Value, Window
-from django.db.models.functions import (Coalesce, Concat, RowNumber)
+from django.db.models import F, Sum, Window
+from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
-from api.report.queries import ProviderMap
-from reporting.models import OCPAWSCostLineItemDailySummary
 
 
 class OCPAWSReportQueryHandler(AWSReportQueryHandler):
@@ -91,13 +87,6 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
-                units_fallback = self._mapper._report_type_map.get('units_fallback')
-                sum_annotations = {
-                    'units': Coalesce(self._mapper.units_key, Value(units_fallback))
-                }
-                sum_query = query.annotate(**sum_annotations)
-                units_value = sum_query.values('units').first().get('units')
-
                 aggregates = self._mapper._report_type_map.get('aggregates')
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
