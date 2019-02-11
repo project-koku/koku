@@ -20,8 +20,10 @@ from unittest import TestCase
 from rest_framework import serializers
 
 from api.tags.serializers import (AWSFilterSerializer,
+                                  AWSTagsQueryParamSerializer,
                                   FilterSerializer,
                                   OCPFilterSerializer,
+                                  OCPTagsQueryParamSerializer,
                                   TagsQueryParamSerializer)
 
 
@@ -136,12 +138,22 @@ class TagsQueryParamSerializerTest(TestCase):
         serializer = TagsQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
-    def test_query_params_invalid_fields(self):
+    def test_query_params_ocp_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
                         'invalid': 'param'}}
-        serializer = TagsQueryParamSerializer(data=query_params)
+        serializer = OCPTagsQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_query_params_aws_invalid_fields(self):
+        """Test parse of query params for invalid fields."""
+        query_params = {'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'invalid': 'param'}}
+        serializer = AWSTagsQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
