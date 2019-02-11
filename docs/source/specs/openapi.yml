@@ -1618,6 +1618,12 @@ definitions:
     required:
       - data
     properties:
+      group_by:
+          $ref: '#/definitions/ReportOCPAWSGrouping'
+      order_by:
+        $ref: '#/definitions/ReportOCPAWSOrdering'
+      filter:
+        $ref: '#/definitions/ReportOCPAWSFilter'
       data:
         type: array
         items:
