@@ -164,5 +164,5 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_str = date_range.split('-')[0]
         billing_start = datetime.datetime.strptime(billing_str, '%Y%m%d')
 
-        num_of_files = 1  # Update this when we package more then 1
+        num_of_files = len(manifest.get('files', []))
         return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)
