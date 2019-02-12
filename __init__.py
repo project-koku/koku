@@ -38,5 +38,8 @@ OCP_REPORT_TABLE_MAP = {
     'line_item_daily_summary': 'reporting_ocpusagelineitem_daily_summary',
     'line_item_aggregates': 'reporting_ocpusagelineitem_aggregates',
     'rate': 'rates_rate',
-    'pod_label_summary': 'reporting_ocpusagepodlabel_summary'
+    'pod_label_summary': 'reporting_ocpusagepodlabel_summary',
+    'storage_line_item': 'reporting_ocpstoragelineitem',
+    'storage_line_item_daily': 'reporting_ocpstoragelineitem_daily',
+    'storage_line_item_daily_summary': 'reporting_ocpstoragelineitem_daily_summary'
 }
