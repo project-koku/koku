@@ -63,6 +63,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
+    def update_report_type_map(self):
+        """Alter how cost is determined based on group by."""
+        group_by = self._get_group_by()
+        specific_fields = self._mapper._report_type_map.get(group_by[0])
+        if specific_fields:
+            self._mapper._report_type_map.update(specific_fields)
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -89,7 +96,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._provider_map.get('tables').get('query')
+        q_table = self._mapper.query_table
+
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             if self.query_exclusions:
