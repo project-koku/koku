@@ -79,6 +79,11 @@ class OCPReportSummaryUpdater:
                 with ReportManifestDBAccessor() as manifest_accessor:
                     self.manifest = manifest_accessor.get_manifest_by_id(manifest_id)
 
+                # Bail if all manifest files have not been processed
+                if self.manifest.num_processed_files != self.manifest.num_total_files:
+                    LOG.info('Not all manifest files have completed processing.  Summary defered')
+                    return
+
                 # Override the bill date to correspond with the manifest
                 bill_date = self.manifest.billing_period_start_datetime.date()
                 provider_id = self.manifest.provider_id
