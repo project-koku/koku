@@ -17,11 +17,12 @@
 """OCP Query Handling for Reports."""
 import copy
 
-from django.db.models import F, Sum, Window
+from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.queries import ProviderMap
 
 
 class OCPAWSReportQueryHandler(AWSReportQueryHandler):
@@ -37,18 +38,19 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        kwargs['provider'] = 'OCP_AWS'
+        self._provider = 'OCP_AWS'
+        kwargs['provider'] = self._provider
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
-        self.update_cost_field()
+        self.update_report_map()
 
-    def update_cost_field(self):
+    def update_report_map(self):
         """Update which field is used to calculate cost by group by param."""
         group_by = self._get_group_by()
-        self._mapper = copy.deepcopy(self._mapper)
         if group_by and group_by[0] == 'project':
-            self._mapper._report_type_map['aggregates']['cost'] = Sum('pod_cost')
-            self._mapper._report_type_map['annotations']['cost'] = Sum('pod_cost')
+            self._report_type = self._report_type + '_by_project'
+            self._mapper = ProviderMap(provider=self._provider,
+                                       report_type=self._report_type)
 
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.

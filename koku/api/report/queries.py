@@ -349,8 +349,8 @@ class ProviderMap(object):
             'report_type': {
                 'storage': {
                     'aggregates': {
-                        'total': Sum('usage_amount'),
                         'cost': Sum('unblended_cost'),
+                        'total': Sum('usage_amount'),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
@@ -370,6 +370,29 @@ class ProviderMap(object):
                     'sum_columns': ['total', 'cost'],
                     'default_ordering': {'total': 'desc'},
                 },
+                'storage_by_project': {
+                    'aggregates': {
+                        'cost': Sum('pod_cost'),
+                        'total': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                    },
+                    'annotations': {
+                        'cost': Sum('pod_cost'),
+                        'total': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                    },
+                    'count': None,
+                    'delta_key': {'total': Sum('usage_amount')},
+                    'filter': {
+                        'field': 'product_family',
+                        'operation': 'contains',
+                        'parameter': 'Storage'
+                    },
+                    'units_key': 'unit',
+                    'units_fallback': 'GB-Mo',
+                    'sum_columns': ['total', 'cost'],
+                    'default_ordering': {'total': 'desc'},
+                }
             },
             'start_date': 'usage_start',
             'tables': {
