@@ -16,25 +16,18 @@
 #
 """Test the OCP on AWS Report views."""
 import datetime
-from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
 from dateutil import relativedelta
 from django.db.models import Count, F, Sum
-from django.http import HttpRequest, QueryDict
 from django.urls import reverse
-from rest_framework.request import Request
-from rest_framework.response import Response
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import User
 from api.query_handler import TruncDayString
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from api.report.view import _generic_report
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
@@ -80,7 +73,6 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue('total' in values)
                 self.assertTrue('cost' in values)
                 self.assertTrue('units' in values)
-
 
     def test_execute_query_ocp_aws_storage_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -246,7 +238,7 @@ class OCPAWSReportViewTest(IamTestCase):
                     usage_total = projects[0].get('values')[0].get('total') + \
                         projects[1].get('values')[0].get('total')
                     self.assertEqual(round(usage_total, 3),
-                                    round(float(totals.get(date)), 3))
+                                     round(float(totals.get(date)), 3))
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
         """Test that deltas work for charge."""

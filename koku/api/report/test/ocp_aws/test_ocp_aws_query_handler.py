@@ -15,14 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-import copy
-from collections import defaultdict
-from decimal import Decimal
-from unittest.mock import patch
-from urllib.parse import quote_plus, urlencode
 
-from django.db.models import Max
-from django.db.models.expressions import OrderBy
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase

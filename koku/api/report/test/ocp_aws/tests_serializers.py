@@ -17,8 +17,6 @@
 """Test the OCP on AWS Report serializers."""
 from unittest import TestCase
 
-from rest_framework import serializers
-
 from api.report.ocp_aws.serializers import (OCPAWSFilterSerializer,
                                             OCPAWSGroupBySerializer,
                                             OCPAWSOrderBySerializer,
@@ -75,7 +73,7 @@ class OCPAWSGroupBySerializerTest(TestCase):
         """Test group by node."""
         group_params = {'node': ['*']}
         serializer = OCPAWSGroupBySerializer(data=group_params)
-        validation = serializer.is_valid()
+        self.assertTrue(serializer.is_valid())
 
 
 class OCPAWSOrderBySerializerTest(TestCase):
