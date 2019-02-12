@@ -39,8 +39,6 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    group_by_options = ['service', 'account', 'region', 'az']
-
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
         """Establish AWS report query handler.
@@ -51,10 +49,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        kwargs['provider'] = 'AWS'
-        kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
+        if not kwargs.get('provider'):
+            kwargs['provider'] = 'AWS'
+            kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
         super().__init__(query_parameters, url_data,
-                         tenant, self.group_by_options, **kwargs)
+                         tenant, **kwargs)
 
     @property
     def annotations(self):

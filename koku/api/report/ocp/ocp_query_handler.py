@@ -29,8 +29,6 @@ from api.report.queries import ReportQueryHandler
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
-    group_by_options = ['cluster', 'project', 'node']
-
     def __init__(self, query_parameters, url_data,
                  tenant, **kwargs):
         """Establish OCP report query handler.
@@ -43,7 +41,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         kwargs['provider'] = 'OCP'
         super().__init__(query_parameters, url_data,
-                         tenant, self.group_by_options, **kwargs)
+                         tenant, **kwargs)
 
     @property
     def annotations(self):
