@@ -79,6 +79,7 @@ class OCPAWSReportDataGenerator:
             for i, period in enumerate(self.period_ranges):
                 for report_date in self.report_ranges[i]:
                     self._populate_ocp_aws_cost_line_item_daily_summary(report_date)
+            self._populate_aws_tag_summary()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -158,3 +159,23 @@ class OCPAWSReportDataGenerator:
             }
             line_item = OCPAWSCostLineItemDailySummary(**data)
             line_item.save()
+
+    def _populate_aws_tag_summary(self):
+        """Populate the AWS tag summary table."""
+        raw_sql = """
+            INSERT INTO reporting_awstags_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_ocpawscostlineitem_daily_summary AS li,
+                    jsonb_each_text(li.tags) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)
