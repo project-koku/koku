@@ -32,6 +32,8 @@ from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
+from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
+from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.tags.serializers import AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer
@@ -46,26 +48,59 @@ LOG = logging.getLogger(__name__)
 class ClassMapper(object):
     """Data structure object to organize class references."""
 
-    CLASS_MAP = [{'provider': 'aws', 'reports': [{'report': 'default',
-                                                  'serializer': QueryParamSerializer,
-                                                  'query_handler': AWSReportQueryHandler,
-                                                  'tag_handler': AWSTagsSummary},
-                                                 {'report': 'tags',
-                                                  'serializer': AWSTagsQueryParamSerializer,
-                                                  'query_handler': AWSTagQueryHandler,
-                                                  'tag_handler': AWSTagsSummary}]},
-                 {'provider': 'ocp', 'reports': [{'report': 'default',
-                                                  'serializer': OCPInventoryQueryParamSerializer,
-                                                  'query_handler': OCPReportQueryHandler,
-                                                  'tag_handler': OCPUsagePodLabelSummary},
-                                                 {'report': 'charge',
-                                                  'serializer': OCPChargeQueryParamSerializer,
-                                                  'query_handler': OCPReportQueryHandler,
-                                                  'tag_handler': OCPUsagePodLabelSummary},
-                                                 {'report': 'tags',
-                                                  'serializer': OCPTagsQueryParamSerializer,
-                                                  'query_handler': OCPTagQueryHandler,
-                                                  'tag_handler': OCPUsagePodLabelSummary}]}]
+    CLASS_MAP = [
+        {
+            'provider': 'aws',
+            'reports': [
+                {
+                    'report': 'default',
+                    'serializer': QueryParamSerializer,
+                    'query_handler': AWSReportQueryHandler,
+                    'tag_handler': AWSTagsSummary
+                },
+                {
+                    'report': 'tags',
+                    'serializer': AWSTagsQueryParamSerializer,
+                    'query_handler': AWSTagQueryHandler,
+                    'tag_handler': AWSTagsSummary
+                }
+            ]
+        },
+        {
+            'provider': 'ocp',
+            'reports': [
+                {
+                    'report': 'default',
+                    'serializer': OCPInventoryQueryParamSerializer,
+                    'query_handler': OCPReportQueryHandler,
+                    'tag_handler': OCPUsagePodLabelSummary
+                },
+                {
+                    'report': 'charge',
+                    'serializer': OCPChargeQueryParamSerializer,
+                    'query_handler': OCPReportQueryHandler,
+                    'tag_handler': OCPUsagePodLabelSummary
+                },
+                {
+                    'report': 'tags',
+                    'serializer': OCPTagsQueryParamSerializer,
+                    'query_handler': OCPTagQueryHandler,
+                    'tag_handler': OCPUsagePodLabelSummary
+                }
+            ]
+        },
+        {
+            'provider': 'ocp_aws',
+            'reports': [
+                {
+                    'report': 'storage',
+                    'serializer': OCPAWSQueryParamSerializer,
+                    'query_handler': OCPAWSReportQueryHandler,
+                    'tag_handler': AWSTagsSummary
+                }
+            ]
+        }
+    ]
 
     def reports(self, provider):
         """Return list of report dictionaries."""
