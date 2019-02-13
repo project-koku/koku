@@ -107,7 +107,7 @@ def storage(request):
 def instance_type(request):
     """Get OCP on AWS storage usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/instance-type Get memory usage data
+    @api {get} /api/v1/reports/inventory/ocp/instance-type Get inventory instance data
     @apiName getOCPAWSInventoryInstanceData
     @apiGroup Report
     @apiVersion 1.0.0
