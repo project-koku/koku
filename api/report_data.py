@@ -22,46 +22,21 @@ import logging
 from flask import jsonify, request
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.processor.orchestrator import Orchestrator
-from masu.processor.tasks import remove_expired_data, update_summary_tables
+from masu.processor.tasks import (remove_expired_data,
+                                  update_all_summary_tables,
+                                  update_summary_tables)
 from masu.util.blueprint import application_route
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
 API_V1_ROUTES = {}
-
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('gunicorn.error')  # https://stackoverflow.com/a/34437443
 REPORT_DATA_KEY = 'Report Data Task ID'
-
-
-def _summarize_provider(provider,
-                        provider_uuid,
-                        schema_name,
-                        start_date,
-                        end_date=None):
-    """Update report summary table for a provider in the database."""
-    LOG.info('Calling update_summary_tables async task.')
-
-    if end_date:
-        async_result = update_summary_tables.delay(
-            schema_name,
-            provider,
-            provider_uuid,
-            start_date,
-            end_date
-        )
-    else:
-        async_result = update_summary_tables.delay(schema_name, provider,
-                                                   provider_uuid, start_date)
-
-    return {REPORT_DATA_KEY: [str(async_result)]}
 
 
 @application_route('/report_data/', API_V1_ROUTES, methods=('GET',))
 def report_data():
     """Update report summary tables in the database."""
     params = request.args
-    task_ids = []
+    async_result = None
     all_providers = False
     provider_uuid = params.get('provider_uuid')
     provider_type = params.get('provider_type')
@@ -98,27 +73,19 @@ def report_data():
             errmsg = 'provider_uuid and provider_type have mismatched provider types.'
             return jsonify({'Error': errmsg}), 400
 
-        summarize_task = _summarize_provider(provider,
-                                             provider_uuid,
-                                             schema_name,
-                                             start_date,
-                                             end_date)
-        task_ids += summarize_task
+        async_result = update_summary_tables.delay(
+            schema_name,
+            provider,
+            provider_uuid,
+            start_date,
+            end_date
+        )
     else:
-        # Get all providers for all schemas
-        orchestrator = Orchestrator()
-        all_accounts = orchestrator.get_accounts()
-        for account in all_accounts:
-            schema_name = account.get('schema_name')
-            provider = account.get('provider_type')
-            provider_uuid = account.get('provider_uuid')
-            summarize_task = _summarize_provider(provider,
-                                                 provider_uuid,
-                                                 schema_name,
-                                                 start_date,
-                                                 end_date)
-            task_ids += summarize_task
-    return jsonify({REPORT_DATA_KEY: task_ids})
+        async_result = update_all_summary_tables.delay(
+            start_date,
+            end_date
+        )
+    return jsonify({REPORT_DATA_KEY: str(async_result)})
 
 
 @application_route('/report_data/', API_V1_ROUTES, methods=('DELETE',))

@@ -25,11 +25,8 @@ from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
 from masu.util.blueprint import application_route
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
 API_V1_ROUTES = {}
-
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger('gunicorn.error')  # https://stackoverflow.com/a/34437443
 
 
 @application_route('/expired_data/', API_V1_ROUTES, methods=('GET', 'DELETE'))

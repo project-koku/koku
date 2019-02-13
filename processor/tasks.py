@@ -26,6 +26,7 @@ from celery.utils.log import get_task_logger
 
 from masu.celery import celery
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.external.date_accessor import DateAccessor
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -197,6 +198,34 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
             schema_name,
             provider_uuid
         )
+
+
+@celery.task(name='masu.processor.tasks.update_all_summary_tables',
+             queue_name='reporting')
+def update_all_summary_tables(start_date, end_date=None):
+    """Populate all the summary tables for reporting.
+
+    Args:
+        start_date  (str) The date to start populating the table.
+        end_date    (str) The date to end on.
+
+    Returns
+        None
+
+    """
+    # Get all providers for all schemas
+    all_accounts = []
+    try:
+        all_accounts = AccountsAccessor().get_accounts()
+        for account in all_accounts:
+            LOG.info('Gathering data for account=%s.', account)
+            schema_name = account.get('schema_name')
+            provider = account.get('provider_type')
+            provider_uuid = account.get('provider_uuid')
+            update_summary_tables.delay(schema_name, provider,
+                                        provider_uuid, str(start_date), end_date)
+    except AccountsAccessorError as error:
+        LOG.error('Unable to get accounts. Error: %s', str(error))
 
 
 @celery.task(name='masu.processor.tasks.update_charge_info',
