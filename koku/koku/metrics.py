@@ -16,7 +16,6 @@
 #
 
 """Prometheus metrics."""
-
 import logging
 import time
 from datetime import datetime, timedelta
@@ -92,7 +91,7 @@ class DatabaseStatus():
         connection.close()
         return result
 
-    async def collect(self):
+    def collect(self):
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
         for item in stats:

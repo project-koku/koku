@@ -20,6 +20,7 @@ import logging
 import sys
 
 from django.apps import AppConfig
+from django.db.utils import OperationalError, ProgrammingError
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -35,3 +36,29 @@ class ApiConfig(AppConfig):
         # Don't run on Django tab completion commands
         if 'manage.py' in sys.argv[0] and 'runserver' not in sys.argv:
             return
+        try:
+            self.db_metrics()
+        except (OperationalError, ProgrammingError) as op_error:
+            if 'no such table' in str(op_error) or \
+                    'does not exist' in str(op_error):
+                # skip this if we haven't created tables yet.
+                return
+            else:
+                logger.error('Error: %s.', op_error)
+
+    def _collect_db_metrics():
+        """Collect metrics and sleep."""
+        # noqa: E402 pylint: disable=C0413
+        import time
+        from koku.metrics import DBSTATUS
+        DBSTATUS.collect()
+        time.sleep(120)
+        ApiConfig._collect_db_metrics()
+
+    def db_metrics(self):  # pylint: disable=R0201
+        """Create thread loop for collecting db metrics."""
+        # noqa: E402 pylint: disable=C0413
+        import threading
+        t = threading.Thread(target=ApiConfig._collect_db_metrics, args=(), kwargs={})
+        t.setDaemon(True)
+        t.start()
