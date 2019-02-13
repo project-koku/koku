@@ -148,6 +148,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         line_item_query = base_query.filter(report_period_id == period_id)
         return line_item_query
 
+    def get_storage_item_query_report_period_id(self, report_period_id):
+        """Get the storage report line item for a report id query."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
+        period_id = getattr(
+            getattr(self.report_schema, table_name),
+            'report_period_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        line_item_query = base_query.filter(report_period_id == period_id)
+        return line_item_query
+
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['report']

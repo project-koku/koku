@@ -28,14 +28,16 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from os import path
+from os import listdir, path, remove
 
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
+from masu.util.common import extract_uuids_from_string
 
 LOG = logging.getLogger(__name__)
 
@@ -131,7 +133,38 @@ class OCPReportProcessor():
 
     def remove_temp_cur_files(self, report_path, manifest_id):
         """Remove temporary report files."""
-        return self._processor.remove_temp_cur_files(report_path, manifest_id)
+        files = listdir(report_path)
+
+        LOG.info('Cleaning up temporary report files for %s', report_path)
+        victim_list = []
+        current_assembly_id = None
+        for file in files:
+            file_path = '{}/{}'.format(report_path, file)
+            if file.endswith('manifest.json'):
+                with open(file_path, 'r') as manifest_file_handle:
+                    manifest_json = json.load(manifest_file_handle)
+                    current_assembly_id = manifest_json.get('uuid')
+            else:
+                with ReportStatsDBAccessor(file, manifest_id) as stats:
+                    completed_date = stats.get_last_completed_datetime()
+                    if completed_date:
+                        assembly_id = extract_uuids_from_string(file).pop()
+
+                        victim_list.append({'file': file_path,
+                                            'completed_date': completed_date,
+                                            'uuid': assembly_id})
+
+        removed_files = []
+        for victim in victim_list:
+            if victim['uuid'] != current_assembly_id:
+                try:
+                    LOG.info('Removing %s, completed processing on date %s',
+                             victim['file'], victim['completed_date'])
+                    remove(victim['file'])
+                    removed_files.append(victim['file'])
+                except FileNotFoundError:
+                    LOG.warning('Unable to locate file: %s', victim['file'])
+        return removed_files
 
 
 class OCPReportProcessorBase(ReportProcessorBase):
@@ -459,11 +492,6 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
 
-    def remove_temp_cur_files(self, report_path, manifest_id):
-        """Remove temporary cpu and mem usage files."""
-        LOG.info('Cleaning up temporary report files for %s', self._report_name)
-        return []
-
     @property
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
@@ -545,8 +573,3 @@ class OCPStorageProcessor(OCPReportProcessorBase):
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
         return ['report_id', 'namespace', 'persistentvolumeclaim']
-
-    def remove_temp_cur_files(self, report_path, manifest_id):
-        """Remove temporary OCP storage report files."""
-        LOG.info('Cleaning up temporary report files for %s', self._report_name)
-        return []
