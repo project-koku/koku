@@ -440,6 +440,13 @@ class ProviderMap(object):
         """Return the sum column list for the report type."""
         return self._report_type_map.get('sum_columns')
 
+    @property
+    def query_table(self):
+        """Return the appropriate query table for the report type."""
+        report_table = self._report_type_map.get('tables', {}).get('query')
+        default = self._provider_map.get('tables').get('query')
+        return report_table if report_table else default
+
 
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""

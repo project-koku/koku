@@ -317,6 +317,7 @@ def charges(request):
     """
     return _generic_report(request, report='charge', provider='ocp')
 
+
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
