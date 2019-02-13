@@ -238,6 +238,36 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
+    # pylint: disable=duplicate-code
+    def populate_storage_line_item_daily_table(self, start_date, end_date):
+        """Populate the daily storage aggregate of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
+
+        daily_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpstoragelineitem_daily.sql'
+        )
+        daily_sql = daily_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        LOG.info(f'Updating %s from %s to %s.',
+                 table_name, start_date, end_date)
+        self._cursor.execute(daily_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
     def populate_cpu_charge(self, cpu_rate):
         """Populate the daily aggregate of line items table.
 
@@ -310,6 +340,35 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_summary.sql'
+        )
+        summary_sql = summary_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        LOG.info(f'Updating %s from %s to %s.',
+                 table_name, start_date, end_date)
+        self._cursor.execute(summary_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
+    def populate_storage_line_item_daily_summary_table(self, start_date, end_date):
+        """Populate the daily aggregate of storage line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        summary_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpstoragelineitem_daily_summary.sql'
         )
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
