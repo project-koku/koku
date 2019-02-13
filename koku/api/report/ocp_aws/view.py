@@ -95,7 +95,111 @@ def storage(request):
     @apiSuccessExample {text} Success-Response:
         HTTP/1.1 200 OK
         cost,date,project,total,units
-        11.674377,2019-01,namespace_ci,24.0,Hrs
+        11.674377,2019-01,namespace_ci,24.0,GB-Mo
 
     """
     return _generic_report(request, report='storage', provider='ocp_aws')
+
+
+@api_view(http_method_names=['GET'])
+@permission_classes([AllowAny])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def instance_type(request):
+    """Get OCP on AWS storage usage data.
+
+    @api {get} /api/v1/reports/inventory/ocp/storage Get memory usage data
+    @apiName getOCPAWSInventoryStorageData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP on AWS storage usage data.
+
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP 200 OK
+        Allow: OPTIONS, GET
+        Content-Type: application/json
+        Vary: Accept
+
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-2",
+                "time_scope_units": "month"
+            },
+            "data": [
+                {
+                    "date": "2019-01",
+                    "projects": [
+                        {
+                            "project": "namespace_ci",
+                            "instance_types": [
+                                {
+                                    "instance_type": "m5.large",
+                                    "values": [
+                                        {
+                                            "instance_type": "m5.large",
+                                            "date": "2019-01",
+                                            "units": "Hrs",
+                                            "project": "namespace_ci",
+                                            "cost": 915.889752,
+                                            "count": 1,
+                                            "total": 120.0
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "project": "namespace_qa",
+                            "instance_types": [
+                                {
+                                    "instance_type": "m5.large",
+                                    "values": [
+                                        {
+                                            "instance_type": "m5.large",
+                                            "date": "2019-01",
+                                            "units": "Hrs",
+                                            "project": "namespace_qa",
+                                            "cost": 939.377001,
+                                            "count": 1,
+                                            "total": 140.0
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "units": "Hrs",
+                "cost": 1855.266753,
+                "count": 2,
+                "value": 260.0
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        cost,count,date,instance_type,project,total,units
+        915.889752,1,2019-01,m5.large,namespace_ci,1488.0,Hrs
+        939.377001,1,2019-01,m5.large,namespace_qa,1488.0,Hrs
+
+
+    """
+    return _generic_report(request, report='instance_type', provider='ocp_aws')
