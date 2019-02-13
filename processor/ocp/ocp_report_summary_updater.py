@@ -116,6 +116,8 @@ class OCPReportSummaryUpdater:
             accessor.populate_line_item_daily_summary_table(start_date, end_date)
             accessor.populate_line_item_aggregate_table()
             accessor.populate_pod_label_summary_table()
+            accessor.populate_storage_line_item_daily_table(start_date, end_date)
+            accessor.populate_storage_line_item_daily_summary_table(start_date, end_date)
 
             for period in report_periods:
                 if period.summary_data_creation_datetime is None:
