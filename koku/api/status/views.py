@@ -16,6 +16,7 @@
 #
 
 """View for server status."""
+import asyncio
 
 from rest_framework import permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -24,6 +25,11 @@ from rest_framework.response import Response
 from api.status.models import Status
 from api.status.serializers import StatusSerializer
 from koku.metrics import DBSTATUS
+
+
+async def _collect_db_metrics():
+    """Collect database metrics."""
+    asyncio.ensure_future(DBSTATUS.collect())
 
 
 @api_view(['GET', 'HEAD'])
@@ -77,5 +83,5 @@ def status(request):
     serializer = StatusSerializer(status_info)
     server_info = serializer.data
     server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
-    DBSTATUS.collect()    # trigger update to prometheus metrics
+    _collect_db_metrics()
     return Response(server_info)

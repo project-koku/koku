@@ -92,7 +92,7 @@ class DatabaseStatus():
         connection.close()
         return result
 
-    def collect(self):
+    async def collect(self):
         """Collect stats and report using Prometheus objects."""
         stats = self.schema_size()
         for item in stats:
