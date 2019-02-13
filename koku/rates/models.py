@@ -32,11 +32,15 @@ class Rate(models.Model):
     METRIC_CPU_CORE_REQUEST_HOUR = 'cpu_core_request_per_hour'
     METRIC_MEM_GB_USAGE_HOUR = 'memory_gb_usage_per_hour'
     METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_request_per_hour'
+    METRIC_STORAGE_GB_USAGE_MONTH = 'storage_gb_usage_per_month'
+    METRIC_STORAGE_GB_REQUEST_MONTH = 'storage_gb_request_per_month'
 
     METRIC_CHOICES = ((METRIC_CPU_CORE_USAGE_HOUR, METRIC_CPU_CORE_USAGE_HOUR),
                       (METRIC_CPU_CORE_REQUEST_HOUR, METRIC_CPU_CORE_REQUEST_HOUR),
                       (METRIC_MEM_GB_USAGE_HOUR, METRIC_MEM_GB_USAGE_HOUR),
-                      (METRIC_MEM_GB_REQUEST_HOUR, METRIC_MEM_GB_REQUEST_HOUR),)
+                      (METRIC_MEM_GB_REQUEST_HOUR, METRIC_MEM_GB_REQUEST_HOUR),
+                      (METRIC_STORAGE_GB_USAGE_MONTH, METRIC_STORAGE_GB_USAGE_MONTH),
+                      (METRIC_STORAGE_GB_REQUEST_MONTH, METRIC_STORAGE_GB_REQUEST_MONTH),)
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
