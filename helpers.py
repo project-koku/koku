@@ -215,6 +215,27 @@ class ReportObjectCreator:
 
         return row
 
+    def create_ocp_storage_line_item(self,
+                                   report_period,
+                                   report):
+        """Create an OCP storage line item database object for test."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
+        data = self.create_columns_for_table(table_name)
+
+        for key in data:
+            if 'bytes' in key:
+                data[key] = data[key] * Decimal(pow(2, 30))
+
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        row.report_period_id = report_period.id
+        row.report_id = report.id
+
+        self.db_accessor._session.add(row)
+        self.db_accessor._session.commit()
+
+        return row
+
     def create_columns_for_table(self, table):
         """Generate data for a table."""
         data = {}
