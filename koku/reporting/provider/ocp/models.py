@@ -740,6 +740,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
+    instance_type = models.CharField(max_length=50, null=True)
+
     usage_account_id = models.CharField(max_length=50, null=False)
 
     account_alias = models.ForeignKey('AWSAccountAlias',

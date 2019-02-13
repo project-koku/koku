@@ -22,7 +22,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 from urllib.parse import quote_plus
 
-from django.db.models import CharField, F, Max, Q, Sum, Value
+from django.db.models import CharField, Count, F, Max, Q, Sum, Value
 from django.db.models.expressions import OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
@@ -392,7 +392,61 @@ class ProviderMap(object):
                     'units_fallback': 'GB-Mo',
                     'sum_columns': ['total', 'cost'],
                     'default_ordering': {'total': 'desc'},
-                }
+                },
+                'instance_type': {
+                    'aggregates': {
+                        'cost': Sum('unblended_cost'),
+                        'count': Count('resource_id', distinct=True),
+                        'value': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                    },
+                    'aggregate_key': 'usage_amount',
+                    'annotations': {
+                        'cost': Sum('unblended_cost'),
+                        'count': Count('resource_id', distinct=True),
+                        'total': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('Hrs'))
+                    },
+                    'count': 'resource_id',
+                    'delta_key': {'total': Sum('usage_amount')},
+                    'filter': {
+                        'field': 'instance_type',
+                        'operation': 'isnull',
+                        'parameter': False
+                    },
+                    'group_by': ['instance_type'],
+                    'units_key': 'unit',
+                    'units_fallback': 'Hrs',
+                    'sum_columns': ['total', 'cost', 'count'],
+                    'default_ordering': {'total': 'desc'},
+                },
+                'instance_type_by_project': {
+                    'aggregates': {
+                        'cost': Sum('pod_cost'),
+                        'count': Count('resource_id', distinct=True),
+                        'value': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                    },
+                    'aggregate_key': 'usage_amount',
+                    'annotations': {
+                        'cost': Sum('pod_cost'),
+                        'count': Count('resource_id', distinct=True),
+                        'total': Sum('usage_amount'),
+                        'units': Coalesce(Max('unit'), Value('Hrs'))
+                    },
+                    'count': 'resource_id',
+                    'delta_key': {'total': Sum('usage_amount')},
+                    'filter': {
+                        'field': 'instance_type',
+                        'operation': 'isnull',
+                        'parameter': False
+                    },
+                    'group_by': ['instance_type'],
+                    'units_key': 'unit',
+                    'units_fallback': 'Hrs',
+                    'sum_columns': ['total', 'cost', 'count'],
+                    'default_ordering': {'total': 'desc'},
+                },
             },
             'start_date': 'usage_start',
             'tables': {
