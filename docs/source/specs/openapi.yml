@@ -489,13 +489,6 @@ paths:
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -535,13 +528,6 @@ paths:
         in: 'query'
         description: 'The ordering to apply to the report as a URL encoded dictionary.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -581,13 +567,6 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -627,13 +606,6 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -743,13 +715,6 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -789,13 +754,6 @@ paths:
         in: 'query'
         description: 'The units used to report data.'
         type: 'string'
-      - name: 'operation'
-        in: 'query'
-        description: 'The report operation; default is sum.'
-        type: 'string'
-        enum:
-          - sum
-          - none
       responses:
         '200':
           description: A report object
@@ -1479,7 +1437,6 @@ definitions:
       - group_by
       - order_by
       - filter
-      - operation
     properties:
       delta:
         $ref: '#/definitions/ReportDelta'
@@ -1489,12 +1446,6 @@ definitions:
         $ref: '#/definitions/ReportOrdering'
       filter:
         $ref: '#/definitions/ReportFilter'
-      operation:
-        description: 'The report operation; default is sum.'
-        type: string
-        enum:
-          - sum
-          - none
       units:
         description: 'The units for the output data.'
         type: string
@@ -1505,7 +1456,6 @@ definitions:
       - group_by
       - order_by
       - filter
-      - operation
     properties:
       delta:
         $ref: '#/definitions/ReportDelta'
@@ -1515,12 +1465,6 @@ definitions:
         $ref: '#/definitions/ReportChargeOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
-      operation:
-        description: 'The report operation; default is sum.'
-        type: string
-        enum:
-          - sum
-          - none
   ReportOCPcpu:
     required:
       - delta
@@ -1536,12 +1480,6 @@ definitions:
         $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
-      operation:
-        description: 'The report operation; default is sum.'
-        type: string
-        enum:
-          - sum
-          - none
       units:
         description: 'The units for the output data.'
         type: string
@@ -1561,12 +1499,6 @@ definitions:
         $ref: '#/definitions/ReportInventoryOCPOrdering'
       filter:
         $ref: '#/definitions/ReportFilterOCP'
-      operation:
-        description: 'The report operation; default is sum.'
-        type: string
-        enum:
-          - sum
-          - none
       units:
         description: 'The units for the output data.'
         type: string
