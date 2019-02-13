@@ -763,6 +763,52 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
+  /reports/inventory/ocp/instance-type/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain inventory instance data
+      operationId: getOCPAWSInventoryInstanceReport
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'units'
+        in: 'query'
+        description: 'The units used to report data.'
+        type: 'string'
+      - name: 'operation'
+        in: 'query'
+        description: 'The report operation; default is sum.'
+        type: 'string'
+        enum:
+          - sum
+          - none
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportOCPAWSInstanceInventory'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
   /tags/aws/:
     get:
       tags:
@@ -1618,12 +1664,6 @@ definitions:
     required:
       - data
     properties:
-      group_by:
-          $ref: '#/definitions/ReportOCPAWSGrouping'
-      order_by:
-        $ref: '#/definitions/ReportOCPAWSOrdering'
-      filter:
-        $ref: '#/definitions/ReportOCPAWSFilter'
       data:
         type: array
         items:
@@ -1741,6 +1781,12 @@ definitions:
     required:
       - data
     properties:
+      group_by:
+          $ref: '#/definitions/ReportOCPAWSGrouping'
+      order_by:
+        $ref: '#/definitions/ReportOCPAWSOrdering'
+      filter:
+        $ref: '#/definitions/ReportOCPAWSFilter'
       data:
         type: array
         items:
@@ -1758,6 +1804,43 @@ definitions:
                                             "account": "9999999999999",
                                             "cost": 24.0,
                                             "total": 24.0,
+                                            "account_alias": "9999999999999"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+  ReportOCPAWSInstanceInventory:
+    allOf:
+      - $ref: '#/definitions/Report'
+    required:
+      - data
+    properties:
+      group_by:
+          $ref: '#/definitions/ReportOCPAWSGrouping'
+      order_by:
+        $ref: '#/definitions/ReportOCPAWSOrdering'
+      filter:
+        $ref: '#/definitions/ReportOCPAWSFilter'
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                        {
+                            "date": "2019-01",
+                            "accounts": [
+                                {
+                                    "account": "9999999999999",
+                                    "values": [
+                                        {
+                                            "date": "2019-01",
+                                            "units": "Hrs",
+                                            "account": "9999999999999",
+                                            "cost": 24.0,
+                                            "total": 24.0,
+                                            "count": 1,
                                             "account_alias": "9999999999999"
                                         }
                                     ]
