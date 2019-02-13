@@ -17,6 +17,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
         p.region,
         pr.unit,
         li.tags,
+        li.usage_amount,
+        li.normalized_usage_amount,
         li.unblended_cost,
         (li.pod_usage_cpu_core_seconds / li.node_capacity_cpu_core_seconds) *
             li.unblended_cost as pod_cost
@@ -57,6 +59,8 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     region,
     unit,
     tags,
+    usage_amount,
+    normalized_usage_amount,
     unblended_cost,
     pod_cost
 )
@@ -77,6 +81,8 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         region,
         unit,
         tags,
+        usage_amount,
+        normalized_usage_amount,
         unblended_cost,
         pod_cost
     FROM reporting_ocpawscostlineitem_daily_summary_{uuid}
