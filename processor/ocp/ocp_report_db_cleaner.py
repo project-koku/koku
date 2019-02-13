@@ -76,6 +76,11 @@ class OCPReportDBCleaner():
                     LOG.info('Removing %s usage period line items for usage period id %s',
                              qty, report_period_id)
 
+                    qty = accessor.get_storage_item_query_report_period_id(report_period_id).\
+                        delete()
+                    LOG.info('Removing %s storage line items for usage period id %s',
+                             qty, report_period_id)
+
                     qty = accessor.get_report_query_report_period_id(report_period_id).delete()
                     LOG.info('Removing %s usage period items for usage period id %s',
                              qty, report_period_id)
