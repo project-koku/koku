@@ -22,8 +22,17 @@ import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError, ProgrammingError
 
-
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+def _collect_db_metrics():
+    """Collect metrics and sleep."""
+    # noqa: E402 pylint: disable=C0413
+    import time
+    from koku.metrics import DBSTATUS
+    DBSTATUS.collect()
+    time.sleep(120)
+    _collect_db_metrics()
 
 
 class ApiConfig(AppConfig):
@@ -46,19 +55,10 @@ class ApiConfig(AppConfig):
             else:
                 logger.error('Error: %s.', op_error)
 
-    def _collect_db_metrics():
-        """Collect metrics and sleep."""
-        # noqa: E402 pylint: disable=C0413
-        import time
-        from koku.metrics import DBSTATUS
-        DBSTATUS.collect()
-        time.sleep(120)
-        ApiConfig._collect_db_metrics()
-
     def db_metrics(self):  # pylint: disable=R0201
         """Create thread loop for collecting db metrics."""
         # noqa: E402 pylint: disable=C0413
         import threading
-        t = threading.Thread(target=ApiConfig._collect_db_metrics, args=(), kwargs={})
+        t = threading.Thread(target=_collect_db_metrics, args=(), kwargs={})
         t.setDaemon(True)
         t.start()
