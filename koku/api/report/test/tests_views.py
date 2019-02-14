@@ -140,7 +140,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_instance_customer_owner(self):
         """Test inventory instance reports runs with a customer owner."""
-        url = reverse('reports-instance-type')
+        url = reverse('reports-aws-instance-type')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
@@ -151,7 +151,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_storage_customer_owner(self):
         """Test inventory storage reports runs with a customer owner."""
-        url = reverse('reports-storage')
+        url = reverse('reports-aws-storage')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
@@ -205,7 +205,7 @@ class ReportViewTest(IamTestCase):
     def test_get_instance_usage_invalid_query_param(self):
         """Test instance usage reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-instance-type') + '?' + qs
+        url = reverse('reports-aws-instance-type') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
@@ -213,7 +213,7 @@ class ReportViewTest(IamTestCase):
     def test_get_storage_usage_invalid_query_param(self):
         """Test storage usage reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-storage') + '?' + qs
+        url = reverse('reports-aws-storage') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
@@ -232,7 +232,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_instance_csv(self):
         """Test CSV output of inventory instance reports."""
-        url = reverse('reports-instance-type')
+        url = reverse('reports-aws-instance-type')
         client = APIClient(HTTP_ACCEPT='text/csv')
         response = client.get(url, content_type='text/csv', **self.headers)
         response.render()
@@ -243,7 +243,7 @@ class ReportViewTest(IamTestCase):
 
     def test_get_storage_csv(self):
         """Test CSV output of inventory storage reports."""
-        url = reverse('reports-storage')
+        url = reverse('reports-aws-storage')
         client = APIClient(HTTP_ACCEPT='text/csv')
         response = client.get(url, content_type='text/csv', **self.headers)
         response.render()

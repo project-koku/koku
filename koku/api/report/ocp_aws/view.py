@@ -29,6 +29,35 @@ from api.report.view import _generic_report
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def costs(request):
+    """Get OCP on AWS cost usage data.
+
+    @api {get} /api/v1/reports/costs/ocp/ Get memory usage data
+    @apiName getOCPCostData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP cost data.
+
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+    """
+    return _generic_report(request, report='costs', provider='ocp_aws')
+
+
+@api_view(http_method_names=['GET'])
+@permission_classes([AllowAny])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
     """Get OCP on AWS storage usage data.
 

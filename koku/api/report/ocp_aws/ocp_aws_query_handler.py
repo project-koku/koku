@@ -38,18 +38,15 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        self._provider = 'OCP_AWS'
-        kwargs['provider'] = self._provider
-        super().__init__(query_parameters, url_data,
-                         tenant, **kwargs)
-        self.update_report_map()
+        provider = 'OCP_AWS'
+        super().__init__(query_parameters, url_data, tenant,
+                         provider=provider, **kwargs)
 
-    def update_report_map(self):
-        """Update which field is used to calculate cost by group by param."""
+        # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
         if group_by and group_by[0] == 'project':
             self._report_type = self._report_type + '_by_project'
-            self._mapper = ProviderMap(provider=self._provider,
+            self._mapper = ProviderMap(provider=provider,
                                        report_type=self._report_type)
 
     def execute_sum_query(self):
@@ -89,7 +86,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
-                aggregates = self._mapper._report_type_map.get('aggregates')
+                aggregates = self._mapper._report_type_map.get('aggregate')
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 

@@ -21,6 +21,7 @@ from rest_framework.routers import DefaultRouter
 from api.views import (ProviderViewSet,
                        UserPreferenceViewSet,
                        aws_costs,
+                       aws_storage,
                        aws_tags,
                        charges,
                        cpu,
@@ -29,8 +30,7 @@ from api.views import (ProviderViewSet,
                        ocp_aws_storage,
                        ocp_costs,
                        ocp_tags,
-                       status,
-                       storage)
+                       status)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
@@ -42,10 +42,10 @@ urlpatterns = [
     url(r'^tags/aws/$', aws_tags, name='aws-tags'),
     url(r'^tags/ocp/$', ocp_tags, name='ocp-tags'),
     url(r'^reports/costs/aws/$', aws_costs, name='reports-aws-costs'),
-    url(r'^reports/costs/ocp/$', ocp_costs, name='reports-costs-ocp'),
+    url(r'^reports/costs/ocp/$', ocp_costs, name='reports-ocp-costs'),
     url(r'^reports/charges/ocp/$', charges, name='reports-ocp-charges'),
-    url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-instance-type'),
-    url(r'^reports/inventory/aws/storage/$', storage, name='reports-storage'),
+    url(r'^reports/inventory/aws/instance-type/$', instance_type, name='reports-aws-instance-type'),
+    url(r'^reports/inventory/aws/storage/$', aws_storage, name='reports-aws-storage'),
     url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),
     url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^reports/inventory/ocp/storage/$', ocp_aws_storage, name='reports-ocp-aws-storage'),

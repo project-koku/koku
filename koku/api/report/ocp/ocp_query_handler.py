@@ -20,7 +20,7 @@ from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
-from django.db.models.functions import (Coalesce, Concat, RowNumber)
+from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -55,12 +55,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         annotations = {'date': self.date_trunc('usage_start')}
-
         # { query_param: database_field_name }
         fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
-
         return annotations
 
     def _format_query_response(self):
