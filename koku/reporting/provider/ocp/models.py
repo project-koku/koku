@@ -949,13 +949,7 @@ class OCPStorageLineItemDailySummary(models.Model):
         null=True
     )
 
-    pvc_charge_gb_usage_per_month = models.DecimalField(
-        max_digits=24,
-        decimal_places=6,
-        null=True
-    )
-
-    pvc_charge_gb_request_per_month = models.DecimalField(
+    persistentvolumeclaim_charge_gb_month = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
