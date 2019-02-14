@@ -740,6 +740,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
+    instance_type = models.CharField(max_length=50, null=True)
+
     usage_account_id = models.CharField(max_length=50, null=False)
 
     account_alias = models.ForeignKey('AWSAccountAlias',
@@ -944,6 +946,12 @@ class OCPStorageLineItemDailySummary(models.Model):
     )
 
     persistentvolumeclaim_usage_gigabyte_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    persistentvolumeclaim_charge_gb_month = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True

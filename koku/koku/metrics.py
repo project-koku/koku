@@ -16,7 +16,6 @@
 #
 
 """Prometheus metrics."""
-
 import logging
 import time
 from datetime import datetime, timedelta

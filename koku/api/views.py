@@ -28,4 +28,5 @@ from api.report.aws.view import (costs as aws_costs,
                                  storage as aws_storage)
 from api.report.ocp.view import charges, cpu, memory
 from api.report.ocp_aws.view import (costs as ocp_costs,
+				     instance_type as ocp_aws_instance_type,
                                      storage as ocp_aws_storage)

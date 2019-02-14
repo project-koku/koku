@@ -22,8 +22,17 @@ import sys
 from django.apps import AppConfig
 from django.db.utils import OperationalError, ProgrammingError
 
-
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+def _collect_db_metrics():
+    """Collect metrics and sleep."""
+    # noqa: E402 pylint: disable=C0413
+    import time
+    from koku.metrics import DBSTATUS
+    DBSTATUS.collect()
+    time.sleep(120)
+    _collect_db_metrics()
 
 
 class ApiConfig(AppConfig):
@@ -37,7 +46,7 @@ class ApiConfig(AppConfig):
         if 'manage.py' in sys.argv[0] and 'runserver' not in sys.argv:
             return
         try:
-            self.startup_status()
+            self.db_metrics()
         except (OperationalError, ProgrammingError) as op_error:
             if 'no such table' in str(op_error) or \
                     'does not exist' in str(op_error):
@@ -46,10 +55,10 @@ class ApiConfig(AppConfig):
             else:
                 logger.error('Error: %s.', op_error)
 
-    def startup_status(self):  # pylint: disable=R0201
-        """Log the status of the server at startup."""
+    def db_metrics(self):  # pylint: disable=R0201
+        """Create thread loop for collecting db metrics."""
         # noqa: E402 pylint: disable=C0413
-        from api.status.models import Status
-        status_info = Status()
-
-        status_info.startup()
+        import threading
+        t = threading.Thread(target=_collect_db_metrics, args=(), kwargs={})
+        t.setDaemon(True)
+        t.start()

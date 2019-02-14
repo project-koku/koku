@@ -99,6 +99,12 @@ class ClassMapper(object):
                     'serializer': OCPAWSQueryParamSerializer,
                     'query_handler': OCPAWSReportQueryHandler,
                     'tag_handler': AWSTagsSummary
+                },
+                {
+                    'report': 'instance_type',
+                    'serializer': OCPAWSQueryParamSerializer,
+                    'query_handler': OCPAWSReportQueryHandler,
+                    'tag_handler': AWSTagsSummary
                 }
             ]
         }

@@ -611,3 +611,52 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+    def test_execute_query_ocp_aws_instance_type(self):
+        """Test that the instance type API runs."""
+        url = reverse('reports-ocp-aws-instance-type')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        expected_end_date = self.dh.today
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
+        expected_end_date = str(expected_end_date.date())
+        expected_start_date = str(expected_start_date.date())
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        dates = sorted([item.get('date') for item in data.get('data')])
+        self.assertEqual(dates[0], expected_start_date)
+        self.assertEqual(dates[-1], expected_end_date)
+
+        for item in data.get('data'):
+            if item.get('values'):
+                values = item.get('values')[0]
+                self.assertTrue('total' in values)
+                self.assertTrue('cost' in values)
+                self.assertTrue('units' in values)
+                self.assertTrue('count' in values)
+
+    def test_execute_query_ocp_aws_instance_type_by_project(self):
+        """Test that the instance type API runs when grouped by project."""
+        with tenant_context(self.tenant):
+            # Force Django to do GROUP BY to get nodes
+            projects = OCPAWSCostLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(product_family__contains='Storage')\
+                .values(*['namespace'])\
+                .annotate(project_count=Count('namespace'))\
+                .all()
+            project_of_interest = projects[0].get('namespace')
+
+        url = reverse('reports-ocp-aws-instance-type')
+        client = APIClient()
+        params = {'group_by[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for project in entry.get('projects', []):
+                self.assertEqual(project.get('project'), project_of_interest)
