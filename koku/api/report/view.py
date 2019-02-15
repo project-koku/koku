@@ -340,7 +340,8 @@ def _generic_report(request, provider, report):
 
     tag_keys = []
     if report != 'tags':
-        for tag_model in cm.tag_handler(provider, report):
+        tag_models = cm.tag_handler(provider, report)
+        for tag_model in tag_models:
             tag_keys.extend(get_tag_keys(request, tag_model))
 
     url_data = request.GET.urlencode()
