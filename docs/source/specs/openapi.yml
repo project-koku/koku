@@ -468,7 +468,7 @@ paths:
       tags:
         - Report
       summary: Query to obtain cost reports
-      operationId: getCostReports
+      operationId: getAWSCostReports
       produces:
       - 'application/json'
       - 'text/csv'
@@ -507,7 +507,7 @@ paths:
       tags:
         - Report
       summary: Query to obtain cost reports
-      operationId: getCostReports
+      operationId: getOCPCostReports
       produces:
       - 'application/json'
       - 'text/csv'
