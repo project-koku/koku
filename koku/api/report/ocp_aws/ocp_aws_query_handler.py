@@ -86,7 +86,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
-                aggregates = self._mapper._report_type_map.get('aggregate')
+                aggregates = self._mapper._report_type_map.get('aggregates')
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 

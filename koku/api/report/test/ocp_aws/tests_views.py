@@ -583,7 +583,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_get_costs(self):
         """Test costs reports runs with a customer owner."""
-        url = reverse('reports-ocp-costs')
+        url = reverse('reports-ocp-aws-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -595,14 +595,14 @@ class OCPAWSReportViewTest(IamTestCase):
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-ocp-costs') + '?' + qs
+        url = reverse('reports-ocp-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""
-        url = reverse('reports-ocp-costs')
+        url = reverse('reports-ocp-aws-costs')
         client = APIClient(HTTP_ACCEPT='text/csv')
 
         response = client.get(url, **self.headers)
@@ -611,6 +611,30 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
+
+    def test_execute_query_ocp_aws_costs_group_by_project(self):
+        """Test that grouping by project filters data."""
+        with tenant_context(self.tenant):
+            # Force Django to do GROUP BY to get nodes
+            projects = OCPAWSCostLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .values(*['namespace'])\
+                .annotate(project_count=Count('namespace'))\
+                .all()
+            project_of_interest = projects[0].get('namespace')
+
+        url = reverse('reports-ocp-aws-costs')
+        client = APIClient()
+        params = {'group_by[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for project in entry.get('projects', []):
+                self.assertEqual(project.get('project'), project_of_interest)
 
     def test_execute_query_ocp_aws_instance_type(self):
         """Test that the instance type API runs."""
@@ -622,7 +646,7 @@ class OCPAWSReportViewTest(IamTestCase):
         expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_start_date)
@@ -654,7 +678,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         for entry in data.get('data', []):

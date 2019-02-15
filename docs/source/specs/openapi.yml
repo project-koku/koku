@@ -502,6 +502,45 @@ paths:
             $ref: '#/definitions/Error'
       security:
       - api_key: []
+  /reports/costs/ocp/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain cost reports
+      operationId: getCostReports
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'delta'
+        in: 'query'
+        description: 'Toggle to include delta values in report.'
+        type: 'string'
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportCost'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
   /reports/charges/ocp/:
     get:
       tags:
