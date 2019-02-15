@@ -386,6 +386,94 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(tag_keys, expected_tag_keys)
 
+    def test_populate_volume_claim_label_summary_table(self):
+        """Test that the volume claim summary table is populated."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        agg_table_name = OCP_REPORT_TABLE_MAP['volume_claim_label_summary']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for start_date in (today, last_month):
+            period = self.creator.create_ocp_report_period(start_date)
+            report = self.creator.create_ocp_report(period, start_date)
+            self.creator.create_ocp_storage_line_item(
+                period,
+                report
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(agg_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_volume_claim_label_summary_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        tags = query.all()
+        tag_keys = [tag.key for tag in tags]
+
+        self.accessor._cursor.execute(
+            """SELECT DISTINCT jsonb_object_keys(persistentvolumeclaim_labels)
+                FROM reporting_ocpstoragelineitem_daily"""
+        )
+
+        expected_tag_keys = self.accessor._cursor.fetchall()
+        expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+
+        self.assertEqual(tag_keys, expected_tag_keys)
+
+    def test_populate_volume_label_summary_table(self):
+        """Test that the volume label summary table is populated."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        agg_table_name = OCP_REPORT_TABLE_MAP['volume_label_summary']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+
+        today = DateAccessor().today_with_timezone('UTC')
+        last_month = today - relativedelta.relativedelta(months=1)
+
+        for start_date in (today, last_month):
+            period = self.creator.create_ocp_report_period(start_date)
+            report = self.creator.create_ocp_report(period, start_date)
+            self.creator.create_ocp_storage_line_item(
+                period,
+                report
+            )
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        query = self.accessor._get_db_obj_query(agg_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_volume_label_summary_table()
+
+        self.assertNotEqual(query.count(), initial_count)
+
+        tags = query.all()
+        tag_keys = [tag.key for tag in tags]
+
+        self.accessor._cursor.execute(
+            """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels)
+                FROM reporting_ocpstoragelineitem_daily"""
+        )
+
+        expected_tag_keys = self.accessor._cursor.fetchall()
+        expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+
+        self.assertEqual(tag_keys, expected_tag_keys)
+
     def test_get_usage_period_before_date(self):
         """Test that gets a query for usage report periods before a date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
