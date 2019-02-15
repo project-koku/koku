@@ -80,7 +80,6 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
                                                                         'cluster_id'))
 
-
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
                 rank_by_total = Window(
