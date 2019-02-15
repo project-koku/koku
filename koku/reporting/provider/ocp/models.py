@@ -760,6 +760,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     normalized_usage_amount = models.FloatField(null=True)
 
+    currency_code = models.CharField(max_length=10, null=True)
+
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the AWS unblended_cost
     # with a GROUP BY cluster/node.
@@ -959,3 +961,27 @@ class OCPStorageLineItemDailySummary(models.Model):
         decimal_places=6,
         null=True
     )
+
+
+class OCPStorageVolumeLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumelabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+
+
+class OCPStorageVolumeClaimLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeClaimLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumeclaimlabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))

@@ -65,6 +65,7 @@ class QueryHandler(object):
         self.url_data = url_data
         self.tenant = tenant
         self.default_ordering = default_ordering
+        self.kwargs = kwargs
         self.resolution = None
         self.time_interval = []
         self.time_scope_units = None
