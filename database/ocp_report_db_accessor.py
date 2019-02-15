@@ -426,3 +426,35 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info(f'Finished updating %s.', table_name)
+
+    # pylint: disable=invalid-name,duplicate-code
+    def populate_volume_claim_label_summary_table(self):
+        """Populate the OCP volume claim label summary table."""
+        table_name = OCP_REPORT_TABLE_MAP['volume_claim_label_summary']
+
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            f'sql/reporting_ocpstoragevolumeclaimlabel_summary.sql'
+        )
+
+        LOG.info('Updating %s.', table_name)
+        self._cursor.execute(agg_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating %s.', table_name)
+
+    # pylint: disable=invalid-name,duplicate-code
+    def populate_volume_label_summary_table(self):
+        """Populate the OCP volume label summary table."""
+        table_name = OCP_REPORT_TABLE_MAP['volume_label_summary']
+
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            f'sql/reporting_ocpstoragevolumelabel_summary.sql'
+        )
+
+        LOG.info('Updating %s.', table_name)
+        self._cursor.execute(agg_sql)
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info(f'Finished updating %s.', table_name)
