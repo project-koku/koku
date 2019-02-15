@@ -18,7 +18,7 @@
 import copy
 
 from django.db.models import (F, Q, Value, Window)
-from django.db.models.functions import (Coalesce, Concat, RowNumber)
+from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.query_filter import QueryFilter, QueryFilterCollection
@@ -51,7 +51,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         if not kwargs.get('provider'):
             kwargs['provider'] = 'AWS'
-            kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 
@@ -68,12 +67,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
             'date': self.date_trunc('usage_start'),
             'units': Coalesce(self._mapper.units_key, Value(units_fallback))
         }
-
         # { query_param: database_field_name }
         fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
-
         return annotations
 
     def _format_query_response(self):
@@ -91,6 +88,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             output['delta'] = self.query_delta
 
         return output
+
+    def _set_tag_filters(self, filters):
+        tag_filters = self.get_tag_filter_keys()
+        if not tag_filters and self.kwargs.get('provider') == 'AWS':
+            filters.add(QueryFilter(operation='tags__iexact', parameter='{}'))
+        return super()._set_tag_filters(filters)
 
     def execute_sum_query(self):
         """Execute query and return provided data when self.is_sum == True.
@@ -201,7 +204,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             total_filter = total_filter & time_and_report_filter
 
         q_table = self._mapper._provider_map.get('tables').get('total')
-        aggregates = self._mapper._report_type_map.get('aggregate')
+        aggregates = self._mapper._report_type_map.get('aggregates')
         total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
         total_query['units'] = units_value
 
