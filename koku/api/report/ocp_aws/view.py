@@ -50,7 +50,6 @@ def costs(request):
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
     @apiSuccess {Object} total Aggregates statistics for the report range.
-    @apiSuccessExample {json} Success-Response:
     """
     return _generic_report(request, report='costs', provider='ocp_aws')
 
