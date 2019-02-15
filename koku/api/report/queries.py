@@ -368,7 +368,7 @@ class ProviderMap(object):
                         'units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('unblended_cost')},
+                    'delta_key': {'total': Sum('pod_cost')},
                     'filter': {},
                     'units_key': 'currency_code',
                     'units_fallback': 'USD',
