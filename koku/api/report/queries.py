@@ -56,7 +56,7 @@ class ProviderMap(object):
 
     # main mapping data structure
     # this data should be considered static and read-only.
-    mapping = [
+    MAPPING = [
         {
             'provider': 'AWS',
             'alias': 'account_alias__account_alias',
@@ -96,7 +96,7 @@ class ProviderMap(object):
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
-                    'aggregate': {'value': Sum('unblended_cost')},
+                    'aggregates': {'value': Sum('unblended_cost')},
                     'aggregate_key': 'unblended_cost',
                     'annotations': {
                         'total': Sum('unblended_cost'),
@@ -111,7 +111,7 @@ class ProviderMap(object):
                     'default_ordering': {'total': 'desc'},
                 },
                 'instance_type': {
-                    'aggregate': {
+                    'aggregates': {
                         'cost': Sum('unblended_cost'),
                         'count': Sum('resource_count'),
                         'value': Sum('usage_amount'),
@@ -138,7 +138,7 @@ class ProviderMap(object):
                     'default_ordering': {'total': 'desc'},
                 },
                 'storage': {
-                    'aggregate': {
+                    'aggregates': {
                         'value': Sum('usage_amount'),
                         'cost': Sum('unblended_cost')
                     },
@@ -376,6 +376,34 @@ class ProviderMap(object):
             'group_by_options': ['account', 'service', 'region', 'cluster', 'project', 'node'],
             'tag_column': 'tags',
             'report_type': {
+                'costs': {
+                    'aggregates': {'value': Sum('unblended_cost')},
+                    'annotations': {
+                        'total': Sum('unblended_cost'),
+                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                    },
+                    'count': None,
+                    'delta_key': {'total': Sum('unblended_cost')},
+                    'filter': {},
+                    'units_key': 'currency_code',
+                    'units_fallback': 'USD',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
+                'costs_by_project': {
+                    'aggregates': {'value': Sum('pod_cost')},
+                    'annotations': {
+                        'total': Sum('pod_cost'),
+                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                    },
+                    'count': None,
+                    'delta_key': {'total': Sum('pod_cost')},
+                    'filter': {},
+                    'units_key': 'currency_code',
+                    'units_fallback': 'USD',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
                 'storage': {
                     'aggregates': {
                         'cost': Sum('unblended_cost'),
@@ -488,7 +516,7 @@ class ProviderMap(object):
     @staticmethod
     def provider_data(provider):
         """Return provider portion of map structure."""
-        for item in ProviderMap.mapping:
+        for item in ProviderMap.MAPPING:
             if provider in item.get('provider'):
                 return item
 
@@ -503,7 +531,8 @@ class ProviderMap(object):
         self._provider = provider
         self._report_type = report_type
 
-        self._map = ProviderMap.mapping
+        # FIXME: incorrect use of underscore convention.
+        # FIXME: these should be public.
         self._provider_map = ProviderMap.provider_data(provider)
         self._report_type_map = ProviderMap.report_type_data(report_type, provider)
 
@@ -525,9 +554,9 @@ class ProviderMap(object):
     @property
     def query_table(self):
         """Return the appropriate query table for the report type."""
-        report_specific_table = self._report_type_map.get('tables').get('query')
-        general_table = self._provider_map.get('tables').get('query')
-        return report_specific_table if report_specific_table else general_table
+        report_table = self._report_type_map.get('tables', {}).get('query')
+        default = self._provider_map.get('tables').get('query')
+        return report_table if report_table else default
 
 
 class ReportQueryHandler(QueryHandler):
@@ -547,7 +576,7 @@ class ReportQueryHandler(QueryHandler):
         self._accept_type = None
         self._group_by = None
         self._tag_keys = []
-        self._no_tag_query = kwargs.get('no_tag_query')
+
         if kwargs:
             # view parameters
             elements = ['accept_type', 'delta', 'report_type', 'tag_keys']
@@ -629,8 +658,6 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
-        if not tag_filters and self._no_tag_query:
-            filters.add(self._no_tag_query)
 
         for tag in tag_filters:
             # Update the filter to use the label column name
@@ -751,7 +778,7 @@ class ReportQueryHandler(QueryHandler):
             (Dict): query annotations dictionary
 
         """
-        pass
+        raise NotImplementedError('Annotations must be defined by sub-classes.')
 
     @staticmethod
     def _group_data_by_list(group_by_list, group_index, data):

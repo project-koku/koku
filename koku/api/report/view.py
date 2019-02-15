@@ -50,6 +50,8 @@ LOG = logging.getLogger(__name__)
 class ClassMapper(object):
     """Data structure object to organize class references."""
 
+    # main mapping data structure
+    # this data should be considered static and read-only.
     CLASS_MAP = [
         {
             'provider': 'aws',
@@ -104,7 +106,7 @@ class ClassMapper(object):
             'provider': 'ocp_aws',
             'reports': [
                 {
-                    'report': 'storage',
+                    'report': 'default',
                     'serializer': OCPAWSQueryParamSerializer,
                     'query_handler': OCPAWSReportQueryHandler,
                     'tag_handler': AWSTagsSummary
@@ -140,6 +142,11 @@ class ClassMapper(object):
         for rep in reports:
             if report == rep.get('report'):
                 return rep
+
+        if report == 'default':
+            # avoid infinite recursion
+            return {}
+
         return self.get_report(provider, 'default')
 
     def serializer(self, provider, report):
