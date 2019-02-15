@@ -95,7 +95,7 @@ class ProviderMap(object):
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
-                    'aggregate': {'value': Sum('unblended_cost')},
+                    'aggregates': {'value': Sum('unblended_cost')},
                     'aggregate_key': 'unblended_cost',
                     'annotations': {
                         'total': Sum('unblended_cost'),
@@ -110,7 +110,7 @@ class ProviderMap(object):
                     'default_ordering': {'total': 'desc'},
                 },
                 'instance_type': {
-                    'aggregate': {
+                    'aggregates': {
                         'cost': Sum('unblended_cost'),
                         'count': Sum('resource_count'),
                         'value': Sum('usage_amount'),
@@ -137,7 +137,7 @@ class ProviderMap(object):
                     'default_ordering': {'total': 'desc'},
                 },
                 'storage': {
-                    'aggregate': {
+                    'aggregates': {
                         'value': Sum('usage_amount'),
                         'cost': Sum('unblended_cost')
                     },
@@ -348,8 +348,7 @@ class ProviderMap(object):
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
-                    'aggregate': {'value': Sum('unblended_cost')},
-                    'aggregate_key': 'unblended_cost',
+                    'aggregates': {'value': Sum('unblended_cost')},
                     'annotations': {
                         'total': Sum('unblended_cost'),
                         'units': Coalesce(Max('currency_code'), Value('USD'))
@@ -362,8 +361,22 @@ class ProviderMap(object):
                     'sum_columns': ['total'],
                     'default_ordering': {'total': 'desc'},
                 },
+                'costs_by_project': {
+                    'aggregates': {'value': Sum('pod_cost')},
+                    'annotations': {
+                        'total': Sum('pod_cost'),
+                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                    },
+                    'count': None,
+                    'delta_key': {'total': Sum('unblended_cost')},
+                    'filter': {},
+                    'units_key': 'currency_code',
+                    'units_fallback': 'USD',
+                    'sum_columns': ['total'],
+                    'default_ordering': {'total': 'desc'},
+                },
                 'storage': {
-                    'aggregate': {
+                    'aggregates': {
                         'cost': Sum('unblended_cost'),
                         'total': Sum('usage_amount'),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -386,7 +399,7 @@ class ProviderMap(object):
                     'default_ordering': {'total': 'desc'},
                 },
                 'storage_by_project': {
-                    'aggregate': {
+                    'aggregates': {
                         'cost': Sum('pod_cost'),
                         'total': Sum('usage_amount'),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
