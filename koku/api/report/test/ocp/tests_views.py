@@ -689,7 +689,7 @@ class OCPReportViewTest(IamTestCase):
             values = entry.get('values', {})[0]
             delta_percent = (values.get(delta_one) /  # noqa: W504
                              values.get(delta_two) * 100) if values.get(delta_two) else 0
-            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+            self.assertAlmostEqual(values.get('delta_percent'), delta_percent)
 
     def test_execute_query_group_by_project(self):
         """Test that grouping by project filters data."""
