@@ -959,3 +959,27 @@ class OCPStorageLineItemDailySummary(models.Model):
         decimal_places=6,
         null=True
     )
+
+
+class OCPStorageVolumeLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumelabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+
+
+class OCPStorageVolumeClaimLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeClaimLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumeclaimlabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))

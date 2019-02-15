@@ -831,7 +831,14 @@ class ReportQueryHandler(QueryHandler):
             label = groups[next_group_index] + 's'
 
         for group, group_value in data.items():
-            cur = {group_type: group,
+            group_label = group
+            if group is None:
+                group_label = 'no-{}'.format(group_type)
+                if isinstance(group_value, list):
+                    for group_item in group_value:
+                        if group_item.get(group_type) is None:
+                            group_item[group_type] = group_label
+            cur = {group_type: group_label,
                    label: self._transform_data(groups, next_group_index,
                                                group_value)}
             out_data.append(cur)

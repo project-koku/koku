@@ -281,3 +281,51 @@ class RateSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
+
+    def test_create_storage_tiered_rate(self):
+        """Test creating a storage tiered rate."""
+        storage_rates = (Rate.METRIC_STORAGE_GB_REQUEST_MONTH,
+                         Rate.METRIC_STORAGE_GB_USAGE_MONTH)
+        for storage_rate in storage_rates:
+            rate = {'provider_uuid': self.provider.uuid,
+                    'metric': storage_rate,
+                    'tiered_rate': [{
+                        'unit': 'USD',
+                        'value': 0.22,
+                        'usage_start': None,
+                        'usage_end': 10.0
+                    }, {
+                        'unit': 'USD',
+                        'value': 0.26,
+                        'usage_start': 10.0,
+                        'usage_end': None
+                    }]
+                    }
+
+            with tenant_context(self.tenant):
+                serializer = RateSerializer(data=rate)
+                with self.assertRaises(serializers.ValidationError):
+                    if serializer.is_valid(raise_exception=True):
+                        serializer.save()
+
+    def test_create_storage_no_tiers_rate(self):
+        """Test creating a non tiered storage rate."""
+        storage_rates = (Rate.METRIC_STORAGE_GB_REQUEST_MONTH,
+                         Rate.METRIC_STORAGE_GB_USAGE_MONTH)
+        for storage_rate in storage_rates:
+            rate = {'provider_uuid': self.provider.uuid,
+                    'metric': storage_rate,
+                    'tiered_rate': [{
+                        'unit': 'USD',
+                        'value': 0.22
+                    }]
+                    }
+
+            with tenant_context(self.tenant):
+                instance = None
+                serializer = RateSerializer(data=rate)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+
+                self.assertIsNotNone(instance)
+                self.assertIsNotNone(instance.uuid)
