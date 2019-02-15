@@ -760,7 +760,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     normalized_usage_amount = models.FloatField(null=True)
 
-    currency_code = models.CharField(max_length=10)
+    currency_code = models.CharField(max_length=10, null=True)
 
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the AWS unblended_cost
