@@ -284,20 +284,21 @@ class ProviderMap(object):
                         'query': OCPStorageLineItemDailySummary
                     },
                     'aggregates': {
-                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
-                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
+                        'request': Sum('volume_request_storage_gigabyte_months'),
                         'charge': Sum('persistentvolumeclaim_charge_gb_month')
                     },
                     'capacity_aggregate': {
-                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_hours')
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months')
                     },
                     'default_ordering': {'usage': 'desc'},
                     'annotations': {
-                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
-                        'request': Sum('volume_request_storage_gigabyte_hours'),
-                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_hours'),
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
+                        'request': Sum('volume_request_storage_gigabyte_months'),
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
                         'charge': Sum('persistentvolumeclaim_charge_gb_month'),
-                        'units': Value('GB-Mo', output_field=CharField())
+                        'units': Value('GB-Mo', output_field=CharField()),
+                        'storage class': Max('storageclass')
                     },
                     'delta_key': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
