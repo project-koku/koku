@@ -39,7 +39,9 @@ from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.tags.serializers import AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer
 from api.utils import UnitConverter
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.ocp.models import OCPUsagePodLabelSummary
+from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
+                                           OCPStorageVolumeLabelSummary,
+                                           OCPUsagePodLabelSummary)
 
 
 LOG = logging.getLogger(__name__)
@@ -56,13 +58,13 @@ class ClassMapper(object):
                     'report': 'default',
                     'serializer': QueryParamSerializer,
                     'query_handler': AWSReportQueryHandler,
-                    'tag_handler': AWSTagsSummary
+                    'tag_handler': [AWSTagsSummary]
                 },
                 {
                     'report': 'tags',
                     'serializer': AWSTagsQueryParamSerializer,
                     'query_handler': AWSTagQueryHandler,
-                    'tag_handler': AWSTagsSummary
+                    'tag_handler': [AWSTagsSummary]
                 }
             ]
         },
@@ -73,19 +75,28 @@ class ClassMapper(object):
                     'report': 'default',
                     'serializer': OCPInventoryQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
-                    'tag_handler': OCPUsagePodLabelSummary
+                    'tag_handler': [OCPUsagePodLabelSummary]
                 },
                 {
                     'report': 'charge',
                     'serializer': OCPChargeQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
-                    'tag_handler': OCPUsagePodLabelSummary
+                    'tag_handler': [OCPUsagePodLabelSummary]
                 },
                 {
                     'report': 'tags',
                     'serializer': OCPTagsQueryParamSerializer,
                     'query_handler': OCPTagQueryHandler,
-                    'tag_handler': OCPUsagePodLabelSummary
+                    'tag_handler': [OCPUsagePodLabelSummary]
+                },
+                {
+                    'report': 'volume',
+                    'serializer': OCPInventoryQueryParamSerializer,
+                    'query_handler': OCPReportQueryHandler,
+                    'tag_handler': [
+                        OCPStorageVolumeClaimLabelSummary,
+                        OCPStorageVolumeLabelSummary
+                    ]
                 }
             ]
         },
@@ -102,7 +113,7 @@ class ClassMapper(object):
                     'report': 'instance_type',
                     'serializer': OCPAWSQueryParamSerializer,
                     'query_handler': OCPAWSReportQueryHandler,
-                    'tag_handler': AWSTagsSummary
+                    'tag_handler': [AWSTagsSummary]
                 }
             ]
         }
@@ -320,9 +331,10 @@ def _generic_report(request, provider, report):
     provider_query_hdlr = cm.query_handler(provider, report)
     provider_parameter_serializer = cm.serializer(provider, report)
 
-    tag_keys = None
+    tag_keys = []
     if report != 'tags':
-        tag_keys = get_tag_keys(request, cm.tag_handler(provider, report))
+        for tag_model in cm.tag_handler(provider, report):
+            tag_keys.extend(get_tag_keys(request, tag_model))
 
     url_data = request.GET.urlencode()
     validation, params = process_query_parameters(
