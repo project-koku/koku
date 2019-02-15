@@ -853,6 +853,8 @@ class OCPUStorageLineItemDaily(models.Model):
 
     pod = models.CharField(max_length=253, null=True)
 
+    node = models.CharField(max_length=253, null=True)
+
     persistentvolumeclaim = models.CharField(max_length=253)
 
     persistentvolume = models.CharField(max_length=253)
@@ -917,7 +919,10 @@ class OCPStorageLineItemDailySummary(models.Model):
     persistentvolume = models.CharField(max_length=253)
 
     storageclass = models.CharField(max_length=50, null=True)
-    pod = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=True)
+
+    node = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
