@@ -31,6 +31,7 @@ from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
                               OCPAWSCostLineItemDailySummary,
+                              OCPStorageLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
@@ -162,7 +163,6 @@ class ProviderMap(object):
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': AWSCostEntryLineItemDailySummary,
                 'query': AWSCostEntryLineItemDailySummary,
                 'total': AWSCostEntryLineItemAggregates
             },
@@ -278,11 +278,39 @@ class ProviderMap(object):
                     'filter': {},
                     'units_key': 'GB-Hours',
                     'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                }
+                },
+                'volume': {
+                    'tables': {
+                        'query': OCPStorageLineItemDailySummary
+                    },
+                    'aggregates': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
+                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                    },
+                    'capacity_aggregate': {
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_hours')
+                    },
+                    'default_ordering': {'usage': 'desc'},
+                    'annotations': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
+                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_hours'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month'),
+                        'units': Value('GB-Mo', output_field=CharField())
+                    },
+                    'delta_key': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
+                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                    },
+                    'filter': {},
+                    'units_key': 'GB-Mo',
+                    'sum_columns': ['usage', 'request', 'charge'],
+                },
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': OCPUsageLineItemDailySummary,
                 'query': OCPUsageLineItemDailySummary,
                 'total': OCPUsageLineItemAggregates
             },
@@ -450,7 +478,6 @@ class ProviderMap(object):
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': OCPAWSCostLineItemDailySummary,
                 'query': OCPAWSCostLineItemDailySummary,
                 'total': OCPAWSCostLineItemDailySummary
             },
@@ -493,6 +520,13 @@ class ProviderMap(object):
     def sum_columns(self):
         """Return the sum column list for the report type."""
         return self._report_type_map.get('sum_columns')
+
+    @property
+    def query_table(self):
+        """Return the appropriate query table for the report type."""
+        report_specific_table = self._report_type_map.get('tables').get('query')
+        general_table = self._provider_map.get('tables').get('query')
+        return report_specific_table if report_specific_table else general_table
 
 
 class ReportQueryHandler(QueryHandler):
@@ -1000,7 +1034,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ['date'] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper._provider_map.get('tables').get('previous_query')
+        q_table = self._mapper.query_table
         previous_query = q_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query,
                                                      delta_group_by)

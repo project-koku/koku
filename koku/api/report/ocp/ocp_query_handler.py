@@ -89,7 +89,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._provider_map.get('tables').get('query')
+        q_table = self._mapper.query_table
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             if self.query_exclusions:
@@ -207,7 +207,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
         capacity_by_cluster = defaultdict(Decimal)
-        q_table = self._mapper._provider_map.get('tables').get('query')
+        q_table = self._mapper.query_table
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['usage_start', 'cluster_id']
 
