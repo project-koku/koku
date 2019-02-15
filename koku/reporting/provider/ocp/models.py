@@ -931,19 +931,19 @@ class OCPStorageLineItemDailySummary(models.Model):
         null=True
     )
 
-    persistentvolumeclaim_capacity_gigabyte_hours = models.DecimalField(
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    volume_request_storage_gigabyte_hours = models.DecimalField(
+    volume_request_storage_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    persistentvolumeclaim_usage_gigabyte_hours = models.DecimalField(
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
