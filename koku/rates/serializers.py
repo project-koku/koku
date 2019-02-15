@@ -158,6 +158,10 @@ class RateSerializer(serializers.ModelSerializer):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
                 RateSerializer._validate_continuouse_tiers(tiered_rate)
+                storage_rates = (Rate.METRIC_STORAGE_GB_REQUEST_MONTH,
+                                 Rate.METRIC_STORAGE_GB_USAGE_MONTH)
+                if len(tiered_rate) > 1 and data.get('metric') in storage_rates:
+                    raise serializers.ValidationError('Storage rates do not support tiers.')
             return data
         else:
             rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)
