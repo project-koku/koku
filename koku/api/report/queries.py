@@ -298,7 +298,6 @@ class ProviderMap(object):
                         'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
                         'charge': Sum('persistentvolumeclaim_charge_gb_month'),
                         'units': Value('GB-Mo', output_field=CharField()),
-                        'storage class': Max('storageclass')
                     },
                     'delta_key': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),

@@ -32,7 +32,6 @@ from api.views import (ProviderViewSet,
                        ocp_aws_storage,
                        ocp_tags,
                        status,
-                       storage,
                        volume)
 
 ROUTER = DefaultRouter()
