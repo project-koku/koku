@@ -208,7 +208,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         reports = self._get_db_obj_query(table_name).all()
-
         return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
     def get_pod_request_memory_gigabyte_hours(self):
@@ -216,8 +215,21 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         reports = self._get_db_obj_query(table_name).all()
-
         return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+
+    def get_persistentvolumeclaim_usage_gigabyte_months(self):
+        """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+        return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+
+    def get_volume_request_storage_gigabyte_months(self):
+        """Make a mapping of volume_request_storage_gigabyte_months."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        reports = self._get_db_obj_query(table_name).all()
+        return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     # pylint: disable=duplicate-code
     def populate_line_item_daily_table(self, start_date, end_date):
@@ -331,6 +343,34 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             self._cursor.execute(charge_line_sql)
         LOG.info(f'Updating %s with mem_charge for %s items.',
                  table_name, len(mem_rate))
+        self._pg2_conn.commit()
+        self._vacuum_table(table_name)
+        LOG.info('Finished updating %s.', table_name)
+
+    def populate_storage_charge(self, storage_charge):
+        """Populate the storage charge into the daily summary table.
+
+        Args:
+            storage_charge (Float) Storage charge.
+
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        daily_charge_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocp_storage_charge.sql'
+        )
+        for key, value in storage_charge.items():
+            charge_line_sql = daily_charge_sql.decode('utf-8').format(
+                storage_charge=value.get('charge'),
+                line_id=key
+            )
+            self._cursor.execute(charge_line_sql)
+        LOG.info(f'Updating %s with storage_charge for %s items.',
+                 table_name, len(storage_charge))
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)

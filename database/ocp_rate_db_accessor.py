@@ -88,3 +88,15 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
         mem_request_rates = self.get_rates('memory_gb_request_per_hour')
         LOG.info('OCP Memory request rates: %s', str(mem_request_rates))
         return mem_request_rates
+
+    def get_storage_gb_usage_per_month_rates(self):
+        """Get the storage usage rates."""
+        storage_usage_rates = self.get_rates('storage_gb_usage_per_month')
+        LOG.info('OCP Storage usage rates: %s', str(storage_usage_rates))
+        return storage_usage_rates
+
+    def get_storage_gb_request_per_month_rates(self):
+        """Get the storage request rates."""
+        storage_request_rates = self.get_rates('storage_gb_request_per_month')
+        LOG.info('OCP Storage request rates: %s', str(storage_request_rates))
+        return storage_request_rates

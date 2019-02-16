@@ -183,6 +183,30 @@ class OCPReportChargeUpdater:
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate memory charge. Error: %s', str(error))
 
+    def _update_storage_charge(self):
+        """Calculate and store the storage charges."""
+        try:
+            with OCPRateDBAccessor(self._schema, self._provider_uuid,
+                                   self._column_map) as rate_accessor:
+                storage_usage_rates = rate_accessor.get_storage_gb_usage_per_month_rates()
+                storage_request_rates = rate_accessor.get_storage_gb_request_per_month_rates()
+
+            with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+                storage_usage = report_accessor.get_persistentvolumeclaim_usage_gigabyte_months()
+                storage_usage_charge = self._calculate_charge(storage_usage_rates,
+                                                              storage_usage)
+
+                storage_request = report_accessor.get_volume_request_storage_gigabyte_months()
+                storage_request_charge = self._calculate_charge(storage_request_rates,
+                                                                storage_request)
+                total_storage_charge = self._aggregate_charges(storage_usage_charge,
+                                                               storage_request_charge)
+                report_accessor.populate_storage_charge(total_storage_charge)
+                report_accessor.commit()
+
+        except OCPReportChargeUpdaterError as error:
+            LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
+
     def update_summary_charge_info(self):
         """Update the OCP summary table with the charge information.
 
@@ -197,3 +221,4 @@ class OCPReportChargeUpdater:
 
         self._update_cpu_charge()
         self._update_memory_charge()
+        self._update_storage_charge()
