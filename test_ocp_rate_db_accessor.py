@@ -75,11 +75,19 @@ class OCPRateDBAccessorTest(MasuTestCase):
         self.mem_request_rate = {'metric': 'memory_gb_request_per_hour',
                                  'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
                                  'rates': {'tiered_rate': [{'value': 4.5, 'unit': 'USD'}]}}
+        self.storage_usage_rate = {'metric': 'storage_gb_usage_per_month',
+                                   'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+                                   'rates': {'tiered_rate': [{'value': 5.5, 'unit': 'USD'}]}}
+        self.storage_request_rate = {'metric': 'storage_gb_request_per_month',
+                                     'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+                                     'rates': {'tiered_rate': [{'value': 6.5, 'unit': 'USD'}]}}
 
         self.creator.create_rate(**self.cpu_usage_rate)
         self.creator.create_rate(**self.mem_usage_rate)
         self.creator.create_rate(**self.cpu_request_rate)
         self.creator.create_rate(**self.mem_request_rate)
+        self.creator.create_rate(**self.storage_usage_rate)
+        self.creator.create_rate(**self.storage_request_rate)
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -112,6 +120,12 @@ class OCPRateDBAccessorTest(MasuTestCase):
         mem_request_metric = self.accessor.get_metric('memory_gb_request_per_hour')
         self.assertEquals(mem_request_metric, 'memory_gb_request_per_hour')
 
+        storage_usage_metric = self.accessor.get_metric('storage_gb_usage_per_month')
+        self.assertEquals(storage_usage_metric, 'storage_gb_usage_per_month')
+
+        storage_request_metric = self.accessor.get_metric('storage_gb_request_per_month')
+        self.assertEquals(storage_request_metric, 'storage_gb_request_per_month')
+
         missing_metric = self.accessor.get_metric('wrong_metric')
         self.assertIsNone(missing_metric)
 
@@ -128,6 +142,12 @@ class OCPRateDBAccessorTest(MasuTestCase):
 
         mem_request_rate = self.accessor.get_rates('memory_gb_request_per_hour')
         self.assertEquals(type(mem_request_rate), dict)
+
+        storage_usage_rate = self.accessor.get_rates('storage_gb_usage_per_month')
+        self.assertEquals(type(storage_usage_rate), dict)
+
+        storage_request_rate = self.accessor.get_rates('storage_gb_request_per_month')
+        self.assertEquals(type(storage_request_rate), dict)
 
         missing_rate = self.accessor.get_rates('wrong_metric')
         self.assertIsNone(missing_rate)
@@ -155,3 +175,15 @@ class OCPRateDBAccessorTest(MasuTestCase):
         mem_rates = self.accessor.get_memory_gb_request_per_hour_rates()
         self.assertEquals(type(mem_rates), dict)
         self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 4.5)
+
+    def test_get_storage_gb_usage_per_month_rates(self):
+        """Test get memory request rates."""
+        storage_rates = self.accessor.get_storage_gb_usage_per_month_rates()
+        self.assertEquals(type(storage_rates), dict)
+        self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 5.5)
+
+    def test_get_storage_gb_request_per_month_rates(self):
+        """Test get memory request rates."""
+        storage_rates = self.accessor.get_storage_gb_request_per_month_rates()
+        self.assertEquals(type(storage_rates), dict)
+        self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 6.5)

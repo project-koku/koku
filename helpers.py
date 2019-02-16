@@ -223,8 +223,8 @@ class ReportObjectCreator:
         data = self.create_columns_for_table(table_name)
 
         for key in data:
-            if 'bytes' in key:
-                data[key] = data[key] * Decimal(pow(2, 30))
+            if 'bytes' in key or 'byte' in key:
+                data[key] = data[key] * Decimal(pow(2, 30)) * 5
 
         row = self.db_accessor.create_db_object(table_name, data)
 
