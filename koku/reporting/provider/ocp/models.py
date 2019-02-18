@@ -832,7 +832,7 @@ class OCPStorageLineItem(models.Model):
     persistentvolumeclaim_labels = JSONField(null=True)
 
 
-class OCPUStorageLineItemDaily(models.Model):
+class OCPStorageLineItemDaily(models.Model):
     """A daily aggregation of storage line items.
 
     This table is aggregated by OCP resource.
