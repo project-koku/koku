@@ -25,7 +25,7 @@ from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
 
-class OCPReportQueryHandlerTest(IamTestCase):
+class OCPAWSQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
     @classmethod
@@ -66,7 +66,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         filt = {'product_family__contains': 'Storage'}
         filt.update(self.ten_day_filter)
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
@@ -88,7 +88,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -106,7 +106,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -127,7 +127,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -159,7 +159,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -191,7 +191,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -223,7 +223,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
@@ -255,7 +255,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get('total')
         self.assertIsNotNone(total.get('value'))
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates,
                                                        self.this_month_filter)
         self.assertEqual(total.get('value'), current_totals.get('value'))
