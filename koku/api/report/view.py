@@ -109,7 +109,7 @@ class ClassMapper(object):
                     'report': 'default',
                     'serializer': OCPAWSQueryParamSerializer,
                     'query_handler': OCPAWSReportQueryHandler,
-                    'tag_handler': AWSTagsSummary
+                    'tag_handler': [AWSTagsSummary]
                 },
                 {
                     'report': 'instance_type',
