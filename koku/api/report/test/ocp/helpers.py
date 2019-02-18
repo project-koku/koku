@@ -23,8 +23,8 @@ from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
-from django.db.models import CharField, DateTimeField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
-from django.db.models.functions import Coalesce, Extract
+from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
+from django.db.models.functions import Coalesce
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -449,7 +449,6 @@ class OCPReportDataGenerator:
 
     def _populate_storage_daily_summary_table(self):
         """Populate the daily summary table."""
-        date_delta = relativedelta(months=1, days=-1)
         included_fields = [
             'usage_start',
             'usage_end',
@@ -476,7 +475,7 @@ class OCPReportDataGenerator:
                 F('volume_request_storage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
                 output_field=DecimalField()
             ),
-            'persistentvolumeclaim_usage_gigabyte_months':ExpressionWrapper(
+            'persistentvolumeclaim_usage_gigabyte_months': ExpressionWrapper(
                 F('persistentvolumeclaim_usage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
                 output_field=DecimalField()
             )
@@ -487,7 +486,6 @@ class OCPReportDataGenerator:
         for entry in entries:
             summary = OCPStorageLineItemDailySummary(**entry)
             summary.save()
-
 
     def _populate_pod_label_summary_table(self):
         """Populate pod label key and values."""
