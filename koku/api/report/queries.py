@@ -283,6 +283,7 @@ class ProviderMap(object):
                     'tables': {
                         'query': OCPStorageLineItemDailySummary
                     },
+                    'tag_column': 'volume_labels',
                     'aggregates': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
                         'request': Sum('volume_request_storage_gigabyte_months'),
@@ -557,6 +558,13 @@ class ProviderMap(object):
         default = self._provider_map.get('tables').get('query')
         return report_table if report_table else default
 
+    @property
+    def tag_column(self):
+        """Return the appropriate query table for the report type."""
+        report_specific_column = self._report_type_map.get('tag_column')
+        default = self._provider_map.get('tag_column')
+        return report_specific_column if report_specific_column else default
+
 
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
@@ -653,7 +661,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _set_tag_filters(self, filters):
         """Create tag_filters."""
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
@@ -710,7 +718,7 @@ class ReportQueryHandler(QueryHandler):
 
         """
         exclusions = QueryFilterCollection()
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_group_by = self.get_tag_group_by_keys()
         if tag_group_by:
             for tag in tag_group_by:
@@ -755,7 +763,7 @@ class ReportQueryHandler(QueryHandler):
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""
         group_by = []
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
@@ -1113,7 +1121,7 @@ class ReportQueryHandler(QueryHandler):
 
     def strip_label_column_name(self, data, group_by):
         """Remove the column name from tags."""
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         val_to_strip = tag_column + '__'
         new_data = []
         for entry in data:
