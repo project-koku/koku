@@ -16,18 +16,23 @@
 #
 """Test the OCPReportQueryHandler base class."""
 import hashlib
+import math
 import random
 from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
-from django.db.models import DecimalField, ExpressionWrapper, F, Max, Sum
+from django.db.models import CharField, DateTimeField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
+from django.db.models.functions import Coalesce, Extract
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
-from reporting.models import (OCPUsageLineItem,
+from reporting.models import (OCPStorageLineItem,
+                              OCPStorageLineItemDaily,
+                              OCPStorageLineItemDailySummary,
+                              OCPUsageLineItem,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDaily,
                               OCPUsageLineItemDailySummary,
@@ -114,13 +119,17 @@ class OCPReportDataGenerator:
     def add_data_to_tenant(self, provider_id=None):
         """Populate tenant with data."""
         self.cluster_id = self.fake.word()
+        self.cluster_alias = self.fake.word()
         self.namespaces = [self.fake.word() for _ in range(2)]
         self.nodes = [self.fake.word() for _ in range(2)]
         self.line_items = [
             {
                 'namespace': random.choice(self.namespaces),
                 'node': node,
-                'pod': self.fake.word()
+                'pod': self.fake.word(),
+                'persistentvolumeclaim': self.fake.word(),
+                'persistentvolume': self.fake.word(),
+                'storageclass': self.fake.word()
             }
             for node in self.nodes
         ]
@@ -136,11 +145,16 @@ class OCPReportDataGenerator:
                         report_date
                     )
                     self.create_line_items(report_period, report)
+                    self.create_storage_line_items(report_period, report)
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
+            self._populate_storage_daily_table()
+            self._populate_storage_daily_summary_table()
             self._populate_charge_info()
             self._populate_pod_label_summary_table()
+            self._populate_volume_claim_label_summary_table()
+            self._populate_volume_label_summary_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -267,6 +281,7 @@ class OCPReportDataGenerator:
             'pod_request_memory_byte_seconds': Sum('pod_request_memory_byte_seconds'),
             'pod_limit_memory_byte_seconds': Sum('pod_limit_memory_byte_seconds'),
             'cluster_id': F('report_period__cluster_id'),
+            'cluster_alias': Value(self.cluster_alias, output_field=CharField()),
             'node_capacity_cpu_cores': Max('node_capacity_cpu_cores'),
             'node_capacity_cpu_core_seconds': Max('node_capacity_cpu_core_seconds'),
             'node_capacity_memory_bytes': Max('node_capacity_memory_bytes'),
@@ -308,6 +323,7 @@ class OCPReportDataGenerator:
             'pod',
             'node',
             'cluster_id',
+            'cluster_alias',
             'node_capacity_cpu_cores',
             'pod_labels',
         ]
@@ -330,28 +346,28 @@ class OCPReportDataGenerator:
                     F('pod_usage_memory_byte_seconds') / 3600,
                     output_field=DecimalField()
                 )
-            ) * 1e-9,
+            ) * math.pow(2, -30),
             'pod_request_memory_gigabyte_hours': Sum(
                 ExpressionWrapper(
                     F('pod_request_memory_byte_seconds') / 3600,
                     output_field=DecimalField()
                 )
-            ) * 1e-9,
+            ) * math.pow(2, -30),
             'pod_limit_memory_gigabyte_hours': ExpressionWrapper(
                 F('pod_limit_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
-            ) * 1e-9,
+            ) * math.pow(2, -30),
             'node_capacity_cpu_core_hours': F('node_capacity_cpu_core_seconds') / 3600,
-            'node_capacity_memory_gigabytes': F('node_capacity_memory_bytes') * 1e-9,
+            'node_capacity_memory_gigabytes': F('node_capacity_memory_bytes') * math.pow(2, -30),
             'node_capacity_memory_gigabyte_hours': ExpressionWrapper(
                 F('node_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
-            ) * 1e-9,
+            ) * math.pow(2, -30),
             'cluster_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
             'cluster_capacity_memory_gigabyte_hours': ExpressionWrapper(
                 F('cluster_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
-            ) * 1e-9,
+            ) * math.pow(2, -30),
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
@@ -378,10 +394,145 @@ class OCPReportDataGenerator:
 
             entry.save()
 
+    def create_storage_line_items(self, report_period, report):
+        """Create OCP hourly usage line items."""
+        vol_gb = random.randint(4, 32)
+        for row in self.line_items:
+            data = {
+                'report_period': report_period,
+                'report': report,
+                'namespace': row.get('namespace'),
+                'pod': row.get('pod'),
+                'persistentvolumeclaim': row.get('persistentvolumeclaim'),
+                'persistentvolume': row.get('persistentvolume'),
+                'storageclass': row.get('storageclass'),
+                'volume_request_storage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
+                'persistentvolumeclaim_usage_byte_seconds': Decimal(random.uniform(0, 3600) * 1e9),
+                'persistentvolumeclaim_capacity_bytes': Decimal(vol_gb * 1e9),
+                'persistentvolumeclaim_capacity_byte_seconds': Decimal(vol_gb * 1e9 * 3600),
+                'persistentvolume_labels': self._gen_pod_labels(report),
+                'persistentvolumeclaim_labels': self._gen_pod_labels(report)
+            }
+            line_item = OCPStorageLineItem(**data)
+            line_item.save()
+
+    def _populate_storage_daily_table(self):
+        """Populate the daily table."""
+        included_fields = [
+            'namespace',
+            'pod',
+            'persistentvolumeclaim',
+            'persistentvolume',
+            'storageclass',
+            'persistentvolume_labels',
+            'persistentvolumeclaim_labels'
+        ]
+        annotations = {
+            'node': Value(random.choice(self.line_items).get('node'), output_field=CharField()),
+            'usage_start': F('report__interval_start'),
+            'usage_end': F('report__interval_start'),
+            'persistentvolumeclaim_capacity_bytes': Max('persistentvolumeclaim_capacity_bytes'),
+            'persistentvolumeclaim_capacity_byte_seconds': Sum('persistentvolumeclaim_capacity_byte_seconds'),
+            'volume_request_storage_byte_seconds': Sum('volume_request_storage_byte_seconds'),
+            'persistentvolumeclaim_usage_byte_seconds': Sum('persistentvolumeclaim_usage_byte_seconds'),
+            'cluster_id': F('report_period__cluster_id'),
+            'cluster_alias': Value(self.cluster_alias, output_field=CharField()),
+        }
+        entries = OCPStorageLineItem.objects\
+            .values(*included_fields)\
+            .annotate(**annotations)
+
+        for entry in entries:
+            entry['total_seconds'] = 3600
+            daily = OCPStorageLineItemDaily(**entry)
+            daily.save()
+
+    def _populate_storage_daily_summary_table(self):
+        """Populate the daily summary table."""
+        date_delta = relativedelta(months=1, days=-1)
+        included_fields = [
+            'usage_start',
+            'usage_end',
+            'namespace',
+            'pod',
+            'node',
+            'persistentvolumeclaim',
+            'persistentvolume',
+            'storageclass',
+            'cluster_id',
+            'cluster_alias'
+        ]
+        annotations = {
+            'volume_labels': Coalesce(F('persistentvolume_labels'), F('persistentvolumeclaim_labels')),
+            'persistentvolumeclaim_capacity_gigabyte': ExpressionWrapper(
+                F('persistentvolumeclaim_capacity_bytes') * math.pow(2, -30),
+                output_field=DecimalField()
+            ),
+            'persistentvolumeclaim_capacity_gigabyte_months': ExpressionWrapper(
+                F('persistentvolumeclaim_capacity_byte_seconds') / 86400 * 30 * math.pow(2, -30),
+                output_field=DecimalField()
+            ),
+            'volume_request_storage_gigabyte_months': ExpressionWrapper(
+                F('volume_request_storage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
+                output_field=DecimalField()
+            ),
+            'persistentvolumeclaim_usage_gigabyte_months':ExpressionWrapper(
+                F('persistentvolumeclaim_usage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
+                output_field=DecimalField()
+            )
+        }
+
+        entries = OCPStorageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
+
+        for entry in entries:
+            summary = OCPStorageLineItemDailySummary(**entry)
+            summary.save()
+
+
     def _populate_pod_label_summary_table(self):
         """Populate pod label key and values."""
         raw_sql = """
             INSERT INTO reporting_ocpusagepodlabel_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_ocpusagelineitem_daily AS li,
+                    jsonb_each_text(li.pod_labels) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)
+
+    def _populate_volume_claim_label_summary_table(self):
+        """Populate pod label key and values."""
+        raw_sql = """
+            INSERT INTO reporting_ocpstoragevolumeclaimlabel_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_ocpusagelineitem_daily AS li,
+                    jsonb_each_text(li.pod_labels) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)
+
+    def _populate_volume_label_summary_table(self):
+        """Populate pod label key and values."""
+        raw_sql = """
+            INSERT INTO reporting_ocpstoragevolumelabel_summary
             SELECT l.key,
                 array_agg(DISTINCT l.value) as values
             FROM (
