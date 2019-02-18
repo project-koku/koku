@@ -929,8 +929,7 @@ class OCPStorageLineItemDailySummary(models.Model):
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
 
-    persistentvolume_labels = JSONField(null=True)
-    persistentvolumeclaim_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
 
     persistentvolumeclaim_capacity_gigabyte = models.DecimalField(
         max_digits=24,
