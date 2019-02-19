@@ -15,7 +15,6 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import include, url
-from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from rest_framework.routers import DefaultRouter
 
 from api.views import (ProviderViewSet,
@@ -31,6 +30,7 @@ from api.views import (ProviderViewSet,
                        ocp_aws_instance_type,
                        ocp_aws_storage,
                        ocp_tags,
+                       openapi,
                        status,
                        volume)
 
@@ -41,6 +41,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', status, name='server-status'),
+    url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', aws_tags, name='aws-tags'),
     url(r'^tags/ocp/$', ocp_tags, name='ocp-tags'),
     url(r'^reports/costs/aws/$', aws_costs, name='reports-aws-costs'),
@@ -56,5 +57,3 @@ urlpatterns = [
     url(r'^reports/inventory/ocp/volume/$', volume, name='reports-ocp-volume'),
     url(r'^', include(ROUTER.urls)),
 ]
-
-urlpatterns += staticfiles_urlpatterns()

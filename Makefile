@@ -101,8 +101,9 @@ create-test-db-file: run-migrations
 
 gen-apidoc:
 	rm -fr $(PYDIR)/staticfiles/
+	rm -fr $(APIDOC)
 	apidoc -i $(PYDIR) -o $(APIDOC)
-	cp docs/source/specs/openapi.yml $(APIDOC)/
+	cp docs/source/specs/openapi.json $(APIDOC)/
 
 collect-static:
 	$(PYTHON) $(PYDIR)/manage.py collectstatic --no-input
