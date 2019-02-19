@@ -329,3 +329,64 @@ class RateSerializerTest(IamTestCase):
 
                 self.assertIsNotNone(instance)
                 self.assertIsNotNone(instance.uuid)
+
+    def test_tiered_rate_with_overlaps(self):
+        """Test creating a tiered rate with a overlaps between the tiers."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 5.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_tiered_rate_with_duplicate(self):
+        """Test creating a tiered rate with duplicate tiers."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
