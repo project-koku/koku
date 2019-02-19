@@ -30,13 +30,21 @@ OPENAPI_FILE_PATH_DEFAULT = 'koku/staticfiles'
 OPENAPI_FILE_NAME = 'openapi.json.gz'
 
 
+def get_api_json(path):
+    """Obtain API JSON data from file path."""
+    with gzip.open(path) as api_file:
+        data = json.load(api_file)
+        return data
+
+
 @api_view(['GET'])
 @permission_classes((permissions.AllowAny,))
 @renderer_classes((JSONRenderer,))
 def openapi(request):
     """Provide the openapi information."""
     openapidoc = '{}/{}'.format(STATIC_ROOT, OPENAPI_FILE_NAME)
-    with gzip.open(openapidoc) as api_file:
-        data = json.load(api_file)
+    try:
+        data = get_api_json(openapidoc)
         return Response(data)
-    return Response(status=status.HTTP_404_NOT_FOUND)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return Response(status=status.HTTP_404_NOT_FOUND)
