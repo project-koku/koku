@@ -9,8 +9,9 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{uuid} AS (
         li.persistentvolumeclaim,
         li.persistentvolume,
         li.storageclass,
-        persistentvolume_labels,
-        persistentvolumeclaim_labels,
+        -- persistentvolumeclaim_labels values will win in
+        -- the volume label merge
+        persistentvolume_labels || persistentvolumeclaim_labels as volume_labels,
         li.persistentvolumeclaim_capacity_bytes * POWER(2, -30) as persistentvolumeclaim_capacity_gigabyte,
         li.persistentvolumeclaim_capacity_byte_seconds /
             86400 *
@@ -48,8 +49,7 @@ INSERT INTO reporting_ocpstoragelineitem_daily_summary (
     storageclass,
     usage_start,
     usage_end,
-    persistentvolume_labels,
-    persistentvolumeclaim_labels,
+    volume_labels,
     persistentvolumeclaim_capacity_gigabyte,
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
@@ -65,8 +65,7 @@ INSERT INTO reporting_ocpstoragelineitem_daily_summary (
         storageclass,
         usage_start,
         usage_end,
-        persistentvolume_labels,
-        persistentvolumeclaim_labels,
+        volume_labels,
         persistentvolumeclaim_capacity_gigabyte,
         persistentvolumeclaim_capacity_gigabyte_months,
         volume_request_storage_gigabyte_months,
