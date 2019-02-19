@@ -105,7 +105,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-
         q_table = self._mapper.query_table
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)

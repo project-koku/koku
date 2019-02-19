@@ -571,7 +571,7 @@ class ProviderMap(object):
     def units_key(self):
         """Return the units_key property."""
         return self._report_type_map.get('units_key')
-      
+
 
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
