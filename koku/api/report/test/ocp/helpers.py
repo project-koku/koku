@@ -163,6 +163,9 @@ class OCPReportDataGenerator:
                           OCPUsageLineItemAggregates,
                           OCPUsageLineItemDaily,
                           OCPUsageLineItemDailySummary,
+                          OCPStorageLineItem,
+                          OCPStorageLineItemDaily,
+                          OCPStorageLineItemDailySummary,
                           OCPUsageReport,
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
