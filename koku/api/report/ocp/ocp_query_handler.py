@@ -157,7 +157,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def get_rank_window_function(self, group_by_value):
         """Generate a limit ranking window function."""
-        tag_column = self._mapper.provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         rank_orders = []
         rank_field = group_by_value.pop()
         default_ordering = self._mapper.report_type_map.get('default_ordering')
