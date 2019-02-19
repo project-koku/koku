@@ -62,13 +62,13 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        units_fallback = self._mapper._report_type_map.get('units_fallback')
+        units_fallback = self._mapper.report_type_map.get('units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
             'units': Coalesce(self._mapper.units_key, Value(units_fallback))
         }
         # { query_param: database_field_name }
-        fields = self._mapper._provider_map.get('annotations')
+        fields = self._mapper.provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
         return annotations
@@ -95,8 +95,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             filters.add(QueryFilter(operation='tags__iexact', parameter='{}'))
         return super()._set_tag_filters(filters)
 
-    def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+    def execute_query(self):
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
@@ -113,12 +113,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
             query_order_by = ['-date', ]
             query_order_by.extend([self.order])
 
-            annotations = self._mapper._report_type_map.get('annotations')
+            annotations = self._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
-                    F(self._mapper._provider_map.get('alias')), 'usage_account_id'))
+                    F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
 
             if self._limit:
                 rank_order = getattr(F(self.order_field), self.order_direction)()
@@ -132,7 +132,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
-                units_fallback = self._mapper._report_type_map.get('units_fallback')
+                units_fallback = self._mapper.report_type_map.get('units_fallback')
                 sum_annotations = {
                     'units': Coalesce(self._mapper.units_key, Value(units_fallback))
                 }
@@ -170,15 +170,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         return self._format_query_response()
 
-    def execute_query(self):
-        """Execute query and return provided data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        return self.execute_sum_query()
-
     def calculate_total(self, units_value):
         """Calculate aggregated totals for the query.
 
@@ -203,8 +194,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         else:
             total_filter = total_filter & time_and_report_filter
 
-        q_table = self._mapper._provider_map.get('tables').get('total')
-        aggregates = self._mapper._report_type_map.get('aggregates')
+        q_table = self._mapper.provider_map.get('tables').get('total')
+        aggregates = self._mapper.report_type_map.get('aggregates')
         total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
         total_query['units'] = units_value
 

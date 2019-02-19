@@ -73,7 +73,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             **{'report_type': 'cpu'}
         )
 
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
@@ -97,7 +97,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant,
             **{'report_type': 'charge'}
         )
-        aggregates = handler._mapper._report_type_map.get('aggregates')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
@@ -161,7 +161,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
         cap_key = list(annotations.keys())[0]
 
-        q_table = handler._mapper._provider_map.get('tables').get('query')
+        q_table = handler._mapper.provider_map.get('tables').get('query')
         query = q_table.objects.filter(query_filter)
 
         with tenant_context(self.tenant):
@@ -249,7 +249,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._provider_map.get('tables').get('query')
+        q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -258,10 +258,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper._report_type_map.get('annotations')
+            annotations = handler._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
-            aggregates = handler._mapper._report_type_map.get('aggregates')
+            aggregates = handler._mapper.report_type_map.get('aggregates')
             metric_sum = query.aggregate(**aggregates)
             query_sum = {key: metric_sum.get(key) for key in aggregates}
 
@@ -303,7 +303,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper._provider_map.get('tables').get('query')
+        q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -312,10 +312,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper._report_type_map.get('annotations')
+            annotations = handler._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
-            aggregates = handler._mapper._report_type_map.get('aggregates')
+            aggregates = handler._mapper.report_type_map.get('aggregates')
             metric_sum = query.aggregate(**aggregates)
             query_sum = {key: metric_sum.get(key) if metric_sum.get(key) else Decimal(0) for key in aggregates}
 
@@ -346,7 +346,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         handler._delta = 'usage__foo'
 
-        q_table = handler._mapper._provider_map.get('tables').get('query')
+        q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -355,10 +355,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper._report_type_map.get('annotations')
+            annotations = handler._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
-            aggregates = handler._mapper._report_type_map.get('aggregates')
+            aggregates = handler._mapper.report_type_map.get('aggregates')
             metric_sum = query.aggregate(**aggregates)
             query_sum = {key: metric_sum.get(key) if metric_sum.get(key) else Decimal(0) for key in aggregates}
 
@@ -377,7 +377,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant,
             **{'report_type': 'cpu'}
         )
-        tag_column = handler._mapper._provider_map.get('tag_column')
+        tag_column = handler._mapper.provider_map.get('tag_column')
         data = [
             {f'{tag_column}__tag_key1': 'value'},
             {f'{tag_column}__tag_key2': 'value'}
