@@ -20,7 +20,7 @@ from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
 from django.db.models import F, Value, Window
-from django.db.models.functions import (Coalesce, Concat, RowNumber)
+from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.report.queries import ReportQueryHandler
@@ -55,12 +55,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         annotations = {'date': self.date_trunc('usage_start')}
-
         # { query_param: database_field_name }
         fields = self._mapper._provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
-
         return annotations
 
     def _format_query_response(self):
@@ -89,7 +87,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum = {'value': 0}
         data = []
 
-        q_table = self._mapper._provider_map.get('tables').get('query')
+        q_table = self._mapper.query_table
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             if self.query_exclusions:
@@ -207,7 +205,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
         capacity_by_cluster = defaultdict(Decimal)
-        q_table = self._mapper._provider_map.get('tables').get('query')
+        q_table = self._mapper.query_table
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['usage_start', 'cluster_id']
 

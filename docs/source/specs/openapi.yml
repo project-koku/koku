@@ -468,7 +468,46 @@ paths:
       tags:
         - Report
       summary: Query to obtain cost reports
-      operationId: getCostReports
+      operationId: getAWSCostReports
+      produces:
+      - 'application/json'
+      - 'text/csv'
+      parameters:
+      - name: 'delta'
+        in: 'query'
+        description: 'Toggle to include delta values in report.'
+        type: 'string'
+      - name: 'filter'
+        in: 'query'
+        description: 'The filter to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'group_by'
+        in: 'query'
+        description: 'The grouping to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      - name: 'order_by'
+        in: 'query'
+        description: 'The ordering to apply to the report as a URL encoded dictionary.'
+        type: 'string'
+      responses:
+        '200':
+          description: A report object
+          schema:
+            $ref: '#/definitions/ReportCost'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Unexpected Error
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+      - api_key: []
+  /reports/costs/ocp/:
+    get:
+      tags:
+        - Report
+      summary: Query to obtain cost reports
+      operationId: getOCPCostReports
       produces:
       - 'application/json'
       - 'text/csv'
@@ -1503,6 +1542,25 @@ definitions:
         description: 'The units for the output data.'
         type: string
         example: ''
+  ReportOCPvolume:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
   ReportCost:
     allOf:
       - $ref: '#/definitions/Report'
@@ -1850,6 +1908,31 @@ definitions:
                 }
                 ]
             ]
+  ReportOCPVolume:
+    allOf:
+      - $ref: '#/definitions/Report'
+    required:
+      - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                        {
+                            "date": "2019-02",
+                            "values": [
+                                {
+                                    "date": "2019-02",
+                                    "usage": 283.455815,
+                                    "request": 14058.333334,
+                                    "capacity": 13732.252982,
+                                    "charge": 24.25,
+                                    "units": "GB-Mo"
+                                }
+                            ]
+                        }
+                    ]
   Status:
     required:
       - api_version

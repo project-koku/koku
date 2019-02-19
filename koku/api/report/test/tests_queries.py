@@ -625,6 +625,27 @@ class ReportQueryTest(IamTestCase):
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
 
+    def test_transform_null_group(self):
+        """Test transform data with null group value."""
+        handler = AWSReportQueryHandler({}, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        groups = ['region']
+        group_index = 0
+        data = {None: [{'region': None, 'units': 'USD'}]}
+        expected = [{'region': 'no-region', 'values': [{'region': 'no-region', 'units': 'USD'}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {'us-east': [{'region': 'us-east', 'units': 'USD'}]}
+        expected = [{'region': 'us-east', 'values': [{'region': 'us-east', 'units': 'USD'}]}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
+        data = {None: {'region': None, 'units': 'USD'}}
+        expected = [{'region': 'no-region', 'values': {'region': None, 'units': 'USD'}}]
+        out_data = handler._transform_data(groups, group_index, data)
+        self.assertEqual(expected, out_data)
+
     def test_has_filter_no_filter(self):
         """Test the has_filter method with no filter in the query params."""
         handler = AWSReportQueryHandler({}, '', self.tenant,

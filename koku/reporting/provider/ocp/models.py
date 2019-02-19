@@ -760,6 +760,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     normalized_usage_amount = models.FloatField(null=True)
 
+    currency_code = models.CharField(max_length=10, null=True)
+
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the AWS unblended_cost
     # with a GROUP BY cluster/node.
@@ -830,7 +832,7 @@ class OCPStorageLineItem(models.Model):
     persistentvolumeclaim_labels = JSONField(null=True)
 
 
-class OCPUStorageLineItemDaily(models.Model):
+class OCPStorageLineItemDaily(models.Model):
     """A daily aggregation of storage line items.
 
     This table is aggregated by OCP resource.
@@ -852,6 +854,8 @@ class OCPUStorageLineItemDaily(models.Model):
     namespace = models.CharField(max_length=253, null=False)
 
     pod = models.CharField(max_length=253, null=True)
+
+    node = models.CharField(max_length=253, null=True)
 
     persistentvolumeclaim = models.CharField(max_length=253)
 
@@ -917,13 +921,15 @@ class OCPStorageLineItemDailySummary(models.Model):
     persistentvolume = models.CharField(max_length=253)
 
     storageclass = models.CharField(max_length=50, null=True)
-    pod = models.CharField(max_length=253, null=False)
+
+    pod = models.CharField(max_length=253, null=True)
+
+    node = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
 
-    persistentvolume_labels = JSONField(null=True)
-    persistentvolumeclaim_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
 
     persistentvolumeclaim_capacity_gigabyte = models.DecimalField(
         max_digits=24,
@@ -931,19 +937,19 @@ class OCPStorageLineItemDailySummary(models.Model):
         null=True
     )
 
-    persistentvolumeclaim_capacity_gigabyte_hours = models.DecimalField(
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    volume_request_storage_gigabyte_hours = models.DecimalField(
+    volume_request_storage_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
     )
 
-    persistentvolumeclaim_usage_gigabyte_hours = models.DecimalField(
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
@@ -954,3 +960,27 @@ class OCPStorageLineItemDailySummary(models.Model):
         decimal_places=6,
         null=True
     )
+
+
+class OCPStorageVolumeLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumelabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
+
+
+class OCPStorageVolumeClaimLabelSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for OCPStorageVolumeClaimLabelSummary."""
+
+        db_table = 'reporting_ocpstoragevolumeclaimlabel_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
