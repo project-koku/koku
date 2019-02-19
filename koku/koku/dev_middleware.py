@@ -42,8 +42,8 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
                                    'account_number': '10001',
                                    'type': 'User',
                                    'user': {
-                                       'username': 'user_dev,
-                                       'email': 'user_dev@foo.com
+                                       'username': 'user_dev',
+                                       'email': 'user_dev@foo.com'
                                    }
                                }
                                }
