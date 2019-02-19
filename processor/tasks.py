@@ -32,6 +32,7 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.report_charge_updater import ReportChargeUpdater
+from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 
 
@@ -113,23 +114,26 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
         None
 
     """
-    LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
-             schema_name, provider_uuid, report_dict.get('file'))
-    _process_report_file(schema_name, provider, provider_uuid, report_dict)
-    LOG.info('Queueing update_summary_tables task for %s', schema_name)
-    # Provide a buffer to catch unprocessed data
-    start_date = DateAccessor().today() - datetime.timedelta(days=2)
-    start_date = start_date.strftime('%Y-%m-%d')
-    end_date = DateAccessor().today().strftime('%Y-%m-%d')
+    try:
+        LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
+                 schema_name, provider_uuid, report_dict.get('file'))
+        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+        LOG.info('Queueing update_summary_tables task for %s', schema_name)
+        # Provide a buffer to catch unprocessed data
+        start_date = DateAccessor().today() - datetime.timedelta(days=2)
+        start_date = start_date.strftime('%Y-%m-%d')
+        end_date = DateAccessor().today().strftime('%Y-%m-%d')
 
-    update_summary_tables.delay(
-        schema_name,
-        provider,
-        provider_uuid,
-        start_date,
-        end_date=end_date,
-        manifest_id=report_dict.get('manifest_id')
-    )
+        update_summary_tables.delay(
+            schema_name,
+            provider,
+            provider_uuid,
+            start_date,
+            end_date=end_date,
+            manifest_id=report_dict.get('manifest_id')
+        )
+    except ReportProcessorError as processing_error:
+        LOG.error(str(processing_error))
 
 
 @celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
