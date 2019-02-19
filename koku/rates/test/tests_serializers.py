@@ -302,11 +302,14 @@ class RateSerializerTest(IamTestCase):
                     }]
                     }
 
-            with tenant_context(self.tenant):
-                serializer = RateSerializer(data=rate)
-                with self.assertRaises(serializers.ValidationError):
-                    if serializer.is_valid(raise_exception=True):
-                        serializer.save()
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
 
     def test_create_storage_no_tiers_rate(self):
         """Test creating a non tiered storage rate."""
@@ -321,14 +324,14 @@ class RateSerializerTest(IamTestCase):
                     }]
                     }
 
-            with tenant_context(self.tenant):
-                instance = None
-                serializer = RateSerializer(data=rate)
-                if serializer.is_valid(raise_exception=True):
-                    instance = serializer.save()
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
 
-                self.assertIsNotNone(instance)
-                self.assertIsNotNone(instance.uuid)
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
 
     def test_tiered_rate_with_overlaps(self):
         """Test creating a tiered rate with a overlaps between the tiers."""
