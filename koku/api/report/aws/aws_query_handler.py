@@ -96,7 +96,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         return super()._set_tag_filters(filters)
 
     def execute_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
