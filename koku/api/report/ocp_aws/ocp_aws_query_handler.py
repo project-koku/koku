@@ -50,7 +50,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                                        report_type=self._report_type)
 
     def execute_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
