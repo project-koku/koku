@@ -31,7 +31,8 @@ from api.views import (ProviderViewSet,
                        ocp_aws_instance_type,
                        ocp_aws_storage,
                        ocp_tags,
-                       status)
+                       status,
+                       volume)
 
 ROUTER = DefaultRouter()
 ROUTER.register(r'providers', ProviderViewSet)
@@ -50,7 +51,9 @@ urlpatterns = [
     url(r'^reports/inventory/ocp/memory/$', memory, name='reports-ocp-memory'),
     url(r'^reports/inventory/ocp/cpu/$', cpu, name='reports-ocp-cpu'),
     url(r'^reports/inventory/ocp/storage/$', ocp_aws_storage, name='reports-ocp-aws-storage'),
-    url(r'^reports/inventory/ocp/instance-type/$', ocp_aws_instance_type, name='reports-ocp-aws-instance-type'),
+    url(r'^reports/inventory/ocp/instance-type/$', ocp_aws_instance_type,
+        name='reports-ocp-aws-instance-type'),
+    url(r'^reports/inventory/ocp/volume/$', volume, name='reports-ocp-volume'),
     url(r'^', include(ROUTER.urls)),
 ]
 

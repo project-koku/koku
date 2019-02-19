@@ -316,3 +316,82 @@ def charges(request):
 
     """
     return _generic_report(request, report='charge', provider='ocp')
+
+
+@api_view(http_method_names=['GET'])
+@permission_classes([AllowAny])
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def volume(request):
+    """Get OCP cpu usage data.
+
+    @api {get} /api/v1/reports/inventory/ocp/volume Get volume usage data
+    @apiName getOCPInventoryVolumeData
+    @apiGroup Report
+    @apiVersion 1.0.0
+    @apiDescription Get OCP volume usage data.
+
+    @apiHeader {String} token User authorization token.
+
+    @apiParam (Query Param) {Object} filter The filter to apply to the report.
+    @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
+    @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
+    @apiParamExample {json} Query Param:
+        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+
+    @apiSuccess {Object} group_by  The grouping to applied to the report.
+    @apiSuccess {Object} filter  The filter to applied to the report.
+    @apiSuccess {Object} data  The report data.
+    @apiSuccess {Object} total Aggregates statistics for the report range.
+    @apiSuccessExample {json} Success-Response:
+        HTTP 200 OK
+        Allow: OPTIONS, GET
+        Content-Type: application/json
+        Vary: Accept
+
+        {
+            "group_by": {
+                "project": [
+                    "*"
+                ]
+            },
+            "filter": {
+                "resolution": "monthly",
+                "time_scope_value": "-1"
+            },
+            "data": [
+                {
+                    "date": "2019-02",
+                    "projects": [
+                        {
+                            "project": "metering-hccm",
+                            "values": [
+                                {
+                                    "date": "2019-02",
+                                    "project": "metering-hccm",
+                                    "usage": 283.455815,
+                                    "request": 14058.333334,
+                                    "capacity": 13732.252982,
+                                    "charge": null,
+                                    "units": "GB-Mo"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "total": {
+                "usage": 283.455815,
+                "request": 14058.333334,
+                "capacity": 13732.252982,
+                "charge": null,
+                "units": "GB-Mo"
+            }
+        }
+    @apiSuccessExample {text} Success-Response:
+        HTTP/1.1 200 OK
+        capacity,charge,date,project,request,units,usage
+        13732.252982,,2019-02,metering-hccm,14058.333334,GB-Mo,283.455815
+
+
+    """
+    return _generic_report(request, report='volume', provider='ocp')

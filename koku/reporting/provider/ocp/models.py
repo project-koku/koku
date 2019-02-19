@@ -832,7 +832,7 @@ class OCPStorageLineItem(models.Model):
     persistentvolumeclaim_labels = JSONField(null=True)
 
 
-class OCPUStorageLineItemDaily(models.Model):
+class OCPStorageLineItemDaily(models.Model):
     """A daily aggregation of storage line items.
 
     This table is aggregated by OCP resource.
@@ -929,8 +929,7 @@ class OCPStorageLineItemDailySummary(models.Model):
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
 
-    persistentvolume_labels = JSONField(null=True)
-    persistentvolumeclaim_labels = JSONField(null=True)
+    volume_labels = JSONField(null=True)
 
     persistentvolumeclaim_capacity_gigabyte = models.DecimalField(
         max_digits=24,

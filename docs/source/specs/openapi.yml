@@ -1542,6 +1542,25 @@ definitions:
         description: 'The units for the output data.'
         type: string
         example: ''
+  ReportOCPvolume:
+    required:
+      - delta
+      - group_by
+      - order_by
+      - filter
+    properties:
+      delta:
+        $ref: '#/definitions/ReportDelta'
+      group_by:
+        $ref: '#/definitions/ReportOCPGrouping'
+      order_by:
+        $ref: '#/definitions/ReportInventoryOCPOrdering'
+      filter:
+        $ref: '#/definitions/ReportFilterOCP'
+      units:
+        description: 'The units for the output data.'
+        type: string
+        example: ''
   ReportCost:
     allOf:
       - $ref: '#/definitions/Report'
@@ -1889,6 +1908,31 @@ definitions:
                 }
                 ]
             ]
+  ReportOCPVolume:
+    allOf:
+      - $ref: '#/definitions/Report'
+    required:
+      - data
+    properties:
+      data:
+        type: array
+        items:
+          type: object
+          example: [
+                        {
+                            "date": "2019-02",
+                            "values": [
+                                {
+                                    "date": "2019-02",
+                                    "usage": 283.455815,
+                                    "request": 14058.333334,
+                                    "capacity": 13732.252982,
+                                    "charge": 24.25,
+                                    "units": "GB-Mo"
+                                }
+                            ]
+                        }
+                    ]
   Status:
     required:
       - api_version

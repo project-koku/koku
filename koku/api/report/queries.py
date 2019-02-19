@@ -31,6 +31,7 @@ from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDailySummary,
                               OCPAWSCostLineItemDailySummary,
+                              OCPStorageLineItemDailySummary,
                               OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
@@ -162,7 +163,6 @@ class ProviderMap(object):
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': AWSCostEntryLineItemDailySummary,
                 'query': AWSCostEntryLineItemDailySummary,
                 'total': AWSCostEntryLineItemAggregates
             },
@@ -278,11 +278,40 @@ class ProviderMap(object):
                     'filter': {},
                     'units_key': 'GB-Hours',
                     'sum_columns': ['usage', 'request', 'limit', 'charge'],
-                }
+                },
+                'volume': {
+                    'tables': {
+                        'query': OCPStorageLineItemDailySummary
+                    },
+                    'tag_column': 'volume_labels',
+                    'aggregates': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
+                        'request': Sum('volume_request_storage_gigabyte_months'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                    },
+                    'capacity_aggregate': {
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months')
+                    },
+                    'default_ordering': {'usage': 'desc'},
+                    'annotations': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
+                        'request': Sum('volume_request_storage_gigabyte_months'),
+                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month'),
+                        'units': Value('GB-Mo', output_field=CharField()),
+                    },
+                    'delta_key': {
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
+                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                    },
+                    'filter': {},
+                    'units_key': 'GB-Mo',
+                    'sum_columns': ['usage', 'request', 'charge'],
+                },
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': OCPUsageLineItemDailySummary,
                 'query': OCPUsageLineItemDailySummary,
                 'total': OCPUsageLineItemAggregates
             },
@@ -478,7 +507,6 @@ class ProviderMap(object):
             },
             'start_date': 'usage_start',
             'tables': {
-                'previous_query': OCPAWSCostLineItemDailySummary,
                 'query': OCPAWSCostLineItemDailySummary,
                 'total': OCPAWSCostLineItemDailySummary
             },
@@ -529,6 +557,13 @@ class ProviderMap(object):
         report_table = self._report_type_map.get('tables', {}).get('query')
         default = self._provider_map.get('tables').get('query')
         return report_table if report_table else default
+
+    @property
+    def tag_column(self):
+        """Return the appropriate query table for the report type."""
+        report_specific_column = self._report_type_map.get('tag_column')
+        default = self._provider_map.get('tag_column')
+        return report_specific_column if report_specific_column else default
 
 
 class ReportQueryHandler(QueryHandler):
@@ -626,7 +661,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _set_tag_filters(self, filters):
         """Create tag_filters."""
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
@@ -683,7 +718,7 @@ class ReportQueryHandler(QueryHandler):
 
         """
         exclusions = QueryFilterCollection()
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_group_by = self.get_tag_group_by_keys()
         if tag_group_by:
             for tag in tag_group_by:
@@ -728,7 +763,7 @@ class ReportQueryHandler(QueryHandler):
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""
         group_by = []
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
@@ -1041,7 +1076,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ['date'] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
-        q_table = self._mapper._provider_map.get('tables').get('previous_query')
+        q_table = self._mapper.query_table
         previous_query = q_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query,
                                                      delta_group_by)
@@ -1086,7 +1121,7 @@ class ReportQueryHandler(QueryHandler):
 
     def strip_label_column_name(self, data, group_by):
         """Remove the column name from tags."""
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         val_to_strip = tag_column + '__'
         new_data = []
         for entry in data:
