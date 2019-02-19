@@ -39,11 +39,11 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
         if hasattr(request, 'META'):
             identity_header = {'identity':
                                {
-                                   'account_number': '1460290',
+                                   'account_number': '10001',
                                    'type': 'User',
                                    'user': {
-                                       'username': 'jalberts@redhat.com',
-                                       'email': 'jalberts+qa@redhat.com'
+                                       'username': 'user_dev,
+                                       'email': 'user_dev@foo.com
                                    }
                                }
                                }
