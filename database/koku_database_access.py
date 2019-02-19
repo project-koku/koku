@@ -45,10 +45,15 @@ class KokuDBAccess(ABC):
 
     def __enter__(self):
         """Context manager entry."""
+        self._session.begin_nested()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close session."""
+        if exception_type:
+            self._session.rollback()
+        else:
+            self._session.commit()
         self.close_session()
 
     def _create_metadata(self):
