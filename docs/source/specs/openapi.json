@@ -1,0 +1,3119 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "description": "The API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+        "version": "1.0.0",
+        "title": "Cost Management",
+        "license": {
+            "name": "AGPL-3.0",
+            "url": "https://opensource.org/licenses/AGPL-3.0"
+        }
+    },
+    "tags": [{
+            "name": "Provider",
+            "description": "Operations about provider interaction"
+        },
+        {
+            "name": "Rate",
+            "description": "Operations about metered rates"
+        },
+        {
+            "name": "Report",
+            "description": "Operations about report interaction"
+        },
+        {
+            "name": "Tags",
+            "description": "Operations about tags interaction"
+        },
+        {
+            "name": "UserPreference",
+            "description": "Operations about user preferences"
+        },
+        {
+            "name": "Status",
+            "description": "Operations about status"
+        }
+    ],
+    "paths": {
+        "/status/": {
+            "get": {
+                "tags": [
+                    "Status"
+                ],
+                "summary": "Obtain server status",
+                "operationId": "getStatus",
+                "responses": {
+                    "200": {
+                        "description": "An object describing the server status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Status"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/preferences/": {
+            "post": {
+                "tags": [
+                    "UserPreference"
+                ],
+                "summary": "Create a user preference",
+                "operationId": "createUserPreference",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserPreference"
+                            }
+                        }
+                    },
+                    "description": "Preference to add to a Preference",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "An object describing the user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserPreferenceOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "get": {
+                "tags": [
+                    "UserPreference"
+                ],
+                "summary": "List the user's preferences",
+                "operationId": "listUserPreferences",
+                "parameters": [{
+                    "name": "uuid",
+                    "in": "path",
+                    "description": "ID of user to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of preference objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserPreferencePagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/preferences/{pref_uuid}/": {
+            "get": {
+                "tags": [
+                    "UserPreference"
+                ],
+                "summary": "Get a user preference",
+                "operationId": "getUserPreference",
+                "parameters": [{
+                    "name": "pref_uuid",
+                    "in": "path",
+                    "description": "ID of preference to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A UserPreference object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserPreferenceOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "delete": {
+                "tags": [
+                    "UserPreference"
+                ],
+                "summary": "Delete a user preference",
+                "operationId": "deleteUserPreference",
+                "parameters": [{
+                    "name": "pref_uuid",
+                    "in": "path",
+                    "description": "ID of preference to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "204": {
+                        "description": "User deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "put": {
+                "tags": [
+                    "UserPreference"
+                ],
+                "summary": "Update a user preference",
+                "operationId": "updateUserPreference",
+                "parameters": [{
+                    "name": "pref_uuid",
+                    "in": "path",
+                    "description": "ID of preference to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserPreference"
+                            }
+                        }
+                    },
+                    "description": "Update to a Preference",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Preference updated"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/providers/": {
+            "post": {
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Create a provider",
+                "operationId": "createProvider",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProviderIn"
+                            }
+                        }
+                    },
+                    "description": "Provider to add to a Customer",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "An object describing the provider",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "get": {
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "List the providers",
+                "operationId": "listProviders",
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of provider objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "delete": {
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Delete a provider",
+                "operationId": "deleteProvider",
+                "parameters": [{
+                    "name": "uuid",
+                    "in": "path",
+                    "description": "ID of provider to delete",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "204": {
+                        "description": "Provider deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Insufficent permissions to delete provider",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/providers/{uuid}/": {
+            "get": {
+                "tags": [
+                    "Provider"
+                ],
+                "summary": "Get a provider",
+                "operationId": "getProvider",
+                "parameters": [{
+                    "name": "uuid",
+                    "in": "path",
+                    "description": "ID of provider to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A Provider object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/rates/": {
+            "post": {
+                "tags": [
+                    "Rate"
+                ],
+                "summary": "Create a rate",
+                "operationId": "createRate",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RateIn"
+                            }
+                        }
+                    },
+                    "description": "Rate to add to a Rate",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "An object describing the rate",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RateOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "get": {
+                "tags": [
+                    "Rate"
+                ],
+                "summary": "List the rates",
+                "operationId": "listRates",
+                "parameters": [{
+                    "name": "rate_id",
+                    "in": "path",
+                    "description": "ID of rate to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of rate objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RatePagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/rates/{rate_id}": {
+            "get": {
+                "tags": [
+                    "Rate"
+                ],
+                "summary": "Get a rate",
+                "operationId": "getRate",
+                "parameters": [{
+                    "name": "rate_id",
+                    "in": "path",
+                    "description": "ID of rate to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A Rate object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RateOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "delete": {
+                "tags": [
+                    "Rate"
+                ],
+                "summary": "Delete a rate",
+                "operationId": "deleteRate",
+                "parameters": [{
+                    "name": "rate_id",
+                    "in": "path",
+                    "description": "ID of rate to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "integer"
+                    }
+                }],
+                "responses": {
+                    "204": {
+                        "description": "Rate deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            },
+            "put": {
+                "tags": [
+                    "Rate"
+                ],
+                "summary": "Update a rate",
+                "operationId": "updateRate",
+                "parameters": [{
+                    "name": "rate_id",
+                    "in": "path",
+                    "description": "ID of rate to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "integer"
+                    }
+                }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RateIn"
+                            }
+                        }
+                    },
+                    "description": "Update to a Rate",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Rate updated"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/costs/aws/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain cost reports",
+                "operationId": "getAWSCostReports",
+                "parameters": [{
+                        "name": "delta",
+                        "in": "query",
+                        "description": "Toggle to include delta values in report.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/costs/ocp/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain cost reports",
+                "operationId": "getOCPCostReports",
+                "parameters": [{
+                        "name": "delta",
+                        "in": "query",
+                        "description": "Toggle to include delta values in report.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/charges/ocp/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain charge reports",
+                "operationId": "getOCPChargeReports",
+                "parameters": [{
+                        "name": "delta",
+                        "in": "query",
+                        "description": "Toggle to include delta values in report.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCharge"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCharge"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/aws/instance-type/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain inventory instance type data",
+                "operationId": "getInventoryInstanceReports",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "units",
+                        "in": "query",
+                        "description": "The units used to report data.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/aws/storage/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain inventory storage data",
+                "operationId": "getInventoryStorageReports",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "units",
+                        "in": "query",
+                        "description": "The units used to report data.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/ocp/cpu/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain OCP CPU usage information",
+                "operationId": "getOCPCpuReports",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPCpu"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPCpu"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/ocp/memory/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain OCP memory usage information",
+                "operationId": "getOCPMemoryReports",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPmemory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPmemory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/ocp/storage/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain inventory storage data",
+                "operationId": "getOCPAWSInventoryStorageReport",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "units",
+                        "in": "query",
+                        "description": "The units used to report data.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPAWSStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPAWSStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/reports/inventory/ocp/instance-type/": {
+            "get": {
+                "tags": [
+                    "Report"
+                ],
+                "summary": "Query to obtain inventory instance data",
+                "operationId": "getOCPAWSInventoryInstanceReport",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "units",
+                        "in": "query",
+                        "description": "The units used to report data.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPAWSInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOCPAWSInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/tags/aws/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain AWS tags",
+                "operationId": "getAWSTagData",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the query as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "key_only",
+                        "in": "query",
+                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        },
+        "/tags/ocp/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OCP tags",
+                "operationId": "getOCPTagData",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the query as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "key_only",
+                        "in": "query",
+                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "api_key": []
+                }]
+            }
+        }
+    },
+    "externalDocs": {
+        "description": "Find out more about Cost Management",
+        "url": "https://github.com/project-koku/"
+    },
+    "servers": [{
+        "url": "/r/insights/platform/cost-management/api/v1"
+    }],
+    "components": {
+        "securitySchemes": {
+            "api_key": {
+                "type": "apiKey",
+                "name": "Authorization",
+                "in": "header"
+            }
+        },
+        "schemas": {
+            "Customer": {
+                "required": [
+                    "account_id"
+                ],
+                "properties": {
+                    "account_id": {
+                        "type": "string",
+                        "example": "11838292"
+                    }
+                }
+            },
+            "CustomerOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Customer"
+                }],
+                "required": [
+                    "uuid",
+                    "date_created"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "600562e7-d7d7-4516-8522-410e72792daf"
+                    },
+                    "date_created": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Error": {
+                "required": [
+                    "error_key"
+                ],
+                "properties": {
+                    "error_key": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ListPagination": {
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 30
+                    },
+                    "previous": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "/api/v1/(resources)/?page=2"
+                    },
+                    "next": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "/api/v1/(resources)/?page=4"
+                    }
+                }
+            },
+            "ProviderAuthenticationIn": {
+                "required": [
+                    "provider_resource_name"
+                ],
+                "properties": {
+                    "provider_resource_name": {
+                        "type": "string",
+                        "example": "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData"
+                    }
+                }
+            },
+            "ProviderBillingSourceIn": {
+                "required": [
+                    "bucket"
+                ],
+                "properties": {
+                    "bucket": {
+                        "type": "string",
+                        "example": "cost_s3"
+                    }
+                }
+            },
+            "Provider": {
+                "required": [
+                    "name",
+                    "type"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "My Company AWS production"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "AWS"
+                    }
+                }
+            },
+            "ProviderIn": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Provider"
+                }],
+                "required": [
+                    "authentication"
+                ],
+                "properties": {
+                    "authentication": {
+                        "$ref": "#/components/schemas/ProviderAuthenticationIn"
+                    },
+                    "billing_source": {
+                        "$ref": "#/components/schemas/ProviderBillingSourceIn"
+                    }
+                }
+            },
+            "ProviderAuthenticationOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ProviderAuthenticationIn"
+                }],
+                "required": [
+                    "uuid"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    }
+                }
+            },
+            "ProviderBillingSourceOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ProviderBillingSourceIn"
+                }],
+                "required": [
+                    "uuid"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    }
+                }
+            },
+            "ProviderOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Provider"
+                }],
+                "required": [
+                    "uuid",
+                    "authentication",
+                    "billing_source",
+                    "customer",
+                    "created_by",
+                    "stats"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    },
+                    "authentication": {
+                        "$ref": "#/components/schemas/ProviderAuthenticationOut"
+                    },
+                    "billing_source": {
+                        "$ref": "#/components/schemas/ProviderBillingSourceOut"
+                    },
+                    "customer": {
+                        "$ref": "#/components/schemas/CustomerOut"
+                    },
+                    "created_by": {
+                        "$ref": "#/components/schemas/UserOut"
+                    },
+                    "stats": {
+                        "type": "object",
+                        "description": "Dictionary key is the start of a billing month.  Value is report processing statistics.",
+                        "example": {
+                            "Mon Dec 31 2018 19:00:00 GMT-0500 (Eastern Standard Time)": [{
+                                "assembly_id": "f0d262ff-cc93-449c-a834-74c4d958d45f",
+                                "billing_period_start": "2019-01-01T00:00:00.000Z",
+                                "files_processed": "1/1",
+                                "last_process_start_date": "2019-01-07T21:50:58.000Z",
+                                "last_process_complete_date": "2019-01-07T21:51:01.000Z",
+                                "summary_data_creation_datetime": "2019-01-07T21:51:32.000Z",
+                                "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
+                            }]
+                        }
+                    }
+                }
+            },
+            "ProviderPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }],
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProviderOut"
+                        }
+                    }
+                }
+            },
+            "Rate": {
+                "required": [
+                    "provider_uuid",
+                    "metric"
+                ],
+                "properties": {
+                    "provider_uuid": {
+                        "type": "string",
+                        "example": "da065ad8-7e68-4a12-b2b4-74f18d4d9fa0"
+                    },
+                    "metric": {
+                        "type": "string",
+                        "example": "cpu_core_per_hour"
+                    },
+                    "tiered_rate": {
+                        "type": "object",
+                        "example": [{
+                            "value": 0.22,
+                            "unit": "USD",
+                            "usage_start": 0,
+                            "usage_end": 10
+                        }]
+                    }
+                }
+            },
+            "RateIn": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Rate"
+                }],
+                "required": [
+                    "provider_uuid",
+                    "metric"
+                ]
+            },
+            "RatePagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }],
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RateOut"
+                        }
+                    }
+                }
+            },
+            "RateOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Rate"
+                }],
+                "required": [
+                    "uuid",
+                    "provider_uuid",
+                    "metric"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+                    }
+                }
+            },
+            "ReportFilter": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Limits the data points returns and aggregates remaining data.",
+                        "example": 5
+                    },
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "resource_scope": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReportResourceScope"
+                        },
+                        "example": []
+                    },
+                    "account": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "region": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "az": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "ReportFilterOCP": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Limits the data points returns and aggregates remaining data.",
+                        "example": 5
+                    },
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "resource_scope": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReportResourceScope"
+                        },
+                        "example": []
+                    },
+                    "project": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cluster": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "pod": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "node": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "ReportOCPAWSFilter": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Limits the data points returns and aggregates remaining data.",
+                        "example": 5
+                    },
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "resource_scope": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReportResourceScope"
+                        },
+                        "example": []
+                    },
+                    "account": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "region": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "az": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "project": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cluster": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "node": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "ReportGrouping": {
+                "type": "object",
+                "properties": {
+                    "account": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "region": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "az": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "storage_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "example": {
+                    "account": [
+                        "*"
+                    ]
+                },
+                "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
+            },
+            "ReportOCPGrouping": {
+                "type": "object",
+                "properties": {
+                    "cluster": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "project": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "node": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "example": {
+                    "project": [
+                        "*"
+                    ]
+                },
+                "description": "The grouping to apply to the report. No grouping by default."
+            },
+            "ReportOCPAWSGrouping": {
+                "type": "object",
+                "properties": {
+                    "account": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "region": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "az": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "storage_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "cluster": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "project": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "node": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "example": {
+                    "account": [
+                        "*"
+                    ]
+                },
+                "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
+            },
+            "ReportOrdering": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "inventory": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "delta": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "account_alias": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "region": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "service": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "total": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "ReportInventoryOCPOrdering": {
+                "type": "object",
+                "properties": {
+                    "cluster": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "project": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "node": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "usage": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "request": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "charge": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "limit": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "cluster": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "ReportChargeOCPOrdering": {
+                "type": "object",
+                "properties": {
+                    "cluster": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "project": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "node": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "charge": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "cluster": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "ReportOCPAWSOrdering": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "inventory": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "delta": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "account_alias": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "region": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "service": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "cluster": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "project": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "node": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "total": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "ReportDelta": {
+                "type": "object",
+                "properties": {
+                    "delta": {
+                        "type": "string"
+                    }
+                },
+                "example": {
+                    "delta": "total"
+                },
+                "description": "Field to calculate delta values for in report."
+            },
+            "ReportResolution": {
+                "type": "string",
+                "enum": [
+                    "daily",
+                    "monthly"
+                ],
+                "description": "The resolution to apply to the report. Default resolution is daily."
+            },
+            "ReportTimeScopeUnits": {
+                "type": "string",
+                "enum": [
+                    "day",
+                    "month"
+                ],
+                "description": "The units to apply to the report. Default time_scope_units is day."
+            },
+            "ReportTimeScopeValue": {
+                "type": "integer",
+                "enum": [
+                    -1,
+                    -2,
+                    -10,
+                    -30
+                ],
+                "example": -10,
+                "description": "The time scope to apply to the report. Default time scope is '-10', meaning the last 10 days. Last 30 days would be '-30'. '-10' and '-30' are only valid when used with 'day' time_scope_units.'-1' is used for current month, '-2' is used for last month when time_scope_units is 'month' otherwise invalid."
+            },
+            "ReportResourceScope": {
+                "type": "string",
+                "enum": [
+                    "EC2",
+                    "EBS",
+                    "EFS",
+                    "S3"
+                ],
+                "description": "The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering."
+            },
+            "Report": {
+                "required": [
+                    "delta",
+                    "group_by",
+                    "order_by",
+                    "filter"
+                ],
+                "properties": {
+                    "delta": {
+                        "$ref": "#/components/schemas/ReportDelta"
+                    },
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportFilter"
+                    },
+                    "units": {
+                        "description": "The units for the output data.",
+                        "type": "string",
+                        "example": ""
+                    }
+                }
+            },
+            "ReportChargeOCP": {
+                "required": [
+                    "delta",
+                    "group_by",
+                    "order_by",
+                    "filter"
+                ],
+                "properties": {
+                    "delta": {
+                        "$ref": "#/components/schemas/ReportDelta"
+                    },
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportOCPGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportChargeOCPOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportFilterOCP"
+                    }
+                }
+            },
+            "ReportOCPcpu": {
+                "required": [
+                    "delta",
+                    "group_by",
+                    "order_by",
+                    "filter"
+                ],
+                "properties": {
+                    "delta": {
+                        "$ref": "#/components/schemas/ReportDelta"
+                    },
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportOCPGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportInventoryOCPOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportFilterOCP"
+                    },
+                    "units": {
+                        "description": "The units for the output data.",
+                        "type": "string",
+                        "example": ""
+                    }
+                }
+            },
+            "ReportOCPmemory": {
+                "required": [
+                    "delta",
+                    "group_by",
+                    "order_by",
+                    "filter"
+                ],
+                "properties": {
+                    "delta": {
+                        "$ref": "#/components/schemas/ReportDelta"
+                    },
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportOCPGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportInventoryOCPOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportFilterOCP"
+                    },
+                    "units": {
+                        "description": "The units for the output data.",
+                        "type": "string",
+                        "example": ""
+                    }
+                }
+            },
+            "ReportCost": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [
+                                [{
+                                    "date": "2018-05-28T00:00:00.000Z",
+                                    "total": {
+                                        "value": 2564.775150581,
+                                        "units": "USD"
+                                    },
+                                    "delta": {
+                                        "value": 379.4398,
+                                        "percent": -27.285392
+                                    },
+                                    "accounts": [{
+                                            "account": "8577742690384",
+                                            "values": [{
+                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "units": "USD",
+                                                "account": "8577742690384",
+                                                "total": 1498.92962634,
+                                                "account_alias": "sample-account"
+                                            }]
+                                        },
+                                        {
+                                            "account": "9420673783214",
+                                            "values": [{
+                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "units": "USD",
+                                                "account": "9420673783214",
+                                                "total": 1065.845524241
+                                            }]
+                                        }
+                                    ]
+                                }]
+                            ]
+                        }
+                    }
+                }
+            },
+            "ReportCharge": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [{
+                                "date": "2018-11",
+                                "projects": [{
+                                        "project": "monitoring",
+                                        "values": [{
+                                            "date": "2018-11",
+                                            "project": "monitoring",
+                                            "charge": 3.2
+                                        }]
+                                    },
+                                    {
+                                        "project": "metering",
+                                        "values": [{
+                                            "date": "2018-11",
+                                            "project": "metering",
+                                            "charge": 3
+                                        }]
+                                    }
+                                ]
+                            }]
+                        }
+                    }
+                }
+            },
+            "ReportInstanceInventory": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [
+                                [{
+                                    "date": "2018-05-28T00:00:00.000Z",
+                                    "instance_types": [{
+                                            "instance_type": "t2.medium",
+                                            "values": [{
+                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "units": "Hrs",
+                                                "instance_type": "t2.medium",
+                                                "total": 5,
+                                                "count": 1
+                                            }]
+                                        },
+                                        {
+                                            "instance_type": "m5.2xlarge",
+                                            "values": [{
+                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "units": "Hrs",
+                                                "instance_type": "m5.2xlarge",
+                                                "total": 29,
+                                                "count": 3
+                                            }]
+                                        }
+                                    ]
+                                }]
+                            ]
+                        }
+                    }
+                }
+            },
+            "ReportStorageInventory": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [
+                                [{
+                                    "date": "2018-07",
+                                    "accounts": [{
+                                            "account": "4418636104713",
+                                            "values": [{
+                                                "date": "2018-07",
+                                                "units": "GB-Mo",
+                                                "account": "4418636104713",
+                                                "total": 1826.74238146924
+                                            }]
+                                        },
+                                        {
+                                            "account": "8577742690384",
+                                            "values": [{
+                                                "date": "2018-07",
+                                                "units": "GB-Mo",
+                                                "account": "8577742690384",
+                                                "total": 1137.74036198065
+                                            }]
+                                        },
+                                        {
+                                            "account": "3474227945050",
+                                            "values": [{
+                                                "date": "2018-07",
+                                                "units": "GB-Mo",
+                                                "account": "3474227945050",
+                                                "total": 1045.80659412797
+                                            }]
+                                        },
+                                        {
+                                            "account": "7249815104968",
+                                            "values": [{
+                                                "date": "2018-07",
+                                                "units": "GB-Mo",
+                                                "account": "7249815104968",
+                                                "total": 807.326470618818
+                                            }]
+                                        },
+                                        {
+                                            "account": "9420673783214",
+                                            "values": [{
+                                                "date": "2018-07",
+                                                "units": "GB-Mo",
+                                                "account": "9420673783214",
+                                                "total": 658.306642830709
+                                            }]
+                                        }
+                                    ]
+                                }]
+                            ]
+                        }
+                    }
+                }
+            },
+            "ReportOCPAWSStorageInventory": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportOCPAWSGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportOCPAWSOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportOCPAWSFilter"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [{
+                                "date": "2019-01",
+                                "accounts": [{
+                                    "account": "9999999999999",
+                                    "values": [{
+                                        "date": "2019-01",
+                                        "units": "GB-Mo",
+                                        "account": "9999999999999",
+                                        "cost": 24,
+                                        "total": 24,
+                                        "account_alias": "9999999999999"
+                                    }]
+                                }]
+                            }]
+                        }
+                    }
+                }
+            },
+            "ReportOCPAWSInstanceInventory": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "group_by": {
+                        "$ref": "#/components/schemas/ReportOCPAWSGrouping"
+                    },
+                    "order_by": {
+                        "$ref": "#/components/schemas/ReportOCPAWSOrdering"
+                    },
+                    "filter": {
+                        "$ref": "#/components/schemas/ReportOCPAWSFilter"
+                    },
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [{
+                                "date": "2019-01",
+                                "accounts": [{
+                                    "account": "9999999999999",
+                                    "values": [{
+                                        "date": "2019-01",
+                                        "units": "Hrs",
+                                        "account": "9999999999999",
+                                        "cost": 24,
+                                        "total": 24,
+                                        "count": 1,
+                                        "account_alias": "9999999999999"
+                                    }]
+                                }]
+                            }]
+                        }
+                    }
+                }
+            },
+            "ReportOCPCpu": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [
+                                [{
+                                        "date": "2018-10-01T00:00:00.000Z",
+                                        "values": [{
+                                            "date": "2018-10-01T00:00:00.000Z",
+                                            "cpu_usage_core_hours": 6.953766,
+                                            "cpu_requests_core_hours": 43.481767
+                                        }]
+                                    },
+                                    {
+                                        "date": "2018-10-02T00:00:00.000Z",
+                                        "values": [{
+                                            "date": "2018-10-02T00:00:00.000Z",
+                                            "cpu_usage_core_hours": 6.35416,
+                                            "cpu_requests_core_hours": 42.684131
+                                        }]
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                }
+            },
+            "ReportOCPMemory": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [
+                                [{
+                                        "date": "2018-10-01T00:00:00.000Z",
+                                        "values": [{
+                                            "date": "2018-10-01T00:00:00.000Z",
+                                            "memory_usage_gigabytes": 4.62038,
+                                            "memory_requests_gigabytes": 6.158921
+                                        }]
+                                    },
+                                    {
+                                        "date": "2018-10-02T00:00:00.000Z",
+                                        "values": [{
+                                            "date": "2018-10-02T00:00:00.000Z",
+                                            "memory_usage_gigabytes": 4.688932,
+                                            "memory_requests_gigabytes": 6.272665
+                                        }]
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                }
+            },
+            "Status": {
+                "required": [
+                    "api_version"
+                ],
+                "properties": {
+                    "api_version": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    },
+                    "commit": {
+                        "type": "string",
+                        "example": "178d2ea"
+                    },
+                    "server_address": {
+                        "type": "string",
+                        "example": "127.0.0.1:8000"
+                    },
+                    "platform_info": {
+                        "type": "object",
+                        "example": {
+                            "system": "Darwin",
+                            "node": "node-1.example.com",
+                            "release": "17.5.0",
+                            "version": "Darwin Kernel Version 17.5.0",
+                            "machine": "x86_64",
+                            "processor": "i386"
+                        }
+                    },
+                    "python_version": {
+                        "type": "string",
+                        "example": "3.6.1"
+                    },
+                    "modules": {
+                        "type": "object",
+                        "example": {
+                            "coverage": "4.5.1",
+                            "coverage.version": "4.5.1",
+                            "coverage.xmlreport": "4.5.1",
+                            "cryptography": "2.0.3",
+                            "ctypes": "1.1.0",
+                            "ctypes.macholib": "1.0",
+                            "decimal": "1.70",
+                            "django": "1.11.5",
+                            "django.utils.six": "1.10.0",
+                            "django_filters": "1.0.4",
+                            "http.server": "0.6"
+                        }
+                    }
+                }
+            },
+            "TagsFilter": {
+                "type": "object",
+                "properties": {
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    }
+                }
+            },
+            "Tags": {
+                "required": [
+                    "filter",
+                    "key_only"
+                ],
+                "properties": {
+                    "filter": {
+                        "$ref": "#/components/schemas/TagsFilter"
+                    },
+                    "data": {
+                        "type": "array",
+                        "example": [
+                            "production",
+                            "staging",
+                            "test"
+                        ],
+                        "items": {}
+                    }
+                }
+            },
+            "User": {
+                "required": [
+                    "username",
+                    "email"
+                ],
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "example": "smithj"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "smithj@mytechco.com"
+                    }
+                }
+            },
+            "UserPreference": {
+                "required": [
+                    "name",
+                    "preference"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "my-preference-name"
+                    },
+                    "preference": {
+                        "type": "object",
+                        "format": "json",
+                        "example": {
+                            "timezone": "UTC"
+                        }
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "my long preference description"
+                    }
+                }
+            },
+            "UserOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/User"
+                }],
+                "required": [
+                    "uuid"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    }
+                }
+            },
+            "UserPreferencePagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }],
+                "required": [
+                    "results"
+                ],
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserPreferenceOut"
+                        }
+                    }
+                }
+            },
+            "UserPreferenceOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/UserPreference"
+                }],
+                "required": [
+                    "uuid",
+                    "user"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "57e60f90-8c0c-4bd1-87a0-2143759aae1c"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/UserOut"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -530,9 +530,6 @@ class ProviderMap(object):
         """Constructor."""
         self._provider = provider
         self._report_type = report_type
-
-        # FIXME: incorrect use of underscore convention.
-        # FIXME: these should be public.
         self._provider_map = ProviderMap.provider_data(provider)
         self._report_type_map = ProviderMap.report_type_data(report_type, provider)
 
@@ -542,14 +539,9 @@ class ProviderMap(object):
         return self._report_type_map.get('count')
 
     @property
-    def units_key(self):
-        """Return the units_key property."""
-        return self._report_type_map.get('units_key')
-
-    @property
-    def sum_columns(self):
-        """Return the sum column list for the report type."""
-        return self._report_type_map.get('sum_columns')
+    def provider_map(self):
+        """Return the provider map property."""
+        return self._provider_map
 
     @property
     def query_table(self):
@@ -559,11 +551,26 @@ class ProviderMap(object):
         return report_table if report_table else default
 
     @property
+    def report_type_map(self):
+        """Return the report-type map property."""
+        return self._report_type_map
+
+    @property
+    def sum_columns(self):
+        """Return the sum column list for the report type."""
+        return self._report_type_map.get('sum_columns')
+
+    @property
     def tag_column(self):
         """Return the appropriate query table for the report type."""
         report_specific_column = self._report_type_map.get('tag_column')
         default = self._provider_map.get('tag_column')
         return report_specific_column if report_specific_column else default
+
+    @property
+    def units_key(self):
+        """Return the units_key property."""
+        return self._report_type_map.get('units_key')
 
 
 class ReportQueryHandler(QueryHandler):

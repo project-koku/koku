@@ -49,8 +49,8 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             self._mapper = ProviderMap(provider=provider,
                                        report_type=self._report_type)
 
-    def execute_sum_query(self):
-        """Execute query and return provided data when self.is_sum == True.
+    def execute_query(self):
+        """Execute query and return provided data.
 
         Returns:
             (Dict): Dictionary response of query params, data, and total
@@ -67,12 +67,12 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             query_order_by = ['-date', ]
             query_order_by.extend([self.order])
 
-            annotations = self._mapper._report_type_map.get('annotations')
+            annotations = self._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
-                    F(self._mapper._provider_map.get('alias')), 'usage_account_id'))
+                    F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
             elif 'cluster' in query_group_by or 'cluster' in self.query_filter:
                 query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
                                                                         'cluster_id'))
@@ -89,7 +89,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_data = self._ranked_list(query_data)
 
             if query.exists():
-                aggregates = self._mapper._report_type_map.get('aggregates')
+                aggregates = self._mapper.report_type_map.get('aggregates')
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
