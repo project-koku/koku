@@ -118,6 +118,37 @@ class RateSerializer(serializers.ModelSerializer):
         return rate
 
     @staticmethod
+    def _validate_no_tier_gaps(sorted_tiers):
+        """Validate that the tiers has no gaps."""
+        next_tier = None
+        for tier in sorted_tiers:
+            usage_start = tier.get('usage_start')
+            usage_end = tier.get('usage_end')
+
+            if (next_tier is not None and usage_start is not None
+                    and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
+                error_msg = 'tiered_rate must not have gaps between tiers.' \
+                    'usage_start of {} should be less than or equal to the' \
+                    ' usage_end {} of the previous tier.'.format(usage_start, next_tier)
+                raise serializers.ValidationError(error_msg)
+            next_tier = usage_end
+
+    @staticmethod
+    def _validate_no_tier_overlaps(sorted_tiers):
+        """Validate that the tiers have no overlaps."""
+        for i, tier in enumerate(sorted_tiers):
+            next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
+            next_bucket_usage_start = next_bucket.get('usage_start')
+            usage_end = tier.get('usage_end')
+
+            if (usage_end != next_bucket_usage_start):
+                error_msg = 'tiered_rate must not have overlapping tiers.' \
+                    ' usage_start value {} should equal to the' \
+                    ' usage_end value of the next tier, not {}.'.format(usage_end,
+                                                                        next_bucket_usage_start)
+                raise serializers.ValidationError(error_msg)
+
+    @staticmethod
     def _validate_continuouse_tiers(tiers):
         """Validate tiers have no gaps."""
         if len(tiers) < 1:
@@ -132,17 +163,8 @@ class RateSerializer(serializers.ModelSerializer):
                 ' and a tier with usage_end as null.'
             raise serializers.ValidationError(error_msg)
         else:
-            next_tier = None
-            for tier in sorted_tiers:
-                usage_start = tier.get('usage_start')
-                usage_end = tier.get('usage_end')
-                if (next_tier is not None and usage_start is not None
-                        and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
-                    error_msg = 'tiered_rate must not have gaps between tiers.' \
-                        'usage_start of {} should be less than or equal to the' \
-                        ' usage_end {} of the previous tier.'.format(usage_start, next_tier)
-                    raise serializers.ValidationError(error_msg)
-                next_tier = usage_end
+            RateSerializer._validate_no_tier_gaps(sorted_tiers)
+            RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
     def validate_provider_uuid(self, provider_uuid):
         """Check that provider_uuid is a valid identifier."""
@@ -158,10 +180,6 @@ class RateSerializer(serializers.ModelSerializer):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
                 RateSerializer._validate_continuouse_tiers(tiered_rate)
-                storage_rates = (Rate.METRIC_STORAGE_GB_REQUEST_MONTH,
-                                 Rate.METRIC_STORAGE_GB_USAGE_MONTH)
-                if len(tiered_rate) > 1 and data.get('metric') in storage_rates:
-                    raise serializers.ValidationError('Storage rates do not support tiers.')
             return data
         else:
             rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)

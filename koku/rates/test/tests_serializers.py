@@ -302,11 +302,14 @@ class RateSerializerTest(IamTestCase):
                     }]
                     }
 
-            with tenant_context(self.tenant):
-                serializer = RateSerializer(data=rate)
-                with self.assertRaises(serializers.ValidationError):
-                    if serializer.is_valid(raise_exception=True):
-                        serializer.save()
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
 
     def test_create_storage_no_tiers_rate(self):
         """Test creating a non tiered storage rate."""
@@ -321,11 +324,72 @@ class RateSerializerTest(IamTestCase):
                     }]
                     }
 
-            with tenant_context(self.tenant):
-                instance = None
-                serializer = RateSerializer(data=rate)
-                if serializer.is_valid(raise_exception=True):
-                    instance = serializer.save()
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = RateSerializer(data=rate)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
 
-                self.assertIsNotNone(instance)
-                self.assertIsNotNone(instance.uuid)
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.uuid)
+
+    def test_tiered_rate_with_overlaps(self):
+        """Test creating a tiered rate with a overlaps between the tiers."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 5.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_tiered_rate_with_duplicate(self):
+        """Test creating a tiered rate with duplicate tiers."""
+        rate = {'provider_uuid': self.provider.uuid,
+                'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                'tiered_rate': [{
+                    'unit': 'USD',
+                    'value': 0.22,
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }, {
+                    'unit': 'USD',
+                    'value': 0.26,
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }]
+                }
+
+        with tenant_context(self.tenant):
+            serializer = RateSerializer(data=rate)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
