@@ -1803,10 +1803,10 @@
                     "$ref": "#/components/schemas/ListPagination"
                 }],
                 "required": [
-                    "results"
+                    "data"
                 ],
                 "properties": {
-                    "results": {
+                    "data": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ProviderOut"
@@ -1853,10 +1853,10 @@
                     "$ref": "#/components/schemas/ListPagination"
                 }],
                 "required": [
-                    "results"
+                    "data"
                 ],
                 "properties": {
-                    "results": {
+                    "data": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/RateOut"
@@ -3084,10 +3084,10 @@
                     "$ref": "#/components/schemas/ListPagination"
                 }],
                 "required": [
-                    "results"
+                    "data"
                 ],
                 "properties": {
-                    "results": {
+                    "data": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/UserPreferenceOut"
