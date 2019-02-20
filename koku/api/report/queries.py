@@ -22,7 +22,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 from urllib.parse import quote_plus
 
-from django.db.models import CharField, Count, F, FloatField, Max, Q, Sum, Value
+from django.db.models import CharField, Count, DecimalField, F, FloatField, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
@@ -377,13 +377,32 @@ class ProviderMap(object):
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
-                    'aggregates': {'value': Sum('unblended_cost')},
+                    'aggregates': {
+                        'value': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                    },
                     'annotations': {
-                        'total': Sum('unblended_cost'),
+                        'total': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
                         'units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('unblended_cost')},
+                    'delta_key': {
+                        'total': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                    },
                     'filter': {},
                     'units_key': 'currency_code',
                     'units_fallback': 'USD',
@@ -406,13 +425,33 @@ class ProviderMap(object):
                 },
                 'storage': {
                     'aggregates': {
-                        'cost': Sum('unblended_cost'),
-                        'total': Sum('usage_amount'),
+                        'cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'total': Sum(
+                            ExpressionWrapper(
+                                F('usage_amount') / F('shared_projects'),
+                                output_field=FloatField()
+                            )
+                        ),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
-                        'cost': Sum('unblended_cost'),
-                        'total': Sum('usage_amount'),
+                        'cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'total': Sum(
+                            ExpressionWrapper(
+                                F('usage_amount') / F('shared_projects'),
+                                output_field=FloatField()
+                            )
+                        ),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'count': None,
@@ -462,16 +501,36 @@ class ProviderMap(object):
                 },
                 'instance_type': {
                     'aggregates': {
-                        'cost': Sum('unblended_cost'),
+                        'cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
                         'count': Count('resource_id', distinct=True),
-                        'value': Sum('usage_amount'),
+                        'value': Sum(
+                            ExpressionWrapper(
+                                F('usage_amount') / F('shared_projects'),
+                                output_field=FloatField()
+                            )
+                        ),
                         'units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
-                        'cost': Sum('unblended_cost'),
+                        'cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
                         'count': Count('resource_id', distinct=True),
-                        'total': Sum('usage_amount'),
+                        'total': Sum(
+                            ExpressionWrapper(
+                                F('usage_amount') / F('shared_projects'),
+                                output_field=FloatField()
+                            )
+                        ),
                         'units': Coalesce(Max('unit'), Value('Hrs'))
                     },
                     'count': 'resource_id',
