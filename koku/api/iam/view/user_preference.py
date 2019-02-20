@@ -130,17 +130,22 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
 
         @apiParam (Query) {String} name Filter by preference name.
 
-        @apiSuccess {Number} count The number of preferences.
-        @apiSuccess {String} previous  The uri of the previous page of results.
-        @apiSuccess {String} next  The uri of the next page of results.
-        @apiSuccess {Object[]} results  The array of preference results.
+        @apiSuccess {Object} meta The metadata for pagination.
+        @apiSuccess {Object} links  The object containing links of results.
+        @apiSuccess {Object[]} data  The array of results.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                'count': 3,
-                'next': None,
-                'previous': None,
-                'results': [
+                'meta': {
+                    'count': 3
+                }
+                'links': {
+                    'first': /api/v1/preferences/?page=1,
+                    'next': None,
+                    'previous': None,
+                    'last': /api/v1/preferences/?page=1
+                },
+                'data': [
                                 {
                                     'uuid': '7f273d8a-50cb-4a3a-a4c0-6b7fae0bfd61',
                                     'preference': {'currency': 'USD'},

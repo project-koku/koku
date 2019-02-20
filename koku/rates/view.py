@@ -104,18 +104,23 @@ class RateViewSet(mixins.CreateModelMixin,
 
         @apiParam (Query) {String} name Filter by rate name.
 
-        @apiSuccess {Number} count The number of rates.
-        @apiSuccess {String} previous  The uri of the previous page of results.
-        @apiSuccess {String} next  The uri of the next page of results.
-        @apiSuccess {Object[]} results  The array of rate results.
+        @apiSuccess {Object} meta The metadata for pagination.
+        @apiSuccess {Object} links  The object containing links of results.
+        @apiSuccess {Object[]} data  The array of results.
 
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                'count': 2,
-                'next': None,
-                'previous': None,
-                'results': [
+                'meta': {
+                    'count': 2
+                }
+                'links': {
+                    'first': /api/v1/rates/?page=1,
+                    'next': None,
+                    'previous': None,
+                    'last': /api/v1/rates/?page=1
+                },
+                'data': [
                                 {
                                     "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                                     "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
