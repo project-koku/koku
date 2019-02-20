@@ -43,9 +43,9 @@ class Migration(migrations.Migration):
                             ON aws.usage_start::date = ocp.usage_start::date
                                 AND (
                                     (aws.key = ocp.key AND aws.value = ocp.value)
-                                    OR (aws.key = 'ocp_cluster' AND aws.value = ocp.cluster_alias)
-                                    OR (aws.key = 'ocp_node' AND aws.value = ocp.node)
-                                    OR (aws.key = 'ocp_project' AND aws.value = ocp.namespace)
+                                    OR (aws.key = 'openshift_cluster' AND aws.value = ocp.cluster_alias)
+                                    OR (aws.key = 'openshift_node' AND aws.value = ocp.node)
+                                    OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)
                                 )
                         GROUP BY aws.id, ocp.id, aws.usage_start, ocp.namespace
                 ),
@@ -214,9 +214,9 @@ class Migration(migrations.Migration):
                             ON aws.usage_start::date = pvcl.usage_start::date
                                 AND (
                                     (aws.key = pvcl.key AND aws.value = pvcl.value)
-                                    OR (aws.key = 'ocp_cluster' AND aws.value = pvcl.cluster_alias)
-                                    OR (aws.key = 'ocp_node' AND aws.value = pvcl.node)
-                                    OR (aws.key = 'ocp_project' AND aws.value = pvcl.namespace)
+                                    OR (aws.key = 'openshift_cluster' AND aws.value = pvcl.cluster_alias)
+                                    OR (aws.key = 'openshift_node' AND aws.value = pvcl.node)
+                                    OR (aws.key = 'openshift_project' AND aws.value = pvcl.namespace)
                                 )
                     WHERE (pvl.id IS NOT NULL OR pvcl.id IS NOT NULL) OR pvl.id = pvcl.id
                     GROUP BY aws.usage_start, aws.id, pvl.id, pvcl.id, pvl.namespace, pvcl.namespace
