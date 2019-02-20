@@ -13,9 +13,9 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             """
             DROP VIEW IF EXISTS reporting_ocpawscostlineitem_daily;
-            DROP VIEW IF EXISTS reporting_ocpaws_usagecostlineitem_daily;
+            DROP VIEW IF EXISTS reporting_ocpawsusagecostlineitem_daily;
 
-            CREATE OR REPLACE VIEW reporting_ocpaws_usagelineitem_daily AS (
+            CREATE OR REPLACE VIEW reporting_ocpawsusagelineitem_daily AS (
                 WITH cte_usage_tag_matched as (
                     SELECT aws.id as aws_id,
                             ocp.id as ocp_id,
@@ -166,9 +166,9 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             """
-            DROP VIEW IF EXISTS reporting_ocpaws_storagelineitem_daily;
+            DROP VIEW IF EXISTS reporting_ocpawsstoragelineitem_daily;
 
-            CREATE OR REPLACE VIEW reporting_ocpaws_storagelineitem_daily AS (
+            CREATE OR REPLACE VIEW reporting_ocpawsstoragelineitem_daily AS (
                 WITH cte_storage_tag_matchted as (
                     SELECT aws.id as aws_id,
                             COALESCE(pvl.id, pvcl.id) as ocp_id,
