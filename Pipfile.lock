@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f6293bca9de6204895c30e488c2bc89697d18c3430d75bb2c5add1b0b1d7d0b9"
+            "sha256": "690dd26848b2d1b8300ae7bc3900b0911e16d695cd8554484b3292947fe9a0b7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,14 +21,15 @@
                 "sha256:6bcde55eed4a7e5fdf73a324c19a8e62a76f17fff6267d50c6d21d7acb00bb30",
                 "sha256:c103241394d396ee08548b03d5d1f0f89a7ad1dfa7ccca88a47131f329cca093"
             ],
+            "index": "pypi",
             "version": "==1.9.96"
         },
         "botocore": {
             "hashes": [
-                "sha256:55c1594041e6716847d5a8b38181e3cc44e245edbf4598ae2b99e3040073b2cf",
-                "sha256:c72dfa1f1f6be34b8d91606fa823ab5d3e0ea0d74b700a7868b4c5a642b23041"
+                "sha256:9092d61cbf8052471dcaaac29f8cd1b9dbd5687947719f40dbc30a72c87523f2",
+                "sha256:ac50b9f793164a00ca725dfe60fe2d12a967272b251e6533236139dcade1ee5c"
             ],
-            "version": "==1.12.96"
+            "version": "==1.12.99"
         },
         "certifi": {
             "hashes": [
@@ -600,6 +601,7 @@
                 "sha256:00cf895504a7895ee433807c62094cf1e95f065843bf3acd17037c3e9a2becd4",
                 "sha256:728607e34d60456d736cc7991fd236afb828b21b82f956c5ea75f94c8414040a"
             ],
+            "index": "pypi",
             "version": "==0.4.3"
         },
         "sphinxcontrib-websupport": {
