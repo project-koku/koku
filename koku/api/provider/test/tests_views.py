@@ -162,7 +162,7 @@ class ProviderViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
         json_result = response.json()
-        results = json_result.get('results')
+        results = json_result.get('data')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
 

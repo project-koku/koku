@@ -48,7 +48,7 @@ class UserPreferenceViewTest(IamTestCase):
         client = APIClient()
         url = reverse('preferences-list')
         response = client.get(url, **self.headers)
-        results = response.json().get('results')
+        results = response.json().get('data')
         self.assertEqual(len(results), 3)
 
         from django.conf import settings
@@ -130,7 +130,7 @@ class UserPreferenceViewTest(IamTestCase):
         # validate the pref isn't listed
         url = reverse('preferences-list')
         response = client.get(url, **self.headers)
-        results = response.json().get('results')
+        results = response.json().get('data')
         results_prefs = [r['preference'] for r in results]
         self.assertNotIn(pref.preference, results_prefs)
 
