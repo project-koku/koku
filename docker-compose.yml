@@ -11,17 +11,17 @@ services:
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=postgres
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
         - POSTGRES_SQL_SERVICE_HOST=db
         - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=postgres
-        - DATABASE_PASSWORD=postgres
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
         - DEVELOPMENT=True
         - DJANGO_DEBUG=True
-      privileged: true        
+      privileged: true
       ports:
           - 8000:8000
       volumes:
@@ -34,9 +34,9 @@ services:
   db:
     image: postgres:9.6
     environment:
-    - POSTGRES_DB=postgres
-    - POSTGRES_USER=postgres
-    - POSTGRES_PASSWORD=postgres
+    - POSTGRES_DB=${DATABASE_NAME-postgres}
+    - POSTGRES_USER=${DATABASE_USER-postgres}
+    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
     ports:
       - "15432:5432"
     volumes:
