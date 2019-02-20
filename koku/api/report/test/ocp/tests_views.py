@@ -388,7 +388,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.this_month_start.strftime('%Y-%m-%d')
-        expected_end_date = self.dh.this_month_end.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.now.strftime('%Y-%m-%d')
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -971,3 +971,24 @@ class OCPReportViewTest(IamTestCase):
         )
             self.assertTrue(current_usage >= previous_usage)
             previous_usage = current_usage
+
+    def test_execute_query_volume(self):
+        """Test that the volume endpoint functions."""
+        url = reverse('reports-ocp-volume')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        values = data.get('data')[0].get('values')[0]
+        self.assertTrue('usage' in values)
+        self.assertTrue('request' in values)
+        self.assertTrue('charge' in values)
+        self.assertTrue('units' in values)
+        self.assertEqual(values.get('units'), 'GB-Mo')

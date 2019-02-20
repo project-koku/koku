@@ -213,7 +213,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             }
         """
         response = super().list(request=request, args=args, kwargs=kwargs)
-        for provider in response.data['results']:
+        for provider in response.data['data']:
             manager = ProviderManager(provider['uuid'])
             tenant = get_tenant(request.user)
             provider_stats = manager.provider_statistics(tenant)

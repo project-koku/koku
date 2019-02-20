@@ -56,7 +56,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         annotations = {'date': self.date_trunc('usage_start')}
         # { query_param: database_field_name }
-        fields = self._mapper._provider_map.get('annotations')
+        fields = self._mapper.provider_map.get('annotations')
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(''))
         return annotations
@@ -77,7 +77,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def execute_sum_query(self):
+    def execute_query(self):
         """Execute query and return provided data.
 
         Returns:
@@ -99,7 +99,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ['-date']
             query_order_by.extend([self.order])
 
-            annotations = self._mapper._report_type_map.get('annotations')
+            annotations = self._mapper.report_type_map.get('annotations')
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             if 'cluster' in query_group_by or 'cluster' in self.query_filter:
@@ -114,7 +114,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             # Populate the 'total' section of the API response
             if query.exists():
-                aggregates = self._mapper._report_type_map.get('aggregates')
+                aggregates = self._mapper.report_type_map.get('aggregates')
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
@@ -155,21 +155,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         return self._format_query_response()
 
-    def execute_query(self):
-        """Execute query and return provided data.
-
-        Returns:
-            (Dict): Dictionary response of query params, data, and total
-
-        """
-        return self.execute_sum_query()
-
     def get_rank_window_function(self, group_by_value):
         """Generate a limit ranking window function."""
-        tag_column = self._mapper._provider_map.get('tag_column')
+        tag_column = self._mapper.tag_column
         rank_orders = []
         rank_field = group_by_value.pop()
-        default_ordering = self._mapper._report_type_map.get('default_ordering')
+        default_ordering = self._mapper.report_type_map.get('default_ordering')
 
         if self.order_field == 'delta' and '__' in self._delta:
             delta_field_one, delta_field_two = self._delta.split('__')
@@ -198,14 +189,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def get_cluster_capacity(self, query_data):
         """Calculate cluster capacity for all nodes over the date range."""
-        annotations = self._mapper._report_type_map.get('capacity_aggregate')
+        annotations = self._mapper.report_type_map.get('capacity_aggregate')
         if not annotations:
             return query_data, {}
 
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
         capacity_by_cluster = defaultdict(Decimal)
-        q_table = self._mapper._provider_map.get('tables').get('query')
+
+        q_table = self._mapper.query_table
         query = q_table.objects.filter(self.query_filter)
         query_group_by = ['usage_start', 'cluster_id']
 
