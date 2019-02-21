@@ -695,6 +695,13 @@ class ReportQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
         self.query_exclusions = self._get_exclusions()
 
+    def initialize_totals(self):
+        """Initialize the total response column values."""
+        query_sum = {}
+        for value in self._mapper.sum_columns:
+            query_sum[value] = 0
+        return query_sum
+
     def get_tag_filter_keys(self):
         """Get tag keys from filter arguments."""
         tag_filters = []

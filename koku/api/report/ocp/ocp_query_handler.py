@@ -84,7 +84,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        query_sum = {'value': 0}
+        query_sum = self.initialize_totals()
         data = []
 
         q_table = self._mapper.query_table
