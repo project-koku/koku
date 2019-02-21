@@ -51,6 +51,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         if not kwargs.get('provider'):
             kwargs['provider'] = 'AWS'
+            kwargs['no_tag_query'] = QueryFilter(operation='tags__iexact', parameter='{}')
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 
@@ -89,11 +90,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _set_tag_filters(self, filters):
-        tag_filters = self.get_tag_filter_keys()
-        if not tag_filters and self.kwargs.get('provider') == 'AWS':
-            filters.add(QueryFilter(operation='tags__iexact', parameter='{}'))
-        return super()._set_tag_filters(filters)
 
     def execute_query(self):
         """Execute query and return provided data.

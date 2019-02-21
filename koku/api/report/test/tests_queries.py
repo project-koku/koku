@@ -21,7 +21,9 @@ import re
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
+from urllib.parse import quote_plus
 
+from django.db import connection
 from django.db.models import (CharField, Count, DateTimeField, IntegerField,
                               Max, Sum, Value)
 from django.db.models.functions import Cast, Concat
@@ -32,6 +34,8 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.queries import strip_tag_prefix
+# from api.report.view import get_tag_keys
+from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
@@ -42,6 +46,7 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
+# from reporting.provider.aws.models import AWSTagsSummary
 
 
 class FakeAWSCostData(object):
@@ -297,6 +302,7 @@ class FakeAWSCostData(object):
                                'usage_end': self.usage_end,
                                'usage_start': self.usage_start,
                                'usage_type': usage_type,
+                               'tags': self._get_tags()
                                }
         return self._line_item
 
@@ -379,6 +385,39 @@ class FakeAWSCostData(object):
         if self._line_item:
             self._line_item['usage_start'] = date
 
+    def _get_tags(self):
+        """Create tags for output data."""
+        apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                         self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        markets = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                   self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        versions = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                    self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+
+        seeded_labels = {'environment': ['dev', 'ci', 'qa', 'stage', 'prod'],
+                         'app': apps,
+                         'organization': organizations,
+                         'market': markets,
+                         'version': versions
+                         }
+        gen_label_keys = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
+                          self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
+        all_label_keys = list(seeded_labels.keys()) + gen_label_keys
+        num_labels = random.randint(2, len(all_label_keys))
+        chosen_label_keys = random.choices(all_label_keys, k=num_labels)
+
+        labels = {}
+        for label_key in chosen_label_keys:
+            label_value = self.fake.word()  # pylint: disable=no-member
+            if label_key in seeded_labels:
+                label_value = random.choice(seeded_labels[label_key])
+
+            labels['{}_label'.format(label_key)] = label_value
+
+        return labels
+
 
 class ReportQueryUtilsTest(TestCase):
     """Test the report query class functions."""
@@ -437,6 +476,7 @@ class ReportQueryTest(IamTestCase):
 
     def setUp(self):
         """Set up the customer view tests."""
+        self.dh = DateHelper()
         super().setUp()
         self.current_month_total = Decimal(0)
         self.fake_aws = FakeAWSCostData()
@@ -568,6 +608,26 @@ class ReportQueryTest(IamTestCase):
                     agg = AWSCostEntryLineItemAggregates(**entry, account_alias=list(alias).pop())
                     agg.save()
 
+    def _populate_tag_summary_table(self):
+        """Populate pod label key and values."""
+        raw_sql = """
+            INSERT INTO reporting_awstags_summary
+            SELECT l.key,
+                array_agg(DISTINCT l.value) as values
+            FROM (
+                SELECT key,
+                    value
+                FROM reporting_awscostentrylineitem_daily AS li,
+                    jsonb_each_text(li.tags) labels
+            ) l
+            GROUP BY l.key
+            ON CONFLICT (key) DO UPDATE
+            SET values = EXCLUDED.values
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(raw_sql)
+
     def add_data_to_tenant(self, data, product='ec2'):
         """Populate tenant with data."""
         self.assertIsInstance(data, FakeAWSCostData)
@@ -614,8 +674,7 @@ class ReportQueryTest(IamTestCase):
                 model_instances = {'cost_entry': cost_entry,
                                    'cost_entry_bill': bill,
                                    'cost_entry_product': ce_product,
-                                   'cost_entry_pricing': ce_pricing,
-                                   'tags': {}}
+                                   'cost_entry_pricing': ce_pricing}
                 line_item_data.update(model_instances)
                 line_item, _ = AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
 
@@ -624,6 +683,7 @@ class ReportQueryTest(IamTestCase):
             self._populate_daily_table()
             self._populate_daily_summary_table()
             self._populate_aggregates_table()
+            self._populate_tag_summary_table()
 
     def test_transform_null_group(self):
         """Test transform data with null group value."""
@@ -1934,3 +1994,126 @@ class ReportQueryTest(IamTestCase):
         result = strip_tag_prefix(tag_str)
 
         self.assertEqual(result, tag_str.replace('tag:', ''))
+
+    def test_execute_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = AWSTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            labels = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(tags__has_key=filter_key)\
+                .values(*['tags'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('tags', {}).get(filter_key)
+
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{f'tags__{filter_key}': filter_value})\
+                .aggregate(**{'value': Sum('unblended_cost')})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                f'tag:{filter_key}': [filter_value]
+            }
+        }
+        query_string = f'?filter[tag:{filter_key}]={filter_value}'
+        handler = AWSReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total')
+        for key in totals:
+            result = data_totals.get(key)
+            self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_wildcard_tag_filter(self):
+        """Test that data is filtered to include entries with tag key."""
+        handler = AWSTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': filter_key})\
+                .aggregate(
+                    **{'value': Sum('unblended_cost'),})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                f'tag:{filter_key}': ['*']
+            }
+        }
+        query_string = f'?filter[tag:{filter_key}]=*'
+
+        handler = AWSReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total')
+        for key in totals:
+            result = data_totals.get(key)
+            self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        handler = AWSTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': group_by_key})\
+                .aggregate(
+                    **{'value': Sum('unblended_cost'),})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+            },
+            'group_by': {
+                f'tag:{group_by_key}': ['*']
+            }
+        }
+        query_string = quote_plus(f'?group_by[tag:{group_by_key}]=*')
+
+        handler = AWSReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total')
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+        for key in totals:
+            result = data_totals.get(key)
+            self.assertEqual(result, totals[key])
