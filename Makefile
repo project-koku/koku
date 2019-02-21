@@ -80,7 +80,10 @@ html:
 lint:
 	tox -elint
 
-reinitdb: stop-compose remove-db start-db run-migrations
+reinitdb: stop-compose remove-db start-db
+	sleep 5
+	make run-migrations
+	make create-test-db-file
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
