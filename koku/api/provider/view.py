@@ -158,17 +158,25 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
         @apiHeader {String} token User authorization token.
 
-        @apiSuccess {Number} count The number of users.
-        @apiSuccess {String} previous  The uri of the previous page of results.
-        @apiSuccess {String} next  The uri of the previous page of results.
-        @apiSuccess {Object[]} results  The array of provider results.
+        @apiParam (Query) {Number} page Parameter for selecting the page of data (default is 1)
+        @apiParam (Query) {Number} page_size Parameter for selecting the amount of data in a page (default is 10)
+
+        @apiSuccess {Object} meta The metadata for pagination.
+        @apiSuccess {Object} links  The object containing links of results.
+        @apiSuccess {Object[]} data  The array of results.
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 200 OK
             {
-                "count": 30,
-                "previous": "/api/v1/providers/?page=2",
-                "next": "/api/v1/providers/?page=4",
-                "results": [
+                "meta": {
+                    "count": 1
+                }
+                "links": {
+                    "first": "/api/v1/providers/?page=1",
+                    "next": None,
+                    "previous": None,
+                    "last": "/api/v1/providers/?page=1"
+                },
+                "data": [
                     {
                         "uuid": "9002b1db-0bf9-48bb-bd2a-9dc0c8e2742a",
                         "name": "My Company AWS production",
