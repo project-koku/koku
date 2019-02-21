@@ -919,27 +919,31 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        url = reverse('reports-ocp-cpu')
-        client = APIClient()
-        params = {
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'group_by[node]': '*',
-            'order_by[usage]': 'desc',
-            'filter[limit]': 1
-        }
-        url = url + '?' + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        order_by_options = ['charge', 'usage', 'request', 'limit']
+        for option in order_by_options:
+            url = reverse('reports-ocp-cpu')
+            client = APIClient()
+            order_by_dict_key = 'order_by[{}]'.format(option)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                'group_by[node]': '*',
+                order_by_dict_key: 'desc',
+                'filter[limit]': 1
+            }
 
-        data = response.json()
-        data = data.get('data', [])
-        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('usage')
-        for entry in data[0].get('nodes', []):
-            current_usage = entry.get('values', [])[0].get('usage')
-            self.assertTrue(current_usage <= previous_usage)
-            previous_usage = current_usage
+            url = url + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, 200)
+
+            data = response.json()
+            data = data.get('data', [])
+            previous_value = data[0].get('nodes', [])[0].get('values', [])[0].get(option)
+            for entry in data[0].get('nodes', []):
+                current_value = entry.get('values', [])[0].get(option)
+                self.assertTrue(current_value <= previous_value)
+                previous_value = current_value
 
     def test_execute_query_with_order_by_delta_and_limit(self):
         """Test that data is grouped and limited by order by delta."""
