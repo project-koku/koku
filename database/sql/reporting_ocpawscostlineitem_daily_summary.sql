@@ -8,7 +8,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
         li.resource_id,
         li.usage_start,
         li.usage_end,
-        li.pod_labels,
+        li.pod_labels as openshift_labels,
         li.product_code,
         p.product_family,
         p.instance_type,
@@ -21,9 +21,45 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
         li.usage_amount,
         li.normalized_usage_amount,
         li.unblended_cost,
+        li.shared_projects,
         (li.pod_usage_cpu_core_seconds / li.node_capacity_cpu_core_seconds) *
             li.unblended_cost as pod_cost
-    FROM reporting_ocpawscostlineitem_daily as li
+    FROM reporting_ocpawsusagelineitem_daily as li
+    JOIN reporting_awscostentryproduct AS p
+        ON li.cost_entry_product_id = p.id
+    LEFT JOIN reporting_awscostentrypricing as pr
+        ON li.cost_entry_pricing_id = pr.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
+    WHERE li.usage_start >= '{start_date}'
+        AND li.usage_start <= '{end_date}'
+
+    UNION
+
+    SELECT li.cluster_id,
+        li.cluster_alias,
+        li.namespace,
+        li.pod,
+        li.node,
+        li.resource_id,
+        li.usage_start,
+        li.usage_end,
+        li.persistentvolume_labels || li.persistentvolumeclaim_labels as openshift_labels,
+        li.product_code,
+        p.product_family,
+        p.instance_type,
+        li.usage_account_id,
+        aa.id as account_alias_id,
+        li.availability_zone,
+        p.region,
+        pr.unit,
+        li.tags,
+        li.usage_amount,
+        li.normalized_usage_amount,
+        li.unblended_cost,
+        li.shared_projects,
+        li.unblended_cost / li.shared_projects as pod_cost
+    FROM reporting_ocpawsstoragelineitem_daily as li
     JOIN reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
     LEFT JOIN reporting_awscostentrypricing as pr
@@ -51,7 +87,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     resource_id,
     usage_start,
     usage_end,
-    pod_labels,
+    openshift_labels,
     product_code,
     product_family,
     instance_type,
@@ -64,6 +100,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     usage_amount,
     normalized_usage_amount,
     unblended_cost,
+    shared_projects,
     pod_cost
 )
     SELECT cluster_id,
@@ -74,7 +111,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         resource_id,
         usage_start,
         usage_end,
-        pod_labels,
+        openshift_labels,
         product_code,
         product_family,
         instance_type,
@@ -87,6 +124,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         usage_amount,
         normalized_usage_amount,
         unblended_cost,
+        shared_projects,
         pod_cost
     FROM reporting_ocpawscostlineitem_daily_summary_{uuid}
 ;
