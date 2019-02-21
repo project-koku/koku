@@ -388,7 +388,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.this_month_start.strftime('%Y-%m-%d')
-        expected_end_date = self.dh.now.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.today.strftime('%Y-%m-%d')
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
