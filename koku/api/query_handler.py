@@ -240,7 +240,7 @@ class QueryHandler(object):
             if time_scope_value == -1:
                 # get current month
                 start = dh.this_month_start
-                end = dh.this_month_end
+                end = dh.now
             else:
                 # get previous month
                 start = dh.last_month_start
