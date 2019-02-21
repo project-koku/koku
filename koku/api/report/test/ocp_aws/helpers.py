@@ -140,7 +140,7 @@ class OCPAWSReportDataGenerator:
                 'resource_id': resource_prefix + row.get('resource_id'),
                 'usage_start': report_date,
                 'usage_end': report_date,
-                'pod_labels': {},
+                'openshift_labels': {},
                 'product_code': aws_product.get('service_code'),
                 'product_family': aws_product.get('product_family'),
                 'usage_account_id': self.usage_account_id,
