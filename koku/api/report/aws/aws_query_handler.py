@@ -90,7 +90,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-
     def execute_query(self):
         """Execute query and return provided data.
 

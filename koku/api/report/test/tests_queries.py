@@ -2050,7 +2050,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': filter_key})\
                 .aggregate(
-                    **{'value': Sum('unblended_cost'),})
+                    **{'value': Sum('unblended_cost')})
 
         query_params = {
             'filter': {
@@ -2087,7 +2087,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': group_by_key})\
                 .aggregate(
-                    **{'value': Sum('unblended_cost'),})
+                    **{'value': Sum('unblended_cost')})
 
         query_params = {
             'filter': {
