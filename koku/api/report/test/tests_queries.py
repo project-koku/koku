@@ -870,7 +870,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('total'))
+        self.assertIsNotNone(total.get('value'))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""

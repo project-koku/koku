@@ -698,7 +698,7 @@ class ReportQueryHandler(QueryHandler):
     def initialize_totals(self):
         """Initialize the total response column values."""
         query_sum = {}
-        for value in self._mapper.sum_columns:
+        for value in self._mapper.report_type_map.get('aggregates').keys():
             query_sum[value] = 0
         return query_sum
 
