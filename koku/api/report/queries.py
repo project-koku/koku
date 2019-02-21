@@ -976,7 +976,8 @@ class ReportQueryHandler(QueryHandler):
             (list): The sorted/ordered list
 
         """
-        numeric_ordering = ['date', 'rank', 'delta', 'delta_percent', 'total', 'charge', 'usage']
+        numeric_ordering = ['date', 'rank', 'delta', 'delta_percent',
+                            'total', 'charge', 'usage', 'request', 'limit']
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
