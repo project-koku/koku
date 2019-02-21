@@ -805,9 +805,9 @@ class ReportQueryTest(IamTestCase):
         end = handler.end_datetime
         interval = handler.time_interval
         self.assertEqual(start, DateHelper().this_month_start)
-        self.assertEqual(end.date(), DateHelper().now.date())
+        self.assertEqual(end.date(), DateHelper().today.date())
         self.assertIsInstance(interval, list)
-        self.assertEqual(len(interval), DateHelper().now.day)
+        self.assertEqual(len(interval), DateHelper().today.day)
 
     def test_get_time_frame_filter_previous_month(self):
         """Test _get_time_frame_filter for previous month."""
