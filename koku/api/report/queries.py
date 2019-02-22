@@ -669,7 +669,6 @@ class ReportQueryHandler(QueryHandler):
         self._accept_type = None
         self._group_by = None
         self._tag_keys = []
-
         if kwargs:
             # view parameters
             elements = ['accept_type', 'delta', 'report_type', 'tag_keys']

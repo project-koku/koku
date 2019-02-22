@@ -21,7 +21,7 @@ from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilter, QueryFilterCollection
+from api.query_filter import QueryFilterCollection
 from api.report.queries import ReportQueryHandler
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
@@ -88,12 +88,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             output['delta'] = self.query_delta
 
         return output
-
-    def _set_tag_filters(self, filters):
-        tag_filters = self.get_tag_filter_keys()
-        if not tag_filters and self.kwargs.get('provider') == 'AWS':
-            filters.add(QueryFilter(operation='tags__iexact', parameter='{}'))
-        return super()._set_tag_filters(filters)
 
     def execute_query(self):
         """Execute query and return provided data.
