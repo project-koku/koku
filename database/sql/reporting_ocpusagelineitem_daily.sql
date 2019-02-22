@@ -78,7 +78,10 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         li.pod,
         li.node,
         max(li.resource_id) as resource_id,
-        dl.pod_labels,
+        CASE WHEN dl.pod_labels IS NOT NULL
+            THEN dl.pod_labels
+            ELSE '{{}}'::jsonb
+            END as pod_labels,
         sum(li.pod_usage_cpu_core_seconds) as pod_usage_cpu_core_seconds,
         sum(li.pod_request_cpu_core_seconds) as pod_request_cpu_core_seconds,
         sum(li.pod_limit_cpu_core_seconds) as pod_limit_cpu_core_seconds,
@@ -100,7 +103,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
     JOIN ocp_cluster_capacity_{uuid} as cc
         ON rp.cluster_id = cc.cluster_id
             AND date(ur.interval_start) = cc.usage_start
-    JOIN ocp_daily_labels_{uuid} as dl
+    LEFT JOIN ocp_daily_labels_{uuid} as dl
         ON rp.cluster_id = dl.cluster_id
             AND li.namespace = dl.namespace
             AND li.pod = dl.pod
