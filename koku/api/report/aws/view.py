@@ -32,9 +32,9 @@ from api.report.view import _generic_report
 def costs(request):
     """Get cost data.
 
-    @api {get} /api/v1/reports/costs/aws/ Get cost data
-    @apiName getCostData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/aws/costs/ Get cost data
+    @apiName getAWSCostData
+    @apiGroup AWS Report
     @apiVersion 1.0.0
     @apiDescription Get cost data.
 
@@ -123,9 +123,9 @@ def costs(request):
 def instance_type(request):
     """Get inventory data.
 
-    @api {get} /api/v1/reports/inventory/aws/instance-type/ Get inventory instance type data
-    @apiName getInventoryInstanceTypeData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/aws/instance-types/ Get inventory instance type data
+    @apiName getAWSInstanceTypeData
+    @apiGroup AWS Report
     @apiVersion 1.0.0
     @apiDescription Get inventory instance type data.
 
@@ -249,9 +249,9 @@ def instance_type(request):
 def storage(request):
     """Get inventory storage data.
 
-    @api {get} /api/v1/reports/inventory/aws/storage Get inventory storage data
-    @apiName getInventoryStorageData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/aws/storage/ Get inventory storage data
+    @apiName getAWSStorageData
+    @apiGroup AWS Report
     @apiVersion 1.0.0
     @apiDescription Get inventory data.
 

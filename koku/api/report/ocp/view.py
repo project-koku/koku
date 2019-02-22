@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OCP Usage Reports."""
+"""View for OpenShift Usage Reports."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -30,13 +30,13 @@ from api.report.view import _generic_report
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def memory(request):
-    """Get OCP memory usage data.
+    """Get OpenShift memory usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/memory Get memory usage data
-    @apiName getOCPInventoryMemoryData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/memory/ Get memory usage data
+    @apiName getOpenshiftMemoryData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP memory usage data.
+    @apiDescription Get OpenShift memory usage data.
 
     @apiHeader {String} token User authorization token.
 
@@ -135,13 +135,13 @@ def memory(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def cpu(request):
-    """Get OCP cpu usage data.
+    """Get OpenShift compute usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/cpu Get cpu usage data
-    @apiName getOCPInventoryCPUData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/compute/ Get compute usage data
+    @apiName getOpenShiftInventoryCPUData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP cpu usage data.
+    @apiDescription Get OpenShift compute usage data.
 
     @apiHeader {String} token User authorization token.
 
@@ -244,13 +244,13 @@ def cpu(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def charges(request):
-    """Get OCP cpu usage data.
+    """Get OpenShift charge data.
 
-    @api {get} /api/v1/reports/charge/ocp/ Get OCP charge data
-    @apiName getOCPChargeData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/charge/ Get OpenShift charge data
+    @apiName getOpenShiftChargeData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP charge data.
+    @apiDescription Get OpenShift charge data.
 
     @apiHeader {String} token User authorization token.
 
@@ -322,13 +322,13 @@ def charges(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def volume(request):
-    """Get OCP cpu usage data.
+    """Get OpenShift volume usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/volume Get volume usage data
-    @apiName getOCPInventoryVolumeData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data
+    @apiName getOpenShiftVolumeData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP volume usage data.
+    @apiDescription Get OpenShift volume usage data.
 
     @apiHeader {String} token User authorization token.
 
