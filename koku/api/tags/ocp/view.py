@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OCP tags."""
+"""View for OpenShift tags."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -30,13 +30,13 @@ from api.report.view import _generic_report
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def ocp_tags(request):
-    """Get OCP tags.
+    """Get OpenShift tags.
 
-    @api {get} /api/v1/tags/ocp/
-    @apiName getOCPTagData
-    @apiGroup Report
+    @api {get} /cost-management/v1/tags/openshift/
+    @apiName getOpenShiftTagData
+    @apiGroup Tag
     @apiVersion 1.0.0
-    @apiDescription Get OCP tag keys.
+    @apiDescription Get OpenShift tag keys.
 
     @apiHeader {String} token User authorization token.
 

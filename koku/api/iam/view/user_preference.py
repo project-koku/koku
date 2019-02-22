@@ -70,7 +70,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a user preference.
 
-        @api {post} /api/v1/preferences/ Create a user preference
+        @api {post} /cost-management/v1/preferences/ Create a user preference
         @apiName createUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -120,7 +120,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
-        @api {get} /api/v1/preferences/ Obtain a list of user preferences
+        @api {get} /cost-management/v1/preferences/ Obtain a list of user preferences
         @apiName GetUserPreferences
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -140,10 +140,10 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                     'count': 3
                 }
                 'links': {
-                    'first': /api/v1/preferences/?page=1,
+                    'first': /cost-management/v1/preferences/?page=1,
                     'next': None,
                     'previous': None,
-                    'last': /api/v1/preferences/?page=1
+                    'last': /cost-management/v1/preferences/?page=1
                 },
                 'data': [
                                 {
@@ -175,7 +175,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 
-        @api {get} /api/v1/preferences/:pref_uuid Get a preference
+        @api {get} /cost-management/v1/preferences/:pref_uuid Get a preference
         @apiName GetUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -205,7 +205,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a user preference.
 
-        @api {delete} /api/v1/preferences/:pref_uuid Delete a preference
+        @api {delete} /cost-management/v1/preferences/:pref_uuid Delete a preference
         @apiName DeleteUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
@@ -223,7 +223,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a user preference.
 
-        @api {put} /api/v1/preferences/:pref_uuid Update a preference
+        @api {put} /cost-management/v1/preferences/:pref_uuid Update a preference
         @apiName UpdateUserPreference
         @apiGroup UserPreferences
         @apiVersion 1.0.0
