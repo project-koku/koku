@@ -19,6 +19,7 @@
 import logging
 
 from django.utils.encoding import force_text
+from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import AllowAny
@@ -59,6 +60,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = Provider.objects.all()
     permission_classes = (AllowAny,)
+    filter_backends = (filters.DjangoFilterBackend,)
+    filterset_fields = ('type', 'name')
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""

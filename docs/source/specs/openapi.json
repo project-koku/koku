@@ -120,15 +120,12 @@
                 "summary": "List the user's preferences",
                 "operationId": "listUserPreferences",
                 "parameters": [{
-                    "name": "uuid",
-                    "in": "path",
-                    "description": "ID of user to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                        "$ref": "#/components/parameters/QueryPageSize"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryPageNumber"
                     }
-                }],
+                ],
                 "responses": {
                     "200": {
                         "description": "A paginated list of preference objects",
@@ -376,6 +373,31 @@
                 ],
                 "summary": "List the providers",
                 "operationId": "listProviders",
+                "parameters": [{
+                        "name": "type",
+                        "in": "query",
+                        "description": "The type of provider to filter for.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "in": "query",
+                        "description": "The name of the provider to filter for.",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryPageSize"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryPageNumber"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "A paginated list of provider objects",
@@ -575,15 +597,12 @@
                 "summary": "List the rates",
                 "operationId": "listRates",
                 "parameters": [{
-                    "name": "rate_id",
-                    "in": "path",
-                    "description": "ID of rate to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
+                        "$ref": "#/components/parameters/QueryPageSize"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryPageNumber"
                     }
-                }],
+                ],
                 "responses": {
                     "200": {
                         "description": "A paginated list of rate objects",
@@ -1599,6 +1618,31 @@
         "url": "/r/insights/platform/cost-management/api/v1"
     }],
     "components": {
+        "parameters": {
+            "QueryPageNumber": {
+                "in": "query",
+                "name": "page",
+                "required": false,
+                "description": "Parameter for selecting the page of data.",
+                "schema": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1
+                }
+            },
+            "QueryPageSize": {
+                "in": "query",
+                "name": "page_size",
+                "required": false,
+                "description": "Parameter for selecting the amount of data in a page.",
+                "schema": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "maximum": 1000
+                }
+            }
+        },
         "securitySchemes": {
             "api_key": {
                 "type": "apiKey",
