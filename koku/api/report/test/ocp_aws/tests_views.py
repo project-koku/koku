@@ -55,7 +55,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -78,7 +78,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'filter[time_scope_value]': '-30'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -103,7 +103,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_this_month(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -127,7 +127,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_this_month_daily(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
@@ -155,7 +155,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_last_month(self):
         """Test that data is returned for the last month."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -179,7 +179,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_last_month_daily(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
@@ -207,7 +207,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_group_by_limit(self):
         """Test that OCP Mem endpoint works with limits."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'group_by[node]': '*',
@@ -244,7 +244,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
         """Test that deltas work for charge."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'delta': 'total',
@@ -323,7 +323,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .all()
             project_of_interest = projects[0].get('namespace')
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'group_by[project]': project_of_interest}
 
@@ -348,7 +348,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .all()
             cluster_of_interest = clusters[0].get('cluster_id')
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'group_by[cluster]': cluster_of_interest}
 
@@ -363,7 +363,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_group_by_pod_fails(self):
         """Test that grouping by pod filters data."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'group_by[pod]': '*'}
 
@@ -384,7 +384,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .all()
             node_of_interest = nodes[0].get('node')
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'group_by[node]': node_of_interest}
 
@@ -421,7 +421,7 @@ class OCPAWSReportViewTest(IamTestCase):
                     }
                 )
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {f'filter[tag:{filter_key}]': filter_value}
 
@@ -459,7 +459,7 @@ class OCPAWSReportViewTest(IamTestCase):
                     }
                 )
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {f'filter[tag:{filter_key}]': '*'}
 
@@ -486,7 +486,7 @@ class OCPAWSReportViewTest(IamTestCase):
             tags = labels.get('tags')
             group_by_key = list(tags.keys())[0]
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {f'group_by[tag:{group_by_key}]': '*'}
 
@@ -513,7 +513,7 @@ class OCPAWSReportViewTest(IamTestCase):
             group_by_key = list(tags.keys())[0]
             plural_key = group_by_key + 's'
 
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -538,7 +538,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_with_group_by_and_limit(self):
         """Test that data is grouped by and limited."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'group_by[node]': '*',
@@ -559,7 +559,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_storage_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        url = reverse('reports-ocp-aws-storage')
+        url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -583,7 +583,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_get_costs(self):
         """Test costs reports runs with a customer owner."""
-        url = reverse('reports-ocp-aws-costs')
+        url = reverse('reports-openshift-aws-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -595,14 +595,14 @@ class OCPAWSReportViewTest(IamTestCase):
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
         qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        url = reverse('reports-ocp-aws-costs') + '?' + qs
+        url = reverse('reports-openshift-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""
-        url = reverse('reports-ocp-aws-costs')
+        url = reverse('reports-openshift-aws-costs')
         client = APIClient(HTTP_ACCEPT='text/csv')
 
         response = client.get(url, **self.headers)
@@ -623,7 +623,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .all()
             project_of_interest = projects[0].get('namespace')
 
-        url = reverse('reports-ocp-aws-costs')
+        url = reverse('reports-openshift-aws-costs')
         client = APIClient()
         params = {'group_by[project]': project_of_interest}
 
@@ -638,7 +638,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_aws_instance_type(self):
         """Test that the instance type API runs."""
-        url = reverse('reports-ocp-aws-instance-type')
+        url = reverse('reports-openshift-aws-instance-type')
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -672,7 +672,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .all()
             project_of_interest = projects[0].get('namespace')
 
-        url = reverse('reports-ocp-aws-instance-type')
+        url = reverse('reports-openshift-aws-instance-type')
         client = APIClient()
         params = {'group_by[project]': project_of_interest}
 

@@ -1,6 +1,6 @@
 {
-  "name": "Koku",
+  "name": "Cost Management",
   "version": "1.0.0",
-  "description": "This document is intended for developers who want to use the Koku API to write applications that interact with Koku.",
-  "title": "Koku API Documentation"
+  "description": "This document is intended for developers who want to use the Cost Management API.",
+  "title": "Cost Management API Documentation"
 }

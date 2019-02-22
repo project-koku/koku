@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for OCP on AWS Usage Reports."""
+"""View for OpenShift on AWS Usage Reports."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -30,13 +30,13 @@ from api.report.view import _generic_report
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
-    """Get OCP on AWS cost usage data.
+    """Get OpenShift on AWS cost usage data.
 
-    @api {get} /api/v1/reports/costs/ocp/ Get memory usage data
-    @apiName getOCPCostData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift cost data
+    @apiName getOpenShiftCostData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP cost data.
+    @apiDescription Get OpenShift cost data.
 
     @apiHeader {String} token User authorization token.
 
@@ -58,13 +58,13 @@ def costs(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
-    """Get OCP on AWS storage usage data.
+    """Get OpenShift on AWS storage usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/storage Get memory usage data
-    @apiName getOCPAWSInventoryStorageData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/storage/ Get OpenShift on AWS storage usage.
+    @apiName getOpenShiftAWSStorageData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP on AWS storage usage data.
+    @apiDescription Get OpenShift on AWS storage usage data.
 
     @apiHeader {String} token User authorization token.
 
@@ -133,13 +133,13 @@ def storage(request):
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def instance_type(request):
-    """Get OCP on AWS storage usage data.
+    """Get OpenShift on AWS instance usage data.
 
-    @api {get} /api/v1/reports/inventory/ocp/instance-type Get inventory instance data
-    @apiName getOCPAWSInventoryInstanceData
-    @apiGroup Report
+    @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/instance-types/ Get instance data
+    @apiName getOpenShiftAWSInventoryInstanceData
+    @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OCP on AWS instance usage data.
+    @apiDescription Get OpenShift on AWS instance usage data.
 
     @apiHeader {String} token User authorization token.
 

@@ -18,15 +18,19 @@
             "description": "Operations about metered rates"
         },
         {
-            "name": "Report",
-            "description": "Operations about report interaction"
+            "name": "AWS Report",
+            "description": "Operations about AWS report interaction"
+        },
+        {
+            "name": "OpenShift Report",
+            "description": "Operations about OpenShift report interaction"
         },
         {
             "name": "Tags",
             "description": "Operations about tags interaction"
         },
         {
-            "name": "UserPreference",
+            "name": "User Preference",
             "description": "Operations about user preferences"
         },
         {
@@ -69,7 +73,7 @@
         "/preferences/": {
             "post": {
                 "tags": [
-                    "UserPreference"
+                    "User Preference"
                 ],
                 "summary": "Create a user preference",
                 "operationId": "createUserPreference",
@@ -110,12 +114,12 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "get": {
                 "tags": [
-                    "UserPreference"
+                    "User Preference"
                 ],
                 "summary": "List the user's preferences",
                 "operationId": "listUserPreferences",
@@ -152,14 +156,14 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
         "/preferences/{pref_uuid}/": {
             "get": {
                 "tags": [
-                    "UserPreference"
+                    "User Preference"
                 ],
                 "summary": "Get a user preference",
                 "operationId": "getUserPreference",
@@ -209,12 +213,12 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "delete": {
                 "tags": [
-                    "UserPreference"
+                    "User Preference"
                 ],
                 "summary": "Delete a user preference",
                 "operationId": "deleteUserPreference",
@@ -257,12 +261,12 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "put": {
                 "tags": [
-                    "UserPreference"
+                    "User Preference"
                 ],
                 "summary": "Update a user preference",
                 "operationId": "updateUserPreference",
@@ -316,7 +320,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
@@ -364,7 +368,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "get": {
@@ -424,7 +428,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "delete": {
@@ -482,7 +486,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
@@ -539,7 +543,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
@@ -587,7 +591,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "get": {
@@ -629,7 +633,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
@@ -686,7 +690,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "delete": {
@@ -734,7 +738,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             },
             "put": {
@@ -793,14 +797,14 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/costs/aws/": {
+        "/reports/aws/costs/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "AWS Report"
                 ],
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAWSCostReports",
@@ -873,17 +877,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/costs/ocp/": {
+        "/reports/openshift/costs/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
                 "summary": "Query to obtain cost reports",
-                "operationId": "getOCPCostReports",
+                "operationId": "getOpenShiftCostReports",
                 "parameters": [{
                         "name": "delta",
                         "in": "query",
@@ -953,17 +957,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/charges/ocp/": {
+        "/reports/openshift/charges/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
                 "summary": "Query to obtain charge reports",
-                "operationId": "getOCPChargeReports",
+                "operationId": "getOpenShiftChargeReports",
                 "parameters": [{
                         "name": "delta",
                         "in": "query",
@@ -1033,17 +1037,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/aws/instance-type/": {
+        "/reports/aws/instance-types/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "AWS Report"
                 ],
-                "summary": "Query to obtain inventory instance type data",
-                "operationId": "getInventoryInstanceReports",
+                "summary": "Query to obtain AWS instance type data",
+                "operationId": "getAWSInstanceReports",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1113,17 +1117,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/aws/storage/": {
+        "/reports/aws/storage/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "AWS Report"
                 ],
-                "summary": "Query to obtain inventory storage data",
-                "operationId": "getInventoryStorageReports",
+                "summary": "Query to obtain AWS storage data",
+                "operationId": "getAWSStorageReports",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1193,17 +1197,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/ocp/cpu/": {
+        "/reports/openshift/compute/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
-                "summary": "Query to obtain OCP CPU usage information",
-                "operationId": "getOCPCpuReports",
+                "summary": "Query to obtain OpenShift compute usage information",
+                "operationId": "getOpenShiftComputeReports",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1235,12 +1239,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPCpu"
+                                    "$ref": "#/components/schemas/ReportOpenShiftCpu"
                                 }
                             },
                             "text/csv": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPCpu"
+                                    "$ref": "#/components/schemas/ReportOpenShiftCpu"
                                 }
                             }
                         }
@@ -1265,17 +1269,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/ocp/memory/": {
+        "/reports/openshift/memory/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
-                "summary": "Query to obtain OCP memory usage information",
-                "operationId": "getOCPMemoryReports",
+                "summary": "Query to obtain OpenShift memory usage information",
+                "operationId": "getOpenShiftMemoryReports",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1307,12 +1311,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPmemory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftMemory"
                                 }
                             },
                             "text/csv": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPmemory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftMemory"
                                 }
                             }
                         }
@@ -1337,17 +1341,89 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/ocp/storage/": {
+        "/reports/openshift/volumes/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
-                "summary": "Query to obtain inventory storage data",
-                "operationId": "getOCPAWSInventoryStorageReport",
+                "summary": "Query to obtain OpenShift volume usage information",
+                "operationId": "getOpenShiftVolumeReports",
+                "parameters": [{
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftVolume"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftVolume"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/aws/storage/": {
+            "get": {
+                "tags": [
+                    "OpenShift Report"
+                ],
+                "summary": "Query to obtain OpenShift on AWS storage data",
+                "operationId": "getOpenShiftAWSInventoryStorageReport",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1387,12 +1463,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPAWSStorageInventory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSStorageInventory"
                                 }
                             },
                             "text/csv": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPAWSStorageInventory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSStorageInventory"
                                 }
                             }
                         }
@@ -1417,17 +1493,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/reports/inventory/ocp/instance-type/": {
+        "/reports/openshift/infrastructures/aws/instance-types/": {
             "get": {
                 "tags": [
-                    "Report"
+                    "OpenShift Report"
                 ],
-                "summary": "Query to obtain inventory instance data",
-                "operationId": "getOCPAWSInventoryInstanceReport",
+                "summary": "Query to obtain OpenShift on AWS instance data",
+                "operationId": "getOpenShiftAWSInventoryInstanceReport",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1467,12 +1543,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPAWSInstanceInventory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSInstanceInventory"
                                 }
                             },
                             "text/csv": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ReportOCPAWSInstanceInventory"
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSInstanceInventory"
                                 }
                             }
                         }
@@ -1497,7 +1573,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
@@ -1551,17 +1627,17 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         },
-        "/tags/ocp/": {
+        "/tags/openshift/": {
             "get": {
                 "tags": [
                     "Tags"
                 ],
-                "summary": "Query to obtain OCP tags",
-                "operationId": "getOCPTagData",
+                "summary": "Query to obtain OpenShift tags",
+                "operationId": "getOpenShiftTagData",
                 "parameters": [{
                         "name": "filter",
                         "in": "query",
@@ -1605,7 +1681,7 @@
                     }
                 },
                 "security": [{
-                    "api_key": []
+                    "basic_auth": []
                 }]
             }
         }
@@ -1615,7 +1691,7 @@
         "url": "https://github.com/project-koku/"
     },
     "servers": [{
-        "url": "/r/insights/platform/cost-management/api/v1"
+        "url": "/r/insights/platform/cost-management/v1"
     }],
     "components": {
         "parameters": {
@@ -1644,10 +1720,10 @@
             }
         },
         "securitySchemes": {
-            "api_key": {
-                "type": "apiKey",
-                "name": "Authorization",
-                "in": "header"
+            "basic_auth": {
+                "type": "http",
+                "description": "The userid/password is needed when accessing this API externally",
+                "scheme": "basic"
             }
         },
         "schemas": {
@@ -1684,30 +1760,61 @@
             },
             "Error": {
                 "required": [
-                    "error_key"
+                    "errors"
                 ],
                 "properties": {
-                    "error_key": {
-                        "type": "string"
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": {
+                                "detail": "Not Found.",
+                                "status": 404
+                            }
+                        }
                     }
                 }
             },
-            "ListPagination": {
+            "PaginationMeta": {
                 "properties": {
                     "count": {
                         "type": "integer",
                         "format": "int64",
                         "example": 30
+                    }
+                }
+            },
+            "PaginationLinks": {
+                "properties": {
+                    "first": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "/cost-management/v1/(resources)/?page=1"
                     },
                     "previous": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/api/v1/(resources)/?page=2"
+                        "example": "/cost-management/v1/(resources)/?page=2"
                     },
                     "next": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/api/v1/(resources)/?page=4"
+                        "example": "/cost-management/v1/(resources)/?page=4"
+                    },
+                    "last": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "/cost-management/v1/(resources)/?page=10"
+                    }
+                }
+            },
+            "ListPagination": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
                     }
                 }
             },
@@ -1981,7 +2088,7 @@
                     }
                 }
             },
-            "ReportFilterOCP": {
+            "ReportFilterOpenShift": {
                 "type": "object",
                 "properties": {
                     "limit": {
@@ -2037,7 +2144,7 @@
                     }
                 }
             },
-            "ReportOCPAWSFilter": {
+            "ReportOpenShiftAWSFilter": {
                 "type": "object",
                 "properties": {
                     "limit": {
@@ -2164,7 +2271,7 @@
                 },
                 "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
             },
-            "ReportOCPGrouping": {
+            "ReportOpenShiftGrouping": {
                 "type": "object",
                 "properties": {
                     "cluster": {
@@ -2199,7 +2306,7 @@
                 },
                 "description": "The grouping to apply to the report. No grouping by default."
             },
-            "ReportOCPAWSGrouping": {
+            "ReportOpenShiftAWSGrouping": {
                 "type": "object",
                 "properties": {
                     "account": {
@@ -2321,7 +2428,7 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
-            "ReportInventoryOCPOrdering": {
+            "ReportInventoryOpenShiftOrdering": {
                 "type": "object",
                 "properties": {
                     "cluster": {
@@ -2379,7 +2486,7 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
-            "ReportChargeOCPOrdering": {
+            "ReportChargeOpenShiftOrdering": {
                 "type": "object",
                 "properties": {
                     "cluster": {
@@ -2416,7 +2523,7 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
-            "ReportOCPAWSOrdering": {
+            "ReportOpenShiftAWSOrdering": {
                 "type": "object",
                 "properties": {
                     "total": {
@@ -2564,7 +2671,7 @@
                     }
                 }
             },
-            "ReportChargeOCP": {
+            "ReportChargeOpenShift": {
                 "required": [
                     "delta",
                     "group_by",
@@ -2576,67 +2683,13 @@
                         "$ref": "#/components/schemas/ReportDelta"
                     },
                     "group_by": {
-                        "$ref": "#/components/schemas/ReportOCPGrouping"
+                        "$ref": "#/components/schemas/ReportOpenShiftGrouping"
                     },
                     "order_by": {
-                        "$ref": "#/components/schemas/ReportChargeOCPOrdering"
+                        "$ref": "#/components/schemas/ReportChargeOpenShiftOrdering"
                     },
                     "filter": {
-                        "$ref": "#/components/schemas/ReportFilterOCP"
-                    }
-                }
-            },
-            "ReportOCPcpu": {
-                "required": [
-                    "delta",
-                    "group_by",
-                    "order_by",
-                    "filter"
-                ],
-                "properties": {
-                    "delta": {
-                        "$ref": "#/components/schemas/ReportDelta"
-                    },
-                    "group_by": {
-                        "$ref": "#/components/schemas/ReportOCPGrouping"
-                    },
-                    "order_by": {
-                        "$ref": "#/components/schemas/ReportInventoryOCPOrdering"
-                    },
-                    "filter": {
-                        "$ref": "#/components/schemas/ReportFilterOCP"
-                    },
-                    "units": {
-                        "description": "The units for the output data.",
-                        "type": "string",
-                        "example": ""
-                    }
-                }
-            },
-            "ReportOCPmemory": {
-                "required": [
-                    "delta",
-                    "group_by",
-                    "order_by",
-                    "filter"
-                ],
-                "properties": {
-                    "delta": {
-                        "$ref": "#/components/schemas/ReportDelta"
-                    },
-                    "group_by": {
-                        "$ref": "#/components/schemas/ReportOCPGrouping"
-                    },
-                    "order_by": {
-                        "$ref": "#/components/schemas/ReportInventoryOCPOrdering"
-                    },
-                    "filter": {
-                        "$ref": "#/components/schemas/ReportFilterOCP"
-                    },
-                    "units": {
-                        "description": "The units for the output data.",
-                        "type": "string",
-                        "example": ""
+                        "$ref": "#/components/schemas/ReportFilterOpenShift"
                     }
                 }
             },
@@ -2654,7 +2707,7 @@
                             "type": "object",
                             "example": [
                                 [{
-                                    "date": "2018-05-28T00:00:00.000Z",
+                                    "date": "2018-05-28",
                                     "total": {
                                         "value": 2564.775150581,
                                         "units": "USD"
@@ -2666,7 +2719,7 @@
                                     "accounts": [{
                                             "account": "8577742690384",
                                             "values": [{
-                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "date": "2018-05-28",
                                                 "units": "USD",
                                                 "account": "8577742690384",
                                                 "total": 1498.92962634,
@@ -2676,7 +2729,7 @@
                                         {
                                             "account": "9420673783214",
                                             "values": [{
-                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "date": "2018-05-28",
                                                 "units": "USD",
                                                 "account": "9420673783214",
                                                 "total": 1065.845524241
@@ -2739,11 +2792,11 @@
                             "type": "object",
                             "example": [
                                 [{
-                                    "date": "2018-05-28T00:00:00.000Z",
+                                    "date": "2018-05-28",
                                     "instance_types": [{
                                             "instance_type": "t2.medium",
                                             "values": [{
-                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "date": "2018-05-28",
                                                 "units": "Hrs",
                                                 "instance_type": "t2.medium",
                                                 "total": 5,
@@ -2753,7 +2806,7 @@
                                         {
                                             "instance_type": "m5.2xlarge",
                                             "values": [{
-                                                "date": "2018-05-28T00:00:00.000Z",
+                                                "date": "2018-05-28",
                                                 "units": "Hrs",
                                                 "instance_type": "m5.2xlarge",
                                                 "total": 29,
@@ -2834,7 +2887,7 @@
                     }
                 }
             },
-            "ReportOCPAWSStorageInventory": {
+            "ReportOpenShiftAWSStorageInventory": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
@@ -2843,13 +2896,13 @@
                 ],
                 "properties": {
                     "group_by": {
-                        "$ref": "#/components/schemas/ReportOCPAWSGrouping"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSGrouping"
                     },
                     "order_by": {
-                        "$ref": "#/components/schemas/ReportOCPAWSOrdering"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSOrdering"
                     },
                     "filter": {
-                        "$ref": "#/components/schemas/ReportOCPAWSFilter"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSFilter"
                     },
                     "data": {
                         "type": "array",
@@ -2873,7 +2926,7 @@
                     }
                 }
             },
-            "ReportOCPAWSInstanceInventory": {
+            "ReportOpenShiftAWSInstanceInventory": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
@@ -2882,13 +2935,13 @@
                 ],
                 "properties": {
                     "group_by": {
-                        "$ref": "#/components/schemas/ReportOCPAWSGrouping"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSGrouping"
                     },
                     "order_by": {
-                        "$ref": "#/components/schemas/ReportOCPAWSOrdering"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSOrdering"
                     },
                     "filter": {
-                        "$ref": "#/components/schemas/ReportOCPAWSFilter"
+                        "$ref": "#/components/schemas/ReportOpenShiftAWSFilter"
                     },
                     "data": {
                         "type": "array",
@@ -2913,7 +2966,7 @@
                     }
                 }
             },
-            "ReportOCPCpu": {
+            "ReportOpenShiftCpu": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
@@ -2927,17 +2980,17 @@
                             "type": "object",
                             "example": [
                                 [{
-                                        "date": "2018-10-01T00:00:00.000Z",
+                                        "date": "2018-10-01",
                                         "values": [{
-                                            "date": "2018-10-01T00:00:00.000Z",
+                                            "date": "2018-10-01",
                                             "cpu_usage_core_hours": 6.953766,
                                             "cpu_requests_core_hours": 43.481767
                                         }]
                                     },
                                     {
-                                        "date": "2018-10-02T00:00:00.000Z",
+                                        "date": "2018-10-02",
                                         "values": [{
-                                            "date": "2018-10-02T00:00:00.000Z",
+                                            "date": "2018-10-02",
                                             "cpu_usage_core_hours": 6.35416,
                                             "cpu_requests_core_hours": 42.684131
                                         }]
@@ -2948,7 +3001,7 @@
                     }
                 }
             },
-            "ReportOCPMemory": {
+            "ReportOpenShiftMemory": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
@@ -2962,9 +3015,9 @@
                             "type": "object",
                             "example": [
                                 [{
-                                        "date": "2018-10-01T00:00:00.000Z",
+                                        "date": "2018-10-01",
                                         "values": [{
-                                            "date": "2018-10-01T00:00:00.000Z",
+                                            "date": "2018-10-01",
                                             "memory_usage_gigabytes": 4.62038,
                                             "memory_requests_gigabytes": 6.158921
                                         }]
@@ -2972,13 +3025,40 @@
                                     {
                                         "date": "2018-10-02T00:00:00.000Z",
                                         "values": [{
-                                            "date": "2018-10-02T00:00:00.000Z",
+                                            "date": "2018-10-02",
                                             "memory_usage_gigabytes": 4.688932,
                                             "memory_requests_gigabytes": 6.272665
                                         }]
                                     }
                                 ]
                             ]
+                        }
+                    }
+                }
+            },
+            "ReportOpenShiftVolume": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "example": [{
+                                "date": "2019-02",
+                                "values": [{
+                                    "date": "2019-02",
+                                    "usage": 283.455815,
+                                    "request": 14058.333334,
+                                    "capacity": 13732.252982,
+                                    "charge": 24.25,
+                                    "units": "GB-Mo"
+                                }]
+                            }]
                         }
                     }
                 }

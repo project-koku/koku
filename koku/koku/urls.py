@@ -25,7 +25,7 @@ from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 
-API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '')
+API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', 'api')
 if API_PATH_PREFIX != '':
     if API_PATH_PREFIX.startswith('/'):
         API_PATH_PREFIX = API_PATH_PREFIX[1:]
@@ -34,9 +34,8 @@ if API_PATH_PREFIX != '':
 
 # pylint: disable=invalid-name
 urlpatterns = [
-    url(r'^{}api-auth/'.format(API_PATH_PREFIX), include('rest_framework.urls')),
-    url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('api.urls')),
-    url(r'^{}api/v1/'.format(API_PATH_PREFIX), include('rates.urls')),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('api.urls')),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('rates.urls')),
     path('', include('django_prometheus.urls')),
 ]
 

@@ -88,7 +88,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a Provider.
 
-        @api {post} /api/v1/providers/ Create a provider
+        @api {post} /cost-management/v1/providers/ Create a provider
         @apiName createProvider
         @apiGroup Provider
         @apiVersion 1.0.0
@@ -153,7 +153,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers.
 
-        @api {get} /api/v1/providers/ Obtain the list of providers
+        @api {get} /cost-management/v1/providers/ Obtain the list of providers
         @apiName GetProviders
         @apiGroup Provider
         @apiVersion 1.0.0
@@ -174,10 +174,10 @@ class ProviderViewSet(mixins.CreateModelMixin,
                     "count": 1
                 }
                 "links": {
-                    "first": "/api/v1/providers/?page=1",
+                    "first": "/cost-management/v1/providers/?page=1",
                     "next": None,
                     "previous": None,
-                    "last": "/api/v1/providers/?page=1"
+                    "last": "/cost-management/v1/providers/?page=1"
                 },
                 "data": [
                     {
@@ -234,7 +234,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a provider.
 
-        @api {get} /api/v1/providers/:uuid/ Get a provider
+        @api {get} /cost-management/v1/providers/:uuid/ Get a provider
         @apiName GetProvider
         @apiGroup Provider
         @apiVersion 1.0.0
@@ -305,7 +305,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a provider.
 
-        @api {delete} /api/v1/providers/:uuid/ Delete a provider
+        @api {delete} /cost-management/v1/providers/:uuid/ Delete a provider
         @apiName DeleteProvider
         @apiGroup Provider
         @apiVersion 1.0.0

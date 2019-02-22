@@ -32,7 +32,7 @@ from api.report.view import _generic_report
 def aws_tags(request):
     """Get AWS tags.
 
-    @api {get} /api/v1/tags/aws/
+    @api {get} /cost-management/v1/tags/aws/
     @apiName getAWSTagData
     @apiGroup Report
     @apiVersion 1.0.0
