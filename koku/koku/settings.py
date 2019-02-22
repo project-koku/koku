@@ -214,6 +214,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 INTERNAL_IPS = ['127.0.0.1']
 
 DEFAULT_PAGINATION_CLASS = 'api.common.pagination.StandardResultsSetPagination'
+DEFAULT_EXCEPTION_HANDLER = 'api.common.exception_handler.custom_exception_handler'
 
 # django rest_framework settings
 REST_FRAMEWORK = {
@@ -227,7 +228,8 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'api.common.csv.PaginatedCSVRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-    )
+    ),
+    'EXCEPTION_HANDLER': DEFAULT_EXCEPTION_HANDLER
 }
 
 LOGGING_FORMATTER = os.getenv('DJANGO_LOG_FORMATTER', 'simple')
