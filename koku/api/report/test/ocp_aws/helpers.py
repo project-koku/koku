@@ -84,7 +84,7 @@ class OCPAWSReportDataGenerator:
             OCPAWSCostLineItemDailySummary.objects.all().delete()
 
     def _get_tags(self):
-        """Create pod labels for output data."""
+        """Create tags for output data."""
         apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
                 self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
         organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
