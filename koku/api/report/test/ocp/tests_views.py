@@ -251,7 +251,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu(self):
         """Test that OCP CPU endpoint works."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -274,7 +274,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_charge_api_has_units(self):
         """Test that the charge API returns units."""
-        url = reverse('reports-ocp-charges')
+        url = reverse('reports-openshift-charges')
         client = APIClient()
         response = client.get(url, **self.headers)
         response_json = response.json()
@@ -292,7 +292,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_cpu_api_has_units(self):
         """Test that the CPU API returns units."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         response = client.get(url, **self.headers)
         response_json = response.json()
@@ -310,7 +310,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_memory_api_has_units(self):
         """Test that the charge API returns units."""
-        url = reverse('reports-ocp-memory')
+        url = reverse('reports-openshift-memory')
         client = APIClient()
         response = client.get(url, **self.headers)
         response_json = response.json()
@@ -328,7 +328,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'filter[time_scope_value]': '-30'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -353,7 +353,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_this_month(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -377,7 +377,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_this_month_daily(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
@@ -405,7 +405,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_last_month(self):
         """Test that data is returned for the last month."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -429,7 +429,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_last_month_daily(self):
         """Test that data is returned for the full month."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
@@ -457,14 +457,14 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_memory(self):
         """Test that OCP Mem endpoint works."""
-        url = reverse('reports-ocp-memory')
+        url = reverse('reports-openshift-memory')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
     def test_execute_query_ocp_memory_group_by_limit(self):
         """Test that OCP Mem endpoint works with limits."""
-        url = reverse('reports-ocp-memory')
+        url = reverse('reports-openshift-memory')
         client = APIClient()
         params = {
             'group_by[node]': '*',
@@ -500,14 +500,14 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_charge(self):
         """Test that the charge endpoint is reachable."""
-        url = reverse('reports-ocp-charges')
+        url = reverse('reports-openshift-charges')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
     def test_execute_query_ocp_charge_with_delta(self):
         """Test that deltas work for charge."""
-        url = reverse('reports-ocp-charges')
+        url = reverse('reports-openshift-charges')
         client = APIClient()
         params = {
             'delta': 'charge',
@@ -577,7 +577,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_charge_with_invalid_delta(self):
         """Test that bad deltas don't work for charge."""
-        url = reverse('reports-ocp-charges')
+        url = reverse('reports-openshift-charges')
         client = APIClient()
         params = {'delta': 'usage'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -591,7 +591,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_with_delta_charge(self):
         """Test that charge deltas work for CPU."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': 'charge'
@@ -602,7 +602,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_with_delta_usage(self):
         """Test that usage deltas work for CPU."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': 'usage'
@@ -613,7 +613,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_cpu_with_delta_request(self):
         """Test that request deltas work for CPU."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': 'request'
@@ -624,7 +624,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_memory_with_delta(self):
         """Test that deltas work for CPU."""
-        url = reverse('reports-ocp-memory')
+        url = reverse('reports-openshift-memory')
         client = APIClient()
         params = {'delta': 'request'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -634,7 +634,7 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_ocp_cpu_with_delta_usage__capacity(self):
         """Test that usage v capacity deltas work."""
         delta = 'usage__capacity'
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': delta
@@ -654,7 +654,7 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_ocp_cpu_with_delta_usage__request(self):
         """Test that usage v request deltas work."""
         delta = 'usage__request'
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': delta
@@ -674,7 +674,7 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_ocp_cpu_with_delta_request__capacity(self):
         """Test that request v capacity deltas work."""
         delta = 'request__capacity'
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'delta': delta
@@ -702,7 +702,7 @@ class OCPReportViewTest(IamTestCase):
                 .all()
             project_of_interest = projects[0].get('namespace')
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'group_by[project]': project_of_interest}
 
@@ -726,7 +726,7 @@ class OCPReportViewTest(IamTestCase):
                 .all()
             cluster_of_interest = clusters[0].get('cluster_id')
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'group_by[cluster]': cluster_of_interest}
 
@@ -741,7 +741,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_group_by_pod_fails(self):
         """Test that grouping by pod filters data."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'group_by[pod]': '*'}
 
@@ -761,7 +761,7 @@ class OCPReportViewTest(IamTestCase):
                 .all()
             node_of_interest = nodes[0].get('node')
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'group_by[node]': node_of_interest}
 
@@ -801,7 +801,7 @@ class OCPReportViewTest(IamTestCase):
                     }
                 )
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {f'filter[tag:{filter_key}]': filter_value}
 
@@ -835,7 +835,7 @@ class OCPReportViewTest(IamTestCase):
                     }
                 )
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {f'filter[tag:{filter_key}]': '*'}
 
@@ -856,7 +856,7 @@ class OCPReportViewTest(IamTestCase):
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {f'group_by[tag:{group_by_key}]': '*'}
 
@@ -876,7 +876,7 @@ class OCPReportViewTest(IamTestCase):
         data_generator.add_data_to_tenant()
         group_by_key = 'app_label'
 
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -901,7 +901,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_and_limit(self):
         """Test that data is grouped by and limited."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'group_by[node]': '*',
@@ -921,7 +921,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that data is grouped by and limited on order by."""
         order_by_options = ['charge', 'usage', 'request', 'limit']
         for option in order_by_options:
-            url = reverse('reports-ocp-cpu')
+            url = reverse('reports-openshift-cpu')
             client = APIClient()
             order_by_dict_key = 'order_by[{}]'.format(option)
             params = {
@@ -947,7 +947,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_order_by_delta_and_limit(self):
         """Test that data is grouped and limited by order by delta."""
-        url = reverse('reports-ocp-cpu')
+        url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
@@ -978,7 +978,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_volume(self):
         """Test that the volume endpoint functions."""
-        url = reverse('reports-ocp-volume')
+        url = reverse('reports-openshift-volume')
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',

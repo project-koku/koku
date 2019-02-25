@@ -44,7 +44,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a rate.
 
-        @api {post} /api/v1/rates/   Create a rate
+        @api {post} /cost-management/v1/rates/   Create a rate
         @apiName createRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -94,7 +94,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def list(self, request, *args, **kwargs):
         """Obtain the list of rates for the tenant.
 
-        @api {get} /api/v1/rates/   Obtain a list of rates
+        @api {get} /cost-management/v1/rates/   Obtain a list of rates
         @apiName getRates
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -116,10 +116,10 @@ class RateViewSet(mixins.CreateModelMixin,
                     'count': 2
                 }
                 'links': {
-                    'first': /api/v1/rates/?page=1,
+                    'first': /cost-management/v1/rates/?page=1,
                     'next': None,
                     'previous': None,
-                    'last': /api/v1/rates/?page=1
+                    'last': /cost-management/v1/rates/?page=1
                 },
                 'data': [
                                 {
@@ -153,7 +153,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def retrieve(self, request, *args, **kwargs):
         """Get a rate.
 
-        @api {get} /api/v1/rates/:uuid   Get a rate
+        @api {get} /cost-management/v1/rates/:uuid   Get a rate
         @apiName getRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -188,7 +188,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def destroy(self, request, *args, **kwargs):
         """Delete a rate.
 
-        @api {delete} /api/v1/rates/:uuid   Get a rate
+        @api {delete} /cost-management/v1/rates/:uuid   Get a rate
         @apiName deleteRate
         @apiGroup Rates
         @apiVersion 1.0.0
@@ -206,7 +206,7 @@ class RateViewSet(mixins.CreateModelMixin,
     def update(self, request, *args, **kwargs):
         """Update a rate.
 
-        @api {post} /api/v1/rates/:uuid   Update a rate
+        @api {post} /cost-management/v1/rates/:uuid   Update a rate
         @apiName updateRate
         @apiGroup Rates
         @apiVersion 1.0.0
