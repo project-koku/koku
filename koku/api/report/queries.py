@@ -238,7 +238,8 @@ class ProviderMap(object):
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
                         'limit': Sum('pod_limit_cpu_core_hours'),
-                        'capacity': Max('cluster_capacity_cpu_core_hours'),
+                        # Capacity will be set in the query handler
+                        'capacity': Value(0, output_field=DecimalField()),
                         'charge': Sum('pod_charge_cpu_core_hours'),
                         'units': Value('Core-Hours', output_field=CharField())
                     },
@@ -266,7 +267,8 @@ class ProviderMap(object):
                         'usage': Sum('pod_usage_memory_gigabyte_hours'),
                         'request': Sum('pod_request_memory_gigabyte_hours'),
                         'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                        'capacity': Max('cluster_capacity_memory_gigabyte_hours'),
+                        # Capacity will be set in the query handler
+                        'capacity': Value(0, output_field=DecimalField()),
                         'charge': Sum('pod_charge_memory_gigabyte_hours'),
                         'units': Value('GB-Hours', output_field=CharField())
                     },
@@ -296,7 +298,8 @@ class ProviderMap(object):
                     'annotations': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
                         'request': Sum('volume_request_storage_gigabyte_months'),
-                        'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
+                        # Capacity will be set in the query handler
+                        'capacity': Value(0, output_field=DecimalField()),
                         'charge': Sum('persistentvolumeclaim_charge_gb_month'),
                         'units': Value('GB-Mo', output_field=CharField()),
                     },
