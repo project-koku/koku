@@ -154,10 +154,9 @@
         },
         "prometheus-client": {
             "hashes": [
-                "sha256:e8c11ff5ca53de6c3d91e1510500611cafd1d247a937ec6c588a0a7cc3bef93c"
+                "sha256:1b38b958750f66f208bcd9ab92a633c0c994d8859c831f7abc1f46724fcee490"
             ],
-            "index": "pypi",
-            "version": "==0.5.0"
+            "version": "==0.6.0"
         },
         "psycopg2": {
             "hashes": [
