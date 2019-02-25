@@ -42,7 +42,7 @@ class OCPAWSReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 10)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -59,10 +59,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = str(self.dh.today.date())
+        expected_start_date = str(self.dh.yesterday.date())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -84,10 +82,8 @@ class OCPAWSReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 29)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = str(self.dh.today.date())
+        expected_start_date = str(self.dh.n_days_ago(self.dh.today, 30).date())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -190,7 +186,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.last_month_start.strftime('%Y-%m-%d')
-        expected_end_date = self.dh.last_month_end.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.today.strftime('%Y-%m-%d')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
@@ -642,10 +638,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = str(self.dh.today.date())
+        expected_start_date = str(self.dh.yesterday.date())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])

@@ -22,7 +22,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
 from faker import Faker
@@ -52,7 +52,7 @@ class OCPReportDataGenerator:
         self.dated_tags = True if dated_tags is None or dated_tags is True else False
 
         self.today = self.dh.today
-        self.one_month_ago = self.today - relativedelta(months=1)
+        self.one_month_ago = self.dh.n_months_ago(self.dh.today, 1)
 
         self.last_month = self.dh.last_month_start
 
@@ -156,6 +156,7 @@ class OCPReportDataGenerator:
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
 
+    @transaction.atomic
     def remove_data_from_tenant(self):
         """Remove the added data."""
         with tenant_context(self.tenant):
@@ -170,6 +171,7 @@ class OCPReportDataGenerator:
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
 
+    @transaction.atomic
     def remove_data_from_reporting_common(self):
         """Remove the public report statistics."""
         for table in (CostUsageReportManifest,

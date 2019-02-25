@@ -144,8 +144,38 @@ class DateHelper():
             (DateTime): A day n days in the past
         """
         midnight = in_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        n_days = midnight - datetime.timedelta(days=n_days)
-        return n_days
+        return midnight - datetime.timedelta(days=int(n_days))
+
+    def n_months_ago(self, in_date, n_months):
+        """Return midnight of the n months from the in_date in past.
+
+        Args:
+            in_date    (DateTime) input datetime
+            n_months   (integer) number of months in the past
+        Returns:
+            (DateTime): A day n months in the past
+        """
+        midnight = in_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # handle n_months > 12
+        d_years = int((n_months - (int(n_months) % 12)) / 12)
+        d_month = int(n_months) - (d_years * 12)
+
+        ago_year = int(in_date.year - d_years)
+        ago_month = int(in_date.month - d_month)
+
+        # wrap around the beginning of the calendar.
+        if ago_month <= 0:
+            ago_month = 12 - abs(ago_month)
+
+        # adjust the day, if in_date month has more days than the new month.
+        month_begin = datetime.datetime(year=ago_year, month=ago_month, day=1)
+        if midnight.day > self.days_in_month(month_begin):
+            ago_day = self.days_in_month(month_begin)
+        else:
+            ago_day = midnight.day
+
+        return midnight.replace(year=ago_year, month=ago_month, day=ago_day)
 
     def list_days(self, start_date, end_date):
         """Return a list of days from the start date til the end date.
