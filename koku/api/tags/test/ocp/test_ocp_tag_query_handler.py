@@ -23,7 +23,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
 
 
 class OCPTagQueryHandlerTest(IamTestCase):
@@ -210,17 +210,25 @@ class OCPTagQueryHandlerTest(IamTestCase):
         )
 
         with tenant_context(self.tenant):
-            tag_keys = OCPUsageLineItemDailySummary.objects\
+            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
 
-            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+            usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
+
+            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+            storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
+            tag_keys = usage_tag_keys + storage_tag_keys
 
         result = handler.get_tag_keys(filters=True)
-
-        self.assertNotEqual(sorted(result), sorted(tag_keys))
+        result_keys = [tag.get('key') for tag in result]
+        self.assertNotEqual(sorted(result_keys), sorted(tag_keys))
 
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
@@ -239,14 +247,22 @@ class OCPTagQueryHandlerTest(IamTestCase):
         )
 
         with tenant_context(self.tenant):
-            tag_keys = OCPUsageLineItemDailySummary.objects\
+            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
 
-            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+            usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
+
+            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+            storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
+            tag_keys = usage_tag_keys + storage_tag_keys
 
         result = handler.get_tag_keys(filters=False)
-
-        self.assertEqual(sorted(result), sorted(tag_keys))
+        result_keys = [tag.get('key') for tag in result]
+        self.assertEqual(sorted(result_keys), sorted(tag_keys))

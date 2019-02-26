@@ -401,7 +401,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that filter params with tag keys are returned."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        key_of_interest = tag_keys[0]
+        key_of_interest = tag_keys[0].get('key')
         query_params = {
             'filter': {
                 'resolution': 'monthly',
@@ -428,7 +428,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that group_by params with tag keys are returned."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        key_of_interest = tag_keys[0]
+        key_of_interest = tag_keys[0].get('key')
         query_params = {
             'group_by': {
                 key_of_interest: ['']
@@ -454,9 +454,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        filter_key = tag_keys[0]
+        filter_key = tag_keys[0].get('key')
         filter_value = 'filter'
-        group_by_key = tag_keys[1]
+        group_by_key = tag_keys[1].get('key')
         group_by_value = 'group_By'
 
         query_params = {
@@ -484,7 +484,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that exclusions are properly set."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        group_by_key = tag_keys[0]
+
+        group_by_key = tag_keys[0].get('key')
         group_by_value = 'group_By'
         query_params = {
             'group_by': {group_by_key: [group_by_value]}
@@ -508,7 +509,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that tag based group bys work."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        group_by_key = tag_keys[0]
+        group_by_key = tag_keys[0].get('key')
         group_by_value = 'group_by'
         query_params = {
             'group_by': {group_by_key: [group_by_value]}

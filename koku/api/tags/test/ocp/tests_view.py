@@ -87,7 +87,7 @@ class OCPTagsViewTest(IamTestCase):
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 
             for label in data.get('data'):
-                label_date = datetime.datetime.strptime(label.split('*')[0], '%m-%d-%Y')
+                label_date = datetime.datetime.strptime(label.get('key').split('*')[0], '%m-%d-%Y')
                 self.assertGreaterEqual(label_date.date(), start_range)
                 self.assertLessEqual(label_date.date(), end_range)
 
