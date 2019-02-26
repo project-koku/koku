@@ -157,7 +157,8 @@ class TagQueryHandler(QueryHandler):
                             new_dict = {}
                             new_dict['key'] = key
                             new_dict['values'] = [value]
-                            new_dict['type'] = source.get('type')
+                            if source.get('type'):
+                                new_dict['type'] = source.get('type')
                             merged_data.append(new_dict)
                         else:
                             if value not in key_dict.get('values'):

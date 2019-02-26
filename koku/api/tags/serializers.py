@@ -157,11 +157,6 @@ class OCPFilterSerializer(FilterSerializer):
 class AWSFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
-    TYPE_CHOICES = (
-        ('aws_tags', 'aws_tags'),
-    )
-    type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
-
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
 
