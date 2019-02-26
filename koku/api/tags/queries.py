@@ -127,15 +127,17 @@ class TagQueryHandler(QueryHandler):
 
         return tag_keys
 
+    @staticmethod
+    def _get_dictionary_for_key(dictionary_list, key):
+        """Get dictionary matching key from list of dictionaries."""
+        for di in dictionary_list:
+            if key in di.get('key'):
+                return di
+        return None
+
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
         type_filter = self.parameter_filter.get('type')
-
-        def get_dictionary_for_key(merged_data, key):
-            for di in merged_data:
-                if key in di.get('key'):
-                    return di
-            return None
 
         merged_data = []
         with tenant_context(self.tenant):
@@ -152,7 +154,7 @@ class TagQueryHandler(QueryHandler):
 
                 for item in tag_keys:
                     for key, value in item.items():
-                        key_dict = get_dictionary_for_key(merged_data, key)
+                        key_dict = TagQueryHandler._get_dictionary_for_key(merged_data, key)
                         if not key_dict:
                             new_dict = {}
                             new_dict['key'] = key
