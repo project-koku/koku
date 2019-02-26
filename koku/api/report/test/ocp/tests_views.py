@@ -778,7 +778,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that data is filtered by tag key."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys()
-        filter_key = tag_keys[0].get('key')
+        filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             labels = OCPUsageLineItemDailySummary.objects\
@@ -820,7 +820,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that data is filtered to include entries with tag key."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys()
-        filter_key = tag_keys[0].get('key')
+        filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
@@ -854,7 +854,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that data is grouped by tag key."""
         handler = OCPTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys()
-        group_by_key = tag_keys[0].get('key')
+        group_by_key = tag_keys[0]
 
         url = reverse('reports-openshift-cpu')
         client = APIClient()

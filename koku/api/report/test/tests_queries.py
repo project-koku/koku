@@ -1999,8 +1999,8 @@ class ReportQueryTest(IamTestCase):
         """Test that data is filtered by tag key."""
         handler = AWSTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        filter_key = tag_keys[0].get('key')
-        tag_keys = ['tag:' + tag.get('key') for tag in tag_keys]
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
 
         with tenant_context(self.tenant):
             labels = AWSCostEntryLineItemDailySummary.objects\
@@ -2043,8 +2043,8 @@ class ReportQueryTest(IamTestCase):
         """Test that data is filtered to include entries with tag key."""
         handler = AWSTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        filter_key = tag_keys[0].get('key')
-        tag_keys = ['tag:' + tag.get('key') for tag in tag_keys]
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
 
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects\
@@ -2080,8 +2080,8 @@ class ReportQueryTest(IamTestCase):
         """Test that data is grouped by tag key."""
         handler = AWSTagQueryHandler('', {}, self.tenant)
         tag_keys = handler.get_tag_keys(filters=False)
-        group_by_key = tag_keys[0].get('key')
-        tag_keys = ['tag:' + tag.get('key') for tag in tag_keys]
+        group_by_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
 
         with tenant_context(self.tenant):
             totals = AWSCostEntryLineItemDailySummary.objects\

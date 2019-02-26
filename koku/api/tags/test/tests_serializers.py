@@ -117,7 +117,7 @@ class AWSFilterSerializerTest(TestCase):
 
     def test_parse_filter_params_type_fail(self):
         """Test parse of a filter param with type for invalid type."""
-        types = ['bad1', 'usage', 'storage']
+        types = ['bad1', 'pod', 'storage']
         for tag_type in types:
             filter_params = {'resolution': 'daily',
                              'time_scope_value': '-10',
@@ -151,7 +151,7 @@ class OCPFilterSerializerTest(TestCase):
 
     def test_parse_filter_params_type_success(self):
         """Test parse of a filter param with type successfully."""
-        types = ['usage', 'storage']
+        types = ['pod', 'storage']
         for tag_type in types:
             filter_params = {'resolution': 'daily',
                              'time_scope_value': '-10',

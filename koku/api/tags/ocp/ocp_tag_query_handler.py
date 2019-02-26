@@ -33,7 +33,7 @@ class OCPTagQueryHandler(TagQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        data_source = [{'db_table': OCPUsageLineItemDailySummary, 'db_column': 'pod_labels', 'type': 'usage'},
+        data_source = [{'db_table': OCPUsageLineItemDailySummary, 'db_column': 'pod_labels', 'type': 'pod'},
                        {'db_table': OCPStorageLineItemDailySummary, 'db_column': 'volume_labels', 'type': 'storage'}]
         super().__init__(query_parameters, url_data,
                          tenant, data_source, **kwargs)

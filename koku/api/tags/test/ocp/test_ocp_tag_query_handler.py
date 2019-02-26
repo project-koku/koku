@@ -227,8 +227,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = usage_tag_keys + storage_tag_keys
 
         result = handler.get_tag_keys(filters=True)
-        result_keys = [tag.get('key') for tag in result]
-        self.assertNotEqual(sorted(result_keys), sorted(tag_keys))
+        self.assertNotEqual(sorted(result), sorted(tag_keys))
 
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
@@ -264,20 +263,19 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = usage_tag_keys + storage_tag_keys
 
         result = handler.get_tag_keys(filters=False)
-        result_keys = [tag.get('key') for tag in result]
-        self.assertEqual(sorted(result_keys), sorted(tag_keys))
+        self.assertEqual(sorted(result), sorted(tag_keys))
 
-    def test_get_tag_type_filter_usage(self):
-        """Test that all usage tags are returned with usage type filter."""
+    def test_get_tag_type_filter_pod(self):
+        """Test that all usage tags are returned with pod type filter."""
         query_params = {'filter': {'resolution': 'monthly',
                                    'time_scope_value': -2,
                                    'time_scope_units': 'month',
-                                   'type': 'usage'},
+                                   'type': 'pod'},
                         }
         query_string = '?filter[resolution]=monthly&' + \
                        'filter[time_scope_value]=-2&' + \
                        'filter[time_scope_units]=month&' + \
-                       'filter[type]=usage&'
+                       'filter[type]=pod&'
         handler = OCPTagQueryHandler(
             query_params,
             query_string,
@@ -296,8 +294,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = usage_tag_keys
 
         result = handler.get_tag_keys(filters=False)
-        result_keys = [tag.get('key') for tag in result]
-        self.assertEqual(sorted(result_keys), sorted(tag_keys))
+        self.assertEqual(sorted(result), sorted(tag_keys))
 
     def test_get_tag_type_filter_storage(self):
         """Test that all storage tags are returned with storage type filter."""
@@ -327,5 +324,4 @@ class OCPTagQueryHandlerTest(IamTestCase):
             tag_keys = storage_tag_keys
 
         result = handler.get_tag_keys(filters=False)
-        result_keys = [tag.get('key') for tag in result]
-        self.assertEqual(sorted(result_keys), sorted(tag_keys))
+        self.assertEqual(sorted(result), sorted(tag_keys))

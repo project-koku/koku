@@ -123,10 +123,7 @@ class TagQueryHandler(QueryHandler):
                     .all()
                 tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
-                    new_dict = {}
-                    new_dict['key'] = tag_key
-                    new_dict['type'] = source.get('type')
-                    tag_keys.append(new_dict)
+                    tag_keys.append(tag_key)
 
         return tag_keys
 
@@ -177,9 +174,11 @@ class TagQueryHandler(QueryHandler):
         """
         if self.query_parameters.get('key_only'):
             tag_data = self.get_tag_keys()
+            query_data = sorted(tag_data, reverse=self.order_direction == 'desc')
         else:
             tag_data = self.get_tags()
+            query_data = sorted(tag_data, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
 
-        self.query_data = sorted(tag_data, key=lambda k: k['key'],
-                                 reverse=self.order_direction == 'desc')
+        self.query_data = query_data
+
         return self._format_query_response()

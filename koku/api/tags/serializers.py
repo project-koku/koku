@@ -145,7 +145,7 @@ class OCPFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
     TYPE_CHOICES = (
-        ('usage', 'usage'),
+        ('pod', 'pod'),
         ('storage', 'storage')
     )
     type = serializers.ChoiceField(choices=TYPE_CHOICES, required=False)
