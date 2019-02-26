@@ -282,6 +282,19 @@ class OCPUsageLineItemDaily(models.Model):
         null=True
     )
 
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    total_capacity_memory_byte_seconds = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
     total_seconds = models.IntegerField()
 
     pod_labels = JSONField(null=True)
@@ -422,6 +435,19 @@ class OCPUsageLineItemDailySummary(models.Model):
     )
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    # Total capacity represents the sum of all of the customers clusters
+    total_capacity_cpu_core_hours = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    total_capacity_memory_gigabyte_hours = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
