@@ -22,6 +22,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
 
+from api import API_VERSION
+
 PATH_INFO = 'PATH_INFO'
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -37,16 +39,17 @@ class StandardResultsSetPagination(PageNumberPagination):
     def link_rewrite(request, link):
         """Rewrite the link based on the path header to only provide partial url."""
         url = link
+        version = 'v{}/'.format(API_VERSION)
         if PATH_INFO in request.META:
             try:
-                local_api_index = link.index('api/')
+                local_api_index = link.index(version)
                 path = request.META.get(PATH_INFO)
-                path_api_index = path.index('api/')
+                path_api_index = path.index(version)
                 path_link = '{}{}'
                 url = path_link.format(path[:path_api_index],
                                        link[local_api_index:])
             except ValueError:
-                logger.warning('Unable to rewrite link as "api" was not found.')
+                logger.warning('Unable to rewrite link as "{}" was not found.'.format(version))
         return url
 
     def get_first_link(self):
