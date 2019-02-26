@@ -2025,7 +2025,7 @@ class ReportQueryTest(IamTestCase):
             }
         }
         query_string = f'?filter[tag:{filter_key}]={filter_value}'
-        import pdb; pdb.set_trace()
+
         handler = AWSReportQueryHandler(
             query_params,
             query_string,

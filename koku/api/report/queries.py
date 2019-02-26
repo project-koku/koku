@@ -706,7 +706,7 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = []
         filters = self.query_parameters.get('filter', {})
         for filt in filters:
-            if filt in [tag.get('key') for tag in self._tag_keys]:
+            if filt in self._tag_keys:
                 tag_filters.append(filt)
         return tag_filters
 
@@ -715,7 +715,7 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = []
         filters = self.query_parameters.get('group_by', {})
         for filt in filters:
-            if filt in [tag.get('key') for tag in self._tag_keys]:
+            if filt in self._tag_keys:
                 tag_groups.append(filt)
         return tag_groups
 

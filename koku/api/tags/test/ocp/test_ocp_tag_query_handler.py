@@ -23,7 +23,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
+from reporting.models import OCPStorageLineItemDailySummary, OCPUsageLineItemDailySummary
 
 
 class OCPTagQueryHandlerTest(IamTestCase):

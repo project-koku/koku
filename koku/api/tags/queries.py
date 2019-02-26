@@ -59,7 +59,7 @@ class TagQueryHandler(QueryHandler):
         self.query_filter = self._get_filter()
         self.data_sources = data_sources
         self.parameter_filter = {}
-        if type(query_parameters) is dict:
+        if query_parameters:
             self.parameter_filter = query_parameters.get('filter', {})
 
     def _format_query_response(self):
