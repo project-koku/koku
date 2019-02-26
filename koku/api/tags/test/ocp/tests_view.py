@@ -71,7 +71,7 @@ class OCPTagsViewTest(IamTestCase):
                       {'value': '-30', 'unit': 'day', 'resolution': 'daily'}]
 
         for case in test_cases:
-            url = reverse('ocp-tags')
+            url = reverse('openshift-tags')
             client = APIClient()
             params = {
                 'filter[resolution]': case.get('resolution'),
@@ -102,7 +102,7 @@ class OCPTagsViewTest(IamTestCase):
                       {'value': '-30', 'unit': 'day', 'resolution': 'daily'}]
 
         for case in test_cases:
-            url = reverse('ocp-tags')
+            url = reverse('openshift-tags')
             client = APIClient()
             params = {
                 'filter[resolution]': case.get('resolution'),
