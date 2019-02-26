@@ -266,3 +266,66 @@ class OCPTagQueryHandlerTest(IamTestCase):
         result = handler.get_tag_keys(filters=False)
         result_keys = [tag.get('key') for tag in result]
         self.assertEqual(sorted(result_keys), sorted(tag_keys))
+
+    def test_get_tag_type_filter_usage(self):
+        """Test that all usage tags are returned with usage type filter."""
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -2,
+                                   'time_scope_units': 'month',
+                                   'type': 'usage'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-2&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'filter[type]=usage&'
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        with tenant_context(self.tenant):
+            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+
+            usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
+            tag_keys = usage_tag_keys
+
+        result = handler.get_tag_keys(filters=False)
+        result_keys = [tag.get('key') for tag in result]
+        self.assertEqual(sorted(result_keys), sorted(tag_keys))
+
+    def test_get_tag_type_filter_storage(self):
+        """Test that all storage tags are returned with storage type filter."""
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -2,
+                                   'time_scope_units': 'month',
+                                   'type': 'storage'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-2&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'filter[type]=storage&'
+        handler = OCPTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{}
+        )
+
+        with tenant_context(self.tenant):
+            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
+                .values('tag_keys')\
+                .annotate(tag_count=Count('tag_keys'))\
+                .all()
+            storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
+            tag_keys = storage_tag_keys
+
+        result = handler.get_tag_keys(filters=False)
+        result_keys = [tag.get('key') for tag in result]
+        self.assertEqual(sorted(result_keys), sorted(tag_keys))
