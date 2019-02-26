@@ -373,9 +373,9 @@ class OCPReportDataGenerator:
                 F('cluster_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
             ) * math.pow(2, -30),
-            'total_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
+            'total_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600 * 2,
             'total_capacity_memory_gigabyte_hours': ExpressionWrapper(
-                F('cluster_capacity_memory_byte_seconds') / 3600,
+                F('cluster_capacity_memory_byte_seconds') / 3600 * 2,
                 output_field=DecimalField()
             ) * math.pow(2, -30),
         }
