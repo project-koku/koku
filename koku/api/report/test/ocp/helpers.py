@@ -314,6 +314,8 @@ class OCPReportDataGenerator:
             entry['total_seconds'] = 3600
             entry['cluster_capacity_cpu_core_seconds'] = cluster_capacity_cpu_core_seconds
             entry['cluster_capacity_memory_byte_seconds'] = cluster_capacity_memory_byte_seconds
+            entry['total_capacity_cpu_core_seconds'] = cluster_capacity_cpu_core_seconds
+            entry['total_capacity_memory_byte_seconds'] = cluster_capacity_memory_byte_seconds
             daily = OCPUsageLineItemDaily(**entry)
             daily.save()
 
@@ -368,6 +370,11 @@ class OCPReportDataGenerator:
             ) * math.pow(2, -30),
             'cluster_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
             'cluster_capacity_memory_gigabyte_hours': ExpressionWrapper(
+                F('cluster_capacity_memory_byte_seconds') / 3600,
+                output_field=DecimalField()
+            ) * math.pow(2, -30),
+            'total_capacity_cpu_core_hours': F('cluster_capacity_cpu_core_seconds') / 3600,
+            'total_capacity_memory_gigabyte_hours': ExpressionWrapper(
                 F('cluster_capacity_memory_byte_seconds') / 3600,
                 output_field=DecimalField()
             ) * math.pow(2, -30),
