@@ -61,6 +61,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations[q_param] = Concat(db_field, Value(''))
         return annotations
 
+    @property
+    def report_annotations(self):
+        """Return annotations with the correct capacity field."""
+        group_by_value = self._get_group_by()
+        annotations = copy.deepcopy(self._mapper.report_type_map.get('annotations'))
+        if 'capacity' not in annotations:
+            return annotations
+        if 'cluster' in group_by_value or 'cluster' in self.query_filter:
+            cluster_capacity = annotations['capacity'].get('cluster')
+            if cluster_capacity:
+                annotations['capacity'] = cluster_capacity
+        else:
+            annotations['capacity'] = annotations['capacity'].get('total')
+        return annotations
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -99,8 +114,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ['-date']
             query_order_by.extend([self.order])
 
-            annotations = self._mapper.report_type_map.get('annotations')
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if 'cluster' in query_group_by or 'cluster' in self.query_filter:
                 query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
@@ -148,7 +162,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         query_sum.update({'units': self._mapper.units_key})
 
         ordered_total = {total_key: query_sum[total_key]
-                         for total_key in annotations.keys() if total_key in query_sum}
+                         for total_key in self.report_annotations.keys() if total_key in query_sum}
         ordered_total.update(query_sum)
 
         self.query_sum = ordered_total
@@ -196,8 +210,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         cap_key = list(annotations.keys())[0]
         total_capacity = Decimal(0)
         capacity_by_cluster = defaultdict(Decimal)
-        daily_capacity = defaultdict(Decimal)
-        daily_capacity_by_cluster = defaultdict(dict)
 
         q_table = self._mapper.query_table
         query = q_table.objects.filter(self.query_filter)
@@ -207,13 +219,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 cluster_id = entry.get('cluster_id', '')
-                date = self.date_to_string(entry.get('usage_start'))
                 capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
-                if cluster_id in daily_capacity_by_cluster[date]:
-                    daily_capacity_by_cluster[date][cluster_id] += entry.get(cap_key, 0)
-                else:
-                    daily_capacity_by_cluster[date][cluster_id] = entry.get(cap_key, 0)
-                daily_capacity[date] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
 
         if self.resolution == 'monthly':
@@ -223,16 +229,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
                 else:
                     row[cap_key] = total_capacity
-        elif self.resolution == 'daily':
-            for row in query_data:
-                date = row.get('date')
-                cluster_id = row.get('cluster')
-                if cluster_id:
-                    row[cap_key] = daily_capacity_by_cluster\
-                        .get(date, {})\
-                        .get(cluster_id, Decimal(0))
-                else:
-                    row[cap_key] = daily_capacity.get(date, Decimal(0))
 
         return query_data, {cap_key: total_capacity}
 
