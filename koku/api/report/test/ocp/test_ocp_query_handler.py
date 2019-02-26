@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-import copy
 from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
@@ -130,7 +129,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(query_data[0].get('capacity'),
                          total_capacity.get('capacity'))
 
-    def test_get_cluster_capacity_monthly_resolution_multiple_clusters(self):
+    def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
         # Add data for a second cluster
         OCPReportDataGenerator(self.tenant).add_data_to_tenant()
@@ -181,11 +180,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
                          total_capacity)
 
     def test_get_cluster_capacity_daily_resolution(self):
-        """Test that cluster capacity is unaltered for daily resolution."""
+        """Test that total capacity is returned daily resolution."""
         query_params = {
             'filter': {
                 'resolution': 'daily',
-                'time_scope_value': -2,
+                'time_scope_value': -1,
                 'time_scope_units': 'month'
             }
         }
@@ -195,18 +194,42 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant,
             **{'report_type': 'cpu'}
         )
-        query_data = [{'capacity': -1}]
-        expected = copy.deepcopy(query_data)
-        query_data, total_capacity = handler.get_cluster_capacity(query_data)
-        self.assertTrue('capacity' in total_capacity)
-        self.assertTrue(isinstance(total_capacity['capacity'], Decimal))
-        self.assertEqual(query_data, expected)
+
+        query_data = handler.execute_query()
+
+        daily_capacity = defaultdict(Decimal)
+        total_capacity = Decimal(0)
+        query_filter = handler.query_filter
+        query_group_by = ['usage_start']
+        annotations = {'capacity': Max('total_capacity_cpu_core_hours')}
+        cap_key = list(annotations.keys())[0]
+
+        q_table = handler._mapper.provider_map.get('tables').get('query')
+        query = q_table.objects.filter(query_filter)
+
+        with tenant_context(self.tenant):
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                date = handler.date_to_string(entry.get('usage_start'))
+                daily_capacity[date] += entry.get(cap_key, 0)
+            # This is a hack because the total capacity in the test data
+            # is artificial but the total should still be a sum of
+            # cluster capacities
+            annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
+            cap_data = query.values(*query_group_by).annotate(**annotations)
+            for entry in cap_data:
+                total_capacity += entry.get(cap_key, 0)
+
+        self.assertEqual(query_data.get('total', {}).get('capacity'), total_capacity)
+        for entry in query_data.get('data', []):
+            date = entry.get('date')
+            values = entry.get('values')
+            if values:
+                capacity = values[0].get('capacity')
+                self.assertEqual(capacity, daily_capacity[date])
 
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
         """Test that cluster capacity returns daily capacity by cluster."""
-        # Add data for a second cluster
-        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
-
         query_params = {'filter': {'resolution': 'daily',
                                    'time_scope_value': -1,
                                    'time_scope_units': 'month'},
@@ -233,7 +256,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
         cap_key = list(annotations.keys())[0]
 
-        q_table = handler._mapper.provider_map.get('tables').get('query')
+        q_table = handler._mapper.query_table
         query = q_table.objects.filter(query_filter)
 
         with tenant_context(self.tenant):
@@ -253,55 +276,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 cluster_name = cluster.get('cluster', '')
                 capacity = cluster.get('values')[0].get('capacity')
                 self.assertEqual(capacity, daily_capacity_by_cluster[date][cluster_name])
-
-        self.assertEqual(query_data.get('total', {}).get('capacity'),
-                         total_capacity)
-
-    def test_get_cluster_capacity_daily_resolution_multiple_clusters(self):
-        """Test that cluster capacity returns daily capacity with multiple clusters."""
-        # Add data for a second cluster
-        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
-
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'}
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month&'
-
-        handler = OCPReportQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{'report_type': 'cpu'}
-        )
-
-        query_data = handler.execute_query()
-
-        daily_capacity = defaultdict(Decimal)
-        total_capacity = Decimal(0)
-        query_filter = handler.query_filter
-        query_group_by = ['usage_start', 'cluster_id']
-        annotations = {'capacity': Max('cluster_capacity_cpu_core_hours')}
-        cap_key = list(annotations.keys())[0]
-
-        q_table = handler._mapper.provider_map.get('tables').get('query')
-        query = q_table.objects.filter(query_filter)
-
-        with tenant_context(self.tenant):
-            cap_data = query.values(*query_group_by).annotate(**annotations)
-            for entry in cap_data:
-                date = handler.date_to_string(entry.get('usage_start'))
-                daily_capacity[date] += entry.get(cap_key, 0)
-                total_capacity += entry.get(cap_key, 0)
-
-        for entry in query_data.get('data', []):
-            date = entry.get('date')
-            values = entry.get('values')
-            if values:
-                capacity = values[0].get('capacity')
-                self.assertEqual(capacity, daily_capacity[date])
 
         self.assertEqual(query_data.get('total', {}).get('capacity'),
                          total_capacity)
@@ -362,7 +336,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper.report_type_map.get('annotations')
+            annotations = handler.report_annotations
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             aggregates = handler._mapper.report_type_map.get('aggregates')
@@ -416,7 +390,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper.report_type_map.get('annotations')
+            annotations = annotations = handler.report_annotations
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             aggregates = handler._mapper.report_type_map.get('aggregates')
@@ -459,7 +433,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             query_order_by = ('-date', )
             query_order_by += (handler.order,)
 
-            annotations = handler._mapper.report_type_map.get('annotations')
+            annotations = annotations = handler.report_annotations
             query_data = query_data.values(*query_group_by).annotate(**annotations)
 
             aggregates = handler._mapper.report_type_map.get('aggregates')
