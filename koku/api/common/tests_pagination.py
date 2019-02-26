@@ -28,21 +28,21 @@ class PaginationTest(TestCase):
     def test_link_rewrite(self):
         """Test the link rewrite."""
         request = Mock()
-        request.META = {PATH_INFO: '/api/v1/providers/'}
-        link = 'http://localhost:8000/api/v1/providers/?page=2'
-        expected = '/api/v1/providers/?page=2'
+        request.META = {PATH_INFO: '/v1/providers/'}
+        link = 'http://localhost:8000/v1/providers/?page=2'
+        expected = '/v1/providers/?page=2'
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(expected, result)
 
     def test_link_rewrite_err(self):
         """Test the link rewrite."""
         request = Mock()
-        request.META = {PATH_INFO: 'https://api.koku.com/v1/providers/'}
-        link = 'http://localhost:8000/api/v1/providers/?page=2'
+        request.META = {PATH_INFO: 'https://localhost:8000/providers/'}
+        link = 'http://localhost:8000/providers/?page=2'
         result = StandardResultsSetPagination.link_rewrite(request, link)
         self.assertEqual(link, result)
 
-    def test_link_now_rewrite(self):
+    def test_link_no_rewrite(self):
         """Test the no link rewrite."""
         request = Mock()
         request.META = {}
