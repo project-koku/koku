@@ -293,7 +293,7 @@ class ProviderMap(object):
                     'delta_key': {
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
-                        'charge': Sum('pod_charge_cpu_core_hours')
+                        'cost': Sum('pod_charge_cpu_core_hours')
                     },
                     'filter': {},
                     'cost_units_key': 'USD',
@@ -331,7 +331,7 @@ class ProviderMap(object):
                     'delta_key': {
                         'usage': Sum('pod_usage_memory_gigabyte_hours'),
                         'request': Sum('pod_request_memory_gigabyte_hours'),
-                        'charge': Sum('pod_charge_memory_gigabyte_hours')
+                        'cost': Sum('pod_charge_memory_gigabyte_hours')
                     },
                     'filter': {},
                     'cost_units_key': 'USD',
@@ -371,7 +371,7 @@ class ProviderMap(object):
                     'delta_key': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
                         'request': Sum('volume_request_storage_gigabyte_hours'),
-                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                        'cost': Sum('persistentvolumeclaim_charge_gb_month')
                     },
                     'filter': {},
                     'cost_units_key': 'USD',
@@ -1352,9 +1352,15 @@ class ReportQueryHandler(QueryHandler):
             row['delta_percent'] = self._percent_delta(current_total, previous_total)
         # Calculate the delta on the total aggregate
         if self._delta in query_sum:
-            current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+            if isinstance(query_sum.get(self._delta), dict):
+                current_total_sum = Decimal(query_sum.get(self._delta, {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get(self._delta) or 0)
         else:
-            current_total_sum = Decimal(query_sum.get('cost', {}).get('value') or 0)
+            if isinstance(query_sum.get('cost'), dict):
+                current_total_sum = Decimal(query_sum.get('cost', {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get('cost') or 0)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
         if self.resolution == 'daily':
@@ -1365,7 +1371,7 @@ class ReportQueryHandler(QueryHandler):
                     .filter(prev_total_filters)\
                     .aggregate(value=delta_field)
 
-        prev_total_sum = Decimal(prev_total_sum.get('cost', {}).get('value') or 0)
+        prev_total_sum = Decimal(prev_total_sum.get('value') or 0)
 
         total_delta = current_total_sum - prev_total_sum
         total_delta_percent = self._percent_delta(current_total_sum,
