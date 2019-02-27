@@ -20,7 +20,9 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.node_capacity_memory_bytes * POWER(2, -30) as node_capacity_memory_gigabytes,
         li.node_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as node_capacity_memory_gigabyte_hours,
         li.cluster_capacity_cpu_core_seconds / 3600 as cluster_capacity_cpu_core_hours,
-        li.cluster_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours
+        li.cluster_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
+        li.total_capacity_cpu_core_seconds / 3600 as total_capacity_cpu_core_hours,
+        li.total_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours
     FROM reporting_ocpusagelineitem_daily AS li
     WHERE usage_start >= '{start_date}'
         AND usage_start <= '{end_date}'
@@ -55,7 +57,9 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
     node_capacity_memory_gigabytes,
     node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours
+    cluster_capacity_memory_gigabyte_hours,
+    total_capacity_cpu_core_hours,
+    total_capacity_memory_gigabyte_hours
 )
     SELECT cluster_id,
         cluster_alias,
@@ -77,6 +81,8 @@ INSERT INTO reporting_ocpusagelineitem_daily_summary (
         node_capacity_memory_gigabytes,
         node_capacity_memory_gigabyte_hours,
         cluster_capacity_cpu_core_hours,
-        cluster_capacity_memory_gigabyte_hours
+        cluster_capacity_memory_gigabyte_hours,
+        total_capacity_cpu_core_hours,
+         total_capacity_memory_gigabyte_hours
     FROM reporting_ocpusagelineitem_daily_summary_{uuid}
 ;
