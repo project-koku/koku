@@ -281,14 +281,14 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        self.assertTrue('units' in total)
-        self.assertEqual(total.get('units'), 'USD')
+        self.assertTrue('cost' in total)
+        self.assertEqual(total.get('cost', {}).get('units'), 'USD')
 
         for item in data:
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('units' in values)
-                self.assertEqual(values.get('units'), 'USD')
+                self.assertTrue('cost' in values)
+                self.assertEqual(values.get('cost', {}).get('units'), 'USD')
 
     def test_cpu_api_has_units(self):
         """Test that the CPU API returns units."""
@@ -299,14 +299,14 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        self.assertTrue('units' in total)
-        self.assertEqual(total.get('units'), 'Core-Hours')
+        self.assertTrue('usage' in total)
+        self.assertEqual(total.get('usage', {}).get('units'), 'Core-Hours')
 
         for item in data:
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('units' in values)
-                self.assertEqual(values.get('units'), 'Core-Hours')
+                self.assertTrue('usage' in values)
+                self.assertEqual(values.get('usage', {}).get('units'), 'Core-Hours')
 
     def test_memory_api_has_units(self):
         """Test that the charge API returns units."""
@@ -317,14 +317,14 @@ class OCPReportViewTest(IamTestCase):
 
         total = response_json.get('total', {})
         data = response_json.get('data', {})
-        self.assertTrue('units' in total)
-        self.assertEqual(total.get('units'), 'GB-Hours')
+        self.assertTrue('usage' in total)
+        self.assertEqual(total.get('usage', {}).get('units'), 'GB-Hours')
 
         for item in data:
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('units' in values)
-                self.assertEqual(values.get('units'), 'GB-Hours')
+                self.assertTrue('usage' in values)
+                self.assertEqual(values.get('usage', {}).get('units'), 'GB-Hours')
 
     def test_execute_query_ocp_cpu_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -478,9 +478,9 @@ class OCPReportViewTest(IamTestCase):
             totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['usage_start'])\
-                .annotate(total=Sum('pod_usage_memory_gigabyte_hours'))
+                .annotate(usage=Sum('pod_usage_memory_gigabyte_hours'))
 
-        totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('total')
+        totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('usage')
                   for total in totals}
 
         self.assertIn('nodes', data.get('data')[0])
@@ -493,8 +493,8 @@ class OCPReportViewTest(IamTestCase):
                 projects = item.get('nodes')
                 self.assertEqual(len(projects), 2)
                 self.assertEqual(projects[1].get('node'), '1 Other')
-                usage_total = projects[0].get('values')[0].get('usage') + \
-                    projects[1].get('values')[0].get('usage')
+                usage_total = projects[0].get('values')[0].get('usage', {}).get('value') + \
+                    projects[1].get('values')[0].get('usage', {}).get('value')
                 self.assertEqual(round(usage_total, 3),
                                  round(float(totals.get(date)), 3))
 
@@ -510,7 +510,7 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-openshift-charges')
         client = APIClient()
         params = {
-            'delta': 'charge',
+            'delta': 'cost',
             'filter[resolution]': 'daily',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'
@@ -594,7 +594,7 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
-            'delta': 'charge'
+            'delta': 'cost'
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -647,8 +647,9 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /  # noqa: W504
-                             values.get(delta_two) * 100) if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one, {}).get('value') /  # noqa: W504
+                             values.get(delta_two, {}).get('value') * 100) \
+                                 if values.get(delta_two, {}).get('value') else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
     def test_execute_query_ocp_cpu_with_delta_usage__request(self):
@@ -667,8 +668,9 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /  # noqa: W504
-                             values.get(delta_two) * 100) if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one, {}).get('value') /  # noqa: W504
+                             values.get(delta_two, {}).get('value') * 100) \
+                                 if values.get(delta_two, {}).get('value') else 0
             self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
 
     def test_execute_query_ocp_cpu_with_delta_request__capacity(self):
@@ -687,8 +689,8 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
-            delta_percent = (values.get(delta_one) /  # noqa: W504
-                             values.get(delta_two) * 100) if values.get(delta_two) else 0
+            delta_percent = (values.get(delta_one, {}).get('value') /  # noqa: W504
+                             values.get(delta_two, {}).get('value') * 100) if values.get(delta_two) else 0
             self.assertAlmostEqual(values.get('delta_percent'), delta_percent)
 
     def test_execute_query_group_by_project(self):
@@ -797,7 +799,7 @@ class OCPReportViewTest(IamTestCase):
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
                         'limit': Sum('pod_limit_cpu_core_hours'),
-                        'charge': Sum('pod_charge_cpu_core_hours')
+                        'cost': Sum('pod_charge_cpu_core_hours')
                     }
                 )
 
@@ -813,7 +815,7 @@ class OCPReportViewTest(IamTestCase):
         data_totals = data.get('total')
         for key in totals:
             expected = round(float(totals[key]), 6)
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
     def test_execute_query_with_wildcard_tag_filter(self):
@@ -831,7 +833,7 @@ class OCPReportViewTest(IamTestCase):
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
                         'limit': Sum('pod_limit_cpu_core_hours'),
-                        'charge': Sum('pod_charge_cpu_core_hours')
+                        'derived_cost': Sum('pod_charge_cpu_core_hours')
                     }
                 )
 
@@ -847,7 +849,7 @@ class OCPReportViewTest(IamTestCase):
         data_totals = data.get('total')
         for key in totals:
             expected = round(float(totals[key]), 6)
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
     def test_execute_query_with_tag_group_by(self):
@@ -892,9 +894,9 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         data = data.get('data', [])
         # default ordered by usage
-        previous_tag_usage = data[0].get('app_labels', [])[0].get('values', [{}])[0].get('usage', 0)
+        previous_tag_usage = data[0].get('app_labels', [])[0].get('values', [{}])[0].get('usage', {}).get('value', 0)
         for entry in data[0].get('app_labels', []):
-            current_tag_usage = entry.get('values', [{}])[0].get('usage', 0)
+            current_tag_usage = entry.get('values', [{}])[0].get('usage', {}).get('value', 0)
             if 'Other' not in entry.get('app_label'):
                 self.assertTrue(current_tag_usage <= previous_tag_usage)
                 previous_tag_usage = current_tag_usage
@@ -919,7 +921,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        order_by_options = ['charge', 'usage', 'request', 'limit']
+        order_by_options = ['cost', 'usage', 'request', 'limit']
         for option in order_by_options:
             url = reverse('reports-openshift-cpu')
             client = APIClient()
@@ -939,9 +941,9 @@ class OCPReportViewTest(IamTestCase):
 
             data = response.json()
             data = data.get('data', [])
-            previous_value = data[0].get('nodes', [])[0].get('values', [])[0].get(option)
+            previous_value = data[0].get('nodes', [])[0].get('values', [])[0].get(option, {}).get('value')
             for entry in data[0].get('nodes', []):
-                current_value = entry.get('values', [])[0].get(option)
+                current_value = entry.get('values', [])[0].get(option, {}).get('value')
                 self.assertTrue(current_value <= previous_value)
                 previous_value = current_value
 
@@ -965,13 +967,13 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         data = data.get('data', [])
         previous_usage = (
-            data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
-            data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
+            data[0].get('nodes', [])[0].get('values', [])[0].get('usage', {}).get('value') /  # noqa: W504
+            data[0].get('nodes', [])[0].get('values', [])[0].get('capacity', {}).get('value')
         )
         for entry in data[0].get('nodes', []):
             current_usage = (
-                data[0].get('nodes', [])[0].get('values', [])[0].get('usage') /  # noqa: W504
-                data[0].get('nodes', [])[0].get('values', [])[0].get('capacity')
+                data[0].get('nodes', [])[0].get('values', [])[0].get('usage', {}).get('value') /  # noqa: W504
+                data[0].get('nodes', [])[0].get('values', [])[0].get('capacity', {}).get('value')
         )
             self.assertTrue(current_usage >= previous_usage)
             previous_usage = current_usage
@@ -993,6 +995,5 @@ class OCPReportViewTest(IamTestCase):
         values = data.get('data')[0].get('values')[0]
         self.assertTrue('usage' in values)
         self.assertTrue('request' in values)
-        self.assertTrue('charge' in values)
-        self.assertTrue('units' in values)
-        self.assertEqual(values.get('units'), 'GB-Mo')
+        self.assertTrue('cost' in values)
+        self.assertEqual(values.get('usage', {}).get('units'), 'GB-Mo')
