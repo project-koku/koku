@@ -432,6 +432,7 @@ class OCPAWSReportViewTest(IamTestCase):
             result = data_totals.get(key)
             self.assertEqual(result, expected)
 
+    # XXX: flaky
     def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         with tenant_context(self.tenant):
