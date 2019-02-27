@@ -42,7 +42,7 @@ class TagQueryHandler(QueryHandler):
     """Handles tag queries and responses."""
 
     def __init__(self, query_parameters, url_data,
-                 tenant, db_table, db_column, **kwargs):
+                 tenant, data_sources, **kwargs):
         """Establish tag query handler.
 
         Args:
@@ -57,8 +57,10 @@ class TagQueryHandler(QueryHandler):
         super().__init__(query_parameters, url_data,
                          tenant, default_ordering, **kwargs)
         self.query_filter = self._get_filter()
-        self.db_table = db_table
-        self.db_column = db_column
+        self.data_sources = data_sources
+        self.parameter_filter = {}
+        if query_parameters:
+            self.parameter_filter = query_parameters.get('filter', {})
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -104,47 +106,66 @@ class TagQueryHandler(QueryHandler):
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
+        type_filter = self.parameter_filter.get('type')
+        tag_keys = []
         with tenant_context(self.tenant):
-            tag_keys = self.db_table.objects
-            if filters is True:
-                tag_keys = tag_keys.filter(self.query_filter)
+            for source in self.data_sources:
+                tag_keys_query = source.get('db_table').objects
+                if filters is True:
+                    tag_keys_query = tag_keys_query.filter(self.query_filter)
 
-            tag_keys = tag_keys.annotate(tag_keys=JSONBObjectKeys(self.db_column))\
-                .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
-                .all()
-            tag_keys = [tag.get('tag_keys') for tag in tag_keys]
+                if type_filter and type_filter != source.get('type'):
+                    continue
+
+                tag_keys_query = tag_keys_query.annotate(tag_keys=JSONBObjectKeys(source.get('db_column')))\
+                    .values('tag_keys')\
+                    .annotate(tag_count=Count('tag_keys'))\
+                    .all()
+                tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
+                for tag_key in tag_keys_query:
+                    tag_keys.append(tag_key)
 
         return tag_keys
 
+    @staticmethod
+    def _get_dictionary_for_key(dictionary_list, key):
+        """Get dictionary matching key from list of dictionaries."""
+        for di in dictionary_list:
+            if key in di.get('key'):
+                return di
+        return None
+
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
-        def get_dictionary_for_key(merged_data, key):
-            for di in merged_data:
-                if key in di.get('key'):
-                    return di
-            return None
+        type_filter = self.parameter_filter.get('type')
 
+        merged_data = []
         with tenant_context(self.tenant):
-            tag_keys = self.db_table.objects\
-                .filter(self.query_filter)\
-                .values(self.db_column)\
-                .all()
-            tag_keys = [tag.get(self.db_column) for tag in tag_keys]
+            tag_keys = []
+            for source in self.data_sources:
+                if type_filter and type_filter != source.get('type'):
+                    continue
 
-            merged_data = []
-            for item in tag_keys:
-                for key, value in item.items():
-                    key_dict = get_dictionary_for_key(merged_data, key)
-                    if not key_dict:
-                        new_dict = {}
-                        new_dict['key'] = key
-                        new_dict['values'] = [value]
-                        merged_data.append(new_dict)
-                    else:
-                        if value not in key_dict.get('values'):
-                            key_dict['values'].append(value)
-                            key_dict['values'].sort()
+                tag_keys = source.get('db_table').objects\
+                    .filter(self.query_filter)\
+                    .values(source.get('db_column'))\
+                    .all()
+                tag_keys = [tag.get(source.get('db_column')) for tag in tag_keys]
+
+                for item in tag_keys:
+                    for key, value in item.items():
+                        key_dict = TagQueryHandler._get_dictionary_for_key(merged_data, key)
+                        if not key_dict:
+                            new_dict = {}
+                            new_dict['key'] = key
+                            new_dict['values'] = [value]
+                            if source.get('type'):
+                                new_dict['type'] = source.get('type')
+                            merged_data.append(new_dict)
+                        else:
+                            if value not in key_dict.get('values'):
+                                key_dict['values'].append(value)
+                                key_dict['values'].sort()
         return merged_data
 
     def execute_query(self):
@@ -155,11 +176,12 @@ class TagQueryHandler(QueryHandler):
 
         """
         if self.query_parameters.get('key_only'):
-            tag_keys = self.get_tag_keys()
-            query_data = sorted(tag_keys, reverse=self.order_direction == 'desc')
+            tag_data = self.get_tag_keys()
+            query_data = sorted(tag_data, reverse=self.order_direction == 'desc')
         else:
-            tags = self.get_tags()
-            query_data = sorted(tags, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
+            tag_data = self.get_tags()
+            query_data = sorted(tag_data, key=lambda k: k['key'], reverse=self.order_direction == 'desc')
 
         self.query_data = query_data
+
         return self._format_query_response()

@@ -2025,6 +2025,7 @@ class ReportQueryTest(IamTestCase):
             }
         }
         query_string = f'?filter[tag:{filter_key}]={filter_value}'
+
         handler = AWSReportQueryHandler(
             query_params,
             query_string,
