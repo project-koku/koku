@@ -281,6 +281,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
     # The following fields are aggregates
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
     usage_amount = models.FloatField(null=True)
     normalization_factor = models.FloatField(null=True)
