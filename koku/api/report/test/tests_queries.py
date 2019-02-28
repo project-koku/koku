@@ -25,8 +25,7 @@ from urllib.parse import quote_plus
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
-from django.db.models import (CharField, Count, DateTimeField, IntegerField,
-                              Max, Sum, Value)
+from django.db.models import Count, DateTimeField, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from faker import Faker
@@ -557,7 +556,6 @@ class ReportQueryTest(IamTestCase):
             summary.save()
             self.current_month_total += entry['unblended_cost']
 
-
     def _populate_tag_summary_table(self):
         """Populate pod label key and values."""
         raw_sql = """
@@ -1053,8 +1051,6 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_counts(self):
         """Test execute_query for with counts of unique resources."""
-        dh = DateHelper()
-
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 

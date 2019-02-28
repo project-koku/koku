@@ -17,12 +17,11 @@
 """AWS Query Handling for Reports."""
 import copy
 
-from django.db.models import (F, Q, Value, Window)
+from django.db.models import (F, Value, Window)
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilterCollection
 from api.report.queries import ReportQueryHandler
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
@@ -189,7 +188,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-
         q_table = self._mapper.query_table
         query_group_by = ['date'] + self._get_group_by()
         query = q_table.objects.filter(self.query_filter)

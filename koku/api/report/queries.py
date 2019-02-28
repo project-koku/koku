@@ -23,7 +23,7 @@ from itertools import groupby
 from urllib.parse import quote_plus
 
 from django.db.models import CharField, Count, DecimalField, F, FloatField, Max, Q, Sum, Value
-from django.db.models.expressions import ExpressionWrapper,  OrderBy, RawSQL
+from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter, QueryFilterCollection
