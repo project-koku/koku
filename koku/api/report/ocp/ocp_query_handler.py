@@ -85,6 +85,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         output = copy.deepcopy(self.query_parameters)
         output['data'] = self.query_data
+        self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
         output['total'] = self.query_sum
 
         if self._delta:
@@ -159,7 +160,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        query_sum.update({'units': self._mapper.units_key})
+        sum_init = {'cost_units': self._mapper.cost_units_key}
+        if self._mapper.usage_units_key:
+            sum_init['usage_units'] = self._mapper.usage_units_key
+        query_sum.update(sum_init)
 
         ordered_total = {total_key: query_sum[total_key]
                          for total_key in self.report_annotations.keys() if total_key in query_sum}

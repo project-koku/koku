@@ -74,10 +74,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
 
-        self.assertEqual(total.get('usage'), current_totals.get('usage'))
-        self.assertEqual(total.get('request'), current_totals.get('request'))
-        self.assertEqual(total.get('charge'), current_totals.get('charge'))
-        self.assertEqual(total.get('limit'), current_totals.get('limit'))
+        self.assertEqual(total.get('usage', {}).get('value'), current_totals.get('usage'))
+        self.assertEqual(total.get('request', {}).get('value'), current_totals.get('request'))
+        self.assertEqual(total.get('charge', {}).get('value'), current_totals.get('charge'))
+        self.assertEqual(total.get('limit', {}).get('value'), current_totals.get('limit'))
 
     def test_execute_sum_query_charge(self):
         """Test that the sum query runs properly for the charge endpoint."""
@@ -94,8 +94,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertEqual(total.get('charge').quantize(Decimal('0.001')),
-                         current_totals.get('charge').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('cost', {}).get('value').quantize(Decimal('0.001')),
+                         current_totals.get('cost').quantize(Decimal('0.001')))
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
@@ -165,10 +165,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for entry in query_data.get('data', []):
             for cluster in entry.get('clusters', []):
                 cluster_name = cluster.get('cluster', '')
-                capacity = cluster.get('values')[0].get('capacity')
+                capacity = cluster.get('values')[0].get('capacity', {}).get('value')
                 self.assertEqual(capacity, capacity_by_cluster[cluster_name])
 
-        self.assertEqual(query_data.get('total', {}).get('capacity'),
+        self.assertEqual(query_data.get('total', {}).get('capacity', {}).get('value'),
                          total_capacity)
 
     def test_get_cluster_capacity_daily_resolution(self):
@@ -212,12 +212,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)
 
-        self.assertEqual(query_data.get('total', {}).get('capacity'), total_capacity)
+        self.assertEqual(query_data.get('total', {}).get('capacity', {}).get('value'), total_capacity)
         for entry in query_data.get('data', []):
             date = entry.get('date')
             values = entry.get('values')
             if values:
-                capacity = values[0].get('capacity')
+                capacity = values[0].get('capacity', {}).get('value')
                 self.assertEqual(capacity, daily_capacity[date])
 
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
@@ -266,10 +266,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
             date = entry.get('date')
             for cluster in entry.get('clusters', []):
                 cluster_name = cluster.get('cluster', '')
-                capacity = cluster.get('values')[0].get('capacity')
+                capacity = cluster.get('values')[0].get('capacity', {}).get('value')
                 self.assertEqual(capacity, daily_capacity_by_cluster[date][cluster_name])
 
-        self.assertEqual(query_data.get('total', {}).get('capacity'),
+        self.assertEqual(query_data.get('total', {}).get('capacity', {}).get('value'),
                          total_capacity)
 
     @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')

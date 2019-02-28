@@ -123,8 +123,8 @@ class OrderBySerializer(serializers.Serializer):
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
 
-    charge = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                     required=False)
+    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
     project = serializers.ChoiceField(choices=ORDER_CHOICES,
@@ -331,7 +331,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling inventory query parameters."""
 
     delta_choices = (
-        'charge',
+        'cost',
         'usage',
         'request',
     )
@@ -381,7 +381,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 class OCPChargeQueryParamSerializer(OCPQueryParamSerializer):
     """Serializer for handling charge query parameters."""
 
-    DELTA_CHOICES = (('charge', 'charge'))
+    DELTA_CHOICES = (('cost', 'cost'))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     order_by = OrderBySerializer(required=False)

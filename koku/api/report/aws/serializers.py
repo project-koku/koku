@@ -87,12 +87,12 @@ class OrderBySerializer(serializers.Serializer):
     """Serializer for handling query parameter order_by."""
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
-    total = serializers.ChoiceField(choices=ORDER_CHOICES,
+    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
+    usage = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
-    inventory = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                        required=False)
     account_alias = serializers.ChoiceField(choices=ORDER_CHOICES,
                                             required=False)
     region = serializers.ChoiceField(choices=ORDER_CHOICES,
@@ -198,7 +198,8 @@ class QueryParamSerializer(serializers.Serializer):
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (
-        ('total', 'total')
+        ('usage', 'usage'),
+        ('cost', 'cost')
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)

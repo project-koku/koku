@@ -70,9 +70,8 @@ class OCPAWSReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('total' in values)
+                self.assertTrue('usage' in values)
                 self.assertTrue('cost' in values)
-                self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_last_thirty_days(self):
         """Test that OCP CPU endpoint works."""
@@ -93,9 +92,8 @@ class OCPAWSReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('total' in values)
+                self.assertTrue('usage' in values)
                 self.assertTrue('cost' in values)
-                self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_this_month(self):
         """Test that data is returned for the full month."""
@@ -117,9 +115,8 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(dates[0], expected_date)
 
         values = data.get('data')[0].get('values')[0]
-        self.assertTrue('total' in values)
+        self.assertTrue('usage' in values)
         self.assertTrue('cost' in values)
-        self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_this_month_daily(self):
         """Test that data is returned for the full month."""
@@ -145,9 +142,8 @@ class OCPAWSReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('total' in values)
+                self.assertTrue('usage' in values)
                 self.assertTrue('cost' in values)
-                self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_last_month(self):
         """Test that data is returned for the last month."""
@@ -169,9 +165,8 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(dates[0], expected_date)
 
         values = data.get('data')[0].get('values')[0]
-        self.assertTrue('total' in values)
+        self.assertTrue('usage' in values)
         self.assertTrue('cost' in values)
-        self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_last_month_daily(self):
         """Test that data is returned for the full month."""
@@ -197,9 +192,8 @@ class OCPAWSReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('total' in values)
+                self.assertTrue('usage' in values)
                 self.assertTrue('cost' in values)
-                self.assertTrue('units' in values)
 
     def test_execute_query_ocp_aws_storage_group_by_limit(self):
         """Test that OCP Mem endpoint works with limits."""
@@ -217,9 +211,9 @@ class OCPAWSReportViewTest(IamTestCase):
             totals = OCPAWSCostLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['usage_start'])\
-                .annotate(total=Sum('usage_amount'))
+                .annotate(usage=Sum('usage_amount'))
 
-        totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('total')
+        totals = {total.get('usage_start').strftime('%Y-%m-%d'): total.get('usage')
                   for total in totals}
 
         self.assertIn('nodes', data.get('data')[0])
@@ -233,8 +227,8 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue(len(projects) <= 2)
                 if len(projects) == 2:
                     self.assertEqual(projects[1].get('node'), '1 Other')
-                    usage_total = projects[0].get('values')[0].get('total') + \
-                        projects[1].get('values')[0].get('total')
+                    usage_total = projects[0].get('values')[0].get('usage', {}).get('value') + \
+                        projects[1].get('values')[0].get('usage', {}).get('value')
                     self.assertEqual(round(usage_total, 3),
                                      round(float(totals.get(date)), 3))
 
@@ -243,7 +237,7 @@ class OCPAWSReportViewTest(IamTestCase):
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
-            'delta': 'total',
+            'delta': 'usage',
             'filter[resolution]': 'daily',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'
@@ -267,8 +261,8 @@ class OCPAWSReportViewTest(IamTestCase):
             current_total = OCPAWSCostLineItemDailySummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .filter(product_family__contains='Storage')\
-                .aggregate(total=Sum(F('usage_amount')))\
-                .get('total')
+                .aggregate(usage=Sum(F('usage_amount')))\
+                .get('usage')
             current_total = current_total if current_total is not None else 0
 
             current_totals = OCPAWSCostLineItemDailySummary.objects\
@@ -276,7 +270,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .filter(product_family__contains='Storage')\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('usage_amount')))
+                .annotate(usage=Sum(F('usage_amount')))
 
             prev_totals = OCPAWSCostLineItemDailySummary.objects\
                 .filter(usage_start__gte=last_month_start)\
@@ -284,11 +278,11 @@ class OCPAWSReportViewTest(IamTestCase):
                 .filter(product_family__contains='Storage')\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('usage_amount')))
+                .annotate(usage=Sum(F('usage_amount')))
 
-        current_totals = {total.get('date'): total.get('total')
+        current_totals = {total.get('date'): total.get('usage')
                           for total in current_totals}
-        prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
+        prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('usage')
                        for total in prev_totals
                        if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
 
@@ -412,7 +406,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .filter(product_family__contains='Storage')\
                 .aggregate(
                     **{
-                        'total': Sum('usage_amount'),
+                        'usage': Sum('usage_amount'),
                         'cost': Sum('unblended_cost')
                     }
                 )
@@ -429,7 +423,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get('total')
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
     # XXX: flaky
@@ -451,7 +445,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .filter(product_family__contains='Storage')\
                 .aggregate(
                     **{
-                        'total': Sum('usage_amount'),
+                        'usage': Sum('usage_amount'),
                         'cost': Sum('unblended_cost')
                     }
                 )
@@ -468,7 +462,7 @@ class OCPAWSReportViewTest(IamTestCase):
         data_totals = data.get('total')
         for key in totals:
             expected = float(totals[key])
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
     def test_execute_query_ocp_aws_storage_with_tag_group_by(self):
@@ -526,9 +520,9 @@ class OCPAWSReportViewTest(IamTestCase):
         data = response.json()
         data = data.get('data', [])
         # default ordered by usage
-        previous_tag_usage = data[0].get(plural_key, [])[0].get('values', [{}])[0].get('usage', 0)
+        previous_tag_usage = data[0].get(plural_key, [])[0].get('values', [{}])[0].get('usage', {}).get('value')
         for entry in data[0].get(plural_key, []):
-            current_tag_usage = entry.get('values', [{}])[0].get('usage', 0)
+            current_tag_usage = entry.get('values', [{}])[0].get('usage', {}).get('value')
             if 'Other' not in entry.get(group_by_key):
                 self.assertTrue(current_tag_usage <= previous_tag_usage)
                 previous_tag_usage = current_tag_usage
@@ -563,7 +557,7 @@ class OCPAWSReportViewTest(IamTestCase):
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month',
             'group_by[node]': '*',
-            'order_by[total]': 'desc',
+            'order_by[usage]': 'desc',
             'filter[limit]': 1
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -572,9 +566,9 @@ class OCPAWSReportViewTest(IamTestCase):
 
         data = response.json()
         data = data.get('data', [])
-        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('total')
+        previous_usage = data[0].get('nodes', [])[0].get('values', [])[0].get('usage', {}).get('value')
         for entry in data[0].get('nodes', []):
-            current_usage = entry.get('values', [])[0].get('total')
+            current_usage = entry.get('values', [])[0].get('usage', {}).get('value')
             self.assertTrue(current_usage <= previous_usage)
             previous_usage = current_usage
 
@@ -650,9 +644,8 @@ class OCPAWSReportViewTest(IamTestCase):
         for item in data.get('data'):
             if item.get('values'):
                 values = item.get('values')[0]
-                self.assertTrue('total' in values)
+                self.assertTrue('usage' in values)
                 self.assertTrue('cost' in values)
-                self.assertTrue('units' in values)
                 self.assertTrue('count' in values)
 
     def test_execute_query_ocp_aws_instance_type_by_project(self):
