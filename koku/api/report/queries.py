@@ -54,6 +54,21 @@ class ProviderMap(object):
     references.
     """
 
+    PACK_DEFINITIONS = {
+        'cost': {
+            'keys': ['cost', 'infrastructure_cost', 'derived_cost'],
+            'units': 'cost_units'
+        },
+        'usage': {
+            'keys': ['usage', 'request', 'limit', 'capacity'],
+            'units': 'usage_units'
+        },
+        'count': {
+            'keys': ['count'],
+            'units': 'count_units'
+        }
+    }
+
     # main mapping data structure
     # this data should be considered static and read-only.
     MAPPING = [
@@ -96,69 +111,90 @@ class ProviderMap(object):
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
-                    'aggregates': {'value': Sum('unblended_cost')},
+                    'aggregates': {
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
+                        'cost': Sum('unblended_cost')
+                    },
                     'aggregate_key': 'unblended_cost',
                     'annotations': {
-                        'total': Sum('unblended_cost'),
-                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Value(0, output_field=DecimalField()),
+                        'cost': Sum('unblended_cost'),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('unblended_cost')},
+                    'delta_key': {'cost': Sum('unblended_cost')},
                     'filter': {},
-                    'units_key': 'currency_code',
-                    'units_fallback': 'USD',
-                    'sum_columns': ['total'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
+                    'default_ordering': {'cost': 'desc'},
                 },
                 'instance_type': {
                     'aggregates': {
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('unblended_cost'),
                         'count': Sum('resource_count'),
-                        'value': Sum('usage_amount'),
+                        'usage': Sum('usage_amount'),
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Value(0, output_field=DecimalField()),
                         'cost': Sum('unblended_cost'),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         # The summary table already already has counts
                         'count': Sum('resource_count'),
-                        'total': Sum('usage_amount'),
-                        'units': Coalesce(Max('unit'), Value('Hrs'))
+                        'count_units': Value('instances', output_field=CharField()),
+                        'usage': Sum('usage_amount'),
+                        'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                     },
                     'count': 'resource_count',
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'instance_type',
                         'operation': 'isnull',
                         'parameter': False
                     },
                     'group_by': ['instance_type'],
-                    'units_key': 'unit',
-                    'units_fallback': 'Hrs',
-                    'sum_columns': ['total', 'cost', 'count'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'Hrs',
+                    'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'count'],
+                    'default_ordering': {'usage': 'desc'},
                 },
                 'storage': {
                     'aggregates': {
-                        'value': Sum('usage_amount'),
+                        'usage': Sum('usage_amount'),
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('unblended_cost')
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
+                        'infrastructure_cost': Sum('unblended_cost'),
+                        'derived_cost': Value(0, output_field=DecimalField()),
                         'cost': Sum('unblended_cost'),
-                        'total': Sum('usage_amount'),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                        'usage': Sum('usage_amount'),
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'product_family',
                         'operation': 'contains',
                         'parameter': 'Storage'
                     },
-                    'units_key': 'unit',
-                    'units_fallback': 'GB-Mo',
-                    'sum_columns': ['total', 'cost'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'GB-Mo',
+                    'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost'],
+                    'default_ordering': {'usage': 'desc'},
                 },
             },
             'start_date': 'usage_start',
@@ -205,30 +241,36 @@ class ProviderMap(object):
             'report_type': {
                 'charge': {
                     'aggregates': {
-                        'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours'))
+                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                     },
-                    'default_ordering': {'charge': 'desc'},
+                    'default_ordering': {'cost': 'desc'},
                     'annotations': {
-                        'charge': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'units': Value('USD', output_field=CharField())
+                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'cost_units': Value('USD', output_field=CharField())
                     },
                     'capacity_aggregate': {},
                     'delta_key': {
-                        'charge': Sum(
+                        'cost': Sum(
                             F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')
+                            F('pod_charge_memory_gigabyte_hours')  # noqa: W503
                         )
                     },
                     'filter': {},
-                    'units_key': 'USD',
-                    'sum_columns': ['charge'],
+                    'cost_units_key': 'USD',
+                    'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
                 },
                 'cpu': {
                     'aggregates': {
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
                         'limit': Sum('pod_limit_cpu_core_hours'),
-                        'charge': Sum('pod_charge_cpu_core_hours')
+                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        'derived_cost': Sum('pod_charge_cpu_core_hours'),
+                        'cost': Sum('pod_charge_cpu_core_hours')
                     },
                     'capacity_aggregate': {
                         'capacity': Max('cluster_capacity_cpu_core_hours')
@@ -242,24 +284,31 @@ class ProviderMap(object):
                             'total': Max('total_capacity_cpu_core_hours'),
                             'cluster': Max('cluster_capacity_cpu_core_hours'),
                         },
-                        'charge': Sum('pod_charge_cpu_core_hours'),
-                        'units': Value('Core-Hours', output_field=CharField())
+                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        'derived_cost': Sum('pod_charge_cpu_core_hours'),
+                        'cost': Sum('pod_charge_cpu_core_hours'),
+                        'cost_units': Value('USD', output_field=CharField()),
+                        'usage_units': Value('Core-Hours', output_field=CharField())
                     },
                     'delta_key': {
                         'usage': Sum('pod_usage_cpu_core_hours'),
                         'request': Sum('pod_request_cpu_core_hours'),
-                        'charge': Sum('pod_charge_cpu_core_hours')
+                        'cost': Sum('pod_charge_cpu_core_hours')
                     },
                     'filter': {},
-                    'units_key': 'Core-Hours',
-                    'sum_columns': ['usage', 'request', 'limit', 'charge'],
+                    'cost_units_key': 'USD',
+                    'usage_units_key': 'Core-Hours',
+                    'sum_columns': ['usage', 'request', 'limit', 'infrastructure_cost',
+                                    'derived_cost', 'cost'],
                 },
                 'memory': {
                     'aggregates': {
                         'usage': Sum('pod_usage_memory_gigabyte_hours'),
                         'request': Sum('pod_request_memory_gigabyte_hours'),
                         'limit': Sum('pod_limit_memory_gigabyte_hours'),
-                        'charge': Sum('pod_charge_memory_gigabyte_hours')
+                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        'derived_cost': Sum('pod_charge_memory_gigabyte_hours'),
+                        'cost': Sum('pod_charge_memory_gigabyte_hours')
                     },
                     'capacity_aggregate': {
                         'capacity': Max('cluster_capacity_memory_gigabyte_hours')
@@ -273,17 +322,22 @@ class ProviderMap(object):
                             'total': Max('total_capacity_memory_gigabyte_hours'),
                             'cluster': Max('cluster_capacity_memory_gigabyte_hours'),
                         },
-                        'charge': Sum('pod_charge_memory_gigabyte_hours'),
-                        'units': Value('GB-Hours', output_field=CharField())
+                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        'derived_cost': Sum('pod_charge_memory_gigabyte_hours'),
+                        'cost': Sum('pod_charge_memory_gigabyte_hours'),
+                        'cost_units': Value('USD', output_field=CharField()),
+                        'usage_units': Value('GB-Hours', output_field=CharField())
                     },
                     'delta_key': {
                         'usage': Sum('pod_usage_memory_gigabyte_hours'),
                         'request': Sum('pod_request_memory_gigabyte_hours'),
-                        'charge': Sum('pod_charge_memory_gigabyte_hours')
+                        'cost': Sum('pod_charge_memory_gigabyte_hours')
                     },
                     'filter': {},
-                    'units_key': 'GB-Hours',
-                    'sum_columns': ['usage', 'request', 'limit', 'charge'],
+                    'cost_units_key': 'USD',
+                    'usage_units_key': 'GB-Hours',
+                    'sum_columns': ['usage', 'request', 'limit', 'infrastructure_cost',
+                                    'derived_cost', 'cost'],
                 },
                 'volume': {
                     'tables': {
@@ -293,7 +347,9 @@ class ProviderMap(object):
                     'aggregates': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
                         'request': Sum('volume_request_storage_gigabyte_months'),
-                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        'derived_cost': Sum('persistentvolumeclaim_charge_gb_month'),
+                        'cost': Sum('persistentvolumeclaim_charge_gb_month')
                     },
                     'capacity_aggregate': {
                         'capacity': Sum('persistentvolumeclaim_capacity_gigabyte_months')
@@ -306,17 +362,22 @@ class ProviderMap(object):
                             'total': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
                             'cluster': Sum('persistentvolumeclaim_capacity_gigabyte_months'),
                         },
-                        'charge': Sum('persistentvolumeclaim_charge_gb_month'),
-                        'units': Value('GB-Mo', output_field=CharField()),
+                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        'derived_cost': Sum('persistentvolumeclaim_charge_gb_month'),
+                        'cost': Sum('persistentvolumeclaim_charge_gb_month'),
+                        'cost_units': Value('USD', output_field=CharField()),
+                        'usage_units': Value('GB-Mo', output_field=CharField()),
                     },
                     'delta_key': {
                         'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
                         'request': Sum('volume_request_storage_gigabyte_hours'),
-                        'charge': Sum('persistentvolumeclaim_charge_gb_month')
+                        'cost': Sum('persistentvolumeclaim_charge_gb_month')
                     },
                     'filter': {},
-                    'units_key': 'GB-Mo',
-                    'sum_columns': ['usage', 'request', 'charge'],
+                    'cost_units_key': 'USD',
+                    'usage_units_key': 'GB-Mo',
+                    'sum_columns': ['usage', 'request', 'infrastructure_cost',
+                                    'derived_cost', 'cost'],
                 },
             },
             'start_date': 'usage_start',
@@ -387,7 +448,14 @@ class ProviderMap(object):
             'report_type': {
                 'costs': {
                     'aggregates': {
-                        'value': Sum(
+                        'infrastructure_cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
+                        'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
@@ -395,17 +463,24 @@ class ProviderMap(object):
                         ),
                     },
                     'annotations': {
-                        'total': Sum(
+                        'infrastructure_cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
                             )
                         ),
-                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                        'derived_cost': Value(0, output_field=DecimalField()),
+                        'cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
                     'delta_key': {
-                        'total': Sum(
+                        'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
@@ -413,184 +488,246 @@ class ProviderMap(object):
                         ),
                     },
                     'filter': {},
-                    'units_key': 'currency_code',
-                    'units_fallback': 'USD',
-                    'sum_columns': ['total'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
+                    'default_ordering': {'cost': 'desc'},
                 },
                 'costs_by_project': {
-                    'aggregates': {'value': Sum('pod_cost')},
+                    'aggregates': {
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
+                        'cost': Sum('pod_cost'),
+                    },
                     'annotations': {
-                        'total': Sum('pod_cost'),
-                        'units': Coalesce(Max('currency_code'), Value('USD'))
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
+                        'cost': Sum('pod_cost'),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('pod_cost')},
+                    'delta_key': {'cost': Sum('pod_cost')},
                     'filter': {},
-                    'units_key': 'currency_code',
-                    'units_fallback': 'USD',
-                    'sum_columns': ['total'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'sum_columns': ['infrastructure_cost',
+                                    'derived_cost', 'cost'],
+                    'default_ordering': {'cost': 'desc'},
                 },
                 'storage': {
                     'aggregates': {
+                        'infrastructure_cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
                             )
                         ),
-                        'total': Sum(
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
+                        'infrastructure_cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
                             )
                         ),
-                        'total': Sum(
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'product_family',
                         'operation': 'contains',
                         'parameter': 'Storage'
                     },
-                    'units_key': 'unit',
-                    'units_fallback': 'GB-Mo',
-                    'sum_columns': ['total', 'cost'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'GB-Mo',
+                    'sum_columns': ['usage', 'infrastructure_cost',
+                                    'derived_cost', 'cost'],
+                    'default_ordering': {'usage': 'desc'},
                 },
                 'storage_by_project': {
                     'aggregates': {
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('pod_cost'),
-                        'total': Sum(
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('pod_cost'),
-                        'total': Sum(
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'count': None,
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'product_family',
                         'operation': 'contains',
                         'parameter': 'Storage'
                     },
-                    'units_key': 'unit',
-                    'units_fallback': 'GB-Mo',
-                    'sum_columns': ['total', 'cost'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'GB-Mo',
+                    'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost'],
+                    'default_ordering': {'usage': 'desc'},
                 },
                 'instance_type': {
                     'aggregates': {
+                        'infrastructure_cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
                             )
                         ),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
-                        'value': Sum(
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
+                        'infrastructure_cost': Sum(
+                            ExpressionWrapper(
+                                F('unblended_cost') / F('shared_projects'),
+                                output_field=DecimalField()
+                            )
+                        ),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum(
                             ExpressionWrapper(
                                 F('unblended_cost') / F('shared_projects'),
                                 output_field=DecimalField()
                             )
                         ),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
-                        'total': Sum(
+                        'count_units': Value('instances', output_field=CharField()),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('Hrs'))
+                        'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                     },
                     'count': 'resource_id',
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'instance_type',
                         'operation': 'isnull',
                         'parameter': False
                     },
                     'group_by': ['instance_type'],
-                    'units_key': 'unit',
-                    'units_fallback': 'Hrs',
-                    'sum_columns': ['total', 'cost', 'count'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'Hrs',
+                    'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'count'],
+                    'default_ordering': {'usage': 'desc'},
                 },
                 'instance_type_by_project': {
                     'aggregates': {
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('pod_cost'),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
-                        'value': Sum(
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('GB-Mo'))
+                        'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
+                        'infrastructure_cost': Sum('pod_cost'),
+                        'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('pod_cost'),
+                        'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
-                        'total': Sum(
+                        'count_units': Value('instances', output_field=CharField()),
+                        'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
                                 output_field=FloatField()
                             )
                         ),
-                        'units': Coalesce(Max('unit'), Value('Hrs'))
+                        'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                     },
                     'count': 'resource_id',
-                    'delta_key': {'total': Sum('usage_amount')},
+                    'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'instance_type',
                         'operation': 'isnull',
                         'parameter': False
                     },
                     'group_by': ['instance_type'],
-                    'units_key': 'unit',
-                    'units_fallback': 'Hrs',
-                    'sum_columns': ['total', 'cost', 'count'],
-                    'default_ordering': {'total': 'desc'},
+                    'cost_units_key': 'currency_code',
+                    'cost_units_fallback': 'USD',
+                    'usage_units_key': 'unit',
+                    'usage_units_fallback': 'Hrs',
+                    'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'count'],
+                    'default_ordering': {'usage': 'desc'},
                 },
             },
             'start_date': 'usage_start',
@@ -656,9 +793,14 @@ class ProviderMap(object):
         return report_specific_column if report_specific_column else default
 
     @property
-    def units_key(self):
-        """Return the units_key property."""
-        return self._report_type_map.get('units_key')
+    def cost_units_key(self):
+        """Return the cost_units_key property."""
+        return self._report_type_map.get('cost_units_key')
+
+    @property
+    def usage_units_key(self):
+        """Return the usage_units_key property."""
+        return self._report_type_map.get('usage_units_key')
 
 
 class ReportQueryHandler(QueryHandler):
@@ -951,10 +1093,29 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date] = grouped
         return bucket_by_date
 
+    def _pack_data_object(self, data, **kwargs):
+        """Pack data into object format."""
+        if not isinstance(data, dict):
+            return data
+        for pack_def in kwargs.values():
+            key_items = pack_def.get('keys')
+            key_units = pack_def.get('units')
+            units = data.get(key_units)
+            for key in key_items:
+                value = data.get(key)
+                if value is not None and units is not None:
+                    data[key] = {'value': value, 'units': units}
+            if units is not None:
+                del data[key_units]
+        return data
+
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
+            pack = self._mapper.PACK_DEFINITIONS
+            for item in data:
+                self._pack_data_object(item, **pack)
             return data
 
         out_data = []
@@ -992,7 +1153,8 @@ class ReportQueryHandler(QueryHandler):
 
         """
         numeric_ordering = ['date', 'rank', 'delta', 'delta_percent',
-                            'total', 'charge', 'usage', 'request', 'limit']
+                            'total', 'charge', 'usage', 'request', 'limit',
+                            'cost', 'infrastructure_cost', 'derived_cost']
         sorted_data = data
         for field in reversed(order_fields):
             reverse = False
@@ -1190,9 +1352,15 @@ class ReportQueryHandler(QueryHandler):
             row['delta_percent'] = self._percent_delta(current_total, previous_total)
         # Calculate the delta on the total aggregate
         if self._delta in query_sum:
-            current_total_sum = Decimal(query_sum.get(self._delta) or 0)
+            if isinstance(query_sum.get(self._delta), dict):
+                current_total_sum = Decimal(query_sum.get(self._delta, {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get(self._delta) or 0)
         else:
-            current_total_sum = Decimal(query_sum.get('value') or 0)
+            if isinstance(query_sum.get('cost'), dict):
+                current_total_sum = Decimal(query_sum.get('cost', {}).get('value') or 0)
+            else:
+                current_total_sum = Decimal(query_sum.get('cost') or 0)
         delta_field = self._mapper._report_type_map.get('delta_key').get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
         if self.resolution == 'daily':
