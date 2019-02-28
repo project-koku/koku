@@ -303,38 +303,6 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     tags = JSONField(null=True)
 
 
-class AWSCostEntryLineItemAggregates(models.Model):
-    """An aggregation of line item statistics.
-
-    This table is aggregated by account, service, region,
-    and availability zone. And reports the API type, usage, cost, and counts
-    where appropriate. The contents of this table should be considered
-    ephemeral. It will be regularly deleted from and repopulated.
-
-    """
-
-    class Meta:
-        """Meta for AWSCostEntryLineAggregates."""
-
-        db_table = 'reporting_awscostentrylineitem_aggregates'
-
-    time_scope_value = models.IntegerField()
-    report_type = models.CharField(max_length=50)
-    usage_account_id = models.CharField(max_length=50, null=True)
-    account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.PROTECT,
-                                      null=True)
-    product_code = models.CharField(max_length=50, null=False)
-    region = models.CharField(max_length=50, null=True)
-    availability_zone = models.CharField(max_length=50, null=True)
-    usage_amount = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    resource_count = models.IntegerField(null=True)
-    tags = JSONField(null=True)
-
-
 class AWSCostEntryPricing(models.Model):
     """Pricing information for a cost entry line item."""
 

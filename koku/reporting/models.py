@@ -22,7 +22,6 @@ from reporting.provider.aws.models import (AWSAccountAlias,                    #
                                            AWSCostEntry,                       # noqa: F401
                                            AWSCostEntryBill,                   # noqa: F401
                                            AWSCostEntryLineItem,               # noqa: F401
-                                           AWSCostEntryLineItemAggregates,     # noqa: F401
                                            AWSCostEntryLineItemDaily,          # noqa: F401
                                            AWSCostEntryLineItemDailySummary,   # noqa: F401
                                            AWSCostEntryPricing,                # noqa: F401
@@ -32,7 +31,6 @@ from reporting.provider.ocp.models import (OCPStorageLineItem,                 #
                                            OCPStorageLineItemDaily,            # noqa: F401
                                            OCPStorageLineItemDailySummary,     # noqa: F401
                                            OCPUsageLineItem,                   # noqa: F401
-                                           OCPUsageLineItemAggregates,         # noqa: F401
                                            OCPUsageLineItemDaily,              # noqa: F401
                                            OCPUsageLineItemDailySummary,       # noqa: F401
                                            OCPUsagePodLabelSummary,            # noqa: F401
