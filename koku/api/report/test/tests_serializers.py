@@ -149,7 +149,7 @@ class OrderBySerializerTest(TestCase):
 
     def test_parse_order_by_params_success(self):
         """Test parse of a order_by param successfully."""
-        order_params = {'total': 'asc'}
+        order_params = {'usage': 'asc'}
         serializer = OrderBySerializer(data=order_params)
         self.assertTrue(serializer.is_valid())
 
@@ -169,7 +169,7 @@ class QueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {'group_by': {'account': ['account1']},
-                        'order_by': {'total': 'asc'},
+                        'order_by': {'usage': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
