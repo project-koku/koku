@@ -38,7 +38,7 @@ In order for an AWS tag to match an OpenShift label it must meet one of the foll
 
         The following example would meet this requirment.
             (AWS key:value)              (OpenShift node name)
-            Openshift_cluster:compute_1 == COMPUTE_1
+            Openshift_node:compute_1 == COMPUTE_1
 
 
 If an AWS resource tag matches with multiple OpenShift projects, the cost and usage of that resource are split evenly between the matched projects. Note that this is not the case with AWS compute resources that are matched via the instance id - node relationship. In that case cost and usage are broken down using information about a project's resource consumption within the OpenShift environment.
