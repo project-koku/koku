@@ -23,16 +23,14 @@ from itertools import groupby
 from urllib.parse import quote_plus
 
 from django.db.models import CharField, Count, DecimalField, F, FloatField, Max, Q, Sum, Value
-from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
+from django.db.models.expressions import ExpressionWrapper,  OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
-from reporting.models import (AWSCostEntryLineItemAggregates,
-                              AWSCostEntryLineItemDailySummary,
+from reporting.models import (AWSCostEntryLineItemDailySummary,
                               OCPAWSCostLineItemDailySummary,
                               OCPStorageLineItemDailySummary,
-                              OCPUsageLineItemAggregates,
                               OCPUsageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
@@ -123,7 +121,6 @@ class ProviderMap(object):
                         'cost': Sum('unblended_cost'),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                     },
-                    'count': None,
                     'delta_key': {'cost': Sum('unblended_cost')},
                     'filter': {},
                     'cost_units_key': 'currency_code',
@@ -136,7 +133,7 @@ class ProviderMap(object):
                         'infrastructure_cost': Sum('unblended_cost'),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('unblended_cost'),
-                        'count': Sum('resource_count'),
+                        'count': Sum(Value(0, output_field=DecimalField())),
                         'usage': Sum('usage_amount'),
                     },
                     'aggregate_key': 'usage_amount',
@@ -146,12 +143,11 @@ class ProviderMap(object):
                         'cost': Sum('unblended_cost'),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         # The summary table already already has counts
-                        'count': Sum('resource_count'),
+                        'count': Max('resource_count'),
                         'count_units': Value('instances', output_field=CharField()),
                         'usage': Sum('usage_amount'),
                         'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                     },
-                    'count': 'resource_count',
                     'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'instance_type',
@@ -182,7 +178,6 @@ class ProviderMap(object):
                         'usage': Sum('usage_amount'),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
-                    'count': None,
                     'delta_key': {'usage': Sum('usage_amount')},
                     'filter': {
                         'field': 'product_family',
@@ -200,7 +195,6 @@ class ProviderMap(object):
             'start_date': 'usage_start',
             'tables': {
                 'query': AWSCostEntryLineItemDailySummary,
-                'total': AWSCostEntryLineItemAggregates
             },
         },
         {
@@ -383,7 +377,6 @@ class ProviderMap(object):
             'start_date': 'usage_start',
             'tables': {
                 'query': OCPUsageLineItemDailySummary,
-                'total': OCPUsageLineItemAggregates
             },
         },
         {

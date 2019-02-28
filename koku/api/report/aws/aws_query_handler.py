@@ -18,6 +18,7 @@
 import copy
 
 from django.db.models import (F, Q, Value, Window)
+from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -117,17 +118,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_data = query_data.annotate(account_alias=Coalesce(
                     F(self._mapper.provider_map.get('alias')), 'usage_account_id'))
 
-            if self._limit:
-                rank_order = getattr(F(self.order_field), self.order_direction)()
-                rank_by_total = Window(
-                    expression=RowNumber(),
-                    partition_by=F('date'),
-                    order_by=rank_order
-                )
-                query_data = query_data.annotate(rank=rank_by_total)
-                query_order_by.insert(1, 'rank')
-                query_data = self._ranked_list(query_data)
-
             if query.exists():
                 units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
                 sum_annotations = {
@@ -146,6 +136,18 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     sum_units['count_units'] = 'instances'
 
                 query_sum = self.calculate_total(**sum_units)
+
+            if self._limit:
+                rank_order = getattr(F(self.order_field), self.order_direction)()
+                rank_by_total = Window(
+                    expression=RowNumber(),
+                    partition_by=F('date'),
+                    order_by=rank_order
+                )
+                query_data = query_data.annotate(rank=rank_by_total)
+                query_order_by.insert(1, 'rank')
+                query_data = self._ranked_list(query_data)
+
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
@@ -187,25 +189,27 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        filt_collection = QueryFilterCollection()
-        total_filter = self._get_search_filter(filt_collection)
 
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     -10)
-        time_and_report_filter = Q(time_scope_value=time_scope_value) & \
-            Q(report_type=self._report_type)
-
-        if total_filter is None:
-            total_filter = time_and_report_filter
-        else:
-            total_filter = total_filter & time_and_report_filter
-
-        q_table = self._mapper.provider_map.get('tables').get('total')
+        q_table = self._mapper.query_table
+        query_group_by = ['date'] + self._get_group_by()
+        query = q_table.objects.filter(self.query_filter)
+        query_data = query.annotate(**self.annotations)
+        query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get('aggregates')
-        total_query = q_table.objects.filter(total_filter).aggregate(**aggregates)
+        counts = None
+
+        if 'count' in aggregates:
+            resource_ids = query_data.annotate(
+                resource_id=Func(F('resource_ids'), function='unnest')
+            ).values_list('resource_id', flat=True).distinct()
+            counts = len(resource_ids)
+
+        total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
+
+        if counts:
+            total_query['count'] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
