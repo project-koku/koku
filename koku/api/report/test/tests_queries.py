@@ -930,7 +930,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
+        self.assertIsNotNone(total.get('cost'))
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
@@ -943,8 +943,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -957,8 +957,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -974,8 +974,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1002,8 +1002,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1030,8 +1030,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1058,8 +1058,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1088,8 +1088,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1130,13 +1130,13 @@ class ReportQueryTest(IamTestCase):
 
         total = query_output.get('total')
         self.assertIsNotNone(total.get('count'))
-        self.assertEqual(total.get('count'), 24)
+        self.assertEqual(total.get('count', {}).get('value'), 24)
 
         for data_item in data:
             instance_types = data_item.get('instance_types')
             for it in instance_types:
                 if it['instance_type'] == instance_type:
-                    actual_count = it['values'][0].get('count')
+                    actual_count = it['values'][0].get('count', {}).get('value')
                     self.assertEqual(expected.get(data_item['date']), actual_count)
 
     def test_execute_query_curr_month_by_account_w_limit(self):
@@ -1156,8 +1156,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1179,7 +1179,7 @@ class ReportQueryTest(IamTestCase):
                         {'resolution': 'monthly', 'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
-                        'order_by': {'total': 'asc'}}
+                        'order_by': {'cost': 'asc'}}
         handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
                                         self.tenant,
                                         **{'report_type': 'costs'})
@@ -1188,8 +1188,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1202,8 +1202,8 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('total'))
-                data_point_total = month_item.get('values')[0].get('total')
+                self.assertIsNotNone(month_item.get('values')[0].get('cost', {}).get('value'))
+                data_point_total = month_item.get('values')[0].get('cost', {}).get('value')
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
@@ -1225,8 +1225,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1258,8 +1258,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1271,7 +1271,7 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('region'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
     def test_execute_query_curr_month_by_filtered_region(self):
         """Test execute_query for current month on monthly breakdown by filtered region."""
@@ -1288,8 +1288,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertGreater(total.get('value'), 0)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertGreater(total.get('cost', {}).get('value'), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1300,7 +1300,7 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('region'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
     def test_execute_query_curr_month_by_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by avail_zone."""
@@ -1316,8 +1316,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1329,7 +1329,7 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('az'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
     def test_execute_query_curr_month_by_filtered_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
@@ -1348,7 +1348,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
+        self.assertIsNotNone(total.get('cost'))
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1360,7 +1360,7 @@ class ReportQueryTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('az'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsNotNone(month_item.get('values')[0].get('total'))
+                self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
@@ -1376,8 +1376,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1402,8 +1402,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
 
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1426,8 +1426,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertGreater(total.get('value'), 0)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertGreater(total.get('cost', {}).get('value'), 0)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1450,8 +1450,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1475,8 +1475,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 1)
@@ -1502,8 +1502,8 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-        self.assertIsNotNone(total.get('value'))
-        self.assertEqual(total.get('value'), self.current_month_total)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 3)
@@ -1551,7 +1551,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_value': -1,
                          'time_scope_units': 'month'},
                         'group_by': {'account': ['*']},
-                        'delta': 'total'}
+                        'delta': 'cost'}
 
         handler = AWSReportQueryHandler(query_params,
                                         '?group_by[account]=*&delta=True',
@@ -1570,6 +1570,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(values.get('delta_percent'), expected_delta_percent)
 
         delta = query_output.get('delta')
+        print(delta)
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNotNone(delta.get('percent'))
         self.assertEqual(delta.get('value'), expected_delta_value)
@@ -1582,7 +1583,7 @@ class ReportQueryTest(IamTestCase):
 
         query_params = {
             'filter': {'time_scope_value': -1},
-            'delta': 'total'
+            'delta': 'cost'
         }
 
         handler = AWSReportQueryHandler(query_params,
@@ -1630,7 +1631,7 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'},
                         'order_by': {'delta': 'asc'},
                         'group_by': {'account': ['*']},
-                        'delta': 'total'}
+                        'delta': 'cost'}
         handler = AWSReportQueryHandler(query_params,
                                         '?group_by[account]=*&order_by[delta]=asc&delta=True',
                                         self.tenant,
@@ -1718,10 +1719,10 @@ class ReportQueryTest(IamTestCase):
         )
         expected_units = 'USD'
         with tenant_context(self.tenant):
-            result = handler.calculate_total(expected_units)
+            result = handler.calculate_total(**{'cost_units': expected_units})
 
-        self.assertEqual(result.get('value'), self.current_month_total)
-        self.assertEqual(result.get('units'), expected_units)
+        self.assertEqual(result.get('cost', {}).get('value'), self.current_month_total)
+        self.assertEqual(result.get('cost', {}).get('units'), expected_units)
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
@@ -1747,7 +1748,8 @@ class ReportQueryTest(IamTestCase):
         expected = [
             {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
             {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
-            {'account': '2 Others', 'account_alias': '2 Others', 'total': 5, 'rank': 3}
+            {'account': '2 Others', 'account_alias': '2 Others', 'cost': 0,
+             'derived_cost': 0, 'infrastructure_cost': 0, 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1770,7 +1772,8 @@ class ReportQueryTest(IamTestCase):
         expected = [
             {'service': '1', 'total': 5, 'rank': 1},
             {'service': '2', 'total': 4, 'rank': 2},
-            {'service': '2 Others', 'total': 5, 'rank': 3}
+            {'cost': 0, 'derived_cost': 0, 'infrastructure_cost': 0,
+             'service': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1805,9 +1808,8 @@ class ReportQueryTest(IamTestCase):
                 self.assertIsNotNone(account.get('values'))
                 self.assertGreater(len(account.get('values')), 0)
                 for value in account.get('values'):
-                    self.assertNotIn('cost', value)
-                    self.assertIsInstance(value.get('total'), Decimal)
-                    self.assertGreater(value.get('total'), Decimal(0))
+                    self.assertIsInstance(value.get('cost', {}).get('value'), Decimal)
+                    self.assertGreater(value.get('cost', {}).get('value'), Decimal(0))
 
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
@@ -1837,10 +1839,10 @@ class ReportQueryTest(IamTestCase):
                 self.assertIsNotNone(it.get('values'))
                 self.assertGreater(len(it.get('values')), 0)
                 for value in it.get('values'):
-                    self.assertIsInstance(value.get('cost'), Decimal)
-                    self.assertGreater(value.get('cost'), Decimal(0))
-                    self.assertIsInstance(value.get('total'), float)
-                    self.assertGreater(value.get('total'), 0.0)
+                    self.assertIsInstance(value.get('cost', {}).get('value'), Decimal)
+                    self.assertGreater(value.get('cost', {}).get('value'), Decimal(0))
+                    self.assertIsInstance(value.get('usage', {}).get('value'), float)
+                    self.assertGreater(value.get('usage', {}).get('value'), 0.0)
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
@@ -1874,10 +1876,10 @@ class ReportQueryTest(IamTestCase):
                     self.assertIsNotNone(srv.get('values'))
                     self.assertGreater(len(srv.get('values')), 0)
                     for value in srv.get('values'):
-                        self.assertIsInstance(value.get('cost'), Decimal)
-                        self.assertGreater(value.get('cost'), Decimal(0))
-                        self.assertIsInstance(value.get('total'), float)
-                        self.assertGreater(value.get('total'), 0.0)
+                        self.assertIsInstance(value.get('cost', {}).get('value'), Decimal)
+                        self.assertGreater(value.get('cost', {}).get('value'), Decimal(0))
+                        self.assertIsInstance(value.get('usage', {}).get('value'), float)
+                        self.assertGreater(value.get('usage', {}).get('value'), 0.0)
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
@@ -2014,7 +2016,7 @@ class ReportQueryTest(IamTestCase):
             totals = AWSCostEntryLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{f'tags__{filter_key}': filter_value})\
-                .aggregate(**{'value': Sum('unblended_cost')})
+                .aggregate(**{'cost': Sum('unblended_cost')})
 
         query_params = {
             'filter': {
@@ -2036,7 +2038,7 @@ class ReportQueryTest(IamTestCase):
         data = handler.execute_query()
         data_totals = data.get('total')
         for key in totals:
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
 
     def test_execute_query_with_wildcard_tag_filter(self):
@@ -2051,7 +2053,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': filter_key})\
                 .aggregate(
-                    **{'value': Sum('unblended_cost')})
+                    **{'cost': Sum('unblended_cost')})
 
         query_params = {
             'filter': {
@@ -2073,7 +2075,7 @@ class ReportQueryTest(IamTestCase):
         data = handler.execute_query()
         data_totals = data.get('total')
         for key in totals:
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
 
     def test_execute_query_with_tag_group_by(self):
@@ -2088,7 +2090,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': group_by_key})\
                 .aggregate(
-                    **{'value': Sum('unblended_cost')})
+                    **{'cost': Sum('unblended_cost')})
 
         query_params = {
             'filter': {
@@ -2116,5 +2118,5 @@ class ReportQueryTest(IamTestCase):
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
         for key in totals:
-            result = data_totals.get(key)
+            result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])

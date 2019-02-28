@@ -276,7 +276,7 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
 
     def test_delta_success(self):
         """Test that a proper delta value is serialized."""
-        query_params = {'delta': 'charge'}
+        query_params = {'delta': 'cost'}
         serializer = OCPInventoryQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
@@ -344,7 +344,7 @@ class OCPChargeQueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a charge query params successfully."""
         query_params = {'group_by': {'project': ['project1']},
-                        'order_by': {'charge': 'asc'},
+                        'order_by': {'cost': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
