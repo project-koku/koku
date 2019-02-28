@@ -400,7 +400,7 @@ class ReportViewTest(IamTestCase):
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""
-        qs = 'delta=total'
+        qs = 'delta=cost'
         url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)

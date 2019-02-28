@@ -49,7 +49,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             self._mapper = ProviderMap(provider=provider,
                                        report_type=self._report_type)
 
-    def execute_query(self):
+    def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -103,6 +103,15 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 query_group_by
             )
             query_data = self.order_by(query_data, query_order_by)
+            cost_units_value = self._mapper.report_type_map.get('cost_units_fallback', 'USD')
+            usage_units_value = None
+            count_units_value = None
+            if len(query_data) > 0:
+                cost_units_value = query_data[0].get('cost_units')
+                if self._mapper.usage_units_key:
+                    usage_units_value = query_data[0].get('usage_units')
+                if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
+                    count_units_value = query_data[0].get('count_units')
 
             if is_csv_output:
                 if self._limit:
@@ -115,10 +124,18 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        key_order = list(['units'] + list(annotations.keys()))
+        init_order_keys = []
+        query_sum['cost_units'] = cost_units_value
+        if self._mapper.usage_units_key and usage_units_value:
+            init_order_keys = ['usage_units']
+            query_sum['usage_units'] = usage_units_value
+        if self._mapper.report_type_map.get('annotations', {}).get('count_units') and count_units_value:
+            query_sum['count_units'] = count_units_value
+        key_order = list(init_order_keys + list(annotations.keys()))
         ordered_total = {total_key: query_sum[total_key]
                          for total_key in key_order if total_key in query_sum}
         ordered_total.update(query_sum)
+        self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
 
         self.query_sum = ordered_total
         self.query_data = data
