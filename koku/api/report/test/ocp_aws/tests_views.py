@@ -499,7 +499,8 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that data is grouped by tag key and limited."""
         with tenant_context(self.tenant):
             labels = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.last_month_start)\
+                .filter(usage_start__lte=self.dh.last_month_end)\
                 .filter(product_family__contains='Storage')\
                 .values(*['tags'])\
                 .first()
