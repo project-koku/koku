@@ -16,6 +16,8 @@
 #
 """Updates report summary tables in the database with charge information."""
 
+import csv
+import io
 import logging
 from decimal import Decimal
 
@@ -137,51 +139,77 @@ class OCPReportChargeUpdater:
                                       'charge': usage_charge_value + request_charge_value}
         return charge_dictionary
 
-    def _update_cpu_charge(self):
-        """Calculate and store total CPU charges."""
+    @staticmethod
+    def _charge_dictionary_to_csv(charge_dictionary):
+        """Write charge dictionary to a csv file_obj."""
+        dictionary_data = []
+        for key, value in charge_dictionary.items():
+            line_item = (key, value.get('charge'))
+            dictionary_data.append(line_item)
+
+        file_obj = io.StringIO()
+        writer = csv.writer(file_obj, delimiter='\t',
+                            quoting=csv.QUOTE_NONE, quotechar='')
+        writer.writerows(dictionary_data)
+        file_obj.seek(0)
+
+        return file_obj
+
+    def _write_to_temp_table(self, report_accessor, charge_data):
+        """Create temporary table to store charge."""
+        columns = [{'lineid': 'bigint'}, {'charge': 'numeric(24,6)'}]
+        temp_table = report_accessor.create_new_temp_table('charge', columns)
+        csv_file = self._charge_dictionary_to_csv(charge_data)
+        report_accessor.bulk_insert_rows(csv_file, temp_table, ['lineid', 'charge'])
+        return temp_table
+
+    # pylint: disable=too-many-locals
+    def _update_pod_charge(self):
+        """Calculate and store total POD charges."""
         try:
             with OCPRateDBAccessor(self._schema, self._provider_uuid,
                                    self._column_map) as rate_accessor:
                 cpu_usage_rates = rate_accessor.get_cpu_core_usage_per_hour_rates()
                 cpu_request_rates = rate_accessor.get_cpu_core_request_per_hour_rates()
-
-            with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                cpu_usage = report_accessor.get_pod_usage_cpu_core_hours()
-                cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
-
-                cpu_request = report_accessor.get_pod_request_cpu_core_hours()
-                cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
-
-                total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
-
-                report_accessor.populate_cpu_charge(total_cpu_charge)
-                report_accessor.commit()
-
-        except OCPReportChargeUpdaterError as error:
-            LOG.error('Unable to calculate CPU charge. Error: %s', str(error))
-
-    def _update_memory_charge(self):
-        """Calculate and store total Memory charges."""
-        try:
-            with OCPRateDBAccessor(self._schema, self._provider_uuid,
-                                   self._column_map) as rate_accessor:
                 mem_usage_rates = rate_accessor.get_memory_gb_usage_per_hour_rates()
                 mem_request_rates = rate_accessor.get_memory_gb_request_per_hour_rates()
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                mem_usage = report_accessor.get_pod_usage_memory_gigabyte_hours()
-                mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
+                try:
+                    cpu_usage = report_accessor.get_pod_usage_cpu_core_hours()
+                    cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
 
-                mem_request = report_accessor.get_pod_request_memory_gigabyte_hours()
-                mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
+                    cpu_request = report_accessor.get_pod_request_cpu_core_hours()
+                    cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
-                total_memory_charge = self._aggregate_charges(mem_usage_charge, mem_request_charge)
+                    total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
+                except OCPReportChargeUpdaterError as error:
+                    total_cpu_charge = {}
+                    LOG.error('Unable to calculate cpu charge. Error: %s', str(error))
 
-                report_accessor.populate_memory_charge(total_memory_charge)
+                cpu_temp_table = self._write_to_temp_table(report_accessor,
+                                                           total_cpu_charge)
+
+                try:
+                    mem_usage = report_accessor.get_pod_usage_memory_gigabyte_hours()
+                    mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
+
+                    mem_request = report_accessor.get_pod_request_memory_gigabyte_hours()
+                    mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
+
+                    total_memory_charge = self._aggregate_charges(mem_usage_charge,
+                                                                  mem_request_charge)
+                except OCPReportChargeUpdaterError as error:
+                    total_memory_charge = {}
+                    LOG.error('Unable to calculate memory charge. Error: %s', str(error))
+
+                mem_temp_table = self._write_to_temp_table(report_accessor,
+                                                           total_memory_charge)
+
+                report_accessor.populate_pod_charge(cpu_temp_table, mem_temp_table)
                 report_accessor.commit()
-
         except OCPReportChargeUpdaterError as error:
-            LOG.error('Unable to calculate memory charge. Error: %s', str(error))
+            LOG.error('Unable to calculate charge. Error: %s', str(error))
 
     def _update_storage_charge(self):
         """Calculate and store the storage charges."""
@@ -201,7 +229,9 @@ class OCPReportChargeUpdater:
                                                                 storage_request)
                 total_storage_charge = self._aggregate_charges(storage_usage_charge,
                                                                storage_request_charge)
-                report_accessor.populate_storage_charge(total_storage_charge)
+                temp_table = self._write_to_temp_table(report_accessor,
+                                                       total_storage_charge)
+                report_accessor.populate_storage_charge(temp_table)
                 report_accessor.commit()
 
         except OCPReportChargeUpdaterError as error:
@@ -219,6 +249,5 @@ class OCPReportChargeUpdater:
         """
         LOG.info('Starting charge calculation updates.')
 
-        self._update_cpu_charge()
-        self._update_memory_charge()
+        self._update_pod_charge()
         self._update_storage_charge()
