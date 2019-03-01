@@ -291,11 +291,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
-    def populate_cpu_charge(self, cpu_rate):
-        """Populate the daily aggregate of line items table.
+    def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
+        """Populate the memory and cpu charge on daily summary table.
 
         Args:
-            cpu_rate (Float) CPU-hour rate.
+            cpu_temp_table (String) Name of cpu charge temp table
+            mem_temp_table (String) Name of mem charge temp table
 
         Returns
             (None)
@@ -305,49 +306,20 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         daily_charge_sql = pkgutil.get_data(
             'masu.database',
-            'sql/reporting_ocpusagelineitem_daily_cpu_charge.sql'
+            'sql/reporting_ocpusagelineitem_daily_pod_charge.sql'
         )
-        for key, value in cpu_rate.items():
-            charge_line_sql = daily_charge_sql.decode('utf-8').format(
-                cpu_charge=value.get('charge'),
-                line_id=key
-            )
-            self._cursor.execute(charge_line_sql)
-        LOG.info(f'Updating %s with cpu_charge for %s items.',
-                 table_name, len(cpu_rate))
+        charge_line_sql = daily_charge_sql.decode('utf-8').format(
+            cpu_temp=cpu_temp_table,
+            mem_temp=mem_temp_table
+        )
+
+        self._cursor.execute(charge_line_sql)
+        LOG.info(f'Updating pod charge')
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
-    def populate_memory_charge(self, mem_rate):
-        """Populate the daily aggregate of line items table.
-
-        Args:
-            mem_rate (Float) Memory-hour rate.
-
-        Returns
-            (None)
-
-        """
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        daily_charge_sql = pkgutil.get_data(
-            'masu.database',
-            'sql/reporting_ocpusagelineitem_daily_mem_charge.sql'
-        )
-        for key, value in mem_rate.items():
-            charge_line_sql = daily_charge_sql.decode('utf-8').format(
-                mem_charge=value.get('charge'),
-                line_id=key
-            )
-            self._cursor.execute(charge_line_sql)
-        LOG.info(f'Updating %s with mem_charge for %s items.',
-                 table_name, len(mem_rate))
-        self._pg2_conn.commit()
-        self._vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
-
-    def populate_storage_charge(self, storage_charge):
+    def populate_storage_charge(self, temp_table_name):
         """Populate the storage charge into the daily summary table.
 
         Args:
@@ -363,14 +335,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocp_storage_charge.sql'
         )
-        for key, value in storage_charge.items():
-            charge_line_sql = daily_charge_sql.decode('utf-8').format(
-                storage_charge=value.get('charge'),
-                line_id=key
-            )
-            self._cursor.execute(charge_line_sql)
-        LOG.info(f'Updating %s with storage_charge for %s items.',
-                 table_name, len(storage_charge))
+        charge_line_sql = daily_charge_sql.decode('utf-8').format(
+            temp_table=temp_table_name
+        )
+        self._cursor.execute(charge_line_sql)
+        LOG.info(f'Updating storage_charge')
         self._pg2_conn.commit()
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
