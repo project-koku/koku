@@ -511,7 +511,7 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
             f'group_by[tag:{group_by_key}]': '*',
             'filter[limit]': 2
@@ -538,7 +538,7 @@ class OCPAWSReportViewTest(IamTestCase):
             'group_by[node]': '*',
             'filter[limit]': 1,
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
