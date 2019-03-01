@@ -112,6 +112,21 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
+    def create_new_temp_table(self, table_name, columns):
+        """Create a temporary table and return the table name."""
+        temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
+        base_sql = f'CREATE TEMPORARY TABLE {temp_table_name} '
+        column_types = f''
+        for column in columns:
+            for name, column_type in column.items():
+                column_types += (f'{name} {column_type}, ')
+        column_types = column_types.strip().rstrip(',')
+        column_sql = '({})'.format(column_types)
+        table_sql = base_sql + column_sql
+        self._cursor.execute(table_sql)
+
+        return temp_table_name
+
     # pylint: disable=too-many-arguments
     def merge_temp_table(self, table_name, temp_table_name, columns,
                          condition_column, conflict_columns):
