@@ -52,4 +52,5 @@ class Rate(models.Model):
     class Meta:
         """Meta for Rate."""
 
+        ordering = ['-id']
         unique_together = ('provider_uuid', 'metric')
