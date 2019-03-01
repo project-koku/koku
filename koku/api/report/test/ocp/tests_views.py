@@ -882,7 +882,7 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
             f'group_by[tag:{group_by_key}]': '*',
             'filter[limit]': 2
