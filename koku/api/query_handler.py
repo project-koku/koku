@@ -240,20 +240,20 @@ class QueryHandler(object):
             if time_scope_value == -1:
                 # get current month
                 start = dh.this_month_start
-                end = dh.today
+                end = dh.tomorrow
             else:
                 # get previous month
                 start = dh.last_month_start
-                end = dh.last_month_end
+                end = dh.this_month_start
         else:
             if time_scope_value == -10:
                 # get last 10 days
                 start = dh.n_days_ago(dh.this_hour, 9)
-                end = dh.this_hour
+                end = dh.tomorrow
             else:
                 # get last 30 days
                 start = dh.n_days_ago(dh.this_hour, 29)
-                end = dh.this_hour
+                end = dh.tomorrow
 
         self.start_datetime = start
         self.end_datetime = end
@@ -293,7 +293,7 @@ class QueryHandler(object):
 
         start_filter = QueryFilter(field='usage_start', operation='gte',
                                    parameter=start)
-        end_filter = QueryFilter(field='usage_end', operation='lte',
+        end_filter = QueryFilter(field='usage_end', operation='lt',
                                  parameter=end)
         return start_filter, end_filter
 
