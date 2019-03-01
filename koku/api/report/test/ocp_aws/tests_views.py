@@ -557,7 +557,7 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
             'group_by[node]': '*',
             'order_by[usage]': 'desc',
