@@ -11,3 +11,4 @@ A provider can be removed by the user that created the provider or the customer 
 .. include:: providers/aws.rst
 .. include:: providers/ocp.rst
 .. include:: providers/local.rst
+.. include:: providers/openshift_on_aws.rst
