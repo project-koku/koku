@@ -214,6 +214,7 @@ class OCPAWSReportViewTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCPAWSCostLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(product_family__contains='Storage')\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('usage_amount'))
 
@@ -498,7 +499,8 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that data is grouped by tag key and limited."""
         with tenant_context(self.tenant):
             labels = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.last_month_start)\
+                .filter(usage_start__lte=self.dh.last_month_end)\
                 .filter(product_family__contains='Storage')\
                 .values(*['tags'])\
                 .first()
@@ -511,7 +513,7 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
             f'group_by[tag:{group_by_key}]': '*',
             'filter[limit]': 2
@@ -538,7 +540,7 @@ class OCPAWSReportViewTest(IamTestCase):
             'group_by[node]': '*',
             'filter[limit]': 1,
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -557,7 +559,7 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
+            'filter[time_scope_value]': '-2',
             'filter[time_scope_units]': 'month',
             'group_by[node]': '*',
             'order_by[usage]': 'desc',
