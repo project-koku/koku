@@ -18,7 +18,7 @@
 """Common pagination class."""
 import logging
 
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.utils.urls import replace_query_param
 
@@ -28,12 +28,11 @@ PATH_INFO = 'PATH_INFO'
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class StandardResultsSetPagination(PageNumberPagination):
+class StandardResultsSetPagination(LimitOffsetPagination):
     """Create standard paginiation class with page size."""
 
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 1000
+    default_limit = 10
+    max_limit = 1000
 
     @staticmethod
     def link_rewrite(request, link):
@@ -55,8 +54,9 @@ class StandardResultsSetPagination(PageNumberPagination):
     def get_first_link(self):
         """Create first link with partial url rewrite."""
         url = self.request.build_absolute_uri()
-        page_number = 1
-        first_link = replace_query_param(url, self.page_query_param, page_number)
+        offset = 0
+        first_link = replace_query_param(url, self.offset_query_param, offset)
+        first_link = replace_query_param(first_link, self.limit_query_param, self.limit)
         return StandardResultsSetPagination.link_rewrite(self.request, first_link)
 
     def get_next_link(self):
@@ -76,15 +76,16 @@ class StandardResultsSetPagination(PageNumberPagination):
     def get_last_link(self):
         """Create last link with partial url rewrite."""
         url = self.request.build_absolute_uri()
-        page_number = self.page.paginator.num_pages
-        last_link = replace_query_param(url, self.page_query_param, page_number)
+        offset = self.count - self.limit if (self.count - self.limit) >= 0 else 0
+        last_link = replace_query_param(url, self.offset_query_param, offset)
+        last_link = replace_query_param(last_link, self.limit_query_param, self.limit)
         return StandardResultsSetPagination.link_rewrite(self.request, last_link)
 
     def get_paginated_response(self, data):
         """Override pagination output."""
         return Response({
             'meta': {
-                'count': self.page.paginator.count,
+                'count': self.count,
             },
             'links': {
                 'first': self.get_first_link(),
