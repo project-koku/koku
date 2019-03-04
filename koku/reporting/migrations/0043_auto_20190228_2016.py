@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting', '0041_awscostentrylineitemdailysummary_resource_ids'),
+        ('reporting', '0042_awscostentrylineitemdailysummary_resource_ids'),
     ]
 
     operations = [
