@@ -18,12 +18,14 @@
 """View for Providers."""
 import logging
 
+from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
 from django_filters import rest_framework as filters
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.serializers import UUIDField
 
 from api.iam.models import Customer
 from api.provider import serializers
@@ -322,11 +324,15 @@ class ProviderViewSet(mixins.CreateModelMixin,
         if not self.get_queryset():
             raise PermissionDenied()
 
-        manager = ProviderManager(kwargs['uuid'])
+        # throws ValidationError if pk is not a valid UUID
+        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
+
+        get_object_or_404(Provider, uuid=uuid)
+        manager = ProviderManager(uuid)
         try:
             manager.remove(request.user)
         except Exception:
-            LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, kwargs['uuid']))
+            LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, uuid))
             raise ProviderDeleteException
 
         return Response(status=status.HTTP_204_NO_CONTENT)
