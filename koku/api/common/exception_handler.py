@@ -72,7 +72,10 @@ def custom_exception_handler(exc, context):
     if response is not None:
         errors = []
         data = copy.deepcopy(response.data)
-        errors += _generate_errors_from_dict(data, **{'status_code': response.status_code})
+        if isinstance(data, dict):
+            errors += _generate_errors_from_dict(data, **{'status_code': response.status_code})
+        elif isinstance(data, list):
+            errors += _generate_errors_from_list(data, **{'status_code': response.status_code})
         error_response = {
             'errors': errors
         }

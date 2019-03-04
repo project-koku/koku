@@ -16,9 +16,11 @@
 #
 """Test the Provider views."""
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.urls import reverse
 from providers.provider_access import ProviderAccessor
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
@@ -60,7 +62,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
@@ -75,7 +77,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
@@ -88,7 +90,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_different_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
@@ -116,7 +118,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket_different'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
@@ -131,7 +133,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))
@@ -144,7 +146,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_provider(self):
         """Test list providers."""
@@ -160,7 +162,7 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-list')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get('data')
         self.assertIsNotNone(results)
@@ -177,7 +179,7 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         uuid = json_result.get('uuid')
         self.assertIsNotNone(uuid)
@@ -197,7 +199,7 @@ class ProviderViewTest(IamTestCase):
         headers = request_context['request'].META
         client = APIClient()
         response = client.get(url, **headers)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch('api.provider.view.ProviderManager._delete_report_data')
     def test_remove_provider_with_regular_user(self, mock_delete_reports):
@@ -206,7 +208,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify that the Provider creation was successful
         json_result = response.json()
@@ -222,7 +224,7 @@ class ProviderViewTest(IamTestCase):
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
         response = client.delete(url, **self.headers)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
     @patch('api.provider.view.ProviderManager._delete_report_data')
     def test_remove_provider_with_remove_exception(self, mock_delete_reports):
@@ -231,7 +233,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # Verify that the Provider creation was successful
         json_result = response.json()
@@ -248,4 +250,32 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         with patch.object(ProviderManager, 'remove', side_effect=Exception):
             response = client.delete(url, **self.headers)
-            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def test_remove_invalid_provider(self, ):
+        """Test removing an invalid provider with the user."""
+        # Create a Provider
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Remove invalid Provider as the regular user
+        url = reverse('provider-detail', args=[uuid4()])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_remove_invalid_provider_non_uuid(self, ):
+        """Test removing an invalid provider with the non_uuid."""
+        # Create a Provider
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Remove invalid Provider as the regular user
+        url = reverse('provider-detail', args=['23333223223'])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

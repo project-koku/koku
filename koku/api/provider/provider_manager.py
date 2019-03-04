@@ -51,14 +51,14 @@ class ProviderManager:
         """Establish provider manager database objects."""
         self._uuid = uuid
         try:
-            self.model = Provider.objects.all().filter(uuid=self._uuid).get()
+            self.model = Provider.objects.get(uuid=self._uuid)
         except (ObjectDoesNotExist, ValidationError) as e:
             raise(ProviderManagerError(str(e)))
 
     @staticmethod
     def get_providers_queryset_for_customer(customer):
         """Get all providers created by a given customer."""
-        return Provider.objects.all().filter(customer=customer)
+        return Provider.objects.filter(customer=customer)
 
     def get_name(self):
         """Get the name of the provider."""
