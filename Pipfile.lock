@@ -306,11 +306,10 @@
         },
         "astroid": {
             "hashes": [
-                "sha256:35b032003d6a863f5dcd7ec11abd5cd5893428beaa31ab164982403bcb311f22",
-                "sha256:6a5d668d7dc69110de01cdf7aeec69a679ef486862a0850cc0fd5571505b6b7e"
+                "sha256:8a8d8f610ab3646f89f4c1b89385446e2675c3b7139a577116fa966d33a81d6d",
+                "sha256:91f52b4e4645ee610a82841aacc7ecd0202f695375cc7b34bae43ab4ab359099"
             ],
-            "index": "pypi",
-            "version": "==2.1.0"
+            "version": "==2.2.3"
         },
         "babel": {
             "hashes": [
