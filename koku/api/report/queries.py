@@ -835,6 +835,8 @@ class ReportQueryHandler(QueryHandler):
 
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
+        self._offset = self.get_query_param_data('filter', 'offset', default=0)
+        self.max_rank = 0
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
@@ -1214,6 +1216,8 @@ class ReportQueryHandler(QueryHandler):
         """
         rank_limited_data = OrderedDict()
         date_grouped_data = self.date_group_data(data_list)
+        self.max_rank = max(entry['rank'] for entry in data_list)
+        is_offset = 'offset' in self.query_parameters.get('filter', {})
 
         for date in date_grouped_data:
             other = None
@@ -1224,14 +1228,14 @@ class ReportQueryHandler(QueryHandler):
                 if other is None:
                     other = copy.deepcopy(data)
                 rank = data.get('rank')
-                if rank <= self._limit:
+                if rank > self._offset and rank <= self._limit + self._offset:
                     ranked_list.append(data)
                 else:
                     others_list.append(data)
                     for column in self._mapper.sum_columns:
                         other_sums[column] += data.get(column) if data.get(column) else 0
 
-            if other is not None and others_list:
+            if other is not None and others_list and not is_offset:
                 num_others = len(others_list)
                 others_label = '{} Others'.format(num_others)
                 if num_others == 1:

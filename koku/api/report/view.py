@@ -26,6 +26,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.common.pagination import ReportDictionaryPagination, ReportRankedDictionaryPagination
 from api.models import Tenant, User
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
@@ -214,6 +215,15 @@ def process_tag_query_params(query_params, tag_keys):
 
     return param_tag_keys
 
+def get_paginator(filter_query_params, count):
+    """Determine which paginator to use based on query params."""
+    if 'offset' in filter_query_params:
+        paginator =  ReportRankedDictionaryPagination()
+        paginator.count = count
+    else:
+        paginator = ReportDictionaryPagination()
+    return paginator
+
 
 def get_tenant(user):
     """Get the tenant for the given user.
@@ -377,5 +387,7 @@ def _generic_report(request, provider, report):
                 error = {'details': _('Unit conversion failed.')}
                 raise ValidationError(error)
 
+    paginator = get_paginator(params.get('filter', {}), handler.max_rank)
+    result_page = paginator.paginate_queryset(output, request)
     LOG.debug(f'DATA: {output}')
-    return Response(output)
+    return paginator.get_paginated_response(result_page)
