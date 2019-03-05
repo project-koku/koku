@@ -58,7 +58,6 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         tables.remove(AWS_CUR_TABLE_MAP['cost_entry'])
         tables.remove(AWS_CUR_TABLE_MAP['line_item_daily'])
         tables.remove(AWS_CUR_TABLE_MAP['line_item_daily_summary'])
-        tables.remove(AWS_CUR_TABLE_MAP['line_item_aggregates'])
         tables.remove(AWS_CUR_TABLE_MAP['tags_summary'])
         tables.remove(AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary'])
         for table in tables:

@@ -295,49 +295,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         for column in summary_columns:
             self.assertIsNotNone(getattr(entry, column))
 
-    def test_populate_line_item_aggregates_table(self):
-        """Test that the aggregates table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP['report']
-        agg_table_name = OCP_REPORT_TABLE_MAP['line_item_aggregates']
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        agg_table = getattr(self.accessor.report_schema, agg_table_name)
-
-        expected_time_scope_values = [-1, -2, -10, -30]
-
-        today = DateAccessor().today_with_timezone('UTC')
-        last_month = today - relativedelta.relativedelta(months=1)
-
-        for start_date in (today, last_month):
-            period = self.creator.create_ocp_report_period(start_date)
-            report = self.creator.create_ocp_report(period, start_date)
-            self.creator.create_ocp_usage_line_item(
-                period,
-                report
-            )
-
-        start_date, end_date = self.accessor._session.query(
-            func.min(report_table.interval_start),
-            func.max(report_table.interval_start)
-        ).first()
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-        initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_table(start_date, end_date)
-        self.accessor.populate_line_item_aggregate_table()
-
-        self.assertNotEqual(query.count(), initial_count)
-
-        time_scope_values = self.accessor._session\
-            .query(agg_table.time_scope_value)\
-            .group_by(agg_table.time_scope_value)\
-            .all()
-        time_scope_values = [val[0] for val in time_scope_values]
-
-        for val in expected_time_scope_values:
-            self.assertIn(val, time_scope_values)
-
     def test_populate_pod_label_summary_table(self):
         """Test that the pod label summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP['report']
