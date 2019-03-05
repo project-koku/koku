@@ -62,7 +62,7 @@ class UserPreference(models.Model):
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
     user = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
-    preference = JSONField(default=dict)
+    preference = JSONField(null=False)
     name = models.CharField(max_length=255, null=False, default=uuid4)
     description = models.CharField(max_length=255, null=True)
 
