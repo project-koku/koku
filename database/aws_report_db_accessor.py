@@ -194,23 +194,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
-    # pylint: disable=invalid-name,duplicate-code
-    def populate_line_item_aggregate_table(self):
-        """Populate the line item aggregated totals data table."""
-        table_name = AWS_CUR_TABLE_MAP['line_item_aggregates']
-        agg_sql = pkgutil.get_data(
-            'masu.database',
-            'sql/reporting_awscostentrylineitem_aggregates.sql'
-        )
-        agg_sql = agg_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_')
-        )
-        LOG.info('Updating %s.', table_name)
-        self._cursor.execute(agg_sql)
-        self._pg2_conn.commit()
-        self._vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
-
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
         table_name = AWS_CUR_TABLE_MAP['bill']

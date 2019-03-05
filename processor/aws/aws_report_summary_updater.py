@@ -106,7 +106,6 @@ class AWSReportSummaryUpdater:
 
             accessor.populate_line_item_daily_table(start_date, end_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date)
-            accessor.populate_line_item_aggregate_table()
             accessor.populate_tags_summary_table()
             accessor.populate_ocp_on_aws_cost_daily_summary(start_date, end_date)
 

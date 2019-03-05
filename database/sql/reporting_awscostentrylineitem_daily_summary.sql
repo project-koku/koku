@@ -91,6 +91,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
             sum(li.blended_cost) as blended_cost,
             sum(li.public_on_demand_cost) as public_on_demand_cost,
             max(li.public_on_demand_rate) as public_on_demand_rate,
+            array_agg(DISTINCT li.resource_id) as resource_ids,
             count(DISTINCT li.resource_id) as resource_count
         FROM reporting_awscostentrylineitem_daily AS li
         JOIN reporting_awscostentryproduct AS p
@@ -172,6 +173,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
     blended_cost,
     public_on_demand_cost,
     public_on_demand_rate,
+    resource_ids,
     resource_count
 )
     SELECT usage_start,
@@ -195,6 +197,7 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
         blended_cost,
         public_on_demand_cost,
         public_on_demand_rate,
+        resource_ids,
         resource_count
     FROM reporting_awscostentrylineitem_daily_summary_{uuid}
 ;
