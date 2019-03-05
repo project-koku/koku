@@ -55,6 +55,8 @@ class GroupBySerializer(serializers.Serializer):
                                 required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
+    product_family = StringOrListField(child=serializers.CharField(),
+                                       required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the GroupBySerializer."""
@@ -141,6 +143,8 @@ class FilterSerializer(serializers.Serializer):
                                required=False)
     az = StringOrListField(child=serializers.CharField(),
                            required=False)
+    product_family = StringOrListField(child=serializers.CharField(),
+                                       required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the FilterSerializer."""

@@ -105,9 +105,13 @@ class ProviderMap(object):
                 'region': {
                     'field': 'region',
                     'operation': 'icontains'
+                },
+                'product_family': {
+                    'field': 'product_family',
+                    'operation': 'icontains'
                 }
             },
-            'group_by_options': ['service', 'account', 'region', 'az'],
+            'group_by_options': ['service', 'account', 'region', 'az', 'product_family'],
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
