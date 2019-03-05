@@ -101,6 +101,8 @@ class OrderBySerializer(serializers.Serializer):
                                      required=False)
     service = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
+    product_family = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                             required=False)
 
     def validate(self, data):
         """Validate incoming data."""
