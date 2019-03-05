@@ -25,6 +25,52 @@ from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
 
 
+class OCPAWSQueryHandlerTestNoData(IamTestCase):
+    """Tests for the OCP report query handler with no data."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class."""
+        super().setUpClass()
+        cls.dh = DateHelper()
+
+        cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
+        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 9)}
+        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 29)}
+        cls.last_month_filter = {'usage_start__gte': cls.dh.last_month_start,
+                                 'usage_end__lte': cls.dh.last_month_end}
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        super().setUp()
+
+    def test_execute_sum_query_instance_types(self):
+        """Test that the sum query runs properly for instance-types."""
+        query_params = {}
+        handler = OCPAWSReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'instance_type'}
+        )
+        query_output = handler.execute_query()
+        self.assertIsNotNone(query_output.get('data'))
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        self.assertIsNotNone(total.get('cost'))
+        self.assertIsInstance(total.get('cost'), dict)
+        self.assertEqual(total.get('cost').get('value'), 0)
+        self.assertEqual(total.get('cost').get('units'), 'USD')
+        self.assertIsNotNone(total.get('usage'))
+        self.assertIsInstance(total.get('usage'), dict)
+        self.assertEqual(total.get('usage').get('value'), 0)
+        self.assertEqual(total.get('usage').get('units'), 'Hrs')
+        self.assertIsNotNone(total.get('count'))
+        self.assertIsInstance(total.get('count'), dict)
+        self.assertEqual(total.get('count').get('value'), 0)
+        self.assertEqual(total.get('count').get('units'), 'instances')
+
+
 class OCPAWSQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
