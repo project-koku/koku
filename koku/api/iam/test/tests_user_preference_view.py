@@ -100,6 +100,24 @@ class UserPreferenceViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(self.test_data['preference'], response.data['preference'])
 
+    def test_create_preference_null(self):
+        """Test that auth'ed user cannot create a prefs with null."""
+        client = APIClient()
+        url = reverse('preferences-list')
+        self.test_data['preference'] = None
+        # create a pref
+        response = client.post(url, self.test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_preference_not_obj(self):
+        """Test that auth'ed user cannot create a prefs with not a JSON object."""
+        client = APIClient()
+        url = reverse('preferences-list')
+        self.test_data['preference'] = 'not a dictionary'
+        # create a pref
+        response = client.post(url, self.test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_create_preference_duplicate(self):
         """Test that auth'ed user can not set duplicate prefs."""
         client = APIClient()
