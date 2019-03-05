@@ -23,9 +23,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from urllib.parse import quote_plus
 
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
-from django.db.models import (CharField, Count, DateTimeField, IntegerField,
-                              Max, Sum, Value)
+from django.db.models import Count, DateTimeField, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from faker import Faker
@@ -40,7 +40,6 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,
                               AWSCostEntryBill,
                               AWSCostEntryLineItem,
-                              AWSCostEntryLineItemAggregates,
                               AWSCostEntryLineItemDaily,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
@@ -541,7 +540,8 @@ class ReportQueryTest(IamTestCase):
             'blended_cost': Sum('blended_cost'),
             'public_on_demand_cost': Sum('public_on_demand_cost'),
             'public_on_demand_rate': Max('public_on_demand_rate'),
-            'resource_count': Count('resource_id', distinct=True)
+            'resource_count': Count('resource_id', distinct=True),
+            'resource_ids': ArrayAgg('resource_id', distinct=True)
         }
 
         entries = AWSCostEntryLineItemDaily.objects\
@@ -553,58 +553,6 @@ class ReportQueryTest(IamTestCase):
                                                        account_alias=list(alias).pop())
             summary.save()
             self.current_month_total += entry['unblended_cost']
-
-    def _populate_aggregates_table(self):
-        dh = DateHelper()
-        this_month_filter = {'usage_start__gte': dh.this_month_start}
-        ten_day_filter = {'usage_start__gte': dh.n_days_ago(dh.today, 10)}
-        last_month_filter = {'usage_start__gte': dh.last_month_start,
-                             'usage_end__lte': dh.last_month_end}
-
-        report_types = ['costs', 'instance_type', 'storage']
-        time_scopes = [
-            (-1, this_month_filter),
-            (-2, last_month_filter),
-            (-10, ten_day_filter)
-        ]
-
-        for r_type in report_types:
-            included_fields = [
-                'usage_account_id',
-                'product_code',
-                'availability_zone',
-                'tags'
-            ]
-            annotations = {
-                'region': Concat('cost_entry_product__region', Value('')),
-                'usage_amount': Sum('usage_amount'),
-                'unblended_cost': Sum('unblended_cost'),
-                'resource_count': Count('resource_id', distinct=True),
-                'report_type': Value(r_type, CharField())
-            }
-            if r_type == 'costs':
-                annotations.pop('usage_amount')
-
-            for value, query_filter in time_scopes:
-                annotations.update(
-                    {'time_scope_value': Value(value, IntegerField())}
-                )
-                if r_type == 'instance_type':
-                    query_filter.update(
-                        {'cost_entry_product__instance_type__isnull': False}
-                    )
-                elif r_type == 'storage':
-                    query_filter.update(
-                        {'cost_entry_product__product_family': 'Storage'}
-                    )
-                entries = AWSCostEntryLineItemDaily.objects\
-                    .filter(**query_filter)\
-                    .values(*included_fields)\
-                    .annotate(**annotations)
-                for entry in entries:
-                    alias = AWSAccountAlias.objects.filter(account_id=entry['usage_account_id'])
-                    agg = AWSCostEntryLineItemAggregates(**entry, account_alias=list(alias).pop())
-                    agg.save()
 
     def _populate_tag_summary_table(self):
         """Populate pod label key and values."""
@@ -680,7 +628,6 @@ class ReportQueryTest(IamTestCase):
 
             self._populate_daily_table()
             self._populate_daily_summary_table()
-            self._populate_aggregates_table()
             self._populate_tag_summary_table()
 
     def test_transform_null_group(self):
@@ -1096,15 +1043,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_counts(self):
         """Test execute_query for with counts of unique resources."""
-        dh = DateHelper()
-
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
-
-        # this may need some additional work, but I think this covers most cases.
-        expected = {
-            dh.this_month_start.strftime('%Y-%m'): 24,
-        }
 
         query_params = {'filter': {'resolution': 'monthly',
                                    'time_scope_value': -1,
@@ -1129,7 +1069,7 @@ class ReportQueryTest(IamTestCase):
             for it in instance_types:
                 if it['instance_type'] == instance_type:
                     actual_count = it['values'][0].get('count', {}).get('value')
-                    self.assertEqual(expected.get(data_item['date']), actual_count)
+                    self.assertEqual(actual_count, 1)
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""

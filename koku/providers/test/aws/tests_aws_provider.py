@@ -220,6 +220,12 @@ class AWSProviderTestCase(TestCase):
         except Exception:
             self.fail('Unexpected Error')
 
+    def test_cost_usage_source_is_reachable_no_arn(self):
+        """Verify that the cost usage source is authenticated and created."""
+        provider_interface = AWSProvider()
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(None, 'bucket_name')
+
     @patch('providers.aws.aws_provider._get_sts_access',
            return_value=(None,
                          None,

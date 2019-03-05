@@ -119,43 +119,43 @@ class OCPAWSReportDataGenerator:
     def _populate_ocp_aws_cost_line_item_daily_summary(self, report_date):
         """Create OCP hourly usage line items."""
         for row in self.line_items:
-            aws_service = random.choice(self.AWS_SERVICE_CHOICES)
-            resource_prefix = 'i-'
-            unit = 'Hrs'
-            if aws_service == 'ebs':
-                resource_prefix = 'vol-'
-                unit = 'GB-Mo'
-            aws_product = self.aws_info._products.get(aws_service)
-            region = random.choice(self.aws_info.SOME_REGIONS)
-            az = region + random.choice(['a', 'b', 'c'])
-            usage_amount = Decimal(random.uniform(0, 100))
-            unblended_cost = Decimal(random.uniform(0, 10)) * usage_amount
+            for aws_service in self.AWS_SERVICE_CHOICES:
+                resource_prefix = 'i-'
+                unit = 'Hrs'
+                if aws_service == 'ebs':
+                    resource_prefix = 'vol-'
+                    unit = 'GB-Mo'
+                aws_product = self.aws_info._products.get(aws_service)
+                region = random.choice(self.aws_info.SOME_REGIONS)
+                az = region + random.choice(['a', 'b', 'c'])
+                usage_amount = Decimal(random.uniform(0, 100))
+                unblended_cost = Decimal(random.uniform(0, 10)) * usage_amount
 
-            data = {
-                'cluster_id': self.cluster_id,
-                'cluster_alias': self.cluster_alias,
-                'namespace': row.get('namespace'),
-                'pod': row.get('pod'),
-                'node': row.get('node'),
-                'resource_id': resource_prefix + row.get('resource_id'),
-                'usage_start': report_date,
-                'usage_end': report_date,
-                'openshift_labels': {},
-                'product_code': aws_product.get('service_code'),
-                'product_family': aws_product.get('product_family'),
-                'usage_account_id': self.usage_account_id,
-                'account_alias': None,
-                'availability_zone': az,
-                'region': region,
-                'unit': unit,
-                'tags': self._get_tags(),
-                'usage_amount': usage_amount,
-                'normalized_usage_amount': usage_amount,
-                'unblended_cost': unblended_cost,
-                'pod_cost': Decimal(random.random()) * unblended_cost
-            }
-            line_item = OCPAWSCostLineItemDailySummary(**data)
-            line_item.save()
+                data = {
+                    'cluster_id': self.cluster_id,
+                    'cluster_alias': self.cluster_alias,
+                    'namespace': row.get('namespace'),
+                    'pod': row.get('pod'),
+                    'node': row.get('node'),
+                    'resource_id': resource_prefix + row.get('resource_id'),
+                    'usage_start': report_date,
+                    'usage_end': report_date,
+                    'openshift_labels': {},
+                    'product_code': aws_product.get('service_code'),
+                    'product_family': aws_product.get('product_family'),
+                    'usage_account_id': self.usage_account_id,
+                    'account_alias': None,
+                    'availability_zone': az,
+                    'region': region,
+                    'unit': unit,
+                    'tags': self._get_tags(),
+                    'usage_amount': usage_amount,
+                    'normalized_usage_amount': usage_amount,
+                    'unblended_cost': unblended_cost,
+                    'pod_cost': Decimal(random.random()) * unblended_cost
+                }
+                line_item = OCPAWSCostLineItemDailySummary(**data)
+                line_item.save()
 
     def _populate_aws_tag_summary(self):
         """Populate the AWS tag summary table."""
