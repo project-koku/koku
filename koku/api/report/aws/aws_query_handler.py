@@ -92,6 +92,38 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
+    def _build_sum(self, query, query_sum):
+        """Build the sum results for the query."""
+        sum_units = {}
+        cost_units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
+        usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+        count_units_fallback = self._mapper.report_type_map.get('count_units_fallback')
+        if query.exists():
+            sum_annotations = {
+                'cost_units': Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))
+            }
+            if self._mapper.usage_units_key:
+                units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+                sum_annotations['usage_units'] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+            sum_query = query.annotate(**sum_annotations)
+            units_value = sum_query.values('cost_units').first().get('cost_units', cost_units_fallback)
+            sum_units = {'cost_units': units_value}
+            if self._mapper.usage_units_key:
+                units_value = sum_query.values('usage_units').first().get('usage_units', usage_units_fallback)
+                sum_units['usage_units'] = units_value
+            if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
+                sum_units['count_units'] = count_units_fallback
+            query_sum = self.calculate_total(**sum_units)
+        else:
+            sum_units['cost_units'] = cost_units_fallback
+            if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
+                sum_units['count_units'] = count_units_fallback
+            if self._mapper.report_type_map.get('annotations', {}).get('usage_units'):
+                sum_units['usage_units'] = usage_units_fallback
+            query_sum.update(sum_units)
+            self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
+        return query_sum
+
     def execute_query(self):
         """Execute query and return provided data.
 
@@ -128,24 +160,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_order_by.insert(1, 'rank')
                 query_data = self._ranked_list(query_data)
 
-            if query.exists():
-                units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
-                sum_annotations = {
-                    'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
-                }
-                if self._mapper.usage_units_key:
-                    units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
-                    sum_annotations['usage_units'] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
-                sum_query = query.annotate(**sum_annotations)
-                units_value = sum_query.values('cost_units').first().get('cost_units')
-                sum_units = {'cost_units': units_value}
-                if self._mapper.usage_units_key:
-                    units_value = sum_query.values('usage_units').first().get('usage_units')
-                    sum_units['usage_units'] = units_value
-                if self._mapper.report_type_map.get('annotations', {}).get('count_units'):
-                    sum_units['count_units'] = 'instances'
+            query_sum = self._build_sum(query, query_sum)
 
-                query_sum = self.calculate_total(**sum_units)
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
