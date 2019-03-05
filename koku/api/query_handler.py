@@ -72,7 +72,7 @@ class QueryHandler(object):
         self.time_scope_value = None
         self.start_datetime = None
         self.end_datetime = None
-        self.max_rank = 0
+        self._max_rank = 0
 
         self._get_timeframe()
 
@@ -123,6 +123,15 @@ class QueryHandler(object):
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
         return list(order_by.values()).pop()
+
+    @property
+    def max_rank(self):
+        return self._max_rank
+
+    @max_rank.setter
+    def max_rank(self, max_rank):
+        """Account alias setter."""
+        self._max_rank = max_rank
 
     def get_resolution(self):
         """Extract resolution or provide default.

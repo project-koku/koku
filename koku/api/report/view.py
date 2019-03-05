@@ -374,6 +374,7 @@ def _generic_report(request, provider, report):
                                   report_type=report,
                                   tag_keys=tag_keys)
     output = handler.execute_query()
+    max_rank = handler.max_rank
 
     if 'units' in params:
         from_unit = _find_unit()(output['data'])
@@ -387,7 +388,7 @@ def _generic_report(request, provider, report):
                 error = {'details': _('Unit conversion failed.')}
                 raise ValidationError(error)
 
-    paginator = get_paginator(params.get('filter', {}), handler.max_rank)
+    paginator = get_paginator(params.get('filter', {}), max_rank)
     result_page = paginator.paginate_queryset(output, request)
     LOG.debug(f'DATA: {output}')
     return paginator.get_paginated_response(result_page)

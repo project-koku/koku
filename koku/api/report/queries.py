@@ -836,7 +836,6 @@ class ReportQueryHandler(QueryHandler):
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
         self._offset = self.get_query_param_data('filter', 'offset', default=0)
-        self.max_rank = 0
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()

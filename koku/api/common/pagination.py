@@ -111,14 +111,13 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
         self.limit = self.get_limit(request)
         if self.limit is None:
             return None
-
         self.offset = self.get_offset(request)
         self.request = request
         if self.count > self.limit and self.template is not None:
             self.display_page_controls = True
 
         if self.count == 0 or self.offset > self.count:
-            return []
+            return queryset
 
         query_data = queryset.get('data', [])[self.offset:self.offset + self.limit]
         queryset['data'] = query_data
@@ -127,7 +126,7 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        paginated_data = data.pop('data')
+        paginated_data = data.pop('data', [])
         response = {
             'meta': {'count': self.count},
             'links': {
