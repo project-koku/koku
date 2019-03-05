@@ -281,6 +281,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
     # The following fields are aggregates
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
     usage_amount = models.FloatField(null=True)
     normalization_factor = models.FloatField(null=True)
@@ -299,38 +300,6 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                                 null=True)
     tax_type = models.TextField(null=True)
-    tags = JSONField(null=True)
-
-
-class AWSCostEntryLineItemAggregates(models.Model):
-    """An aggregation of line item statistics.
-
-    This table is aggregated by account, service, region,
-    and availability zone. And reports the API type, usage, cost, and counts
-    where appropriate. The contents of this table should be considered
-    ephemeral. It will be regularly deleted from and repopulated.
-
-    """
-
-    class Meta:
-        """Meta for AWSCostEntryLineAggregates."""
-
-        db_table = 'reporting_awscostentrylineitem_aggregates'
-
-    time_scope_value = models.IntegerField()
-    report_type = models.CharField(max_length=50)
-    usage_account_id = models.CharField(max_length=50, null=True)
-    account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.PROTECT,
-                                      null=True)
-    product_code = models.CharField(max_length=50, null=False)
-    region = models.CharField(max_length=50, null=True)
-    availability_zone = models.CharField(max_length=50, null=True)
-    usage_amount = models.DecimalField(max_digits=17, decimal_places=9,
-                                       null=True)
-    unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                         null=True)
-    resource_count = models.IntegerField(null=True)
     tags = JSONField(null=True)
 
 
