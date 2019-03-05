@@ -33,7 +33,6 @@ from reporting.models import (OCPStorageLineItem,
                               OCPStorageLineItemDaily,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItem,
-                              OCPUsageLineItemAggregates,
                               OCPUsageLineItemDaily,
                               OCPUsageLineItemDailySummary,
                               OCPUsageReport,
@@ -160,7 +159,6 @@ class OCPReportDataGenerator:
         """Remove the added data."""
         with tenant_context(self.tenant):
             for table in (OCPUsageLineItem,
-                          OCPUsageLineItemAggregates,
                           OCPUsageLineItemDaily,
                           OCPUsageLineItemDailySummary,
                           OCPStorageLineItem,
