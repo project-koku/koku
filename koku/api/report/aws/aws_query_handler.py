@@ -92,9 +92,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _build_sum(self, query, query_sum):
+    def _build_sum(self, query):
         """Build the sum results for the query."""
         sum_units = {}
+        query_sum = self.initialize_totals()
         cost_units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
         count_units_fallback = self._mapper.report_type_map.get('count_units_fallback')
@@ -131,7 +132,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        query_sum = self.initialize_totals()
         data = []
 
         q_table = self._mapper.query_table
@@ -160,7 +160,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 query_order_by.insert(1, 'rank')
                 query_data = self._ranked_list(query_data)
 
-            query_sum = self._build_sum(query, query_sum)
+            query_sum = self._build_sum(query)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
