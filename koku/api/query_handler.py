@@ -151,7 +151,7 @@ class QueryHandler(object):
 
         """
         return self.get_query_param_data('filter', 'time_scope_units',
-                                         default='day')
+                                         default='month')
 
     @property
     def time_scope_value(self):
