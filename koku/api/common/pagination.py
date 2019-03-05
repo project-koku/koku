@@ -100,6 +100,8 @@ class StandardResultsSetPagination(LimitOffsetPagination):
 class ReportDictionaryPagination(StandardResultsSetPagination):
     """A specialty paginator for report data."""
 
+    default_limit = 100
+
     def get_count(self, queryset):
         """Determine a report data's count"""
         return len(queryset.get('data', []))
@@ -125,13 +127,9 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
 
     def get_paginated_response(self, data):
         """Override pagination output."""
-        paginated_data = data.get('data')
-        total = data.get('total')
-        return Response({
-            'meta': {
-                'count': self.count,
-                'total': total,
-            },
+        paginated_data = data.pop('data')
+        response = {
+            'meta': {'count': self.count},
             'links': {
                 'first': self.get_first_link(),
                 'next': self.get_next_link(),
@@ -139,15 +137,21 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
                 'last': self.get_last_link()
             },
             'data': paginated_data
-        })
+        }
+        response['meta'].update(data)
+        return Response(response)
 
 
-class ReportRankedDictionaryPagination(StandardResultsSetPagination):
+class ReportRankedDictionaryPagination(ReportDictionaryPagination):
     """A specialty paginator for ranked report data."""
 
     default_limit = 5
     limit_query_param = 'filter[limit]'
     offset_query_param = 'filter[offset]'
+
+    def get_count(self, queryset):
+        """Determine a report data's count"""
+        return self.count
 
     def paginate_queryset(self, queryset, request, view=None):
         self.request = request
@@ -155,21 +159,3 @@ class ReportRankedDictionaryPagination(StandardResultsSetPagination):
         self.offset = self.get_offset(request)
 
         return queryset
-
-    def get_paginated_response(self, data):
-        """Override pagination output."""
-        paginated_data = data.get('data')
-        total = data.get('total')
-        return Response({
-            'meta': {
-                'count': self.count,
-                'total': total,
-            },
-            'links': {
-                'first': self.get_first_link(),
-                'next': self.get_next_link(),
-                'previous': self.get_previous_link(),
-                'last': self.get_last_link()
-            },
-            'data': paginated_data
-        })

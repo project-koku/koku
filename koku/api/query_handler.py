@@ -72,6 +72,7 @@ class QueryHandler(object):
         self.time_scope_value = None
         self.start_datetime = None
         self.end_datetime = None
+        self.max_rank = 0
 
         self._get_timeframe()
 
