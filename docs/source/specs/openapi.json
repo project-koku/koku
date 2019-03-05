@@ -124,10 +124,10 @@
                 "summary": "List the user's preferences",
                 "operationId": "listUserPreferences",
                 "parameters": [{
-                        "$ref": "#/components/parameters/QueryPageSize"
+                        "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryPageNumber"
+                        "$ref": "#/components/parameters/QueryLimit"
                     }
                 ],
                 "responses": {
@@ -396,10 +396,10 @@
                         }
                     },
                     {
-                        "$ref": "#/components/parameters/QueryPageSize"
+                        "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryPageNumber"
+                        "$ref": "#/components/parameters/QueryLimit"
                     }
                 ],
                 "responses": {
@@ -601,10 +601,10 @@
                 "summary": "List the rates",
                 "operationId": "listRates",
                 "parameters": [{
-                        "$ref": "#/components/parameters/QueryPageSize"
+                        "$ref": "#/components/parameters/QueryOffset"
                     },
                     {
-                        "$ref": "#/components/parameters/QueryPageNumber"
+                        "$ref": "#/components/parameters/QueryLimit"
                     }
                 ],
                 "responses": {
@@ -1695,22 +1695,22 @@
     }],
     "components": {
         "parameters": {
-            "QueryPageNumber": {
+            "QueryOffset": {
                 "in": "query",
-                "name": "page",
+                "name": "offset",
                 "required": false,
-                "description": "Parameter for selecting the page of data.",
+                "description": "Parameter for selecting the offset of data.",
                 "schema": {
                     "type": "integer",
-                    "default": 1,
-                    "minimum": 1
+                    "default": 0,
+                    "minimum": 0
                 }
             },
-            "QueryPageSize": {
+            "QueryLimit": {
                 "in": "query",
-                "name": "page_size",
+                "name": "limit",
                 "required": false,
-                "description": "Parameter for selecting the amount of data in a page.",
+                "description": "Parameter for selecting the amount of data in a returned.",
                 "schema": {
                     "type": "integer",
                     "default": 10,
@@ -1789,22 +1789,22 @@
                     "first": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/cost-management/v1/(resources)/?page=1"
+                        "example": "/cost-management/v1/(resources)/?offset=0"
                     },
                     "previous": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/cost-management/v1/(resources)/?page=2"
+                        "example": "/cost-management/v1/(resources)/?offset=20"
                     },
                     "next": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/cost-management/v1/(resources)/?page=4"
+                        "example": "/cost-management/v1/(resources)/?offset=40"
                     },
                     "last": {
                         "type": "string",
                         "format": "uri",
-                        "example": "/cost-management/v1/(resources)/?page=10"
+                        "example": "/cost-management/v1/(resources)/?offset=100"
                     }
                 }
             },
