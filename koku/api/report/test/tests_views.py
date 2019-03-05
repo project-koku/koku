@@ -305,7 +305,8 @@ class ReportViewTest(IamTestCase):
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month',
-            'units': 'byte'
+            'units': 'byte',
+            'SERVER_NAME': ''
         }
         user = User.objects.get(
             username=self.user_data['username']
@@ -320,39 +321,6 @@ class ReportViewTest(IamTestCase):
 
         response = _generic_report(request, provider='aws', report='costs')
         self.assertIsInstance(response, Response)
-
-    def test_generic_report_with_units_fails_well(self):
-        """Test that validation error is thrown for bad unit conversion."""
-        patched = patch('api.report.aws.aws_query_handler.AWSReportQueryHandler',
-                        spec=True)
-        mock_class = patched.start()
-        mock_class.return_value.execute_query.return_value = self.report
-        # replace the normal queryhandler with our mocked version
-        ClassMapper.CLASS_MAP[0]['reports'][0]['query_handler'] = mock_class
-
-        # The 'bad' unit here is that the report is in GB-Mo, and can't
-        # convert to seconds
-        params = {
-            'group_by[account]': '*',
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'units': 'second'
-        }
-
-        user = User.objects.get(
-            username=self.user_data['username']
-        )
-
-        django_request = HttpRequest()
-        qd = QueryDict(mutable=True)
-        qd.update(params)
-        django_request.GET = qd
-        request = Request(django_request)
-        request.user = user
-
-        with self.assertRaises(ValidationError):
-            _generic_report(request, provider='aws', report='costs')
 
     def test_find_unit_list(self):
         """Test that the correct unit is returned."""

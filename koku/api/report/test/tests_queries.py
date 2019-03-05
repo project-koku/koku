@@ -1510,7 +1510,6 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(values.get('delta_percent'), expected_delta_percent)
 
         delta = query_output.get('delta')
-        print(delta)
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNotNone(delta.get('percent'))
         self.assertEqual(delta.get('value'), expected_delta_value)
@@ -1976,7 +1975,7 @@ class ReportQueryTest(IamTestCase):
         )
 
         data = handler.execute_query()
-        data_totals = data.get('total')
+        data_totals = data.get('total', {})
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
@@ -2013,7 +2012,7 @@ class ReportQueryTest(IamTestCase):
         )
 
         data = handler.execute_query()
-        data_totals = data.get('total')
+        data_totals = data.get('total', {})
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
@@ -2052,7 +2051,7 @@ class ReportQueryTest(IamTestCase):
         )
 
         data = handler.execute_query()
-        data_totals = data.get('total')
+        data_totals = data.get('total', {})
         data = data.get('data', [])
         expected_keys = ['date', group_by_key + 's']
         for entry in data:

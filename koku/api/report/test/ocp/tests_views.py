@@ -279,7 +279,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('cost' in total)
         self.assertEqual(total.get('cost', {}).get('units'), 'USD')
@@ -297,7 +297,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('usage' in total)
         self.assertEqual(total.get('usage', {}).get('units'), 'Core-Hours')
@@ -315,7 +315,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('usage' in total)
         self.assertEqual(total.get('usage', {}).get('units'), 'GB-Hours')
@@ -564,7 +564,7 @@ class OCPReportViewTest(IamTestCase):
         prev_total = prev_total if prev_total is not None else 0
 
         expected_delta = current_total - prev_total
-        delta = data.get('delta').get('value')
+        delta = data.get('meta', {}).get('delta', {}).get('value')
         self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
         for item in data.get('data'):
             date = item.get('date')
@@ -812,7 +812,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = round(float(totals[key]), 6)
             result = data_totals.get(key, {}).get('value')
@@ -846,7 +846,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = round(float(totals[key]), 6)
             result = data_totals.get(key, {}).get('value')

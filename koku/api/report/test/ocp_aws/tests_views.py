@@ -295,7 +295,7 @@ class OCPAWSReportViewTest(IamTestCase):
         prev_total = prev_total if prev_total is not None else 0
 
         expected_delta = current_total - prev_total
-        delta = data.get('delta').get('value')
+        delta = data.get('meta', {}).get('delta', {}).get('value')
         self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
         for item in data.get('data'):
             date = item.get('date')
@@ -425,7 +425,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = float(totals[key])
             result = data_totals.get(key, {}).get('value')
@@ -463,7 +463,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = float(totals[key])
             result = data_totals.get(key, {}).get('value')
