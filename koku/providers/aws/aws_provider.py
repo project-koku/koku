@@ -135,23 +135,29 @@ class AWSProvider(ProviderInterface):
 
     def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
         """Verify that the S3 bucket exists and is reachable."""
+        if not credential_name or len(credential_name.strip()) == 0:
+            key = 'authentication.provider_resource_name'
+            message = 'Provider resource name is a required parameter for AWS' \
+                ' and must not be blank.'
+            raise serializers.ValidationError(error_obj(key, message))
+
         access_key_id, secret_access_key, session_token = _get_sts_access(
             credential_name)
         if (access_key_id is None or access_key_id is None or session_token is None):
             key = 'provider_resource_name'
-            message = 'Unable to obtain credentials with using {}.'.format(
+            message = 'Unable to access account resources with ARN {}.'.format(
                 credential_name)
             raise serializers.ValidationError(error_obj(key, message))
 
-        if not storage_resource_name:
-            key = 'bucket'
-            message = 'Bucket is a required parameter for AWS.'
+        if not storage_resource_name or len(storage_resource_name.strip()) == 0:
+            key = 'billing_source.bucket'
+            message = 'Bucket is a required parameter for AWS and must not be blank.'
             raise serializers.ValidationError(error_obj(key, message))
 
         s3_exists = _check_s3_access(access_key_id, secret_access_key,
                                      session_token, storage_resource_name)
         if not s3_exists:
-            key = 'bucket'
+            key = 'billing_source.bucket'
             message = 'Bucket {} could not be found with {}.'.format(
                 storage_resource_name, credential_name)
             raise serializers.ValidationError(error_obj(key, message))
@@ -159,7 +165,7 @@ class AWSProvider(ProviderInterface):
         cur_access = _check_cost_report_access(access_key_id, secret_access_key,
                                                session_token)
         if not cur_access:
-            key = 'provider_resource_name'
+            key = 'authentication.provider_resource_name'
             message = 'Unable to obtain cost and usage report ' \
                 'definition data with {}.'.format(
                     credential_name)

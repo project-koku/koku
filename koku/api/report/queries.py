@@ -103,9 +103,13 @@ class ProviderMap(object):
                 'region': {
                     'field': 'region',
                     'operation': 'icontains'
+                },
+                'product_family': {
+                    'field': 'product_family',
+                    'operation': 'icontains'
                 }
             },
-            'group_by_options': ['service', 'account', 'region', 'az'],
+            'group_by_options': ['service', 'account', 'region', 'az', 'product_family'],
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
@@ -721,6 +725,7 @@ class ProviderMap(object):
                     'cost_units_fallback': 'USD',
                     'usage_units_key': 'unit',
                     'usage_units_fallback': 'Hrs',
+                    'count_units_fallback': 'instances',
                     'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'count'],
                     'default_ordering': {'usage': 'desc'},
                 },
