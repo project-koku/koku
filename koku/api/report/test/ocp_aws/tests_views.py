@@ -78,7 +78,7 @@ class OCPAWSReportViewTest(IamTestCase):
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'filter[time_scope_value]': '-30',
-                'filter[time_scope_units]': 'day'}
+                  'filter[time_scope_units]': 'day'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
