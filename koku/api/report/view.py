@@ -26,7 +26,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import tenant_context
 
-from api.common.pagination import ReportDictionaryPagination, ReportRankedDictionaryPagination
+from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.models import Tenant, User
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
@@ -218,10 +218,10 @@ def process_tag_query_params(query_params, tag_keys):
 def get_paginator(filter_query_params, count):
     """Determine which paginator to use based on query params."""
     if 'offset' in filter_query_params:
-        paginator =  ReportRankedDictionaryPagination()
+        paginator =  ReportRankedPagination()
         paginator.count = count
     else:
-        paginator = ReportDictionaryPagination()
+        paginator = ReportPagination()
     return paginator
 
 

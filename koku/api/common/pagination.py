@@ -97,7 +97,7 @@ class StandardResultsSetPagination(LimitOffsetPagination):
         })
 
 
-class ReportDictionaryPagination(StandardResultsSetPagination):
+class ReportPagination(StandardResultsSetPagination):
     """A specialty paginator for report data."""
 
     default_limit = 100
@@ -117,6 +117,7 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
             self.display_page_controls = True
 
         if self.count == 0 or self.offset > self.count:
+            queryset['data'] = []
             return queryset
 
         query_data = queryset.get('data', [])[self.offset:self.offset + self.limit]
@@ -141,7 +142,7 @@ class ReportDictionaryPagination(StandardResultsSetPagination):
         return Response(response)
 
 
-class ReportRankedDictionaryPagination(ReportDictionaryPagination):
+class ReportRankedPagination(ReportPagination):
     """A specialty paginator for ranked report data."""
 
     default_limit = 5
