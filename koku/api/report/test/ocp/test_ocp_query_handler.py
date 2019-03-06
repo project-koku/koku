@@ -57,7 +57,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def get_totals_by_time_scope(self, aggregates, filter=None):
         """Return the total aggregates for a time period."""
         if filter is None:
-            filter = self.one_day_filter
+            filter = self.this_month_filter
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\

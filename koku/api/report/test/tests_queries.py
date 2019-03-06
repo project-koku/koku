@@ -752,40 +752,11 @@ class ReportQueryTest(IamTestCase):
         query_params = {}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_units, 'day')
-        self.assertEqual(handler.time_scope_units, 'day')
-
-    def test_get_time_scope_units_empty_month_time_scope(self):
-        """Test get_time_scope_units returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_value': -1}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_units, 'day')
-
-    def test_get_time_scope_units_empty_day_time_scope(self):
-        """Test get_time_scope_units returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_value': -10}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_units, 'day')
+        self.assertEqual(handler.time_scope_units, 'month')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_value, -1)
-
-    def test_get_time_scope_value_empty_month_time_scope(self):
-        """Test get_time_scope_value returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_value, -1)
-
-    def test_get_time_scope_value_empty_day_time_scope(self):
-        """Test get_time_scope_value returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_units': 'day'}}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         self.assertEqual(handler.time_scope_value, -1)

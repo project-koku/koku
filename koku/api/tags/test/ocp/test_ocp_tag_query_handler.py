@@ -52,7 +52,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
-        self.assertEqual(handler.time_scope_units, 'day')
+        self.assertEqual(handler.time_scope_units, 'month')
         self.assertEqual(handler.time_scope_value, -1)
 
     def test_execute_query_10_day_parameters(self):
