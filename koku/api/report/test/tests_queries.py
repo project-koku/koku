@@ -1717,6 +1717,33 @@ class ReportQueryTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
+    def test_rank_list_with_offset(self):
+        """Test rank list limit and offset with account alias."""
+        query_params = {
+            'filter':{
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                'limit': 1,
+                'offset': 1
+            },
+            'group_by': {'account': ['*']}
+        }
+        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2&filter[offset]=1',
+                                        self.tenant,
+                                        **{'report_type': 'costs'})
+        data_list = [
+            {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
+            {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
+            {'account': '3', 'account_alias': '3', 'total': 3, 'rank': 3},
+            {'account': '4', 'account_alias': '4', 'total': 2, 'rank': 4}
+        ]
+        expected = [
+            {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
+        ]
+        ranked_list = handler._ranked_list(data_list)
+        self.assertEqual(ranked_list, expected)
+
     def test_query_costs_with_totals(self):
         """Test execute_query() - costs with totals.
 
