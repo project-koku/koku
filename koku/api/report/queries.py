@@ -725,6 +725,7 @@ class ProviderMap(object):
                     'cost_units_fallback': 'USD',
                     'usage_units_key': 'unit',
                     'usage_units_fallback': 'Hrs',
+                    'count_units_fallback': 'instances',
                     'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'count'],
                     'default_ordering': {'usage': 'desc'},
                 },
