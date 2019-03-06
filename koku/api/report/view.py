@@ -215,10 +215,11 @@ def process_tag_query_params(query_params, tag_keys):
 
     return param_tag_keys
 
+
 def get_paginator(filter_query_params, count):
     """Determine which paginator to use based on query params."""
     if 'offset' in filter_query_params:
-        paginator =  ReportRankedPagination()
+        paginator = ReportRankedPagination()
         paginator.count = count
     else:
         paginator = ReportPagination()

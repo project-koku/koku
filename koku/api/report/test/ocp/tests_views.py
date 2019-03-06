@@ -1059,8 +1059,8 @@ class OCPReportViewTest(IamTestCase):
         limit = 5
         offset = 5
         start_date = (self.dh.this_month_start + datetime.timedelta(days=5))\
-                .date()\
-                .strftime('%Y-%m-%d')
+            .date()\
+            .strftime('%Y-%m-%d')
         url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {

@@ -22,9 +22,9 @@ from django.test import TestCase
 from rest_framework.response import Response
 
 from .pagination import (PATH_INFO,
-                         StandardResultsSetPagination,
                          ReportPagination,
-                         ReportRankedPagination)
+                         ReportRankedPagination,
+                         StandardResultsSetPagination)
 
 
 class StandardResultsSetPaginationTest(TestCase):
@@ -173,7 +173,7 @@ class ReportRankedPaginationTest(TestCase):
     def setUp(self):
         """Set up each test case."""
         self.paginator = ReportRankedPagination()
-        self.paginator.count = random.randint(1,10)
+        self.paginator.count = random.randint(1, 10)
         self.paginator.request = Mock
         self.paginator.request.META = {}
         self.paginator.request.query_params = {}

@@ -126,11 +126,12 @@ class QueryHandler(object):
 
     @property
     def max_rank(self):
+        """Return the max rank of a ranked list."""
         return self._max_rank
 
     @max_rank.setter
     def max_rank(self, max_rank):
-        """Account alias setter."""
+        """Max rank setter."""
         self._max_rank = max_rank
 
     def get_resolution(self):

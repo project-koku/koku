@@ -1720,7 +1720,7 @@ class ReportQueryTest(IamTestCase):
     def test_rank_list_with_offset(self):
         """Test rank list limit and offset with account alias."""
         query_params = {
-            'filter':{
+            'filter': {
                 'resolution': 'monthly',
                 'time_scope_value': -1,
                 'time_scope_units': 'month',
