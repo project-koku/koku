@@ -271,7 +271,7 @@ class OCPReportDataGenerator:
             try:
                 line_item.save()
             except IntegrityError as exc:
-                LOG.critical("Error in mock data generation: %s", exc)
+                LOG.critical('Error in mock data generation: %s', exc)
 
     def _populate_daily_table(self):
         """Populate the daily table."""
@@ -434,7 +434,7 @@ class OCPReportDataGenerator:
             try:
                 line_item.save()
             except IntegrityError as exc:
-                LOG.critical("Error in mock data generation: %s", exc)
+                LOG.critical('Error in mock data generation: %s', exc)
 
     def _populate_storage_daily_table(self):
         """Populate the daily table."""
