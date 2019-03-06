@@ -16,6 +16,7 @@
 #
 """Test the OCPReportQueryHandler base class."""
 import hashlib
+import logging
 import math
 import random
 from decimal import Decimal
@@ -25,6 +26,7 @@ from dateutil.relativedelta import relativedelta
 from django.db import connection, transaction
 from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
+from django.db.utils import IntegrityError
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -38,6 +40,8 @@ from reporting.models import (OCPStorageLineItem,
                               OCPUsageReport,
                               OCPUsageReportPeriod)
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportDataGenerator:
@@ -264,7 +268,10 @@ class OCPReportDataGenerator:
                 'pod_labels': self._gen_pod_labels(report)
             }
             line_item = OCPUsageLineItem(**data)
-            line_item.save()
+            try:
+                line_item.save()
+            except IntegrityError as exc:
+                LOG.critical("Error in mock data generation: %s", exc)
 
     def _populate_daily_table(self):
         """Populate the daily table."""
@@ -424,7 +431,10 @@ class OCPReportDataGenerator:
                 'persistentvolumeclaim_labels': self._gen_pod_labels(report)
             }
             line_item = OCPStorageLineItem(**data)
-            line_item.save()
+            try:
+                line_item.save()
+            except IntegrityError as exc:
+                LOG.critical("Error in mock data generation: %s", exc)
 
     def _populate_storage_daily_table(self):
         """Populate the daily table."""
