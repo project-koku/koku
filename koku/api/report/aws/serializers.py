@@ -55,6 +55,8 @@ class GroupBySerializer(serializers.Serializer):
                                 required=False)
     storage_type = StringOrListField(child=serializers.CharField(),
                                      required=False)
+    product_family = StringOrListField(child=serializers.CharField(),
+                                       required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the GroupBySerializer."""
@@ -99,6 +101,8 @@ class OrderBySerializer(serializers.Serializer):
                                      required=False)
     service = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
+    product_family = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                             required=False)
 
     def validate(self, data):
         """Validate incoming data."""
@@ -141,6 +145,8 @@ class FilterSerializer(serializers.Serializer):
                                required=False)
     az = StringOrListField(child=serializers.CharField(),
                            required=False)
+    product_family = StringOrListField(child=serializers.CharField(),
+                                       required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the FilterSerializer."""
