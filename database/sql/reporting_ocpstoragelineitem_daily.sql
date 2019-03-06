@@ -114,6 +114,20 @@ CREATE TEMPORARY TABLE persistentvolumeclaim_labels_{uuid} AS (
 )
 ;
 
+CREATE TEMPORARY TABLE volume_nodes_{uuid} AS (
+    SELECT li.id,
+        uli.node
+    FROM reporting_ocpstoragelineitem as li
+    JOIN reporting_ocpusagereportperiod AS rp
+        ON li.report_period_id = rp.id
+    LEFT JOIN reporting_ocpusagelineitem_daily as uli
+        ON li.pod = uli.pod
+            AND li.namespace = uli.namespace
+            AND rp.cluster_id = uli.cluster_id
+    GROUP BY li.id, uli.node
+)
+;
+
 CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
     SELECT cluster_id,
         cluster_alias,
@@ -173,10 +187,8 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
                 AND date(ur.interval_start) = pvcl.usage_start
         LEFT JOIN public.api_provider as p
             ON rp.provider_id = p.id
-        LEFT JOIN reporting_ocpusagelineitem_daily as uli
-            ON li.pod = uli.pod
-                AND li.namespace = uli.namespace
-                AND rp.cluster_id = uli.cluster_id
+        LEFT JOIN volume_nodes_{uuid} as uli
+            ON li.id = uli.id
         WHERE date(ur.interval_start) >= '{start_date}'
             AND date(ur.interval_start) <= '{end_date}'
         GROUP BY rp.cluster_id,
