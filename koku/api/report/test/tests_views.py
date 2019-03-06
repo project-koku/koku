@@ -25,6 +25,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
+from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
@@ -34,6 +35,7 @@ from api.report.view import (ClassMapper,
                              _fill_in_missing_units,
                              _find_unit,
                              _generic_report,
+                             get_paginator,
                              process_query_parameters,
                              process_tag_query_params)
 from api.utils import UnitConverter
@@ -385,3 +387,17 @@ class ReportViewTest(IamTestCase):
         result = str(response.data.get('delta')[0])
         self.assertEqual(response.status_code, 400)
         self.assertEqual(result, expected)
+
+    def test_get_paginator_default(self):
+        """Test that the standard report paginator is returned."""
+        params = {}
+        paginator = get_paginator(params, 0)
+
+        self.assertIsInstance(paginator, ReportPagination)
+
+    def test_get_paginator_for_filter_offset(self):
+        """Test that the standard report paginator is returned."""
+        params = {'offset': 5}
+        paginator = get_paginator(params, 0)
+
+        self.assertIsInstance(paginator, ReportRankedPagination)
