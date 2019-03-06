@@ -183,6 +183,15 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for the UserPreference model."""
 
     user = NestedUserSerializer(label='User', read_only=True)
+    name = serializers.CharField(required=True,
+                                 allow_null=False,
+                                 allow_blank=False,
+                                 max_length=255)
+    description = serializers.CharField(required=False,
+                                        allow_null=True,
+                                        allow_blank=True,
+                                        max_length=255)
+    preference = serializers.JSONField(required=True, allow_null=False)
 
     class Meta:
         """Metadata for the serializer."""
@@ -211,7 +220,9 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
         pref = data.get('preference', dict).get(field)
 
         if pref not in iterable:
-            raise serializers.ValidationError(f'Invalid {field}: {pref}')
+            key = 'preference'
+            message = f'Invalid {field}: {pref}'
+            raise serializers.ValidationError(error_obj(key, message))
 
     def _validate_locale(self, data):
         """Check for a valid locale."""
@@ -227,6 +238,11 @@ class UserPreferenceSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate the preference."""
+        if not isinstance(data.get('preference'), dict):
+            key = 'preference'
+            message = 'Preference must be an JSON object.'
+            raise serializers.ValidationError(error_obj(key, message))
+
         self._validate_locale(data)
         self._validate_currency(data)
         self._validate_timezone(data)

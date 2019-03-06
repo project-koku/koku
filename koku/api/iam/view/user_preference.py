@@ -16,7 +16,6 @@
 #
 
 """View for User Preferences."""
-from django.forms.models import model_to_dict
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
 from rest_framework.permissions import AllowAny
@@ -105,7 +104,6 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
             }
         """
         user = request.user
-        request.data['user'] = model_to_dict(user)
 
         # if the pref already exists, it's a bad request
         query = models.UserPreference.objects.filter(user=user,
@@ -248,6 +246,4 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
                 'user': 'a3feac7b-8366-4bd8-8958-163a0ae85f25'
             }
         """
-        user = request.user
-        request.data['user'] = model_to_dict(user)
         return super(UserPreferenceViewSet, self).update(request=request, args=args, kwargs=kwargs)
