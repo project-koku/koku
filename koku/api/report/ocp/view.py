@@ -315,7 +315,7 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    return _generic_report(request, report='charge', provider='ocp')
+    return _generic_report(request, report='cost', provider='ocp')
 
 
 @api_view(http_method_names=['GET'])

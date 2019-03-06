@@ -238,15 +238,15 @@ class ProviderMap(object):
             'group_by_options': ['cluster', 'project', 'node'],
             'tag_column': 'pod_labels',
             'report_type': {
-                'charge': {
+                'cost': {
                     'aggregates': {
-                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        # 'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
                         'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                         'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                     },
                     'default_ordering': {'cost': 'desc'},
                     'annotations': {
-                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        # 'infrastructure_cost': Value(0, output_field=DecimalField()),
                         'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                         'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
                         'cost_units': Value('USD', output_field=CharField())
@@ -261,6 +261,20 @@ class ProviderMap(object):
                     'filter': {},
                     'cost_units_key': 'USD',
                     'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
+                    'infrastructures': {
+                        'AWS': {
+                            'annotations': {
+                                'infrastructure_cost': Sum(ExpressionWrapper(
+                                    F('unblended_cost') / F('shared_projects'),
+                                    output_field=DecimalField()
+                                    )
+                                )
+                            },
+                            'tables': {
+                                'query': OCPAWSCostLineItemDailySummary,
+                            }
+                        }
+                    }
                 },
                 'cpu': {
                     'aggregates': {

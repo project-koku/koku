@@ -80,7 +80,7 @@ class ClassMapper(object):
                     'tag_handler': [OCPUsagePodLabelSummary]
                 },
                 {
-                    'report': 'charge',
+                    'report': 'cost',
                     'serializer': OCPChargeQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
                     'tag_handler': [OCPUsagePodLabelSummary]
