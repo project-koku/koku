@@ -1215,7 +1215,8 @@ class ReportQueryHandler(QueryHandler):
         """
         rank_limited_data = OrderedDict()
         date_grouped_data = self.date_group_data(data_list)
-        self.max_rank = max(entry['rank'] for entry in data_list)
+        if data_list:
+            self.max_rank = max(entry.get('rank') for entry in data_list)
         is_offset = 'offset' in self.query_parameters.get('filter', {})
 
         for date in date_grouped_data:

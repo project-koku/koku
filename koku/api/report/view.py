@@ -389,6 +389,6 @@ def _generic_report(request, provider, report):
                 raise ValidationError(error)
 
     paginator = get_paginator(params.get('filter', {}), max_rank)
-    result_page = paginator.paginate_queryset(output, request)
+    paginated_result = paginator.paginate_queryset(output, request)
     LOG.debug(f'DATA: {output}')
-    return paginator.get_paginated_response(result_page)
+    return paginator.get_paginated_response(paginated_result)

@@ -122,9 +122,11 @@ class OCPAWSReportDataGenerator:
             for aws_service in self.AWS_SERVICE_CHOICES:
                 resource_prefix = 'i-'
                 unit = 'Hrs'
+                instance_type = random.choice(self.aws_info.SOME_INSTANCE_TYPES)
                 if aws_service == 'ebs':
                     resource_prefix = 'vol-'
                     unit = 'GB-Mo'
+                    instance_type = None
                 aws_product = self.aws_info._products.get(aws_service)
                 region = random.choice(self.aws_info.SOME_REGIONS)
                 az = region + random.choice(['a', 'b', 'c'])
@@ -143,6 +145,7 @@ class OCPAWSReportDataGenerator:
                     'openshift_labels': {},
                     'product_code': aws_product.get('service_code'),
                     'product_family': aws_product.get('product_family'),
+                    'instance_type': instance_type,
                     'usage_account_id': self.usage_account_id,
                     'account_alias': None,
                     'availability_zone': az,
