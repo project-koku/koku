@@ -52,8 +52,8 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
-        self.assertEqual(handler.time_scope_units, 'day')
-        self.assertEqual(handler.time_scope_value, -10)
+        self.assertEqual(handler.time_scope_units, 'month')
+        self.assertEqual(handler.time_scope_value, -1)
 
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
@@ -196,15 +196,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
         query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month',
+                                   'tag:environment': 'prod'}
                         }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
         handler = OCPTagQueryHandler(
             query_params,
-            query_string,
+            None,
             self.tenant,
             **{}
         )
@@ -232,15 +230,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
         query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
+                                   'time_scope_value': -1,
                                    'time_scope_units': 'month'},
                         }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
         handler = OCPTagQueryHandler(
             query_params,
-            query_string,
+            None,
             self.tenant,
             **{}
         )

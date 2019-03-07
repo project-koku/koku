@@ -16,15 +16,17 @@
 #
 """Test the OCPReportQueryHandler base class."""
 import hashlib
+import logging
 import math
 import random
 from decimal import Decimal
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
+from django.db.utils import IntegrityError
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -39,6 +41,8 @@ from reporting.models import (OCPStorageLineItem,
                               OCPUsageReportPeriod)
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
+LOG = logging.getLogger(__name__)
+
 
 class OCPReportDataGenerator:
     """Populate the database with OCP report data."""
@@ -51,7 +55,7 @@ class OCPReportDataGenerator:
         self.dated_tags = True if dated_tags is None or dated_tags is True else False
 
         self.today = self.dh.today
-        self.one_month_ago = self.today - relativedelta(months=1)
+        self.one_month_ago = self.dh.n_months_ago(self.dh.today, 1)
 
         self.last_month = self.dh.last_month_start
 
@@ -155,6 +159,7 @@ class OCPReportDataGenerator:
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
 
+    @transaction.atomic
     def remove_data_from_tenant(self):
         """Remove the added data."""
         with tenant_context(self.tenant):
@@ -168,6 +173,7 @@ class OCPReportDataGenerator:
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
 
+    @transaction.atomic
     def remove_data_from_reporting_common(self):
         """Remove the public report statistics."""
         for table in (CostUsageReportManifest,
@@ -262,7 +268,10 @@ class OCPReportDataGenerator:
                 'pod_labels': self._gen_pod_labels(report)
             }
             line_item = OCPUsageLineItem(**data)
-            line_item.save()
+            try:
+                line_item.save()
+            except IntegrityError as exc:
+                LOG.critical('Error in mock data generation: %s', exc)
 
     def _populate_daily_table(self):
         """Populate the daily table."""
@@ -422,7 +431,10 @@ class OCPReportDataGenerator:
                 'persistentvolumeclaim_labels': self._gen_pod_labels(report)
             }
             line_item = OCPStorageLineItem(**data)
-            line_item.save()
+            try:
+                line_item.save()
+            except IntegrityError as exc:
+                LOG.critical('Error in mock data generation: %s', exc)
 
     def _populate_storage_daily_table(self):
         """Populate the daily table."""
