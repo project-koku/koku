@@ -18,7 +18,7 @@
 import datetime
 import logging
 
-from dateutil import relativedelta
+from dateutil.relativedelta import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
 
 from api.query_filter import QueryFilter, QueryFilterCollection
@@ -238,28 +238,10 @@ class QueryHandler(object):
 
     def _get_date_delta(self):
         """Return a time delta."""
-        if self.time_scope_value in [-1, -2]:
-            date_delta = relativedelta.relativedelta(months=1)
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
+        if self.time_scope_units == 'month':
+            return relativedelta(months=abs(self.time_scope_value))
         else:
-            date_delta = datetime.timedelta(days=10)
-        return date_delta
-
-    def _get_time_based_filters(self, delta=False):
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        start_filter = QueryFilter(field='usage_start__date', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end__date', operation='lte',
-                                 parameter=end)
-        return start_filter, end_filter
+            return relativedelta(days=abs(self.time_scope_value))
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
@@ -273,7 +255,18 @@ class QueryHandler(object):
         filters = QueryFilterCollection()
 
         # add time constraint filters
-        start_filter, end_filter = self._get_time_based_filters(delta)
+        if delta:
+            date_delta = self._get_date_delta()
+            start = self.start_datetime - date_delta
+            end = self.end_datetime - date_delta
+        else:
+            start = self.start_datetime
+            end = self.end_datetime
+
+        start_filter = QueryFilter(field='usage_start__date', operation='gte',
+                                   parameter=start)
+        end_filter = QueryFilter(field='usage_end__date', operation='lte',
+                                 parameter=end)
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
 
