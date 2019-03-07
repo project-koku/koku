@@ -29,6 +29,7 @@ from django.db.models.functions import Coalesce
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemDailySummary,
+                              CostsSummary,
                               OCPAWSCostLineItemDailySummary,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItemDailySummary)
@@ -239,6 +240,9 @@ class ProviderMap(object):
             'tag_column': 'pod_labels',
             'report_type': {
                 'charge': {
+                    'tables': {
+                        'query': CostsSummary
+                    },
                     'aggregates': {
                         'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
                         'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
@@ -247,8 +251,8 @@ class ProviderMap(object):
                     'default_ordering': {'cost': 'desc'},
                     'annotations': {
                         'infrastructure_cost': Value(0, output_field=DecimalField()),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours') + F('persistentvolumeclaim_charge_gb_month')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours') + F('persistentvolumeclaim_charge_gb_month')),
                         'cost_units': Value('USD', output_field=CharField())
                     },
                     'capacity_aggregate': {},
