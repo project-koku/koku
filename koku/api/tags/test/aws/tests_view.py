@@ -27,7 +27,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 
 
-class OCPTagsViewTest(IamTestCase):
+class AWSTagsViewTest(IamTestCase):
     """Tests the report view."""
 
     @classmethod

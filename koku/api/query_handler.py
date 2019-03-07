@@ -69,6 +69,7 @@ class QueryHandler(object):
         self.time_interval = []
         self.start_datetime = None
         self.end_datetime = None
+        self._max_rank = 0
 
         if self.resolution == 'monthly':
             self.date_to_string = lambda dt: dt.strftime('%Y-%m')
@@ -130,6 +131,16 @@ class QueryHandler(object):
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
         return list(order_by.values()).pop()
+
+    @property
+    def max_rank(self):
+        """Return the max rank of a ranked list."""
+        return self._max_rank
+
+    @max_rank.setter
+    def max_rank(self, max_rank):
+        """Max rank setter."""
+        self._max_rank = max_rank
 
     @property
     def resolution(self):
