@@ -178,6 +178,7 @@ class FilterSerializer(serializers.Serializer):
     resource_scope = StringOrListField(child=serializers.CharField(),
                                        required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
     project = StringOrListField(child=serializers.CharField(),
                                 required=False)
     cluster = StringOrListField(child=serializers.CharField(),
@@ -244,6 +245,11 @@ class OCPQueryParamSerializer(serializers.Serializer):
     # Tuples are (key, display_name)
     group_by = GroupBySerializer(required=False)
     units = serializers.CharField(required=False)
+
+    # Adding pagination fields to the serializer because we validate
+    # before running reports and paginating
+    limit = serializers.IntegerField(required=False)
+    offset = serializers.IntegerField(required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""

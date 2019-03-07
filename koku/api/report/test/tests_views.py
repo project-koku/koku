@@ -21,19 +21,19 @@ from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
+from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.view import (ClassMapper,
-                             _convert_units,
+from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
                              _generic_report,
+                             get_paginator,
                              process_query_parameters,
                              process_tag_query_params)
 from api.utils import UnitConverter
@@ -305,7 +305,8 @@ class ReportViewTest(IamTestCase):
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month',
-            'units': 'byte'
+            'units': 'byte',
+            'SERVER_NAME': ''
         }
         user = User.objects.get(
             username=self.user_data['username']
@@ -320,39 +321,6 @@ class ReportViewTest(IamTestCase):
 
         response = _generic_report(request, provider='aws', report='costs')
         self.assertIsInstance(response, Response)
-
-    def test_generic_report_with_units_fails_well(self):
-        """Test that validation error is thrown for bad unit conversion."""
-        patched = patch('api.report.aws.aws_query_handler.AWSReportQueryHandler',
-                        spec=True)
-        mock_class = patched.start()
-        mock_class.return_value.execute_query.return_value = self.report
-        # replace the normal queryhandler with our mocked version
-        ClassMapper.CLASS_MAP[0]['reports'][0]['query_handler'] = mock_class
-
-        # The 'bad' unit here is that the report is in GB-Mo, and can't
-        # convert to seconds
-        params = {
-            'group_by[account]': '*',
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'units': 'second'
-        }
-
-        user = User.objects.get(
-            username=self.user_data['username']
-        )
-
-        django_request = HttpRequest()
-        qd = QueryDict(mutable=True)
-        qd.update(params)
-        django_request.GET = qd
-        request = Request(django_request)
-        request.user = user
-
-        with self.assertRaises(ValidationError):
-            _generic_report(request, provider='aws', report='costs')
 
     def test_find_unit_list(self):
         """Test that the correct unit is returned."""
@@ -417,3 +385,17 @@ class ReportViewTest(IamTestCase):
         result = str(response.data.get('delta')[0])
         self.assertEqual(response.status_code, 400)
         self.assertEqual(result, expected)
+
+    def test_get_paginator_default(self):
+        """Test that the standard report paginator is returned."""
+        params = {}
+        paginator = get_paginator(params, 0)
+
+        self.assertIsInstance(paginator, ReportPagination)
+
+    def test_get_paginator_for_filter_offset(self):
+        """Test that the standard report paginator is returned."""
+        params = {'offset': 5}
+        paginator = get_paginator(params, 0)
+
+        self.assertIsInstance(paginator, ReportRankedPagination)
