@@ -295,7 +295,7 @@ class OCPAWSReportViewTest(IamTestCase):
         prev_total = prev_total if prev_total is not None else 0
 
         expected_delta = current_total - prev_total
-        delta = data.get('delta').get('value')
+        delta = data.get('meta', {}).get('delta', {}).get('value')
         self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
         for item in data.get('data'):
             date = item.get('date')
@@ -425,7 +425,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = float(totals[key])
             result = data_totals.get(key, {}).get('value')
@@ -463,7 +463,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = float(totals[key])
             result = data_totals.get(key, {}).get('value')
@@ -679,3 +679,165 @@ class OCPAWSReportViewTest(IamTestCase):
         for entry in data.get('data', []):
             for project in entry.get('projects', []):
                 self.assertEqual(project.get('project'), project_of_interest)
+
+    def test_execute_query_default_pagination(self):
+        """Test that the default pagination works."""
+        url = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertEqual(len(data), count)
+
+    def test_execute_query_limit_pagination(self):
+        """Test that the default pagination works with a limit."""
+        limit = 5
+        start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
+        url = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'limit': limit
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertNotEqual(len(data), count)
+        if limit > count:
+            self.assertEqual(len(data), count)
+        else:
+            self.assertEqual(len(data), limit)
+        self.assertEqual(data[0].get('date'), start_date)
+
+    def test_execute_query_limit_offset_pagination(self):
+        """Test that the default pagination works with an offset."""
+        limit = 5
+        offset = 5
+        start_date = (self.dh.this_month_start + datetime.timedelta(days=5))\
+            .date()\
+            .strftime('%Y-%m-%d')
+        url = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'limit': limit,
+            'offset': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertNotEqual(len(data), count)
+        if limit + offset > count:
+            self.assertEqual(len(data), max((count - offset), 0))
+        else:
+            self.assertEqual(len(data), limit)
+        self.assertEqual(data[0].get('date'), start_date)
+
+    def test_execute_query_filter_limit_offset_pagination(self):
+        """Test that the ranked group pagination works."""
+        limit = 1
+        offset = 0
+
+        url = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[project]': '*',
+            'filter[limit]': limit,
+            'filter[offset]': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        for entry in data:
+            projects = entry.get('projects', [])
+            if limit + offset > count:
+                self.assertEqual(len(projects), max((count - offset), 0))
+            else:
+                self.assertEqual(len(projects), limit)
+
+    def test_execute_query_filter_limit_high_offset_pagination(self):
+        """Test that the default pagination works."""
+        limit = 1
+        offset = 10
+
+        url = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[project]': '*',
+            'filter[limit]': limit,
+            'filter[offset]': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        for entry in data:
+            projects = entry.get('projects', [])
+            if limit + offset > count:
+                self.assertEqual(len(projects), max((count - offset), 0))
+            else:
+                self.assertEqual(len(projects), limit)

@@ -839,11 +839,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -919,11 +925,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -999,11 +1011,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1079,11 +1097,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1159,11 +1183,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1231,11 +1261,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1303,11 +1339,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1375,11 +1417,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1455,11 +1503,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1535,11 +1589,17 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1599,11 +1659,17 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1653,11 +1719,17 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "A report object",
+                        "description": "A paginated report object",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1714,6 +1786,18 @@
                 "schema": {
                     "type": "integer",
                     "default": 10,
+                    "minimum": 1,
+                    "maximum": 1000
+                }
+            },
+            "ReportQueryLimit": {
+                "in": "query",
+                "name": "limit",
+                "required": false,
+                "description": "Parameter for selecting the amount of data in a returned.",
+                "schema": {
+                    "type": "integer",
+                    "default": 100,
                     "minimum": 1,
                     "maximum": 1000
                 }
@@ -2040,6 +2124,11 @@
                         "description": "Limits the data points returns and aggregates remaining data.",
                         "example": 5
                     },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offsets the data points returned when using limit.",
+                        "example": 5
+                    },
                     "resolution": {
                         "$ref": "#/components/schemas/ReportResolution"
                     },
@@ -2096,6 +2185,11 @@
                         "description": "Limits the data points returns and aggregates remaining data.",
                         "example": 5
                     },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offsets the data points returned when using limit.",
+                        "example": 5
+                    },
                     "resolution": {
                         "$ref": "#/components/schemas/ReportResolution"
                     },
@@ -2150,6 +2244,11 @@
                     "limit": {
                         "type": "integer",
                         "description": "Limits the data points returns and aggregates remaining data.",
+                        "example": 5
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offsets the data points returned when using limit.",
                         "example": 5
                     },
                     "resolution": {
@@ -2644,7 +2743,7 @@
                 ],
                 "description": "The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering."
             },
-            "Report": {
+            "ReportPaginationMeta": {
                 "required": [
                     "delta",
                     "group_by",
@@ -2652,6 +2751,11 @@
                     "filter"
                 ],
                 "properties": {
+                    "count": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 30
+                    },
                     "delta": {
                         "$ref": "#/components/schemas/ReportDelta"
                     },
@@ -2671,27 +2775,26 @@
                     }
                 }
             },
+            "Report": {
+                "properties": {
+                    "meta": {
+                        "$ref": "#/components/schemas/ReportPaginationMeta"
+                    },
+                    "links": {
+                        "$ref": "#/components/schemas/PaginationLinks"
+                    }
+                }
+            },
             "ReportChargeOpenShift": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/Report"
+                }],
                 "required": [
                     "delta",
                     "group_by",
                     "order_by",
                     "filter"
-                ],
-                "properties": {
-                    "delta": {
-                        "$ref": "#/components/schemas/ReportDelta"
-                    },
-                    "group_by": {
-                        "$ref": "#/components/schemas/ReportOpenShiftGrouping"
-                    },
-                    "order_by": {
-                        "$ref": "#/components/schemas/ReportChargeOpenShiftOrdering"
-                    },
-                    "filter": {
-                        "$ref": "#/components/schemas/ReportFilterOpenShift"
-                    }
-                }
+                ]
             },
             "ReportCost": {
                 "allOf": [{
