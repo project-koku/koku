@@ -17,8 +17,6 @@
 
 """Models for OCP cost view tables."""
 
-from django.contrib.postgres.fields import JSONField
-from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 

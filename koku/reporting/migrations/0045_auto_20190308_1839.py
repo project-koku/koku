@@ -20,9 +20,9 @@ class Migration(migrations.Migration):
                     usageli.cluster_id,
                     usageli.namespace,
                     usageli.pod,
-                    usageli.pod_charge_cpu_core_hours,
-                    usageli.pod_charge_memory_gigabyte_hours,
-                    storageli.persistentvolumeclaim_charge_gb_month
+                    COALESCE(usageli.pod_charge_cpu_core_hours, 0) AS pod_charge_cpu_core_hours,
+                    COALESCE(usageli.pod_charge_memory_gigabyte_hours, 0) AS pod_charge_memory_gigabyte_hours,
+                    COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0) AS persistentvolumeclaim_charge_gb_month
                 FROM reporting_ocpusagelineitem_daily_summary as usageli
                 LEFT JOIN reporting_ocpstoragelineitem_daily_summary as storageli
                     ON usageli.usage_start = storageli.usage_start
