@@ -778,7 +778,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -820,7 +820,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -854,7 +854,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
