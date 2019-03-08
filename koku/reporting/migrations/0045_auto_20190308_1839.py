@@ -30,11 +30,6 @@ class Migration(migrations.Migration):
                         AND usageli.cluster_id = storageli.cluster_id
                         AND usageli.namespace = storageli.namespace
                         AND usageli.pod = storageli.pod
-                WHERE usageli.usage_start = storageli.usage_start
-                        AND usageli.usage_end = storageli.usage_end
-                        AND usageli.cluster_id = storageli.cluster_id
-                        AND usageli.namespace = storageli.namespace
-                        AND usageli.pod = storageli.pod
             )
             ;
             """
