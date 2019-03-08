@@ -155,6 +155,7 @@ class OCPReportDataGenerator:
             self._populate_storage_daily_table()
             self._populate_storage_daily_summary_table()
             self._populate_charge_info()
+            self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
@@ -408,6 +409,18 @@ class OCPReportDataGenerator:
             cpu_charge = max(float(cpu_usage), float(cpu_request)) * 0.50
 
             entry.pod_charge_cpu_core_hours = cpu_charge
+
+            entry.save()
+
+    def _populate_storage_charge_info(self):
+        """Populate the storage charge information in summary table."""
+        entries = OCPStorageLineItemDailySummary.objects.all()
+        for entry in entries:
+            storage_usage = entry.persistentvolumeclaim_usage_gigabyte_months
+            storage_request = entry.volume_request_storage_gigabyte_months
+            storage_charge = float(storage_usage + storage_request) * 0.25
+
+            entry.persistentvolumeclaim_charge_gb_month = storage_charge
 
             entry.save()
 
