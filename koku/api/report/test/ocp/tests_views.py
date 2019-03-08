@@ -778,13 +778,17 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
+        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
         with tenant_context(self.tenant):
             labels = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__date__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=filter_key)\
                 .values(*['pod_labels'])\
                 .all()
             label_of_interest = labels[0]
-            filter_key = list(label_of_interest.get('pod_labels', {}).keys())[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
 
             totals = OCPUsageLineItemDailySummary.objects\
@@ -816,16 +820,13 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        with tenant_context(self.tenant):
-            labels = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__date__gte=self.ten_days_ago)\
-                .values(*['pod_labels'])\
-                .all()
-            label_of_interest = labels[0]
-            filter_key = list(label_of_interest.get('pod_labels', {}).keys())[0]
+        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
 
+        with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__date__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{'pod_labels__has_key': filter_key})\
                 .aggregate(
                     **{
@@ -853,7 +854,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = OCPTagQueryHandler('', {}, self.tenant)
+        handler = OCPTagQueryHandler('?type=pod', {'type': 'pod'}, self.tenant)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
