@@ -15,18 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Models for OCP on AWS tables."""
+"""Models for OCP cost view tables."""
 
 from django.contrib.postgres.fields import JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
-class CostsSummary(models.Model):
-    """A summary view of AWS and OCP costs."""
+class CostSummary(models.Model):
+    """A summary view of OCP costs."""
 
     class Meta:
-        """Meta for CostsSummary."""
+        """Meta for CostSummary."""
 
         db_table = 'reporting_costs_summary'
         managed = False

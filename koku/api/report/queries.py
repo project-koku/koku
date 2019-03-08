@@ -29,7 +29,7 @@ from django.db.models.functions import Coalesce
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemDailySummary,
-                              CostsSummary,
+                              CostSummary,
                               OCPAWSCostLineItemDailySummary,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItemDailySummary)
@@ -241,7 +241,7 @@ class ProviderMap(object):
             'report_type': {
                 'charge': {
                     'tables': {
-                        'query': CostsSummary
+                        'query': CostSummary
                     },
                     'aggregates': {
                         'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
