@@ -426,10 +426,10 @@
         },
         "isort": {
             "hashes": [
-                "sha256:144c4295314c0ed34fb034f838b2b7e242c52dd3eafdd6f5d49078692f582c0c",
-                "sha256:92a7ddacb0e7e10ed2976e6b5d58496dcda27a3f525c187a3a1a0ae5fa79ff1b"
+                "sha256:18c796c2cd35eb1a1d3f012a214a542790a1aed95e29768bdcb9f2197eccbd0b",
+                "sha256:96151fca2c6e736503981896495d344781b60d18bfda78dc11b290c6125ebdb6"
             ],
-            "version": "==4.3.10"
+            "version": "==4.3.15"
         },
         "jinja2": {
             "hashes": [
