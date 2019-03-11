@@ -243,7 +243,7 @@ def cpu(request):
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def charges(request):
+def costs(request):
     """Get OpenShift charge data.
 
     @api {get} /cost-management/v1/reports/openshift/charge/ Get OpenShift charge data
@@ -315,7 +315,7 @@ def charges(request):
         3.000000,2018-11,metering-hccm
 
     """
-    return _generic_report(request, report='cost', provider='ocp')
+    return _generic_report(request, report='costs', provider='ocp')
 
 
 @api_view(http_method_names=['GET'])
