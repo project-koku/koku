@@ -36,7 +36,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -505,114 +505,76 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
-    def test_execute_query_ocp_charge_with_delta(self):
-        """Test that deltas work for charge."""
-        url = reverse('reports-openshift-charges')
-        client = APIClient()
-        params = {
-            'delta': 'cost',
-            'filter[resolution]': 'daily',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month'
-        }
-        url = url + '?' + urlencode(params, quote_via=quote_plus)
-        response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        this_month_start = self.dh.this_month_start
-        last_month_start = self.dh.last_month_start
+        def test_execute_query_ocp_charge_with_delta(self):
+            """Test that deltas work for charge."""
+            url = reverse('reports-openshift-charges')
+            client = APIClient()
+            params = {
+                'delta': 'cost',
+                'filter[resolution]': 'daily',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month'
+            }
+            url = url + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            this_month_start = self.dh.this_month_start
+            last_month_start = self.dh.last_month_start
 
-        date_delta = relativedelta.relativedelta(months=1)
+            date_delta = relativedelta.relativedelta(months=1)
 
-        def date_to_string(dt):
-            return dt.strftime('%Y-%m-%d')
+            def date_to_string(dt):
+                return dt.strftime('%Y-%m-%d')
 
-        def string_to_date(dt):
-            return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+            def string_to_date(dt):
+                return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
-        with tenant_context(self.tenant):
-            current_total = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
-                .aggregate(
-                    total=Sum(
-                        F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours')
-                    )
-                ).get('total')
-            storage_current_total = OCPStorageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
-                .aggregate(
-                    total=Sum(
-                        F('persistentvolumeclaim_charge_gb_month')
-                    )
-                ).get('total')
-            current_total = current_total if current_total is not None else 0
-            storage_current_total = storage_current_total if storage_current_total is not None else 0
-            current_total += storage_current_total
+            with tenant_context(self.tenant):
+                current_total = CostSummary.objects\
+                    .filter(usage_start__gte=this_month_start)\
+                    .aggregate(
+                        total=Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +
+                            F('persistentvolumeclaim_charge_gb_month')
+                        )
+                    ).get('total')
+                current_total = current_total if current_total is not None else 0
 
-            current_totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
-                .annotate(**{'date': TruncDayString('usage_start')})\
-                .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                current_totals = CostSummary.objects\
+                    .filter(usage_start__gte=this_month_start)\
+                    .annotate(**{'date': TruncDayString('usage_start')})\
+                    .values(*['date'])\
+                    .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours') + F('persistentvolumeclaim_charge_gb_month')))
 
-            prev_totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=last_month_start)\
-                .filter(usage_start__lt=this_month_start)\
-                .annotate(**{'date': TruncDayString('usage_start')})\
-                .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                prev_totals = CostSummary.objects\
+                    .filter(usage_start__gte=last_month_start)\
+                    .filter(usage_start__lt=this_month_start)\
+                    .annotate(**{'date': TruncDayString('usage_start')})\
+                    .values(*['date'])\
+                    .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours') + F('persistentvolumeclaim_charge_gb_month')))
 
-            storage_current_totals = OCPStorageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
-                .annotate(**{'date': TruncDayString('usage_start')})\
-                .values(*['date'])\
-                .annotate(total=Sum(F('persistentvolumeclaim_charge_gb_month')))
+            current_totals = {total.get('date'): total.get('total')
+                            for total in current_totals}
+            prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
+                        for total in prev_totals
+                        if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
 
-            storage_prev_totals = OCPStorageLineItemDailySummary.objects\
-                .filter(usage_start__gte=last_month_start)\
-                .filter(usage_start__lt=this_month_start)\
-                .annotate(**{'date': TruncDayString('usage_start')})\
-                .values(*['date'])\
-                .annotate(total=Sum(F('persistentvolumeclaim_charge_gb_month')))
+            prev_total = sum(prev_totals.values())
+            prev_total = prev_total if prev_total is not None else 0
 
-        current_totals = {total.get('date'): total.get('total')
-                          for total in current_totals}
-        storage_current_totals = {total.get('date'): total.get('total')
-                          for total in storage_current_totals}
-        import pdb; pdb.set_trace()
-
-
-        prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
-                       for total in prev_totals
-                       if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
-        storage_prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('total')
-                       for total in storage_prev_totals
-                       if date_to_string(string_to_date(total.get('date')) + date_delta) in storage_current_totals}
-
-
-        for key, value in current_totals.items():
-            value += storage_current_totals.get(key)
-            current_totals[key] = value
-
-        for key, value in prev_totals.items():
-            value += storage_prev_totals.get(key)
-            prev_totals[key] = value
-
-        prev_total = sum(prev_totals.values())
-        prev_total = prev_total if prev_total is not None else 0
-        import pdb; pdb.set_trace()
-        expected_delta = current_total - prev_total
-        delta = data.get('meta', {}).get('delta', {}).get('value')
-        self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
-        for item in data.get('data'):
-            date = item.get('date')
-            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
-            values = item.get('values', [])
-            delta_value = 0
-            if values:
-                delta_value = values[0].get('delta_value')
-            self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
+            expected_delta = current_total - prev_total
+            delta = data.get('meta', {}).get('delta', {}).get('value')
+            self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
+            for item in data.get('data'):
+                date = item.get('date')
+                expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+                values = item.get('values', [])
+                delta_value = 0
+                if values:
+                    delta_value = values[0].get('delta_value')
+                self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
 
     def test_execute_query_ocp_charge_with_invalid_delta(self):
         """Test that bad deltas don't work for charge."""
