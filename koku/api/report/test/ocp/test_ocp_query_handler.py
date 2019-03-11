@@ -98,7 +98,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             **{'report_type': 'charge'}
         )
         aggregates = handler._mapper.report_type_map.get('aggregates')
-        current_totals = self.get_totals_by_time_scope(aggregates)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
