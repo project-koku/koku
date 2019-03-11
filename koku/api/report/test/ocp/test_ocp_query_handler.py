@@ -30,7 +30,7 @@ from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -63,6 +63,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .filter(**filter)\
                 .aggregate(**aggregates)
 
+    def get_totals_costs_by_time_scope(self, aggregates, filter=None):
+        """Return the total costs aggregates for a time period."""
+        if filter is None:
+            filter = self.this_month_filter
+        with tenant_context(self.tenant):
+            return CostSummary.objects\
+                .filter(**filter)\
+                .aggregate(**aggregates)
+
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
         handler = OCPReportQueryHandler({}, '', self.tenant, report_type='cpu')
@@ -89,7 +98,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             **{'report_type': 'charge'}
         )
         aggregates = handler._mapper.report_type_map.get('aggregates')
-        current_totals = self.get_totals_by_time_scope(aggregates)
+        current_totals = self.get_totals_costs_by_time_scope(aggregates)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
