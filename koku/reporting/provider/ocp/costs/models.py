@@ -26,9 +26,8 @@ class CostSummary(models.Model):
     class Meta:
         """Meta for CostSummary."""
 
-        db_table = 'reporting_costs_summary'
+        db_table = 'reporting_ocpcosts_summary'
         managed = False
-    id = models.BigAutoField(primary_key=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
 
@@ -57,6 +56,20 @@ class CostSummary(models.Model):
     )
 
     persistentvolumeclaim_charge_gb_month = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    infra_cost = models.DecimalField(
+        max_digits=24,
+        decimal_places=6,
+        null=True
+    )
+
+    # This field is used in place of infrastructure_cost when
+    # grouping by project
+    project_infra_cost = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
