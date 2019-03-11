@@ -536,7 +536,7 @@ class OCPReportViewTest(IamTestCase):
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours')                    )
+                        F('pod_charge_memory_gigabyte_hours'))
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
