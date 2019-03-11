@@ -36,7 +36,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -531,28 +531,34 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = OCPUsageLineItemDailySummary.objects\
+            current_total = CostSummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours')
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month')
                     )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = OCPUsageLineItemDailySummary.objects\
+            current_totals = CostSummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')))
 
-            prev_totals = OCPUsageLineItemDailySummary.objects\
+            prev_totals = CostSummary.objects\
                 .filter(usage_start__gte=last_month_start)\
                 .filter(usage_start__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')))
 
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}
