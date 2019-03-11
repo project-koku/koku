@@ -267,7 +267,8 @@ class ProviderMap(object):
                     'delta_key': {
                         'cost': Sum(
                             F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')  # noqa: W503
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')
                         )
                     },
                     'filter': {},
