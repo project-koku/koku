@@ -19,7 +19,7 @@ import copy
 from collections import defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 
-from django.db.models import F, Subquery, Sum, Value, Window
+from django.db.models import F, Value, Window
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -39,9 +39,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        kwargs['provider'] = 'OCP'
+        provider = 'OCP'
+        kwargs['provider'] = provider
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
+
+        # Update which field is used to calculate cost by group by param.
+        group_by = self._get_group_by()
+        if group_by and 'project' in group_by and self._report_type == 'costs':
+            self._report_type = self._report_type + '_by_project'
+            self._mapper = ProviderMap(provider=provider,
+                                       report_type=self._report_type)
 
     @property
     def annotations(self):
@@ -93,23 +101,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _create_infrastructure_cost_query(self, provider):
-        """Create infrastrcutrue cost annotation."""
-        infra = self._mapper.report_type_map.get('infrastructures', {}).get(provider)
-        q_table = infra.get('tables', {}).get('query')
-        annotations = infra.get('annotations', {})
-        date_annotation = {'date': self.date_trunc('usage_start')}
-        annotations.update(date_annotation)
-        print(annotations)
-        print(self.query_filter)
-        query = q_table.objects.filter(self.query_filter)
-        dataset = query.annotate(**annotations)
-        query_group_by = ['date', 'infrastructure_cost'] + self._get_group_by()
-        query_order_by = ['-date', ]
-        query_order_by.extend([self.order])
-        dataset = dataset.values(*query_group_by)
-        return dataset
-
     def execute_query(self):
         """Execute query and return provided data.
 
@@ -126,12 +117,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
-            infra_cost = self._create_infrastructure_cost_query('AWS')
-            print('#' * 90)
-            print(len(infra_cost.values('infrastructure_cost')))
-            print(infra_cost.values()[0])
-            print('#' * 90)
-            # query_data = query_data.annotate(infrastructure_cost=Subquery(infra_cost.values('infrastructure_cost')))
             group_by_value = self._get_group_by()
 
             query_group_by = ['date'] + group_by_value
@@ -143,8 +128,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if 'cluster' in query_group_by or 'cluster' in self.query_filter:
                 query_data = query_data.annotate(cluster_alias=Coalesce('cluster_alias',
                                                                         'cluster_id'))
-            print(len(query_data.values()))
-            print(query_data.values()[0])
 
             if self._limit and group_by_value:
                 rank_by_total = self.get_rank_window_function(group_by_value)
@@ -154,11 +137,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             # Populate the 'total' section of the API response
             if query.exists():
-                # infra_agg = {
-                #     'infrastructure_cost': Sum(Subquery(infra_cost.values('infrastructure_cost')))
-                # }
                 aggregates = self._mapper.report_type_map.get('aggregates')
-                # aggregates.update(infra_agg)
                 metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
