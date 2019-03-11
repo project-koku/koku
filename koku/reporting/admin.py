@@ -24,7 +24,8 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItem,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct,
-                              AWSCostEntryReservation)
+                              AWSCostEntryReservation,
+                              CostSummary)
 
 admin.site.register(AWSAccountAlias)
 admin.site.register(AWSCostEntry)
@@ -33,3 +34,4 @@ admin.site.register(AWSCostEntryLineItem)
 admin.site.register(AWSCostEntryPricing)
 admin.site.register(AWSCostEntryProduct)
 admin.site.register(AWSCostEntryReservation)
+admin.site.register(CostSummary)
