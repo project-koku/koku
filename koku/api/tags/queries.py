@@ -125,7 +125,7 @@ class TagQueryHandler(QueryHandler):
                 for tag_key in tag_keys_query:
                     tag_keys.append(tag_key)
 
-        return tag_keys
+        return list(set(tag_keys))
 
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):

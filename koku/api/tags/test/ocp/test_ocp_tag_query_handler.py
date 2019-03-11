@@ -222,7 +222,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
-            tag_keys = usage_tag_keys + storage_tag_keys
+            tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=True)
         self.assertNotEqual(sorted(result), sorted(tag_keys))
@@ -255,7 +255,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .annotate(tag_count=Count('tag_keys'))\
                 .all()
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
-            tag_keys = usage_tag_keys + storage_tag_keys
+            tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
         result = handler.get_tag_keys(filters=False)
         self.assertEqual(sorted(result), sorted(tag_keys))
