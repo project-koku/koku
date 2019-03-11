@@ -245,8 +245,12 @@ class ProviderMap(object):
                     },
                     'aggregates': {
                         'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                            F('pod_charge_memory_gigabyte_hours') + \
+                                            F('persistentvolumeclaim_charge_gb_month')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                    F('pod_charge_memory_gigabyte_hours') + \
+                                    F('persistentvolumeclaim_charge_gb_month')),
                     },
                     'default_ordering': {'cost': 'desc'},
                     'annotations': {
