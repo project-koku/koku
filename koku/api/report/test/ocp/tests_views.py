@@ -36,7 +36,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -47,7 +47,7 @@ class OCPReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 10)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -255,13 +255,12 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = str(self.dh.today.date())
+        expected_start_date = str(self.dh.this_month_start.date())
         self.assertEqual(response.status_code, 200)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
+
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 
@@ -279,7 +278,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('cost' in total)
         self.assertEqual(total.get('cost', {}).get('units'), 'USD')
@@ -297,7 +296,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('usage' in total)
         self.assertEqual(total.get('usage', {}).get('units'), 'Core-Hours')
@@ -315,7 +314,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response_json = response.json()
 
-        total = response_json.get('total', {})
+        total = response_json.get('meta', {}).get('total', {})
         data = response_json.get('data', {})
         self.assertTrue('usage' in total)
         self.assertEqual(total.get('usage', {}).get('units'), 'GB-Hours')
@@ -330,12 +329,13 @@ class OCPReportViewTest(IamTestCase):
         """Test that OCP CPU endpoint works."""
         url = reverse('reports-openshift-cpu')
         client = APIClient()
-        params = {'filter[time_scope_value]': '-30'}
+        params = {'filter[time_scope_value]': '-30',
+                  'filter[time_scope_units]': 'day'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 29)
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 30)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
@@ -440,7 +440,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.last_month_start.strftime('%Y-%m-%d')
-        expected_end_date = self.dh.last_month_end.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.today.strftime('%Y-%m-%d')
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -531,28 +531,34 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = OCPUsageLineItemDailySummary.objects\
+            current_total = CostSummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours')
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month')
                     )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = OCPUsageLineItemDailySummary.objects\
+            current_totals = CostSummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')))
 
-            prev_totals = OCPUsageLineItemDailySummary.objects\
+            prev_totals = CostSummary.objects\
                 .filter(usage_start__gte=last_month_start)\
                 .filter(usage_start__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')))
 
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}
@@ -564,7 +570,7 @@ class OCPReportViewTest(IamTestCase):
         prev_total = prev_total if prev_total is not None else 0
 
         expected_delta = current_total - prev_total
-        delta = data.get('delta').get('value')
+        delta = data.get('meta', {}).get('delta', {}).get('value')
         self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
         for item in data.get('data'):
             date = item.get('date')
@@ -778,7 +784,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = OCPTagQueryHandler('', {}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -812,7 +818,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = round(float(totals[key]), 6)
             result = data_totals.get(key, {}).get('value')
@@ -820,7 +826,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        handler = OCPTagQueryHandler('', {}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -846,7 +852,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         data = response.json()
-        data_totals = data.get('total')
+        data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
             expected = round(float(totals[key]), 6)
             result = data_totals.get(key, {}).get('value')
@@ -854,7 +860,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = OCPTagQueryHandler('', {}, self.tenant)
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
@@ -997,3 +1003,165 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue('request' in values)
         self.assertTrue('cost' in values)
         self.assertEqual(values.get('usage', {}).get('units'), 'GB-Mo')
+
+    def test_execute_query_default_pagination(self):
+        """Test that the default pagination works."""
+        url = reverse('reports-openshift-volume')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertEqual(len(data), count)
+
+    def test_execute_query_limit_pagination(self):
+        """Test that the default pagination works with a limit."""
+        limit = 5
+        start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'limit': limit
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertNotEqual(len(data), count)
+        if limit > count:
+            self.assertEqual(len(data), count)
+        else:
+            self.assertEqual(len(data), limit)
+        self.assertEqual(data[0].get('date'), start_date)
+
+    def test_execute_query_limit_offset_pagination(self):
+        """Test that the default pagination works with an offset."""
+        limit = 5
+        offset = 5
+        start_date = (self.dh.this_month_start + datetime.timedelta(days=5))\
+            .date()\
+            .strftime('%Y-%m-%d')
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'limit': limit,
+            'offset': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        self.assertNotEqual(len(data), count)
+        if limit + offset > count:
+            self.assertEqual(len(data), max((count - offset), 0))
+        else:
+            self.assertEqual(len(data), limit)
+        self.assertEqual(data[0].get('date'), start_date)
+
+    def test_execute_query_filter_limit_offset_pagination(self):
+        """Test that the ranked group pagination works."""
+        limit = 1
+        offset = 0
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[project]': '*',
+            'filter[limit]': limit,
+            'filter[offset]': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        for entry in data:
+            projects = entry.get('projects', [])
+            if limit + offset > count:
+                self.assertEqual(len(projects), max((count - offset), 0))
+            else:
+                self.assertEqual(len(projects), limit)
+
+    def test_execute_query_filter_limit_high_offset_pagination(self):
+        """Test that the default pagination works."""
+        limit = 1
+        offset = 10
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {
+            'filter[resolution]': 'monthly',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'group_by[project]': '*',
+            'filter[limit]': limit,
+            'filter[offset]': offset
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        meta = response_data.get('meta', {})
+        count = meta.get('count', 0)
+
+        self.assertIn('total', meta)
+        self.assertIn('filter', meta)
+        self.assertIn('count', meta)
+
+        for entry in data:
+            projects = entry.get('projects', [])
+            if limit + offset > count:
+                self.assertEqual(len(projects), max((count - offset), 0))
+            else:
+                self.assertEqual(len(projects), limit)

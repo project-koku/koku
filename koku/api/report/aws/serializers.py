@@ -113,6 +113,8 @@ class OrderBySerializer(serializers.Serializer):
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling query parameter filter."""
 
+    # IMPORTANT: Changing these serializer choices impacts the aggregate tables.
+    # Don't change these without coordinating the change across to Masu.
     RESOLUTION_CHOICES = (
         ('daily', 'daily'),
         ('monthly', 'monthly'),
@@ -137,6 +139,7 @@ class FilterSerializer(serializers.Serializer):
     resource_scope = StringOrListField(child=serializers.CharField(),
                                        required=False)
     limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
     service = StringOrListField(child=serializers.CharField(),
@@ -211,6 +214,11 @@ class QueryParamSerializer(serializers.Serializer):
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
+
+    # Adding pagination fields to the serializer because we validate
+    # before running reports and paginating
+    limit = serializers.IntegerField(required=False)
+    offset = serializers.IntegerField(required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""

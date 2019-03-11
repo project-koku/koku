@@ -95,3 +95,69 @@ class StandardResultsSetPagination(LimitOffsetPagination):
             },
             'data': data
         })
+
+
+class ReportPagination(StandardResultsSetPagination):
+    """A specialty paginator for report data."""
+
+    default_limit = 100
+
+    def get_count(self, queryset):
+        """Determine a report data's count."""
+        return len(queryset.get('data', []))
+
+    def paginate_queryset(self, queryset, request, view=None):
+        """Override queryset pagination."""
+        self.count = self.get_count(queryset)
+        self.limit = self.get_limit(request)
+        if self.limit is None:
+            return None
+        self.offset = self.get_offset(request)
+        self.request = request
+        if self.count > self.limit and self.template is not None:
+            self.display_page_controls = True
+
+        if self.count == 0 or self.offset > self.count:
+            queryset['data'] = []
+            return queryset
+
+        query_data = queryset.get('data', [])[self.offset:self.offset + self.limit]
+        queryset['data'] = query_data
+
+        return queryset
+
+    def get_paginated_response(self, data):
+        """Override pagination output."""
+        paginated_data = data.pop('data', [])
+        response = {
+            'meta': {'count': self.count},
+            'links': {
+                'first': self.get_first_link(),
+                'next': self.get_next_link(),
+                'previous': self.get_previous_link(),
+                'last': self.get_last_link()
+            },
+            'data': paginated_data
+        }
+        response['meta'].update(data)
+        return Response(response)
+
+
+class ReportRankedPagination(ReportPagination):
+    """A specialty paginator for ranked report data."""
+
+    default_limit = 5
+    limit_query_param = 'filter[limit]'
+    offset_query_param = 'filter[offset]'
+
+    def get_count(self, queryset):
+        """Determine a report data's count."""
+        return self.count
+
+    def paginate_queryset(self, queryset, request, view=None):
+        """Override queryset pagination."""
+        self.request = request
+        self.limit = self.get_limit(request)
+        self.offset = self.get_offset(request)
+
+        return queryset

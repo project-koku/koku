@@ -29,6 +29,7 @@ from django.db.models.functions import Coalesce
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemDailySummary,
+                              CostSummary,
                               OCPAWSCostLineItemDailySummary,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItemDailySummary)
@@ -238,24 +239,36 @@ class ProviderMap(object):
             'group_by_options': ['cluster', 'project', 'node'],
             'tag_column': 'pod_labels',
             'report_type': {
-                'cost': {
+                'charge': {
+                    'tables': {
+                        'query': CostSummary
+                    },
                     'aggregates': {
-                        # 'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                            F('pod_charge_memory_gigabyte_hours') + \
+                                            F('persistentvolumeclaim_charge_gb_month')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                    F('pod_charge_memory_gigabyte_hours') + \
+                                    F('persistentvolumeclaim_charge_gb_month')),
                     },
                     'default_ordering': {'cost': 'desc'},
                     'annotations': {
-                        # 'infrastructure_cost': Value(0, output_field=DecimalField()),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'infrastructure_cost': Value(0, output_field=DecimalField()),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                            F('pod_charge_memory_gigabyte_hours') + \
+                                            F('persistentvolumeclaim_charge_gb_month')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                    F('pod_charge_memory_gigabyte_hours') + \
+                                    F('persistentvolumeclaim_charge_gb_month')),
                         'cost_units': Value('USD', output_field=CharField())
                     },
                     'capacity_aggregate': {},
                     'delta_key': {
                         'cost': Sum(
                             F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')  # noqa: W503
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month')
                         )
                     },
                     'filter': {},
@@ -854,6 +867,7 @@ class ReportQueryHandler(QueryHandler):
 
         self._delta = self.query_parameters.get('delta')
         self._limit = self.get_query_param_data('filter', 'limit')
+        self._offset = self.get_query_param_data('filter', 'offset', default=0)
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
@@ -1233,39 +1247,50 @@ class ReportQueryHandler(QueryHandler):
         """
         rank_limited_data = OrderedDict()
         date_grouped_data = self.date_group_data(data_list)
+        if data_list:
+            self.max_rank = max(entry.get('rank') for entry in data_list)
+        is_offset = 'offset' in self.query_parameters.get('filter', {})
 
         for date in date_grouped_data:
-            other = None
-            ranked_list = []
-            others_list = []
-            other_sums = {column: 0 for column in self._mapper.sum_columns}
-            for data in date_grouped_data[date]:
-                if other is None:
-                    other = copy.deepcopy(data)
-                rank = data.get('rank')
-                if rank <= self._limit:
-                    ranked_list.append(data)
-                else:
-                    others_list.append(data)
-                    for column in self._mapper.sum_columns:
-                        other_sums[column] += data.get(column) if data.get(column) else 0
-
-            if other is not None and others_list:
-                num_others = len(others_list)
-                others_label = '{} Others'.format(num_others)
-                if num_others == 1:
-                    others_label = '{} Other'.format(num_others)
-                other.update(other_sums)
-                other['rank'] = self._limit + 1
-                group_by = self._get_group_by()
-                for group in group_by:
-                    other[group] = others_label
-                if 'account' in group_by:
-                    other['account_alias'] = others_label
-                ranked_list.append(other)
+            ranked_list = self._perform_rank_summation(
+                date_grouped_data[date],
+                is_offset)
             rank_limited_data[date] = ranked_list
 
         return self.unpack_date_grouped_data(rank_limited_data)
+
+    def _perform_rank_summation(self, entry, is_offset):
+        """Do the actual rank limiting for rank_list."""
+        other = None
+        ranked_list = []
+        others_list = []
+        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        for data in entry:
+            if other is None:
+                other = copy.deepcopy(data)
+            rank = data.get('rank')
+            if rank > self._offset and rank <= self._limit + self._offset:
+                ranked_list.append(data)
+            else:
+                others_list.append(data)
+                for column in self._mapper.sum_columns:
+                    other_sums[column] += data.get(column) if data.get(column) else 0
+
+        if other is not None and others_list and not is_offset:
+            num_others = len(others_list)
+            others_label = '{} Others'.format(num_others)
+            if num_others == 1:
+                others_label = '{} Other'.format(num_others)
+            other.update(other_sums)
+            other['rank'] = self._limit + 1
+            group_by = self._get_group_by()
+            for group in group_by:
+                other[group] = others_label
+            if 'account' in group_by:
+                other['account_alias'] = others_label
+            ranked_list.append(other)
+
+        return ranked_list
 
     def date_group_data(self, data_list):
         """Group data by date."""
