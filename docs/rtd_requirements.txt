@@ -1,7 +1,7 @@
 -i https://pypi.python.org/simple
 boto3==1.9.111
 botocore==1.12.111
-certifi==2018.11.29
+certifi==2019.3.9
 chardet==3.0.4
 django-cors-headers==2.4.1
 django-environ==0.4.5
