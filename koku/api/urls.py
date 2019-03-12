@@ -53,7 +53,7 @@ urlpatterns = [
     url(r'^reports/openshift/compute/$', cpu, name='reports-openshift-cpu'),
     url(r'^reports/openshift/volumes/$', volume, name='reports-openshift-volume'),
     url(r'^reports/openshift/infrastructures/aws/costs/$', openshift_aws_costs,
-        name='reports-openshift-aws-storage'),
+        name='reports-openshift-aws-costs'),
     url(r'^reports/openshift/infrastructures/aws/storage/$', openshift_aws_storage,
         name='reports-openshift-aws-storage'),
     url(r'^reports/openshift/infrastructures/aws/instance-types/$', openshift_aws_instance_type,

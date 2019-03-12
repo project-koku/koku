@@ -255,8 +255,8 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = str(self.dh.today.date())
-        expected_start_date = str(self.dh.this_month_start.date())
+        expected_end_date = self.dh.today.date().strftime('%Y-%m')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
         self.assertEqual(response.status_code, 200)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -330,7 +330,8 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {'filter[time_scope_value]': '-30',
-                  'filter[time_scope_units]': 'day'}
+                  'filter[time_scope_units]': 'day',
+                  'filter[resolution': 'daily'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
@@ -469,6 +470,9 @@ class OCPReportViewTest(IamTestCase):
         params = {
             'group_by[node]': '*',
             'filter[limit]': '1',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'filter[resolution]': 'daily'
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -476,7 +480,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('pod_usage_memory_gigabyte_hours'))
 

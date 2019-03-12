@@ -59,8 +59,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = str(self.dh.today.date())
-        expected_start_date = str(self.dh.this_month_start.date())
+        expected_end_date = self.dh.today.date().strftime('%Y-%m')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -78,7 +78,8 @@ class OCPAWSReportViewTest(IamTestCase):
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {'filter[time_scope_value]': '-30',
-                  'filter[time_scope_units]': 'day'}
+                  'filter[time_scope_units]': 'day',
+                  'filter[resolution]': 'daily'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
@@ -203,6 +204,9 @@ class OCPAWSReportViewTest(IamTestCase):
         params = {
             'group_by[node]': '*',
             'filter[limit]': '1',
+            'filter[time_scope_units]': 'day',
+            'filter[time_scope_value]': '-10',
+            'filter[resolution]': 'daily'
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -210,7 +214,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(product_family__contains='Storage')\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('usage_amount'))
@@ -636,8 +640,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = str(self.dh.today.date())
-        expected_start_date = str(self.dh.this_month_start.date())
+        expected_end_date = self.dh.today.date().strftime('%Y-%m')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])

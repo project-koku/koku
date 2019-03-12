@@ -738,7 +738,6 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         self.assertEqual(handler.resolution, 'daily')
-        self.assertEqual(handler.resolution, 'daily')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
