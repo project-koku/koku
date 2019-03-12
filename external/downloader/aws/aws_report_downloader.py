@@ -24,6 +24,8 @@ import datetime
 import json
 import logging
 import os
+import shutil
+import struct
 
 import boto3
 from botocore.exceptions import ClientError
@@ -103,6 +105,52 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def manifest_date_format(self):
         """Set the AWS manifest date format."""
         return '%Y%m%dT000000.000Z'
+
+    def _check_size(self, s3key, check_inflate=False):
+        """Check the size of an S3 file.
+
+        Determine if there is enough local space to download and decompress the
+        file.
+
+        Args:
+            s3key (str): the key name of the S3 object to check
+            check_inflate (bool): if the file is compressed, evaluate the file's decompressed size.
+
+        Returns:
+            (bool): whether the file can be safely stored (and decompressed)
+
+        """
+        size_ok = False
+
+        s3fileobj = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'),
+                                              Key=s3key)
+        size = int(s3fileobj.get('ContentLength', -1))
+
+        if size < 1:
+            raise AWSReportDownloaderError(f'Invalid size for S3 object: {s3fileobj}')
+
+        free_space = shutil.disk_usage(self.download_path)[2]
+        if size < free_space:
+            size_ok = True
+
+        LOG.debug('%s is %s bytes; Download path has %s free',
+                  s3key, size, free_space)
+
+        ext = os.path.splitext(s3key)[1]
+        if ext == '.gz' and check_inflate and size_ok:
+            # isize block is the last 4 bytes of the file; see: RFC1952
+            resp = self.s3_client.get_object(Bucket=self.report.get('S3Bucket'),
+                                             Key=s3key,
+                                             Range='bytes={}-{}'.format(size - 4,
+                                                                        size))
+            isize = struct.unpack('<I', resp['Body'].read(4))[0]
+            if isize > free_space:
+                size_ok = False
+
+            LOG.debug('%s is %s bytes uncompressed; Download path has %s free',
+                      s3key, isize, free_space)
+
+        return size_ok
 
     def _get_manifest(self, date_time):
         """
@@ -197,6 +245,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             else:
                 LOG.error('Error downloading file: Error: %s', str(ex))
                 raise AWSReportDownloaderError(str(ex))
+
+        if not self._check_size(key, check_inflate=True):
+            raise AWSReportDownloaderError(f'Insufficient disk space to download file: {s3_file}')
 
         if s3_etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
