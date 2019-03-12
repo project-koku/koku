@@ -29,6 +29,7 @@ from django.db.models.functions import Coalesce
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 from reporting.models import (AWSCostEntryLineItemDailySummary,
+                              CostSummary,
                               OCPAWSCostLineItemDailySummary,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItemDailySummary)
@@ -1227,7 +1228,7 @@ class ReportQueryHandler(QueryHandler):
 
         """
         numeric_ordering = ['date', 'rank', 'delta', 'delta_percent',
-                            'total', 'charge', 'usage', 'request', 'limit',
+                            'total', 'usage', 'request', 'limit',
                             'cost', 'infrastructure_cost', 'derived_cost']
         sorted_data = data
         for field in reversed(order_fields):

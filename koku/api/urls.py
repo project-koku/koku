@@ -48,7 +48,6 @@ urlpatterns = [
     url(r'^reports/aws/instance-types/$', aws_instance_type, name='reports-aws-instance-type'),
     url(r'^reports/aws/storage/$', aws_storage, name='reports-aws-storage'),
     url(r'^reports/openshift/costs/$', openshift_costs, name='reports-openshift-costs'),
-    # url(r'^reports/openshift/charges/$', charges, name='reports-openshift-charges'),
     url(r'^reports/openshift/memory/$', memory, name='reports-openshift-memory'),
     url(r'^reports/openshift/compute/$', cpu, name='reports-openshift-cpu'),
     url(r'^reports/openshift/volumes/$', volume, name='reports-openshift-volume'),

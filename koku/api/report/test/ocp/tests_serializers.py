@@ -21,7 +21,7 @@ from rest_framework import serializers
 
 from api.report.ocp.serializers import (FilterSerializer,
                                         GroupBySerializer,
-                                        OCPChargeQueryParamSerializer,
+                                        OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer,
                                         OCPQueryParamSerializer,
                                         OrderBySerializer)
@@ -338,7 +338,7 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPChargeQueryParamSerializerTest(TestCase):
+class OCPCostQueryParamSerializerTest(TestCase):
     """Tests for the handling charge query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -350,7 +350,7 @@ class OCPChargeQueryParamSerializerTest(TestCase):
                                    'time_scope_units': 'day',
                                    'resource_scope': []},
                         }
-        serializer = OCPChargeQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_order_by_request(self):
@@ -364,7 +364,7 @@ class OCPChargeQueryParamSerializerTest(TestCase):
                                    'resource_scope': []},
                         'invalid': 'param'
                         }
-        serializer = OCPChargeQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -379,6 +379,6 @@ class OCPChargeQueryParamSerializerTest(TestCase):
                                    'resource_scope': []},
                         'invalid': 'param'
                         }
-        serializer = OCPChargeQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

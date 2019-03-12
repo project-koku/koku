@@ -85,17 +85,17 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(total.get('usage', {}).get('value'), current_totals.get('usage'))
         self.assertEqual(total.get('request', {}).get('value'), current_totals.get('request'))
-        self.assertEqual(total.get('charge', {}).get('value'), current_totals.get('charge'))
+        self.assertEqual(total.get('cost', {}).get('value'), current_totals.get('cost'))
         self.assertEqual(total.get('limit', {}).get('value'), current_totals.get('limit'))
 
-    def test_execute_sum_query_charge(self):
-        """Test that the sum query runs properly for the charge endpoint."""
+    def test_execute_sum_query_costs(self):
+        """Test that the sum query runs properly for the costs endpoint."""
         query_params = {}
         handler = OCPReportQueryHandler(
             query_params,
             '',
             self.tenant,
-            **{'report_type': 'charge'}
+            **{'report_type': 'costs'}
         )
         aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_costs_by_time_scope(aggregates)
@@ -517,9 +517,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 key_of_interest: ['']
             }
         }
+        param_string = urlencode(query_params, quote_via=quote_plus)
         handler = OCPReportQueryHandler(
             query_params,
-            f'?filter[{key_of_interest}]=\'\'',
+            param_string,
             self.tenant,
             **{
                 'report_type': 'cpu',
@@ -549,10 +550,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
             'filter': {filter_key: [filter_value]},
             'group_by': {group_by_key: [group_by_value]}
         }
+        param_string = urlencode(query_params, quote_via=quote_plus)
 
         handler = OCPReportQueryHandler(
             query_params,
-            '',
+            param_string,
             self.tenant,
             **{
                 'report_type': 'cpu',
@@ -578,9 +580,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
             'group_by': {group_by_key: [group_by_value]}
         }
 
+        param_string = urlencode(query_params, quote_via=quote_plus)
+
         handler = OCPReportQueryHandler(
             query_params,
-            '',
+            param_string,
             self.tenant,
             **{
                 'report_type': 'cpu',

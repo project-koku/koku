@@ -59,8 +59,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today.date().strftime('%Y-%m')
-        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
+        expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -239,7 +239,7 @@ class OCPAWSReportViewTest(IamTestCase):
                                      round(float(totals.get(date)), 3))
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
-        """Test that deltas work for charge."""
+        """Test that deltas work for OpenShift on AWS storage."""
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
@@ -640,8 +640,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today.date().strftime('%Y-%m')
-        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
+        expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])

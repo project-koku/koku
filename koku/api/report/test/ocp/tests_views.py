@@ -36,7 +36,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -255,8 +255,8 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today.date().strftime('%Y-%m')
-        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m')
+        expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
+        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, 200)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -271,9 +271,9 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue('usage' in values)
                 self.assertTrue('request' in values)
 
-    def test_charge_api_has_units(self):
-        """Test that the charge API returns units."""
-        url = reverse('reports-openshift-charges')
+    def test_costs_api_has_units(self):
+        """Test that the costs API returns units."""
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
         response_json = response.json()
@@ -308,7 +308,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(values.get('usage', {}).get('units'), 'Core-Hours')
 
     def test_memory_api_has_units(self):
-        """Test that the charge API returns units."""
+        """Test that the memory API returns units."""
         url = reverse('reports-openshift-memory')
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -331,7 +331,7 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         params = {'filter[time_scope_value]': '-30',
                   'filter[time_scope_units]': 'day',
-                  'filter[resolution': 'daily'}
+                  'filter[resolution]': 'daily'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
@@ -502,16 +502,16 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(round(usage_total, 3),
                                  round(float(totals.get(date)), 3))
 
-    def test_execute_query_ocp_charge(self):
-        """Test that the charge endpoint is reachable."""
-        url = reverse('reports-openshift-charges')
+    def test_execute_query_ocp_costs(self):
+        """Test that the costs endpoint is reachable."""
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
-    def test_execute_query_ocp_charge_with_delta(self):
-        """Test that deltas work for charge."""
-        url = reverse('reports-openshift-charges')
+    def test_execute_query_ocp_costs_with_delta(self):
+        """Test that deltas work for costs."""
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         params = {
             'delta': 'cost',
@@ -535,30 +535,44 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
+            current_total = CostSummary.objects\
+                .filter(usage_start__date__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours'))
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                        F('infra_cost')
+                    )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=this_month_start)\
+            current_totals = CostSummary.objects\
+                .filter(usage_start__date__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(
-                            F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')))
+                .annotate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +  # noqa: W504
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                        F('infra_cost')
+                    )
+                )
 
-            prev_totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=last_month_start)\
-                .filter(usage_start__lt=this_month_start)\
+            prev_totals = CostSummary.objects\
+                .filter(usage_start__date__gte=last_month_start)\
+                .filter(usage_start__date__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')))
+                .annotate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +  # noqa: W504
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                        F('infra_cost')
+                    )
+                )
 
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}
@@ -581,9 +595,9 @@ class OCPReportViewTest(IamTestCase):
                 delta_value = values[0].get('delta_value')
             self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
 
-    def test_execute_query_ocp_charge_with_invalid_delta(self):
-        """Test that bad deltas don't work for charge."""
-        url = reverse('reports-openshift-charges')
+    def test_execute_query_ocp_costs_with_invalid_delta(self):
+        """Test that bad deltas don't work for costs."""
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         params = {'delta': 'usage'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -595,8 +609,8 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 400)
 
-    def test_execute_query_ocp_cpu_with_delta_charge(self):
-        """Test that charge deltas work for CPU."""
+    def test_execute_query_ocp_cpu_with_delta_cost(self):
+        """Test that cost deltas work for CPU."""
         url = reverse('reports-openshift-cpu')
         client = APIClient()
         params = {
