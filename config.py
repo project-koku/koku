@@ -25,7 +25,7 @@ import os
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods,simplifiable-if-expression
 class Config:
     """Configuration for app."""
 
