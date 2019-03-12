@@ -17,6 +17,7 @@
 """AWS Query Handling for Reports."""
 import copy
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import (F, Value, Window)
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
@@ -36,6 +37,36 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'blended_cost', 'tax_type']
 
 
+def _update_query_parameters(query_parameters, access):
+    """Alter query parameters based on user access."""
+    access_list = access.get('aws.account', {}).get('read', [])
+    access_filter_applied = False
+    if ReportQueryHandler.has_wildcard(access_list):
+        return query_parameters
+
+    # check group by
+    group_by = query_parameters.get('group_by', {})
+    if group_by.get('account'):
+        accounts = set(group_by.get('account'))
+        if ReportQueryHandler.has_wildcard(accounts):
+            access_filter_applied = True
+            query_parameters['group_by']['account'] = access_list
+        else:
+            intersection = accounts & set(access_list)
+            query_parameters['group_by']['account'] = list(intersection)
+            if intersection:
+                access_filter_applied = True
+            else:
+                raise PermissionDenied()
+
+    if not access_filter_applied:
+        if query_parameters.get('filter') is None:
+            query_parameters['filter'] = {}
+        query_parameters['filter']['account'] = access_list
+
+    return query_parameters
+
+
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
@@ -51,6 +82,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         if not kwargs.get('provider'):
             kwargs['provider'] = 'AWS'
+        if kwargs.get('access'):
+            query_parameters = _update_query_parameters(query_parameters, kwargs.get('access'))
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 

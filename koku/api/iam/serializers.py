@@ -91,7 +91,7 @@ def extract_header(request, header):
     rh_auth_header = request.META[header]
     decoded_rh_auth = b64decode(rh_auth_header)
     json_rh_auth = json_loads(decoded_rh_auth)
-    return json_rh_auth
+    return (rh_auth_header, json_rh_auth)
 
 
 def create_schema_name(account):
@@ -123,7 +123,7 @@ class UserSerializer(serializers.ModelSerializer):
         customer = None
         request = self.context.get('request')
         if request and hasattr(request, 'META'):
-            json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
+            _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
             if (json_rh_auth and 'identity' in json_rh_auth and  # noqa: W504
                 'account_number' in json_rh_auth['identity']):
                 account = json_rh_auth['identity']['account_number']
