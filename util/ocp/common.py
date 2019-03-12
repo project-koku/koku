@@ -54,8 +54,8 @@ def get_report_details(report_directory):
             payload_dict = json.load(file)
             payload_dict['date'] = parser.parse(payload_dict['date'])
             payload_dict['manifest_path'] = manifest_path
-    except (OSError, IOError, KeyError):
-        LOG.error('Unable to extract manifest data')
+    except (OSError, IOError, KeyError) as exc:
+        LOG.error('Unable to extract manifest data: %s', exc)
 
     return payload_dict
 
