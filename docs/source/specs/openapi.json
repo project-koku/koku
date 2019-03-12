@@ -973,92 +973,6 @@
                 }]
             }
         },
-        "/reports/openshift/charges/": {
-            "get": {
-                "tags": [
-                    "OpenShift Report"
-                ],
-                "summary": "Query to obtain charge reports",
-                "operationId": "getOpenShiftChargeReports",
-                "parameters": [{
-                        "name": "delta",
-                        "in": "query",
-                        "description": "Toggle to include delta values in report.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "$ref": "#/components/parameters/QueryOffset"
-                    },
-                    {
-                        "$ref": "#/components/parameters/ReportQueryLimit"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "A paginated report object",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ReportCharge"
-                                }
-                            },
-                            "text/csv": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ReportCharge"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            },
-                            "text/csv": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            }
-        },
         "/reports/aws/instance-types/": {
             "get": {
                 "tags": [
@@ -1437,6 +1351,92 @@
                             "text/csv": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ReportOpenShiftVolume"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/aws/costs/": {
+            "get": {
+                "tags": [
+                    "OpenShift Report"
+                ],
+                "summary": "Query to obtain OpenShift on AWS cost reports",
+                "operationId": "getOpenShiftAWSCostReports",
+                "parameters": [{
+                        "name": "delta",
+                        "in": "query",
+                        "description": "Toggle to include delta values in report.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "description": "The filter to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "group_by",
+                        "in": "query",
+                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "order_by",
+                        "in": "query",
+                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
                                 }
                             }
                         }
@@ -2585,7 +2585,7 @@
                 },
                 "description": "The ordering to apply to the report. Default is ascending order for the data."
             },
-            "ReportChargeOpenShiftOrdering": {
+            "ReportCostsOpenShiftOrdering": {
                 "type": "object",
                 "properties": {
                     "cluster": {
@@ -2785,7 +2785,7 @@
                     }
                 }
             },
-            "ReportChargeOpenShift": {
+            "ReportCostsOpenShift": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
@@ -2876,7 +2876,7 @@
                     }
                 }
             },
-            "ReportCharge": {
+            "ReportCosts": {
                 "allOf": [{
                     "$ref": "#/components/schemas/Report"
                 }],
