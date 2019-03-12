@@ -476,7 +476,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.this_month_start)\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('pod_usage_memory_gigabyte_hours'))
 

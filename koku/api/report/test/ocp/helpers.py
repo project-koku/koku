@@ -79,8 +79,8 @@ class OCPReportDataGenerator:
             ]
 
             self.report_ranges = [
-                (self.one_month_ago - relativedelta(days=i) for i in range(11)),
-                (self.today - relativedelta(days=i) for i in range(11)),
+                (self.one_month_ago - relativedelta(days=i) for i in range(12)),
+                (self.today - relativedelta(days=i) for i in range(12)),
             ]
 
     def create_manifest_entry(self, billing_period_start, provider_id):
