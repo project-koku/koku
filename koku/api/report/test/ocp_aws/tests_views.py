@@ -210,7 +210,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(product_family__contains='Storage')\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('usage_amount'))

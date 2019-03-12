@@ -36,7 +36,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -476,7 +476,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.this_month_start)\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('pod_usage_memory_gigabyte_hours'))
 
@@ -531,34 +531,30 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = CostSummary.objects\
+            current_total = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                        F('persistentvolumeclaim_charge_gb_month')
-                    )
+                        F('pod_charge_memory_gigabyte_hours'))
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = CostSummary.objects\
+            current_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
                 .annotate(total=Sum(
                             F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                            F('persistentvolumeclaim_charge_gb_month')))
+                            F('pod_charge_memory_gigabyte_hours')))
 
-            prev_totals = CostSummary.objects\
+            prev_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=last_month_start)\
                 .filter(usage_start__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
                 .annotate(total=Sum(F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                            F('persistentvolumeclaim_charge_gb_month')))
+                            F('pod_charge_memory_gigabyte_hours')))
 
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}
