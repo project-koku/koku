@@ -37,6 +37,15 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'blended_cost', 'tax_type']
 
 
+def _get_replacement_result(param_res_list, access_list):
+    if ReportQueryHandler.has_wildcard(param_res_list):
+        return access_list
+    intersection = param_res_list & set(access_list)
+    if not intersection:
+        raise PermissionDenied()
+    return list(intersection)
+
+
 def _update_query_parameters(query_parameters, access):
     """Alter query parameters based on user access."""
     access_list = access.get('aws.account', {}).get('read', [])
@@ -48,21 +57,19 @@ def _update_query_parameters(query_parameters, access):
     group_by = query_parameters.get('group_by', {})
     if group_by.get('account'):
         accounts = set(group_by.get('account'))
-        if ReportQueryHandler.has_wildcard(accounts):
-            access_filter_applied = True
-            query_parameters['group_by']['account'] = access_list
-        else:
-            intersection = accounts & set(access_list)
-            query_parameters['group_by']['account'] = list(intersection)
-            if intersection:
-                access_filter_applied = True
-            else:
-                raise PermissionDenied()
+        result = _get_replacement_result(accounts, access_list)
+        query_parameters['group_by']['account'] = result
+        access_filter_applied = True
 
     if not access_filter_applied:
         if query_parameters.get('filter') is None:
             query_parameters['filter'] = {}
-        query_parameters['filter']['account'] = access_list
+        if query_parameters.get('filter', {}).get('account'):
+            accounts = set(query_parameters.get('filter', {}).get('account'))
+            result = _get_replacement_result(accounts, access_list)
+            query_parameters['filter']['account'] = result
+        else:
+            query_parameters['filter']['account'] = access_list
 
     return query_parameters
 
