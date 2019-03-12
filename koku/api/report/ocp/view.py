@@ -295,10 +295,10 @@ def costs(request):
                 }
             },
             "links": {
-                "first": "/local/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0",
+                "first": "/local/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0",  # noqa: E501
                 "next": null,
                 "previous": null,
-                "last": "/local/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0"
+                "last": "/local/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0"  # noqa: E501
             },
             "data": [
                 {
