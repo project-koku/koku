@@ -246,7 +246,7 @@ def cpu(request):
 def costs(request):
     """Get OpenShift cost data.
 
-    @api {get} /cost-management/v1/reports/openshift/cost/ Get OpenShift costs data
+    @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift costs data
     @apiName getOpenShiftCostData
     @apiGroup OpenShift Report
     @apiVersion 1.0.0
