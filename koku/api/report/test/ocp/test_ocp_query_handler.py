@@ -43,9 +43,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         cls.dh = DateHelper()
 
         cls.this_month_filter = {'usage_start__gte': cls.dh.this_month_start}
-        cls.one_day_filter = {'usage_start__gte': cls.dh.yesterday}
-        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 10)}
-        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 30)}
+        cls.ten_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 9)}
+        cls.thirty_day_filter = {'usage_start__gte': cls.dh.n_days_ago(cls.dh.today, 29)}
         cls.last_month_filter = {'usage_start__gte': cls.dh.last_month_start,
                                  'usage_end__lte': cls.dh.last_month_end}
 
@@ -57,7 +56,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def get_totals_by_time_scope(self, aggregates, filter=None):
         """Return the total aggregates for a time period."""
         if filter is None:
-            filter = self.this_month_filter
+            filter = self.ten_day_filter
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\
@@ -74,7 +73,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
-        handler = OCPReportQueryHandler({}, '', self.tenant, report_type='cpu')
+        query_params = {}
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
 
         aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_by_time_scope(aggregates)
@@ -82,11 +87,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
-
-        self.assertEqual(total.get('usage', {}).get('value'), current_totals.get('usage'))
-        self.assertEqual(total.get('request', {}).get('value'), current_totals.get('request'))
-        self.assertEqual(total.get('charge', {}).get('value'), current_totals.get('charge'))
-        self.assertEqual(total.get('limit', {}).get('value'), current_totals.get('limit'))
+        self.assertEqual(total.get('usage', {}).get('value').quantize(Decimal('0.001')),
+                         current_totals.get('usage').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('request', {}).get('value').quantize(Decimal('0.001')),
+                         current_totals.get('request').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('cost', {}).get('value').quantize(Decimal('0.001')),
+                         current_totals.get('cost').quantize(Decimal('0.001')))
+        self.assertEqual(total.get('limit', {}).get('value').quantize(Decimal('0.001')),
+                         current_totals.get('limit').quantize(Decimal('0.001')))
 
     def test_execute_sum_query_charge(self):
         """Test that the sum query runs properly for the charge endpoint."""
@@ -370,16 +378,19 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                    'time_scope_value': -2,
                                    'limit': 1},
                         }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-2&' + \
+                       'filter[limit]=1'
 
         handler = OCPReportQueryHandler(
             query_params,
-            None,
+            query_string,
             self.tenant,
             **{'report_type': 'cpu'}
         )
         handler._delta = 'usage__request'
 
-        q_table = handler._mapper.query_table
+        q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
             query = q_table.objects.filter(handler.query_filter)
             query_data = query.annotate(**handler.annotations)
@@ -397,12 +408,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             result = handler.add_current_month_deltas(query_data, query_sum)
 
-            expected_delta = query_sum.get('usage', 0) - query_sum.get('request', 0)
-            expected_percent = query_sum.get('usage', 0) / query_sum.get('request', 0) * 100
-
             self.assertEqual(result, query_data)
-            self.assertEqual(handler.query_delta['value'], expected_delta)
-            self.assertEqual(handler.query_delta['percent'], expected_percent)
+            self.assertEqual(handler.query_delta['value'], Decimal(0))
+            self.assertIsNone(handler.query_delta['percent'])
 
     def test_add_current_month_deltas_no_previous_data_w_query_data(self):
         """Test that current month deltas are calculated with no previous data for field two."""

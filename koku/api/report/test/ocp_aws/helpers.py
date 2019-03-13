@@ -51,8 +51,8 @@ class OCPAWSReportDataGenerator:
         ]
 
         self.report_ranges = [
-            (self.one_month_ago - relativedelta(days=i) for i in range(12)),
-            (self.today - relativedelta(days=i) for i in range(12)),
+            (self.one_month_ago - relativedelta(days=i) for i in range(10)),
+            (self.today - relativedelta(days=i) for i in range(10)),
         ]
 
     def add_data_to_tenant(self):
