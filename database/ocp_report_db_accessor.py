@@ -189,46 +189,64 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         return {(entry.report_period_id, entry.interval_start.strftime(self._datetime_format)): entry.id
                 for entry in reports}
 
-    def get_pod_usage_cpu_core_hours(self):
+    def get_pod_usage_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
-    def get_pod_request_cpu_core_hours(self):
+    def get_pod_request_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
 
-    def get_pod_usage_memory_gigabyte_hours(self):
+    def get_pod_usage_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_usage hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
-    def get_pod_request_memory_gigabyte_hours(self):
+    def get_pod_request_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_request_hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
-    def get_persistentvolumeclaim_usage_gigabyte_months(self):
+    def get_persistentvolumeclaim_usage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
-    def get_volume_request_storage_gigabyte_months(self):
+    def get_volume_request_storage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
 
-        reports = self._get_db_obj_query(table_name).all()
+        if cluster_id:
+            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     # pylint: disable=duplicate-code
