@@ -19,6 +19,7 @@
 import logging
 from json.decoder import JSONDecodeError
 
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.utils import IntegrityError
 from django.http import HttpResponse
@@ -30,6 +31,7 @@ from tenant_schemas.middleware import BaseTenantMiddleware
 from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import UserSerializer, create_schema_name, extract_header
+from koku.rbac import RbacService
 
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -72,6 +74,8 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                     User.objects.get(username=username)
                 except User.DoesNotExist:
                     return HttpResponseUnauthorizedRequest()
+                if not request.user.admin and request.user.access is None:
+                    raise PermissionDenied()
             else:
                 return HttpResponseUnauthorizedRequest()
         super().process_request(request)
@@ -98,6 +102,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
     """
 
     header = RH_IDENTITY_HEADER
+    rbac = RbacService()
 
     @staticmethod
     def _create_customer(account):
@@ -154,6 +159,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             new_user = User.objects.get(username=username)
         return new_user
 
+    def _get_access(self, user):
+        """Obtain access for given user from RBAC service."""
+        access = None
+        if user.admin:
+            return access
+        access = self.rbac.get_access_for_user(user)
+        return access
+
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
 
@@ -165,10 +178,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             request.user = User('', '')
             return
         try:
-            json_rh_auth = extract_header(request, self.header)
-            username = json_rh_auth['identity']['user']['username']
-            email = json_rh_auth['identity']['user']['email']
-            account = json_rh_auth['identity']['account_number']
+            rh_auth_header, json_rh_auth = extract_header(request, self.header)
+            username = json_rh_auth.get('identity', {}).get('user', {}).get('username')
+            email = json_rh_auth.get('identity', {}).get('user', {}).get('email')
+            account = json_rh_auth.get('identity', {}).get('account_number')
+            is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
             return
@@ -191,6 +205,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                                                              email,
                                                              customer,
                                                              request)
+            user.identity_header = {
+                'encoded': rh_auth_header,
+                'decoded': json_rh_auth
+            }
+            user.admin = is_admin
+            user.access = self._get_access(user)
             request.user = user
 
 

@@ -43,7 +43,8 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
                                    'type': 'User',
                                    'user': {
                                        'username': 'user_dev',
-                                       'email': 'user_dev@foo.com'
+                                       'email': 'user_dev@foo.com',
+                                       'is_org_admin': True
                                    }
                                }
                                }

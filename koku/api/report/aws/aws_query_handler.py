@@ -17,6 +17,7 @@
 """AWS Query Handling for Reports."""
 import copy
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import (F, Value, Window)
 from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
@@ -36,6 +37,43 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'blended_cost', 'tax_type']
 
 
+def _get_replacement_result(param_res_list, access_list):
+    if ReportQueryHandler.has_wildcard(param_res_list):
+        return access_list
+    intersection = param_res_list & set(access_list)
+    if not intersection:
+        raise PermissionDenied()
+    return list(intersection)
+
+
+def _update_query_parameters(query_parameters, access):
+    """Alter query parameters based on user access."""
+    access_list = access.get('aws.account', {}).get('read', [])
+    access_filter_applied = False
+    if ReportQueryHandler.has_wildcard(access_list):
+        return query_parameters
+
+    # check group by
+    group_by = query_parameters.get('group_by', {})
+    if group_by.get('account'):
+        accounts = set(group_by.get('account'))
+        result = _get_replacement_result(accounts, access_list)
+        query_parameters['group_by']['account'] = result
+        access_filter_applied = True
+
+    if not access_filter_applied:
+        if query_parameters.get('filter') is None:
+            query_parameters['filter'] = {}
+        if query_parameters.get('filter', {}).get('account'):
+            accounts = set(query_parameters.get('filter', {}).get('account'))
+            result = _get_replacement_result(accounts, access_list)
+            query_parameters['filter']['account'] = result
+        else:
+            query_parameters['filter']['account'] = access_list
+
+    return query_parameters
+
+
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
@@ -51,6 +89,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         if not kwargs.get('provider'):
             kwargs['provider'] = 'AWS'
+        if kwargs.get('access'):
+            query_parameters = _update_query_parameters(query_parameters, kwargs.get('access'))
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 

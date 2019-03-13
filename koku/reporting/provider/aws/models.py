@@ -174,7 +174,7 @@ class AWSCostEntryLineItemDaily(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostEntryLineItemDailySummary."""
+        """Meta for AWSCostEntryLineItemDaily."""
 
         db_table = 'reporting_awscostentrylineitem_daily'
 
@@ -263,6 +263,10 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             GinIndex(
                 fields=['tags'],
                 name='tags_idx',
+            ),
+            models.Index(
+                fields=['account_alias'],
+                name='summary_account_alias_idx',
             ),
         ]
 
