@@ -154,8 +154,6 @@ class InventoryOrderBySerializer(OrderBySerializer):
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling query parameter filter."""
 
-    # IMPORTANT: Changing these serializer choices impacts the aggregate tables.
-    # Don't change these without coordinating the change across to Masu.
     RESOLUTION_CHOICES = (
         ('daily', 'daily'),
         ('monthly', 'monthly'),
