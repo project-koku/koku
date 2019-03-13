@@ -824,9 +824,10 @@ class ReportQueryHandler(QueryHandler):
         self._accept_type = None
         self._group_by = None
         self._tag_keys = []
+        self._access = {}
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'report_type', 'tag_keys']
+            elements = ['accept_type', 'delta', 'report_type', 'tag_keys', 'access']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
