@@ -106,6 +106,9 @@ objects:
     django-log-handlers: "console"
     django-log-directory: ""
     django-logging-file: ""
+    rbac-service-host: ${RBAC_SERVICE_HOST}
+    rbac-service-port: ${RBAC_SERVICE_PORT}
+    rbac-service-path: ${RBAC_SERVICE_PATH}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -375,6 +378,24 @@ objects:
                   name: koku-env
                   key: django-logging-file
                   optional: true
+            - name: RBAC_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: rbac-service-host
+                  optional: false
+            - name: RBAC_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: rbac-service-port
+                  optional: false
+            - name: RBAC_SERVICE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: rbac-service-path
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -681,3 +702,18 @@ parameters:
 - displayName: API path prefix
   value: '/api'
   name: API_PATH_PREFIX
+- description: Insights RBAC Server address
+  displayName: RBAC server address
+  name: RBAC_SERVICE_HOST
+  required: true
+  value: localhost
+- description: Insights RBAC Server port
+  displayName: RBAC server port
+  name: RBAC_SERVICE_PORT
+  required: true
+  value: "8080"
+- description: Insights RBAC Server path
+  displayName: RBAC server path
+  name: RBAC_SERVICE_PATH
+  required: true
+  value: "/r/insights/platform/rbac/v1/access/"

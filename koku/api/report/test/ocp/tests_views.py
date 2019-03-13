@@ -197,6 +197,11 @@ class OCPReportViewTest(IamTestCase):
             }
         }
 
+    def tearDown(self):
+        """Tear down the test case."""
+        self.data_generator.remove_data_from_tenant()
+        self.data_generator.remove_data_from_reporting_common()
+
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_cpu_success(self, mock_handler):
         """Test OCP cpu generic report."""

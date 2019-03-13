@@ -117,20 +117,23 @@ class OCPReportDataGenerator:
 
     def add_data_to_tenant(self, provider_id=None):
         """Populate tenant with data."""
-        self.cluster_id = self.fake.word()
-        self.cluster_alias = self.fake.word()
-        self.namespaces = [self.fake.word() for _ in range(2)]
-        self.nodes = [self.fake.word() for _ in range(2)]
+        words = list(set([self.fake.word() for _ in range(10)]))
+        self.cluster_id = random.choice(words)
+        self.cluster_alias = random.choice(words)
+        self.namespaces = random.sample(words, k=2)
+        self.nodes = random.sample(words, k=2)
+        self.pods = random.sample(words, k=2)
+        self.storage_classes = ['gp2', 'standard', 'magnetic']
         self.line_items = [
             {
-                'namespace': random.choice(self.namespaces),
+                'namespace': self.namespaces[i],
                 'node': node,
-                'pod': self.fake.word(),
-                'persistentvolumeclaim': self.fake.word(),
-                'persistentvolume': self.fake.word(),
-                'storageclass': self.fake.word()
+                'pod': self.pods[i],
+                'persistentvolumeclaim': self.pods[i] + '_volume_claim',
+                'persistentvolume': self.pods[i] + '_volume',
+                'storageclass': random.choice(self.storage_classes)
             }
-            for node in self.nodes
+            for i, node in enumerate(self.nodes)
         ]
         with tenant_context(self.tenant):
             for i, period in enumerate(self.period_ranges):
