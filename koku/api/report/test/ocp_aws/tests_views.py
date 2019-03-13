@@ -60,7 +60,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
-        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
+        expected_start_date = self.ten_days_ago.strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -642,7 +642,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
-        expected_start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
+        expected_start_date = self.ten_days_ago.strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
