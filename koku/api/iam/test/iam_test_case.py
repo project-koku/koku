@@ -109,7 +109,8 @@ class IamTestCase(TestCase):
                 'type': 'User',
                 'user': {
                     'username': user_data['username'],
-                    'email': user_data['email']
+                    'email': user_data['email'],
+                    'is_org_admin': True
                 }
             }
         }

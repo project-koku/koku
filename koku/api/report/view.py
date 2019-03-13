@@ -373,7 +373,8 @@ def _generic_report(request, provider, report):
                                   tenant,
                                   accept_type=request.META.get('HTTP_ACCEPT'),
                                   report_type=report,
-                                  tag_keys=tag_keys)
+                                  tag_keys=tag_keys,
+                                  access=request.user.access)
     output = handler.execute_query()
     max_rank = handler.max_rank
 

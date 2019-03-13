@@ -27,6 +27,7 @@ from reporting.provider.aws.models import (AWSAccountAlias,                    #
                                            AWSCostEntryPricing,                # noqa: F401
                                            AWSCostEntryProduct,                # noqa: F401
                                            AWSCostEntryReservation)            # noqa: F401
+from reporting.provider.ocp.costs.models import CostSummary                    # noqa: F401
 from reporting.provider.ocp.models import (OCPStorageLineItem,                 # noqa: F401
                                            OCPStorageLineItemDaily,            # noqa: F401
                                            OCPStorageLineItemDailySummary,     # noqa: F401

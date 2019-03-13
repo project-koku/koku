@@ -47,7 +47,7 @@ class OCPReportViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
-        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 10)
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -255,12 +255,13 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = str(self.dh.today.date())
-        expected_start_date = str(self.dh.this_month_start.date())
+        expected_end_date = self.dh.today
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
+        expected_end_date = str(expected_end_date.date())
+        expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
-
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 
@@ -329,13 +330,12 @@ class OCPReportViewTest(IamTestCase):
         """Test that OCP CPU endpoint works."""
         url = reverse('reports-openshift-cpu')
         client = APIClient()
-        params = {'filter[time_scope_value]': '-30',
-                  'filter[time_scope_units]': 'day'}
+        params = {'filter[time_scope_value]': '-30'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
         expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 30)
+        expected_start_date = self.dh.n_days_ago(expected_end_date, 29)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, 200)
@@ -440,7 +440,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.last_month_start.strftime('%Y-%m-%d')
-        expected_end_date = self.dh.today.strftime('%Y-%m-%d')
+        expected_end_date = self.dh.last_month_end.strftime('%Y-%m-%d')
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -476,7 +476,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.this_month_start)\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('pod_usage_memory_gigabyte_hours'))
 
@@ -536,8 +536,7 @@ class OCPReportViewTest(IamTestCase):
                 .aggregate(
                     total=Sum(
                         F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours')
-                    )
+                        F('pod_charge_memory_gigabyte_hours'))
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
@@ -545,14 +544,17 @@ class OCPReportViewTest(IamTestCase):
                 .filter(usage_start__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours')))
 
             prev_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=last_month_start)\
                 .filter(usage_start__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
-                .annotate(total=Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')))
+                .annotate(total=Sum(F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours')))
 
         current_totals = {total.get('date'): total.get('total')
                           for total in current_totals}

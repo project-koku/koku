@@ -241,21 +241,25 @@ class ProviderMap(object):
                 'charge': {
                     'aggregates': {
                         'infrastructure_cost': Sum(Value(0, output_field=DecimalField())),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                            F('pod_charge_memory_gigabyte_hours')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                    F('pod_charge_memory_gigabyte_hours')),
                     },
                     'default_ordering': {'cost': 'desc'},
                     'annotations': {
                         'infrastructure_cost': Value(0, output_field=DecimalField()),
-                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
-                        'cost': Sum(F('pod_charge_cpu_core_hours') + F('pod_charge_memory_gigabyte_hours')),
+                        'derived_cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                            F('pod_charge_memory_gigabyte_hours')),
+                        'cost': Sum(F('pod_charge_cpu_core_hours') + \
+                                    F('pod_charge_memory_gigabyte_hours')),
                         'cost_units': Value('USD', output_field=CharField())
                     },
                     'capacity_aggregate': {},
                     'delta_key': {
                         'cost': Sum(
                             F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours')  # noqa: W503
+                            F('pod_charge_memory_gigabyte_hours')  # noqa: W504
                         )
                     },
                     'filter': {},
@@ -820,9 +824,10 @@ class ReportQueryHandler(QueryHandler):
         self._accept_type = None
         self._group_by = None
         self._tag_keys = []
+        self._access = {}
         if kwargs:
             # view parameters
-            elements = ['accept_type', 'delta', 'report_type', 'tag_keys']
+            elements = ['accept_type', 'delta', 'report_type', 'tag_keys', 'access']
             for key, value in kwargs.items():
                 if key in elements:
                     setattr(self, f'_{key}', value)
