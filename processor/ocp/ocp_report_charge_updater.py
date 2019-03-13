@@ -23,6 +23,7 @@ from decimal import Decimal
 
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class OCPReportChargeUpdater:
         with ReportingCommonDBAccessor() as reporting_common:
             self._column_map = reporting_common.column_map
         self._provider_uuid = provider_uuid
+        self._provider = None
+        self._cluster_id = None
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -176,10 +179,10 @@ class OCPReportChargeUpdater:
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 try:
-                    cpu_usage = report_accessor.get_pod_usage_cpu_core_hours()
+                    cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(self._cluster_id)
                     cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
 
-                    cpu_request = report_accessor.get_pod_request_cpu_core_hours()
+                    cpu_request = report_accessor.get_pod_request_cpu_core_hours(self._cluster_id)
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
@@ -191,10 +194,12 @@ class OCPReportChargeUpdater:
                                                            total_cpu_charge)
 
                 try:
-                    mem_usage = report_accessor.get_pod_usage_memory_gigabyte_hours()
+                    mem_usage = report_accessor.\
+                        get_pod_usage_memory_gigabyte_hours(self._cluster_id)
                     mem_usage_charge = self._calculate_charge(mem_usage_rates, mem_usage)
 
-                    mem_request = report_accessor.get_pod_request_memory_gigabyte_hours()
+                    mem_request = report_accessor.\
+                        get_pod_request_memory_gigabyte_hours(self._cluster_id)
                     mem_request_charge = self._calculate_charge(mem_request_rates, mem_request)
 
                     total_memory_charge = self._aggregate_charges(mem_usage_charge,
@@ -220,11 +225,13 @@ class OCPReportChargeUpdater:
                 storage_request_rates = rate_accessor.get_storage_gb_request_per_month_rates()
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                storage_usage = report_accessor.get_persistentvolumeclaim_usage_gigabyte_months()
+                storage_usage = report_accessor.\
+                    get_persistentvolumeclaim_usage_gigabyte_months(self._cluster_id)
                 storage_usage_charge = self._calculate_charge(storage_usage_rates,
                                                               storage_usage)
 
-                storage_request = report_accessor.get_volume_request_storage_gigabyte_months()
+                storage_request = report_accessor.\
+                    get_volume_request_storage_gigabyte_months(self._cluster_id)
                 storage_request_charge = self._calculate_charge(storage_request_rates,
                                                                 storage_request)
                 total_storage_charge = self._aggregate_charges(storage_usage_charge,
@@ -247,7 +254,14 @@ class OCPReportChargeUpdater:
             None
 
         """
-        LOG.info('Starting charge calculation updates.')
+        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+            self._provider = provider_accessor.get_provider()
 
+        with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
+            usage_period_qry = report_accessor.get_usage_period_query_by_provider(self._provider.id)
+            self._cluster_id = usage_period_qry.first().cluster_id
+
+        LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
+                 self._provider.name, self._cluster_id)
         self._update_pod_charge()
         self._update_storage_charge()
