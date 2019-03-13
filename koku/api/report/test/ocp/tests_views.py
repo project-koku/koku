@@ -509,6 +509,62 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
+    def test_execute_query_ocp_costs_group_by_cluster(self):
+        """Test that the costs endpoint is reachable."""
+        url = reverse('reports-openshift-costs')
+        client = APIClient()
+        params = {
+            'group_by[cluster]': '*'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_costs_group_by_node(self):
+        """Test that the costs endpoint is reachable."""
+        url = reverse('reports-openshift-costs')
+        client = APIClient()
+        params = {
+            'group_by[node]': '*'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_execute_query_ocp_costs_group_by_project(self):
+        """Test that the costs endpoint is reachable."""
+        url = reverse('reports-openshift-costs')
+        client = APIClient()
+        params = {
+            'group_by[project]': '*',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'filter[resolution]': 'monthly'
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        # Using .data instead of .json() retains the Decimal types for
+        # direct value and type comparisons
+        data = response.data
+
+        with tenant_context(self.tenant):
+            cost = CostSummary.objects\
+                .filter(usage_start__date__gte=self.dh.this_month_start)\
+                .aggregate(
+                    total=Sum(
+                        F('pod_charge_cpu_core_hours') +  # noqa: W504
+                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                        F('project_infra_cost')
+                    )
+                ).get('total')
+            expected_total = cost if cost is not None else 0
+        total = data.get('meta', {}).get('total', {}).get('cost', {}).get('value', 0)
+        self.assertEqual(total, expected_total)
+
+
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
         url = reverse('reports-openshift-costs')
