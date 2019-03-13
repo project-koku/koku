@@ -52,6 +52,13 @@ class User(models.Model):
     is_active = models.NullBooleanField(default=True)
     customer = models.ForeignKey('Customer', null=True, on_delete=models.CASCADE)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize non-persisted user properties."""
+        super().__init__(*args, **kwargs)
+        self.admin = False
+        self.access = {}
+        self.identity_header = None
+
     class Meta:
         ordering = ['username']
 
