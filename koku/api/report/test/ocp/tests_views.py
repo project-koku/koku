@@ -564,7 +564,6 @@ class OCPReportViewTest(IamTestCase):
         total = data.get('meta', {}).get('total', {}).get('cost', {}).get('value', 0)
         self.assertEqual(total, expected_total)
 
-
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
         url = reverse('reports-openshift-costs')
@@ -902,7 +901,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'pod_labels__has_key': filter_key})\
                 .aggregate(
                     **{
@@ -915,7 +914,12 @@ class OCPReportViewTest(IamTestCase):
 
         url = reverse('reports-openshift-cpu')
         client = APIClient()
-        params = {f'filter[tag:{filter_key}]': '*'}
+        params = {
+            f'filter[tag:{filter_key}]': '*',
+            'filter[time_scope_value]': '-1',
+            'filter[time_scope_units]': 'month',
+            'filter[resolution]': 'monthly'
+        }
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
