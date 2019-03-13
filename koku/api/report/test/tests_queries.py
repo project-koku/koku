@@ -34,6 +34,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.queries import strip_tag_prefix
+# from api.report.view import get_tag_keys
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
@@ -44,6 +45,7 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
+# from reporting.provider.aws.models import AWSTagsSummary
 
 
 class FakeAWSCostData(object):
@@ -733,33 +735,70 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(expected, group_by)
 
     def test_get_resolution_empty_default(self):
-        """Test resolution returns default when query params are empty."""
+        """Test get_resolution returns default when query params are empty."""
         query_params = {}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertEqual(handler.resolution, 'daily')
-        self.assertEqual(handler.resolution, 'daily')
+        self.assertEqual(handler.get_resolution(), 'daily')
+        self.assertEqual(handler.get_resolution(), 'daily')
+
+    def test_get_resolution_empty_month_time_scope(self):
+        """Test get_resolution returns default when time_scope is month."""
+        query_params = {'filter': {'time_scope_value': -1}}
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        self.assertEqual(handler.get_resolution(), 'monthly')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
         query_params = {'filter': {'time_scope_value': -10}}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertEqual(handler.resolution, 'daily')
+        self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
         query_params = {}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_units, 'month')
+        self.assertEqual(handler.get_time_scope_units(), 'day')
+        self.assertEqual(handler.get_time_scope_units(), 'day')
+
+    def test_get_time_scope_units_empty_month_time_scope(self):
+        """Test get_time_scope_units returns default when time_scope is month."""
+        query_params = {'filter': {'time_scope_value': -1}}
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        self.assertEqual(handler.get_time_scope_units(), 'month')
+
+    def test_get_time_scope_units_empty_day_time_scope(self):
+        """Test get_time_scope_units returns default when time_scope is month."""
+        query_params = {'filter': {'time_scope_value': -10}}
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        self.assertEqual(handler.get_time_scope_units(), 'day')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
         query_params = {}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertEqual(handler.time_scope_value, -1)
+        self.assertEqual(handler.get_time_scope_value(), -10)
+        self.assertEqual(handler.get_time_scope_value(), -10)
+
+    def test_get_time_scope_value_empty_month_time_scope(self):
+        """Test get_time_scope_value returns default when time_scope is month."""
+        query_params = {'filter': {'time_scope_units': 'month'}}
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        self.assertEqual(handler.get_time_scope_value(), -1)
+
+    def test_get_time_scope_value_empty_day_time_scope(self):
+        """Test get_time_scope_value returns default when time_scope is month."""
+        query_params = {'filter': {'time_scope_units': 'day'}}
+        handler = AWSReportQueryHandler(query_params, '', self.tenant,
+                                        **{'report_type': 'costs'})
+        self.assertEqual(handler.get_time_scope_value(), -10)
 
     def test_get_time_frame_filter_current_month(self):
         """Test _get_time_frame_filter for current month."""
@@ -769,14 +808,13 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'}}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        dh = DateHelper()
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
-        self.assertEqual(start, dh.this_month_start)
-        self.assertEqual(end, dh.today)
+        self.assertEqual(start, DateHelper().this_month_start)
+        self.assertEqual(end.date(), DateHelper().today.date())
         self.assertIsInstance(interval, list)
-        self.assertEqual(len(interval), dh.today.day)
+        self.assertEqual(len(interval), DateHelper().today.day)
 
     def test_get_time_frame_filter_previous_month(self):
         """Test _get_time_frame_filter for previous month."""
@@ -786,14 +824,13 @@ class ReportQueryTest(IamTestCase):
                          'time_scope_units': 'month'}}
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
-        dh = DateHelper()
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
-        self.assertEqual(start, dh.last_month_start)
-        self.assertEqual(end, dh.today)
+        self.assertEqual(start, DateHelper().last_month_start)
+        self.assertEqual(end, DateHelper().last_month_end)
         self.assertIsInstance(interval, list)
-        self.assertEqual(len(interval), (dh.tomorrow - dh.last_month_start).days)
+        self.assertTrue(len(interval) >= 28)
 
     def test_get_time_frame_filter_last_ten(self):
         """Test _get_time_frame_filter for last ten days."""
@@ -804,14 +841,14 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         dh = DateHelper()
-        ten_days_ago = dh.n_days_ago(dh.today, 10)
+        nine_days_ago = dh.n_days_ago(dh.today, 9)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
-        self.assertEqual(start, ten_days_ago)
+        self.assertEqual(start, nine_days_ago)
         self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
-        self.assertEqual(len(interval), 11)
+        self.assertTrue(len(interval) == 10)
 
     def test_get_time_frame_filter_last_thirty(self):
         """Test _get_time_frame_filter for last thirty days."""
@@ -822,14 +859,14 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '', self.tenant,
                                         **{'report_type': 'costs'})
         dh = DateHelper()
-        thirty_days_ago = dh.n_days_ago(dh.today, 30)
+        twenty_nine_days_ago = dh.n_days_ago(dh.today, 29)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         end = handler.end_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         interval = handler.time_interval
-        self.assertEqual(start, thirty_days_ago)
+        self.assertEqual(start, twenty_nine_days_ago)
         self.assertEqual(end, dh.today)
         self.assertIsInstance(interval, list)
-        self.assertEqual(len(interval), 31)
+        self.assertTrue(len(interval) == 30)
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
@@ -1484,7 +1521,7 @@ class ReportQueryTest(IamTestCase):
         expected_delta_percent = None
 
         query_params = {
-            'filter': {'time_scope_value': -1, 'time_scope_units': 'month'},
+            'filter': {'time_scope_value': -1},
             'delta': 'cost'
         }
 

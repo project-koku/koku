@@ -18,7 +18,7 @@
 import datetime
 import logging
 
-from dateutil.relativedelta import relativedelta
+from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
 
 from api.query_filter import QueryFilter, QueryFilterCollection
@@ -66,21 +66,13 @@ class QueryHandler(object):
         self.tenant = tenant
         self.default_ordering = default_ordering
         self.kwargs = kwargs
+        self.resolution = None
         self.time_interval = []
+        self.time_scope_units = None
+        self.time_scope_value = None
         self.start_datetime = None
         self.end_datetime = None
         self._max_rank = 0
-
-        if self.resolution == 'monthly':
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
-            self.date_trunc = TruncMonthString
-            self.gen_time_interval = DateHelper().list_months
-        else:
-            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
-            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
-            self.date_trunc = TruncDayString
-            self.gen_time_interval = DateHelper().list_days
 
         self._get_timeframe()
 
@@ -142,39 +134,35 @@ class QueryHandler(object):
         """Max rank setter."""
         self._max_rank = max_rank
 
-    @property
-    def resolution(self):
-        """Time resolution property.
+    def get_resolution(self):
+        """Extract resolution or provide default.
 
         Returns:
-            (str) 'daily', 'monthly', 'yearly'; default: daily
+            (String): The value of how data will be sliced.
 
         """
-        return self.get_query_param_data('filter', 'resolution',
-                                         default='daily')
+        if self.resolution:
+            return self.resolution
 
-    @property
-    def time_scope_units(self):
-        """Time scope units property.
+        self.resolution = self.get_query_param_data('filter', 'resolution')
+        time_scope_value = self.get_time_scope_value()
+        if not self.resolution:
+            self.resolution = 'daily'
+            if int(time_scope_value) in [-1, -2]:
+                self.resolution = 'monthly'
 
-        Returns:
-            (str) 'day', 'month', 'year'; default: day
+        if self.resolution == 'monthly':
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m').date()
+            self.date_trunc = TruncMonthString
+            self.gen_time_interval = DateHelper().list_months
+        else:
+            self.date_to_string = lambda dt: dt.strftime('%Y-%m-%d')
+            self.string_to_date = lambda dt: datetime.datetime.strptime(dt, '%Y-%m-%d').date()
+            self.date_trunc = TruncDayString
+            self.gen_time_interval = DateHelper().list_days
 
-        """
-        return self.get_query_param_data('filter', 'time_scope_units',
-                                         default='month')
-
-    @property
-    def time_scope_value(self):
-        """Time scope value property.
-
-        Returns:
-            (int) number of time_scope_units to report on; default: -1
-
-        """
-        val = self.get_query_param_data('filter', 'time_scope_value',
-                                        default=-1)
-        return int(val)
+        return self.resolution
 
     def check_query_params(self, key, in_key):
         """Test if query parameters has a given key and key within it.
@@ -204,6 +192,47 @@ class QueryHandler(object):
             value = self.query_parameters.get(dictkey).get(key)
         return value
 
+    def get_time_scope_units(self):
+        """Extract time scope units or provide default.
+
+        Returns:
+            (String): The value of how data will be sliced.
+
+        """
+        if self.time_scope_units:
+            return self.time_scope_units
+
+        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+        if not time_scope_units:
+            time_scope_units = 'day'
+            if time_scope_value and int(time_scope_value) in [-1, -2]:
+                time_scope_units = 'month'
+
+        self.time_scope_units = time_scope_units
+        return self.time_scope_units
+
+    def get_time_scope_value(self):
+        """Extract time scope value or provide default.
+
+        Returns:
+            (Integer): time relative value providing query scope
+
+        """
+        if self.time_scope_value:
+            return self.time_scope_value
+
+        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
+        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
+
+        if not time_scope_value:
+            time_scope_value = -10
+            if time_scope_units == 'month':
+                time_scope_value = -1
+
+        self.time_scope_value = int(time_scope_value)
+        return self.time_scope_value
+
     def _get_timeframe(self):
         """Obtain timeframe start and end dates.
 
@@ -212,15 +241,33 @@ class QueryHandler(object):
             (DateTime): end datetime for query filter
 
         """
+        self.get_resolution()
+        time_scope_value = self.get_time_scope_value()
+        time_scope_units = self.get_time_scope_units()
+        start = None
+        end = None
         dh = DateHelper()
-        self.end_datetime = dh.today
-        if self.time_scope_units == 'month':
-            self.start_datetime = dh.n_months_ago(dh.next_month_start,
-                                                  abs(self.time_scope_value))
+        if time_scope_units == 'month':
+            if time_scope_value == -1:
+                # get current month
+                start = dh.this_month_start
+                end = dh.today
+            else:
+                # get previous month
+                start = dh.last_month_start
+                end = dh.last_month_end
         else:
-            self.start_datetime = dh.n_days_ago(dh.today,
-                                                abs(self.time_scope_value))
+            if time_scope_value == -10:
+                # get last 10 days
+                start = dh.n_days_ago(dh.this_hour, 9)
+                end = dh.this_hour
+            else:
+                # get last 30 days
+                start = dh.n_days_ago(dh.this_hour, 29)
+                end = dh.this_hour
 
+        self.start_datetime = start
+        self.end_datetime = end
         self._create_time_interval()
         return (self.start_datetime, self.end_datetime, self.time_interval)
 
@@ -238,10 +285,28 @@ class QueryHandler(object):
 
     def _get_date_delta(self):
         """Return a time delta."""
-        if self.time_scope_units == 'month':
-            return relativedelta(months=abs(self.time_scope_value))
+        if self.time_scope_value in [-1, -2]:
+            date_delta = relativedelta.relativedelta(months=1)
+        elif self.time_scope_value == -30:
+            date_delta = datetime.timedelta(days=30)
         else:
-            return relativedelta(days=abs(self.time_scope_value))
+            date_delta = datetime.timedelta(days=10)
+        return date_delta
+
+    def _get_time_based_filters(self, delta=False):
+        if delta:
+            date_delta = self._get_date_delta()
+            start = self.start_datetime - date_delta
+            end = self.end_datetime - date_delta
+        else:
+            start = self.start_datetime
+            end = self.end_datetime
+
+        start_filter = QueryFilter(field='usage_start__date', operation='gte',
+                                   parameter=start)
+        end_filter = QueryFilter(field='usage_end__date', operation='lte',
+                                 parameter=end)
+        return start_filter, end_filter
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
@@ -255,18 +320,7 @@ class QueryHandler(object):
         filters = QueryFilterCollection()
 
         # add time constraint filters
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        start_filter = QueryFilter(field='usage_start__date', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end__date', operation='lte',
-                                 parameter=end)
+        start_filter, end_filter = self._get_time_based_filters(delta)
         filters.add(query_filter=start_filter)
         filters.add(query_filter=end_filter)
 
