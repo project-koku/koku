@@ -20,14 +20,14 @@
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
+from api.common.permissions.aws_access import AwsAccessPermission
 from api.report.view import _generic_report
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([AwsAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
     """Get cost data.
@@ -118,7 +118,7 @@ def costs(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([AwsAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def instance_type(request):
     """Get inventory data.
@@ -244,7 +244,7 @@ def instance_type(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([AwsAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def storage(request):
     """Get inventory storage data.
