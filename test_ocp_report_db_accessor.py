@@ -74,6 +74,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
             reporting_period,
             report
         )
+        self.creator.create_ocp_storage_line_item(
+            reporting_period,
+            report
+        )
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -84,6 +88,66 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for table in tables:
                 self.accessor._session.delete(table)
         self.accessor.commit()
+
+    def _populate_storage_summary(self):
+        """Helper to generate storage summary data."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        summary_table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+
+        start_date = DateAccessor().today_with_timezone('UTC')
+
+        period = self.creator.create_ocp_report_period(start_date)
+        report = self.creator.create_ocp_report(period, start_date)
+        for _ in range(25):
+            self.creator.create_ocp_usage_line_item(period, report)
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_storage_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date)
+
+    def _populate_pod_summary(self):
+        """Helper to generate pod summary data."""
+        report_table_name = OCP_REPORT_TABLE_MAP['report']
+        summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        report_table = getattr(self.accessor.report_schema, report_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+
+        start_date = DateAccessor().today_with_timezone('UTC')
+
+        period = self.creator.create_ocp_report_period(start_date)
+        report = self.creator.create_ocp_report(period, start_date)
+        for _ in range(25):
+            self.creator.create_ocp_usage_line_item(period, report)
+
+        start_date, end_date = self.accessor._session.query(
+            func.min(report_table.interval_start),
+            func.max(report_table.interval_start)
+        ).first()
+
+        start_date = start_date.replace(hour=0, minute=0, second=0,
+                                        microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date)
 
     def test_initializer(self):
         """Test initializer."""
@@ -485,3 +549,123 @@ class OCPReportDBAccessorTest(MasuTestCase):
         wrong_report_period_id = report_period_id + 1
         usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
         self.assertEqual(usage_report_query.count(), 0)
+
+    def test_get_pod_cpu_core_hours(self):
+        """Test that gets pod cpu usage/request."""
+        self._populate_pod_summary()
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
+        reports = self.accessor._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+
+        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(cluster_id)
+        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(cluster_id)
+
+        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
+
+        # Verify that no line items are returned for an incorrect cluster_id
+        wrong_cluster_id = cluster_id + 'bad'
+        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours(wrong_cluster_id)
+        self.assertEqual(len(cpu_usage_query.keys()), 0)
+        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours(wrong_cluster_id)
+        self.assertEqual(len(cpu_request_query.keys()), 0)
+
+    def test_get_pod_cpu_core_hours_no_cluster_id(self):
+        """Test that gets pod cpu usage/request without cluster id."""
+        self._populate_pod_summary()
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        reports = self.accessor._get_db_obj_query(table_name).all()
+
+        expected_usage_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        cpu_usage_query = self.accessor.get_pod_usage_cpu_core_hours()
+        cpu_request_query = self.accessor.get_pod_request_cpu_core_hours()
+
+        self.assertEqual(len(cpu_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(cpu_request_query.keys()), len(expected_request_reports.keys()))
+
+    def test_get_pod_memory_gigabyte_hours(self):
+        """Test that gets pod memory usage/request."""
+        self._populate_pod_summary()
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
+        reports = self.accessor._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+
+        expected_usage_reports = {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours(cluster_id)
+        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours(cluster_id)
+
+        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
+
+        # Verify that no line items are returned for an incorrect cluster_id
+        wrong_cluster_id = cluster_id + 'bad'
+        mem_usage_query = self.accessor.get_pod_usage_cpu_core_hours(wrong_cluster_id)
+        self.assertEqual(len(mem_usage_query.keys()), 0)
+        mem_request_query = self.accessor.get_pod_usage_cpu_core_hours(wrong_cluster_id)
+        self.assertEqual(len(mem_request_query.keys()), 0)
+
+    def test_get_pod_memory_gigabyte_hours_no_cluster_id(self):
+        """Test that gets pod memory usage/request without cluster id."""
+        self._populate_pod_summary()
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        reports = self.accessor._get_db_obj_query(table_name).all()
+
+        expected_usage_reports = {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        expected_request_reports = {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        mem_usage_query = self.accessor.get_pod_usage_memory_gigabyte_hours()
+        mem_request_query = self.accessor.get_pod_request_memory_gigabyte_hours()
+
+        self.assertEqual(len(mem_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(mem_request_query.keys()), len(expected_request_reports.keys()))
+
+    def test_get_volume_gigabyte_months(self):
+        """Test that gets pod volume usage/request."""
+        self._populate_storage_summary()
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        cluster_id = self.accessor._get_db_obj_query(table_name).first().cluster_id
+        reports = self.accessor._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+
+        expected_usage_reports = {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        expected_request_reports = {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(cluster_id)
+        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(cluster_id)
+
+        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
+
+        # Verify that no line items are returned for an incorrect cluster_id
+        wrong_cluster_id = cluster_id + 'bad'
+        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months(wrong_cluster_id)
+        self.assertEqual(len(vol_usage_query.keys()), 0)
+        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months(wrong_cluster_id)
+        self.assertEqual(len(vol_request_query.keys()), 0)
+
+    def test_get_volume_gigabyte_months_no_cluster_id(self):
+        """Test that gets pod volume usage/request without cluster id."""
+        self._populate_storage_summary()
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+
+        # Verify that the line items for the test cluster_id are returned
+        reports = self.accessor._get_db_obj_query(table_name).all()
+
+        expected_usage_reports = {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        expected_request_reports = {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        vol_usage_query = self.accessor.get_persistentvolumeclaim_usage_gigabyte_months()
+        vol_request_query = self.accessor.get_volume_request_storage_gigabyte_months()
+
+        self.assertEqual(len(vol_usage_query.keys()), len(expected_usage_reports.keys()))
+        self.assertEqual(len(vol_request_query.keys()), len(expected_request_reports.keys()))
