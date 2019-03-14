@@ -43,7 +43,7 @@ def _update_query_parameters(query_parameters, filter_key, access, access_key, r
     if group_by.get(filter_key):
         items = set(group_by.get(filter_key))
         result = _get_replacement_result(items, access_list, raise_exception=True)
-        if result and not access_list:
+        if result:
             query_parameters['group_by'][filter_key] = result
             access_filter_applied = True
 
