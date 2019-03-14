@@ -59,10 +59,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
+        expected_start_date = self.ten_days_ago.strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
@@ -79,7 +77,9 @@ class OCPAWSReportViewTest(IamTestCase):
         """Test that OCP CPU endpoint works."""
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
-        params = {'filter[time_scope_value]': '-30'}
+        params = {'filter[time_scope_value]': '-30',
+                  'filter[time_scope_units]': 'day',
+                  'filter[resolution]': 'daily'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
 
@@ -206,6 +206,9 @@ class OCPAWSReportViewTest(IamTestCase):
         params = {
             'group_by[node]': '*',
             'filter[limit]': '1',
+            'filter[time_scope_units]': 'day',
+            'filter[time_scope_value]': '-10',
+            'filter[resolution]': 'daily'
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
@@ -213,7 +216,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPAWSCostLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(product_family__contains='Storage')\
                 .values(*['usage_start'])\
                 .annotate(usage=Sum('usage_amount'))
@@ -238,7 +241,7 @@ class OCPAWSReportViewTest(IamTestCase):
                                      round(float(totals.get(date)), 3))
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
-        """Test that deltas work for charge."""
+        """Test that deltas work for OpenShift on AWS storage."""
         url = reverse('reports-openshift-aws-storage')
         client = APIClient()
         params = {
@@ -638,10 +641,8 @@ class OCPAWSReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        expected_end_date = self.dh.today
-        expected_start_date = self.dh.n_days_ago(expected_end_date, 9)
-        expected_end_date = str(expected_end_date.date())
-        expected_start_date = str(expected_start_date.date())
+        expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
+        expected_start_date = self.ten_days_ago.strftime('%Y-%m-%d')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])

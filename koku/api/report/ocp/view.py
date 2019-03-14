@@ -243,14 +243,14 @@ def cpu(request):
 @api_view(http_method_names=['GET'])
 @permission_classes([AllowAny])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def charges(request):
-    """Get OpenShift charge data.
+def costs(request):
+    """Get OpenShift cost data.
 
-    @api {get} /cost-management/v1/reports/openshift/charge/ Get OpenShift charge data
-    @apiName getOpenShiftChargeData
+    @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift costs data
+    @apiName getOpenShiftCostData
     @apiGroup OpenShift Report
     @apiVersion 1.0.0
-    @apiDescription Get OpenShift charge data.
+    @apiDescription Get OpenShift cost data.
 
     @apiHeader {String} token User authorization token.
 
@@ -267,55 +267,97 @@ def charges(request):
     @apiSuccessExample {json} Success-Response:
         HTTP 200 OK
         {
-            "group_by": {
-                "project": [
-                    "*"
-                ]
+            "meta": {
+                "count": 1,
+                "group_by": {
+                    "project": [
+                        "*"
+                    ]
+                },
+                "filter": {
+                    "resolution": "monthly",
+                    "time_scope_value": "-1",
+                    "time_scope_units": "month"
+                },
+                "total": {
+                    "infrastructure_cost": {
+                        "value": 1960.75,
+                        "units": "USD"
+                    },
+                    "derived_cost": {
+                        "value": 0.0,
+                        "units": "USD"
+                    },
+                    "cost": {
+                        "value": 1960.75,
+                        "units": "USD"
+                    }
+                }
             },
-            "filter": {
-                "resolution": "monthly",
-                "time_scope_value": "-1",
-                "time_scope_units": "month"
+            "links": {
+                "first": "/cost-management/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0",  # noqa: E501
+                "next": null,
+                "previous": null,
+                "last": "/local/v1/reports/openshift/costs/?filter%5Bresolution%5D=monthly&filter%5Btime_scope_units%5D=month&filter%5Btime_scope_value%5D=-1&group_by%5Bproject%5D=%2A&limit=100&offset=0"  # noqa: E501
             },
             "data": [
                 {
-                    "date": "2018-11",
+                    "date": "2019-03",
                     "projects": [
                         {
-                            "project": "monitoring",
+                            "project": "namespace_ci",
                             "values": [
                                 {
-                                    "date": "2018-11",
-                                    "project": "monitoring",
-                                    "charge": 3.2
+                                    "date": "2019-03",
+                                    "project": "namespace_ci",
+                                    "infrastructure_cost": {
+                                        "value": 1960.75,
+                                        "units": "USD"
+                                    },
+                                    "derived_cost": {
+                                        "value": 0.0,
+                                        "units": "USD"
+                                    },
+                                    "cost": {
+                                        "value": 1960.75,
+                                        "units": "USD"
+                                    }
                                 }
                             ]
                         },
                         {
-                            "project": "metering-hccm",
+                            "project": "namespace_qe",
                             "values": [
                                 {
-                                    "date": "2018-11",
-                                    "project": "metering-hccm",
-                                    "charge": 3.0
+                                    "date": "2019-03",
+                                    "project": "namespace_qw",
+                                    "infrastructure_cost": {
+                                        "value": 0.0,
+                                        "units": "USD"
+                                    },
+                                    "derived_cost": {
+                                        "value": 0.0,
+                                        "units": "USD"
+                                    },
+                                    "cost": {
+                                        "value": 0.0,
+                                        "units": "USD"
+                                    }
                                 }
                             ]
                         }
                     ]
                 }
-            ],
-            "total": {
-                "charge": 6.2
-            }
+            ]
         }
     @apiSuccessExample {text} Success-Response:
         HTTP/1.1 200 OK
-        charge,date,project
-        3.200000,2018-11,monitoring
-        3.000000,2018-11,metering-hccm
+        cost,cost_units,date,derived_cost,infrastructure_cost,project
+        1960.750000,USD,2019-03,0.000000,1960.750000,namespace_ci
+        0.000000,USD,2019-03,0.000000,0,namespace_hyper
 
     """
-    return _generic_report(request, report='charge', provider='ocp')
+    return _generic_report(request, report='costs', provider='ocp')
 
 
 @api_view(http_method_names=['GET'])

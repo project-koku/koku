@@ -23,7 +23,7 @@ from django.db.models import F, Value, Window
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.report.queries import ReportQueryHandler
+from api.report.queries import ProviderMap, ReportQueryHandler
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -39,9 +39,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        kwargs['provider'] = 'OCP'
+        provider = 'OCP'
+        kwargs['provider'] = provider
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
+
+        # Update which field is used to calculate cost by group by param.
+        group_by = self._get_group_by()
+        if group_by and 'project' in group_by and self._report_type == 'costs':
+            self._report_type = self._report_type + '_by_project'
+            self._mapper = ProviderMap(provider=provider,
+                                       report_type=self._report_type)
 
     @property
     def annotations(self):
