@@ -32,7 +32,7 @@ class OCPUsageReportPeriod(models.Model):
     class Meta:
         """Meta for OCPUsageReportPeriod."""
 
-        unique_together = ('cluster_id', 'report_period_start')
+        unique_together = ('cluster_id', 'report_period_start', 'provider_id')
 
     cluster_id = models.CharField(max_length=50, null=False)
     report_period_start = models.DateTimeField(null=False)
