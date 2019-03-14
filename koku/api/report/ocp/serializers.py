@@ -382,8 +382,8 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         return value
 
 
-class OCPChargeQueryParamSerializer(OCPQueryParamSerializer):
-    """Serializer for handling charge query parameters."""
+class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
+    """Serializer for handling cost query parameters."""
 
     DELTA_CHOICES = (('cost', 'cost'))
 

@@ -24,7 +24,7 @@ from api.provider.view import ProviderViewSet
 from api.report.aws.view import (costs as aws_costs,
                                  instance_type as aws_instance_type,
                                  storage as aws_storage)
-from api.report.ocp.view import charges, cpu, memory, volume
+from api.report.ocp.view import costs as openshift_costs, cpu, memory, volume
 from api.report.ocp_aws.view import (costs as openshift_aws_costs,
                                      instance_type as openshift_aws_instance_type,
                                      storage as openshift_aws_storage)

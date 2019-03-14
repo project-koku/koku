@@ -31,7 +31,7 @@ from api.models import Tenant, User
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import (OCPChargeQueryParamSerializer,
+from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
@@ -81,8 +81,8 @@ class ClassMapper(object):
                     'tag_handler': [OCPUsagePodLabelSummary]
                 },
                 {
-                    'report': 'charge',
-                    'serializer': OCPChargeQueryParamSerializer,
+                    'report': 'costs',
+                    'serializer': OCPCostQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
                     'tag_handler': [OCPUsagePodLabelSummary]
                 },
