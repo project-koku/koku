@@ -147,7 +147,8 @@ class OCPAWSUsageLineItemDaily(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
 
     normalization_factor = models.FloatField(null=True)
 
@@ -263,7 +264,8 @@ class OCPAWSStorageLineItemDaily(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
 
     normalization_factor = models.FloatField(null=True)
 
@@ -367,7 +369,8 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
 
     normalized_usage_amount = models.FloatField(null=True)
 
