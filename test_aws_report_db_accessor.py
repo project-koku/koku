@@ -610,7 +610,7 @@ class ReportDBAccessorTest(MasuTestCase):
         """Test that bills are returned in a dict."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         bill = self.accessor._get_db_obj_query(table_name).first()
-        expected_key = (bill.bill_type, bill.payer_account_id, bill.billing_period_start)
+        expected_key = (bill.bill_type, bill.payer_account_id, bill.billing_period_start, bill.provider_id)
         # expected = {expected_key: bill.id}
 
         bill_map = self.accessor.get_cost_entry_bills()
