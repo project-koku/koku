@@ -63,6 +63,7 @@ CREATE TEMPORARY TABLE ocp_daily_labels_{uuid} AS (
             ON li.report_period_id = rp.id
         WHERE date(ur.interval_start) >= '{start_date}'
             AND date(ur.interval_start) <= '{end_date}'
+            AND rp.cluster_id = '{cluster_id}'
         GROUP BY rp.cluster_id,
             li.namespace,
             li.pod,
@@ -125,6 +126,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         ON rp.provider_id = p.id
     WHERE date(ur.interval_start) >= '{start_date}'
         AND date(ur.interval_start) <= '{end_date}'
+        AND rp.cluster_id = '{cluster_id}'
     GROUP BY rp.cluster_id,
         date(ur.interval_start),
         li.namespace,
@@ -138,6 +140,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
 DELETE FROM reporting_ocpusagelineitem_daily
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
+    AND cluster_id = '{cluster_id}'
 ;
 
 -- Populate the daily aggregate line item data

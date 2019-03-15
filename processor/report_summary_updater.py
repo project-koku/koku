@@ -19,6 +19,7 @@
 
 import logging
 
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            OCP_LOCAL_SERVICE_PROVIDER,
@@ -39,7 +40,7 @@ class ReportSummaryUpdaterError(Exception):
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider):
+    def __init__(self, customer_schema, provider_uuid):
         """
         Initializer.
 
@@ -48,7 +49,9 @@ class ReportSummaryUpdater:
             provider (str): The provider type.
         """
         self._schema = customer_schema
-        self._provider = provider
+        self._provider_uuid = provider_uuid
+        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
+            self._provider = provider_accessor.get_type()
         try:
             self._updater = self._set_updater()
         except Exception as err:
@@ -89,4 +92,5 @@ class ReportSummaryUpdater:
             None
 
         """
-        self._updater.update_summary_tables(start_date, end_date, manifest_id)
+        self._updater.update_summary_tables(start_date, end_date,
+                                            self._provider_uuid, manifest_id)
