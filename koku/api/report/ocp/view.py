@@ -20,14 +20,14 @@
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
-from rest_framework.permissions import AllowAny
 from rest_framework.settings import api_settings
 
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.report.view import _generic_report
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([OpenShiftAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def memory(request):
     """Get OpenShift memory usage data.
@@ -132,7 +132,7 @@ def memory(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([OpenShiftAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def cpu(request):
     """Get OpenShift compute usage data.
@@ -241,7 +241,7 @@ def cpu(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([OpenShiftAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def costs(request):
     """Get OpenShift cost data.
@@ -361,7 +361,7 @@ def costs(request):
 
 
 @api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
+@permission_classes([OpenShiftAccessPermission])
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def volume(request):
     """Get OpenShift volume usage data.

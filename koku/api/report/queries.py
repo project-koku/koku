@@ -1153,7 +1153,7 @@ class ReportQueryHandler(QueryHandler):
             bucket_by_date[date_string] = []
 
         for result in query_data:
-            if self._limit:
+            if self._limit and result.get('rank'):
                 del result['rank']
             date_string = result.get('date')
             date_bucket = bucket_by_date.get(date_string)
