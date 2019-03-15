@@ -361,7 +361,7 @@ class AWSReportProcessor(ReportProcessorBase):
         bill_type = row.get('bill/BillType')
         payer_account_id = row.get('bill/PayerAccountId')
 
-        key = (bill_type, payer_account_id, start_date)
+        key = (bill_type, payer_account_id, start_date, self._provider_id)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -374,7 +374,9 @@ class AWSReportProcessor(ReportProcessorBase):
 
         bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data
+            data,
+            conflict_columns=['bill_type', 'payer_account_id',
+                              'billing_period_start', 'provider_id']
         )
 
         self.processed_report.bills[key] = bill_id

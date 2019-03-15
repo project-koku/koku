@@ -49,10 +49,10 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """Get all cost entry bill objects."""
         table_name = AWS_CUR_TABLE_MAP['bill']
 
-        columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start']
+        columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start', 'provider_id']
         bills = self._get_db_obj_query(table_name, columns=columns).all()
 
-        return {(bill.bill_type, bill.payer_account_id, bill.billing_period_start): bill.id
+        return {(bill.bill_type, bill.payer_account_id, bill.billing_period_start, bill.provider_id): bill.id
                 for bill in bills}
 
     def get_cost_entry_bills_by_date(self, start_date):

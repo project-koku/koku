@@ -279,7 +279,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
 
-        key = (cluster_id, start)
+        key = (cluster_id, start, self._provider_id)
         if key in self.processed_report.report_periods:
             return self.processed_report.report_periods[key]
 
@@ -296,7 +296,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
-            conflict_columns=['cluster_id', 'report_period_start']
+            conflict_columns=['cluster_id', 'report_period_start', 'provider_id']
         )
 
         self.processed_report.report_periods[key] = report_period_id
