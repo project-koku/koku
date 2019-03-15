@@ -307,7 +307,6 @@ class OCPAWSReportViewTest(IamTestCase):
 
         expected_delta = current_total - prev_total
         delta = data.get('meta', {}).get('delta', {}).get('value')
-        import pdb; pdb.set_trace()
         self.assertEqual(delta, expected_delta)
         for item in data.get('data'):
             date = item.get('date')
