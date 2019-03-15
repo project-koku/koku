@@ -174,10 +174,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Get all usage period objects."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
-        columns = ['id', 'cluster_id', 'report_period_start']
+        columns = ['id', 'cluster_id', 'report_period_start', 'provider_id']
         periods = self._get_db_obj_query(table_name, columns=columns).all()
 
-        return {(p.cluster_id, p.report_period_start): p.id
+        return {(p.cluster_id, p.report_period_start, p.provider_id): p.id
                 for p in periods}
 
     def get_reports(self):
