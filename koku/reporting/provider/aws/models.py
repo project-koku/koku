@@ -212,7 +212,8 @@ class AWSCostEntryLineItemDaily(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
@@ -287,7 +288,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
