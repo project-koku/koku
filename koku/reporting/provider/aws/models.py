@@ -33,7 +33,7 @@ class AWSCostEntryBill(models.Model):
         """Meta for AWSCostEntryBill."""
 
         unique_together = ('bill_type', 'payer_account_id',
-                           'billing_period_start')
+                           'billing_period_start', 'provider_id')
 
     billing_resource = models.CharField(max_length=50, default='aws',
                                         null=False)
