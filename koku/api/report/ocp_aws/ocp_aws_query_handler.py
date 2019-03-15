@@ -21,6 +21,7 @@ from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
+from api.report.access_utils import update_query_parameters_for_openshift
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.queries import ProviderMap
 
@@ -39,6 +40,8 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         provider = 'OCP_AWS'
+        if kwargs.get('access'):
+            query_parameters = update_query_parameters_for_openshift(query_parameters, kwargs.get('access'))
         super().__init__(query_parameters, url_data, tenant,
                          provider=provider, **kwargs)
 
