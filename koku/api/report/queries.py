@@ -22,7 +22,7 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
 from urllib.parse import quote_plus
 
-from django.db.models import CharField, Count, DecimalField, F, FloatField, Max, Q, Sum, Value
+from django.db.models import CharField, Count, DecimalField, F, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
 from django.db.models.functions import Coalesce
 
@@ -605,7 +605,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -628,7 +628,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -657,7 +657,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -670,7 +670,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -709,7 +709,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -735,7 +735,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('Hrs'))
@@ -766,7 +766,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -782,7 +782,7 @@ class ProviderMap(object):
                         'usage': Sum(
                             ExpressionWrapper(
                                 F('usage_amount') / F('shared_projects'),
-                                output_field=FloatField()
+                                output_field=DecimalField()
                             )
                         ),
                         'usage_units': Coalesce(Max('unit'), Value('Hrs'))
