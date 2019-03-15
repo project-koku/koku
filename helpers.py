@@ -147,13 +147,13 @@ class ReportObjectCreator:
 
         return row
 
-    def create_ocp_report_period(self, period_date=None, provider_id=None):
+    def create_ocp_report_period(self, period_date=None, provider_id=None, cluster_id=None):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
         period_start = self.fake.past_datetime()
         period_end = period_start + relativedelta.relativedelta(days=random.randint(1, 15))
-        data = {'cluster_id': self.fake.pystr()[:8],
+        data = {'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
                 'provider_id': provider_id if provider_id else 1,
                 'report_period_start': self.stringify_datetime(period_start),
                 'report_period_end': self.stringify_datetime(period_end)}

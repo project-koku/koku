@@ -35,9 +35,11 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.ocp.common import get_cluster_id_from_provider
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 
@@ -966,16 +968,20 @@ class ReportDBAccessorTest(MasuTestCase):
                 ocp_accessor.report_schema.column_types
             )
 
+            cluster_id = 'testcluster'
+            with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
+                provider_id = provider_access.get_provider().id
+
             for cost_entry_date in (today, last_month):
-                period = self.creator.create_ocp_report_period(cost_entry_date)
+                period = self.creator.create_ocp_report_period(cost_entry_date, provider_id=provider_id, cluster_id=cluster_id)
                 report = self.creator.create_ocp_report(period, cost_entry_date)
                 self.creator.create_ocp_usage_line_item(
                     period,
                     report,
                     resource_id=resource_id
                 )
-
-            ocp_accessor.populate_line_item_daily_table(last_month, today)
+            cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid, self.test_schema)
+            ocp_accessor.populate_line_item_daily_table(last_month, today, cluster_id)
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         initial_count = query.count()
