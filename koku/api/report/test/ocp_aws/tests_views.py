@@ -212,7 +212,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        data = response.json()
+        data = response.data
 
         with tenant_context(self.tenant):
             totals = OCPAWSCostLineItemDailySummary.objects\
@@ -237,8 +237,7 @@ class OCPAWSReportViewTest(IamTestCase):
                     self.assertEqual(projects[1].get('node'), '1 Other')
                     usage_total = projects[0].get('values')[0].get('usage', {}).get('value') + \
                         projects[1].get('values')[0].get('usage', {}).get('value')
-                    self.assertEqual(round(usage_total, 3),
-                                     round(float(totals.get(date)), 3))
+                    self.assertAlmostEqual(usage_total, totals.get(date))
 
     def test_execute_query_ocp_aws_storage_with_delta(self):
         """Test that deltas work for OpenShift on AWS storage."""
@@ -253,7 +252,7 @@ class OCPAWSReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        data = response.json()
+        data = response.data
         this_month_start = self.dh.this_month_start
         last_month_start = self.dh.last_month_start
 
@@ -288,18 +287,28 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*['date'])\
                 .annotate(usage=Sum(F('usage_amount')))
 
-        current_totals = {total.get('date'): total.get('usage')
-                          for total in current_totals}
-        prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('usage')
-                       for total in prev_totals
-                       if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
+            current_totals = {total.get('date'): total.get('usage')
+                              for total in current_totals}
+            prev_total_dates = [
+                total.get('date')
+                for total in prev_totals
+                if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals
+            ]
+            prev_totals = {date_to_string(string_to_date(total.get('date')) + date_delta): total.get('usage')
+                           for total in prev_totals
+                           if date_to_string(string_to_date(total.get('date')) + date_delta) in current_totals}
 
-        prev_total = sum(prev_totals.values())
-        prev_total = prev_total if prev_total is not None else 0
+            prev_total = OCPAWSCostLineItemDailySummary.objects\
+                .filter(usage_start__in=prev_total_dates)\
+                .filter(product_family__contains='Storage')\
+                .aggregate(usage=Sum(F('usage_amount')))\
+                .get('usage')
+            prev_total = prev_total if prev_total is not None else 0
 
         expected_delta = current_total - prev_total
         delta = data.get('meta', {}).get('delta', {}).get('value')
-        self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
+        import pdb; pdb.set_trace()
+        self.assertEqual(delta, expected_delta)
         for item in data.get('data'):
             date = item.get('date')
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
@@ -307,7 +316,7 @@ class OCPAWSReportViewTest(IamTestCase):
             delta_value = 0
             if values:
                 delta_value = values[0].get('delta_value')
-            self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
+            self.assertAlmostEqual(delta_value, expected_delta)
 
     def test_execute_query_ocp_aws_storage_group_by_project(self):
         """Test that grouping by project filters data."""
