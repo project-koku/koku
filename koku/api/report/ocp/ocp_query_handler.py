@@ -23,6 +23,7 @@ from django.db.models import F, Value, Window
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
+from api.report.access_utils import update_query_parameters_for_openshift
 from api.report.queries import ProviderMap, ReportQueryHandler
 
 
@@ -41,6 +42,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         provider = 'OCP'
         kwargs['provider'] = provider
+        if kwargs.get('access'):
+            query_parameters = update_query_parameters_for_openshift(query_parameters, kwargs.get('access'))
         super().__init__(query_parameters, url_data,
                          tenant, **kwargs)
 
