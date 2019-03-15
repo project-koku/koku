@@ -26,6 +26,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
     FROM reporting_ocpusagelineitem_daily AS li
     WHERE usage_start >= '{start_date}'
         AND usage_start <= '{end_date}'
+        AND cluster_id = '{cluster_id}'
 )
 ;
 
@@ -33,6 +34,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
 DELETE FROM reporting_ocpusagelineitem_daily_summary
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
+    AND cluster_id = '{cluster_id}'
 ;
 
 -- Populate the daily aggregate line item data

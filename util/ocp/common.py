@@ -22,6 +22,12 @@ import logging
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.exceptions import (MasuConfigurationError, MasuProviderError)
+from masu.external import (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM)
+
 LOG = logging.getLogger(__name__)
 
 
@@ -98,3 +104,40 @@ def get_local_file_name(file_path):
     local_file_name = f'{date_range}_{filename}'
 
     return local_file_name
+
+
+def get_cluster_id_from_provider(provider_uuid, schema):
+    """
+    Return the cluster ID given a provider UUID.
+
+    Args:
+        provider_uuid (String): provider UUID.
+
+    Returns:
+        (String): OpenShift Cluster ID
+
+    """
+    cluster_id = None
+    with ReportingCommonDBAccessor() as reporting_common:
+        column_map = reporting_common.column_map
+
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        provider_obj = provider_accessor.get_provider()
+        provider_type = provider_accessor.get_type()
+
+    if provider_type not in (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM):
+        err_msg = 'Provider UUID is not an OpenShift type.  It is {}'.\
+            format(provider_type)
+        raise MasuProviderError(err_msg)
+
+    with OCPReportDBAccessor(schema, column_map) as report_accessor:
+        usage_period_qry = report_accessor.get_usage_period_query_by_provider(provider_obj.id)
+        clusters = []
+        for obj in usage_period_qry.all():
+            clusters.append(obj.cluster_id)
+        if len(set(clusters)) > 1:
+            err_msg = 'Provider {} is associated with too many clusters. Clusters: {}'.\
+                format(provider_uuid, str(set(clusters)))
+            raise MasuConfigurationError(err_msg)
+        cluster_id = clusters.pop() if clusters else None
+    return cluster_id

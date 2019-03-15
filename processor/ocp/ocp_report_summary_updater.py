@@ -25,6 +25,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -44,19 +45,19 @@ class OCPReportSummaryUpdater:
         self._date_accessor = DateAccessor()
         self.manifest = None
 
-    def update_summary_tables(self, start_date, end_date, manifest_id=None):
+    def update_summary_tables(self, start_date, end_date, provider_uuid, manifest_id=None):
         """Populate the summary tables for reporting.
 
         Args:
             start_date (str) The date to start populating the table.
             end_date   (str) The date to end on.
+            provider_uuid (str) Provider UUID.
             manifest_id (str) A manifest to check before summarizing
 
         Returns
             None
 
         """
-        LOG.info('Starting report data summarization.')
         # Validate dates as strings
         if isinstance(start_date, datetime.date):
             start_date = start_date.strftime('%Y-%m-%d')
@@ -68,6 +69,10 @@ class OCPReportSummaryUpdater:
             end_date = end_date.strftime('%Y-%m-%d')
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
+
+        cluster_id = get_cluster_id_from_provider(provider_uuid, self._schema_name)
+        LOG.info('Starting report data summarization for provider uuid: %s (cluster id: %s).',
+                 provider_uuid, cluster_id)
 
         # Default to this month's bill
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
@@ -112,11 +117,11 @@ class OCPReportSummaryUpdater:
             LOG.info('Updating report summary tables for %s from %s to %s',
                      self._schema_name, start_date, end_date)
 
-            accessor.populate_line_item_daily_table(start_date, end_date)
-            accessor.populate_line_item_daily_summary_table(start_date, end_date)
+            accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
+            accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
             accessor.populate_pod_label_summary_table()
-            accessor.populate_storage_line_item_daily_table(start_date, end_date)
-            accessor.populate_storage_line_item_daily_summary_table(start_date, end_date)
+            accessor.populate_storage_line_item_daily_table(start_date, end_date, cluster_id)
+            accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, cluster_id)
             accessor.populate_volume_claim_label_summary_table()
             accessor.populate_volume_label_summary_table()
 

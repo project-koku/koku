@@ -23,8 +23,8 @@ from decimal import Decimal
 
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +47,6 @@ class OCPReportChargeUpdater:
         with ReportingCommonDBAccessor() as reporting_common:
             self._column_map = reporting_common.column_map
         self._provider_uuid = provider_uuid
-        self._provider = None
         self._cluster_id = None
 
     @staticmethod
@@ -254,14 +253,9 @@ class OCPReportChargeUpdater:
             None
 
         """
-        with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            self._provider = provider_accessor.get_provider()
-
-        with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-            usage_period_qry = report_accessor.get_usage_period_query_by_provider(self._provider.id)
-            self._cluster_id = usage_period_qry.first().cluster_id
+        self._cluster_id = get_cluster_id_from_provider(self._provider_uuid, self._schema)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
-                 self._provider.name, self._cluster_id)
+                 self._provider_uuid, self._cluster_id)
         self._update_pod_charge()
         self._update_storage_charge()
