@@ -12,4 +12,4 @@ A provider can currently be removed by any user.
 .. include:: providers/ocp.rst
 .. include:: providers/local.rst
 .. include:: providers/openshift_on_aws.rst
-.. include:: providers/resource_visiblity.rst
+.. include:: providers/resource_visibility.rst
