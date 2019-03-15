@@ -194,7 +194,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
                        manifest_id)
     LOG.info(stmt)
 
-    updater = ReportSummaryUpdater(schema_name, provider)
+    updater = ReportSummaryUpdater(schema_name, provider_uuid)
     updater.update_summary_tables(start_date, end_date, manifest_id)
 
     if provider_uuid:

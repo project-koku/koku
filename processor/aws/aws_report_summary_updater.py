@@ -44,19 +44,20 @@ class AWSReportSummaryUpdater:
         self._date_accessor = DateAccessor()
         self.manifest = None
 
-    def update_summary_tables(self, start_date, end_date, manifest_id=None):
+    def update_summary_tables(self, start_date, end_date, provider_uuid, manifest_id=None):
         """Populate the summary tables for reporting.
 
         Args:
             start_date (str) The date to start populating the table.
             end_date   (str) The date to end on.
+            provider_uuid (str) Provider UUID.
             manifest_id (str) A manifest to check before summarizing
 
         Returns
             None
 
         """
-        LOG.info('Starting report data summarization.')
+        LOG.info('Starting report data summarization for provider uuid: %s.', provider_uuid)
 
         # Validate dates as strings
         if isinstance(start_date, datetime.date):

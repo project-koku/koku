@@ -250,12 +250,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     # pylint: disable=duplicate-code
-    def populate_line_item_daily_table(self, start_date, end_date):
+    def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
 
         Returns
             (None)
@@ -270,7 +271,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cluster_id=cluster_id
         )
         LOG.info(f'Updating %s from %s to %s.',
                  table_name, start_date, end_date)
@@ -280,12 +282,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=duplicate-code
-    def populate_storage_line_item_daily_table(self, start_date, end_date):
+    def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
 
         Returns
             (None)
@@ -300,7 +303,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cluster_id=cluster_id
         )
         LOG.info(f'Updating %s from %s to %s.',
                  table_name, start_date, end_date)
@@ -362,12 +366,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
-    def populate_line_item_daily_summary_table(self, start_date, end_date):
+    def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
 
         Returns
             (None)
@@ -382,7 +387,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cluster_id=cluster_id
         )
         LOG.info(f'Updating %s from %s to %s.',
                  table_name, start_date, end_date)
@@ -391,13 +397,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
-    def populate_storage_line_item_daily_summary_table(self, start_date, end_date):
+    def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of storage line items table.
 
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
-
+            cluster_id (String) Cluster Identifier
         Returns
             (None)
 
@@ -411,7 +417,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cluster_id=cluster_id
         )
         LOG.info(f'Updating %s from %s to %s.',
                  table_name, start_date, end_date)
