@@ -79,11 +79,6 @@ class AWSCostEntryLineItem(models.Model):
 
     """
 
-    class Meta:
-        """Meta for AWSCostEntryLineItem."""
-
-        unique_together = ('hash', 'cost_entry')
-
     id = models.BigAutoField(primary_key=True)
 
     cost_entry = models.ForeignKey('AWSCostEntry',
@@ -98,11 +93,6 @@ class AWSCostEntryLineItem(models.Model):
                                                on_delete=models.PROTECT,
                                                null=True)
 
-    hash = models.TextField(null=True)
-
-    # There is a many-to-many relationship between line-items and tags.
-    # Want to try JSON to avoid having to check if tags exist in the database
-    # for every line item we add.
     tags = JSONField(null=True)
 
     # Invoice ID is null until the bill is finalized
