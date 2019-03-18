@@ -100,15 +100,16 @@ class ReportDBAccessorBase(KokuDBAccess):
         cursor.execute(f'SET search_path TO {self.schema}')
         return cursor
 
-    def create_temp_table(self, table_name):
+    def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
         self._cursor.execute(
             f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
         )
-        self._cursor.execute(
-            f'ALTER TABLE {temp_table_name} DROP COLUMN id'
-        )
+        if drop_column:
+            self._cursor.execute(
+                f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
+            )
 
         return temp_table_name
 
@@ -175,11 +176,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         delete_sql = f'DELETE FROM {temp_table_name}'
         self._cursor.execute(delete_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(temp_table_name)
+        self.vacuum_table(temp_table_name)
 
         return is_finalized_data
 
-    def _vacuum_table(self, table_name):
+    def vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
         isolation_level = self._pg2_conn.isolation_level
         self._pg2_conn.set_isolation_level(

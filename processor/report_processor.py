@@ -72,7 +72,8 @@ class ReportProcessor:
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
-                                      provider_id=self.provider_id)
+                                      provider_id=self.provider_id,
+                                      manifest_id=self.manifest_id)
 
         if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, OCP_LOCAL_SERVICE_PROVIDER):
             return OCPReportProcessor(schema_name=self.schema_name,
