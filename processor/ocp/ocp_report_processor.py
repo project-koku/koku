@@ -379,7 +379,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
-                    self.table_name
+                    self.table_name,
+                    drop_column='id'
                 )
 
                 LOG.info('File %s opened for processing', str(f))
