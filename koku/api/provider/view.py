@@ -32,6 +32,7 @@ from api.provider import serializers
 from api.provider.models import Provider
 from api.report.view import get_tenant
 from .provider_manager import ProviderManager
+from .infrastructure_detector import InfrastructureDetector
 
 
 LOG = logging.getLogger(__name__)
@@ -301,6 +302,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
         provider_stats = manager.provider_statistics(tenant)
+        infra = InfrastructureDetector(kwargs['uuid'], tenant)
+        response.data['infrastructure'] = infra.infra_type
         response.data['stats'] = provider_stats
         return response
 
