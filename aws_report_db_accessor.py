@@ -52,7 +52,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start', 'provider_id']
         bills = self._get_db_obj_query(table_name, columns=columns).all()
 
-        return {(bill.bill_type, bill.payer_account_id, bill.billing_period_start, bill.provider_id): bill.id
+        return {(bill.bill_type, bill.payer_account_id,
+                 bill.billing_period_start, bill.provider_id): bill.id
                 for bill in bills}
 
     def get_cost_entry_bills_by_date(self, start_date):
@@ -162,7 +163,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(daily_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name,duplicate-code
@@ -191,7 +192,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def mark_bill_as_finalized(self, bill_id):
@@ -218,7 +219,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Updating %s.', table_name)
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date):
@@ -246,5 +247,5 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)

@@ -75,7 +75,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         delete_sql = f'DELETE FROM {temp_table_name}'
         self._cursor.execute(delete_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(temp_table_name)
+        self.vacuum_table(temp_table_name)
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
@@ -278,7 +278,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(daily_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=duplicate-code
@@ -310,7 +310,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(daily_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
@@ -338,7 +338,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._cursor.execute(charge_line_sql)
         LOG.info(f'Updating pod charge')
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def populate_storage_charge(self, temp_table_name):
@@ -363,7 +363,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._cursor.execute(charge_line_sql)
         LOG.info(f'Updating storage_charge')
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -394,7 +394,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
@@ -424,7 +424,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                  table_name, start_date, end_date)
         self._cursor.execute(summary_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info('Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name,duplicate-code
@@ -440,7 +440,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Updating %s.', table_name)
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info(f'Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name,duplicate-code
@@ -456,7 +456,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Updating %s.', table_name)
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info(f'Finished updating %s.', table_name)
 
     # pylint: disable=invalid-name,duplicate-code
@@ -472,5 +472,5 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info('Updating %s.', table_name)
         self._cursor.execute(agg_sql)
         self._pg2_conn.commit()
-        self._vacuum_table(table_name)
+        self.vacuum_table(table_name)
         LOG.info(f'Finished updating %s.', table_name)
