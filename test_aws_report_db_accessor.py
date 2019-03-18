@@ -241,7 +241,7 @@ class ReportDBAccessorTest(MasuTestCase):
         cursor.execute(count)
         initial_count = cursor.fetchone()[0]
 
-        temp_table_name = self.accessor.create_temp_table(table_name)
+        temp_table_name = self.accessor.create_temp_table(table_name, drop_column='id')
 
         insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
         cursor.execute(insert)
@@ -279,7 +279,7 @@ class ReportDBAccessorTest(MasuTestCase):
         cursor.execute(count)
         initial_count = cursor.fetchone()[0]
 
-        temp_table_name = self.accessor.create_temp_table(table_name)
+        temp_table_name = self.accessor.create_temp_table(table_name, drop_column='id')
 
         insert = f'INSERT INTO {temp_table_name} (test_column) VALUES (\'123\')'
         cursor.execute(insert)
@@ -317,7 +317,7 @@ class ReportDBAccessorTest(MasuTestCase):
         cursor.execute(count)
         initial_count = cursor.fetchone()[0]
 
-        temp_table_name = self.accessor.create_temp_table(table_name)
+        temp_table_name = self.accessor.create_temp_table(table_name, drop_column='id')
 
         insert = f'INSERT INTO {temp_table_name} (test_column, invoice_id) VALUES (\'123\', \'{expected_invoice_id}\')'
         cursor.execute(insert)
