@@ -17,6 +17,7 @@
 """Populate test data for OCP on AWS reports."""
 import random
 from decimal import Decimal
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
@@ -26,6 +27,7 @@ from tenant_schemas.utils import tenant_context
 from api.report.test.tests_queries import FakeAWSCostData
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
+from api.models import Provider, ProviderAuthentication, ProviderBillingSource
 
 
 class OCPAWSReportDataGenerator:
@@ -55,7 +57,43 @@ class OCPAWSReportDataGenerator:
             (self.today - relativedelta(days=i) for i in range(10)),
         ]
 
-    def add_data_to_tenant(self):
+    def _create_ocp_provider(self, cluster_id):
+        """Create OCP test provider."""
+        cluster_id = uuid4()
+        authentication_data = {
+            'uuid': uuid4(),
+            'provider_resource_name': cluster_id,
+        }
+        authentication_id = ProviderAuthentication(**authentication_data)
+        authentication_id.save()
+        self.cluster_id = cluster_id
+
+        billing_source_data = {
+            'uuid': uuid4(),
+            'bucket': '',
+        }
+        billing_source_id = ProviderBillingSource(**billing_source_data)
+        billing_source_id.save()
+
+        provider_uuid = uuid4()
+        cluster_alias = self.fake.word()
+        provider_data = {
+            'uuid': provider_uuid,
+            'name': cluster_alias,
+            'authentication': authentication_id,
+            'billing_source': billing_source_id,
+            'customer': None,
+            'created_by': None,
+            'type': 'OCP',
+            'setup_complete': False
+        }
+        provider_id = Provider(**provider_data)
+        provider_id.save()
+        self.cluster_alias = cluster_alias
+        self.provider_uuid = provider_uuid
+        return provider_id
+
+    def add_data_to_tenant(self, generate_provider=False):
         """Populate tenant with data."""
         self.cluster_id = self.fake.word()
         self.cluster_alias = self.fake.word()
@@ -77,11 +115,14 @@ class OCPAWSReportDataGenerator:
                 for report_date in self.report_ranges[i]:
                     self._populate_ocp_aws_cost_line_item_daily_summary(report_date)
             self._populate_aws_tag_summary()
+        if generate_provider:
+            self.ocp_provider = self._create_ocp_provider(self.cluster_id)
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
         with tenant_context(self.tenant):
             OCPAWSCostLineItemDailySummary.objects.all().delete()
+            Provider.objects.all().delete()
 
     def _get_tags(self):
         """Create tags for output data."""

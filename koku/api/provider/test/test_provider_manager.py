@@ -28,6 +28,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
+from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
+
 from rates.models import Rate
 
 
@@ -349,3 +351,17 @@ class ProviderManagerTest(IamTestCase):
             self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
             self.assertIsNone(value_data.get('summary_data_creation_datetime'))
             self.assertIsNone(value_data.get('summary_data_updated_datetime'))
+
+    def test_ocp_on_aws_infrastructure_type(self):
+        """Test that the provider statistics method returns no report stats with no report data."""
+        # Create Provider
+        data_generator = OCPAWSReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(generate_provider=True)
+        
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        import pdb; pdb.set_trace()
+        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        self.assertEqual(infrastructure_name, 'AWS')
+
+        data_generator.remove_data_from_tenant()

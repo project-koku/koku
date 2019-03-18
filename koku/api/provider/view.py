@@ -32,7 +32,6 @@ from api.provider import serializers
 from api.provider.models import Provider
 from api.report.view import get_tenant
 from .provider_manager import ProviderManager
-from .infrastructure_detector import InfrastructureDetector
 
 
 LOG = logging.getLogger(__name__)
@@ -230,8 +229,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         for provider in response.data['data']:
             manager = ProviderManager(provider['uuid'])
             tenant = get_tenant(request.user)
-            provider_stats = manager.provider_statistics(tenant)
-            provider['stats'] = provider_stats
+            provider['stats'] = manager.provider_statistics(tenant)
+            provider['infrastructure'] = manager.get_infrastructure_name(tenant)
         return response
 
     def retrieve(self, request, *args, **kwargs):
@@ -301,10 +300,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
-        provider_stats = manager.provider_statistics(tenant)
-        infra = InfrastructureDetector(kwargs['uuid'], tenant)
-        response.data['infrastructure'] = infra.infra_type
-        response.data['stats'] = provider_stats
+        response.data['infrastructure'] = manager.get_infrastructure_name(tenant)
+        response.data['stats'] = manager.provider_statistics(tenant)
         return response
 
     def destroy(self, request, *args, **kwargs):
