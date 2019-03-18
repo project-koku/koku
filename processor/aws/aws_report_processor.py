@@ -17,7 +17,6 @@
 
 """Processor for Cost Usage Reports."""
 
-import copy
 import csv
 import gzip
 import io
@@ -28,12 +27,12 @@ from os import listdir, path, remove
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import extract_uuids_from_string, stringify_json_data
-from masu.util.hash import Hasher
+from masu.util.common import extract_uuids_from_string
 
 LOG = logging.getLogger(__name__)
 
@@ -68,7 +67,8 @@ class ProcessedReport:
 class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression, provider_id):
+    # pylint:disable=too-many-arguments
+    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -85,6 +85,7 @@ class AWSReportProcessor(ReportProcessorBase):
             provider_id=provider_id
         )
 
+        self.manifest_id = manifest_id
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
@@ -105,30 +106,8 @@ class AWSReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        self.hasher = Hasher(hash_function='sha256')
-
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_name, self._schema_name)
-
-    @property
-    def line_item_conflict_columns(self):
-        """Create a property to check conflict on line items."""
-        return ['hash', 'cost_entry_id']
-
-    @property
-    def line_item_condition_column(self):
-        """Create a property with condition to check for line item inserts."""
-        return 'invoice_id'
-
-    @property
-    def hash_columns(self):
-        """Restrict which columns are used for calculting a hash."""
-        return (
-            'cost_entry_id', 'cost_entry_bill_id', 'cost_entry_product_id',
-            'cost_entry_pricing_id', 'cost_entry_reservation_id', 'line_item_type',
-            'usage_account_id', 'usage_start', 'usage_end', 'product_code',
-            'usage_type', 'operation', 'availability_zone', 'resource_id',
-        )
 
     def process(self):
         """Process CUR file.
@@ -138,27 +117,21 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        is_finalized_data = False
+        self._delete_line_items()
         opener, mode = self._get_file_opener(self._compression)
+        is_finalized_data = self._check_for_finalized_bill()
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
-                temp_table = report_db.create_temp_table(
-                    AWS_CUR_TABLE_MAP['line_item']
-                )
-
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     bill_id = self.create_cost_entry_objects(row, report_db)
-
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
                                   row_count + len(self.processed_report.line_items),
                                   self._report_name)
-                        is_finalized = self._save_to_db(temp_table, report_db)
-                        if not is_finalized_data:
-                            is_finalized_data = is_finalized
+                        self._save_to_db(report_db)
 
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
@@ -167,20 +140,34 @@ class AWSReportProcessor(ReportProcessorBase):
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    is_finalized = self._save_to_db(temp_table, report_db)
-                    if not is_finalized_data:
-                        is_finalized_data = is_finalized
+                    self._save_to_db(report_db)
 
                     row_count += len(self.processed_report.line_items)
 
                 if is_finalized_data:
                     report_db.mark_bill_as_finalized(bill_id)
                     report_db.commit()
+                report_db.vacuum_table(AWS_CUR_TABLE_MAP['line_item'])
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
 
         return is_finalized_data
+
+    def _check_for_finalized_bill(self):
+        """Read one line of the report file to check for finalization.
+
+        Returns:
+            (Boolean): Whether the bill is finalized
+
+        """
+        opener, mode = self._get_file_opener(self._compression)
+        # pylint: disable=invalid-name
+        with opener(self._report_path, mode) as f:
+            reader = csv.DictReader(f)
+            row = reader.__next__()
+            invoice_id = row.get('bill/InvoiceId')
+            return invoice_id is not None and invoice_id != ''
 
     # pylint: disable=too-many-locals
     def remove_temp_cur_files(self, report_path, manifest_id):
@@ -234,7 +221,7 @@ class AWSReportProcessor(ReportProcessorBase):
             return gzip.open, 'rt'
         return open, 'r'    # assume uncompressed by default
 
-    def _save_to_db(self, temp_table, report_db_accessor):
+    def _save_to_db(self, report_db_accessor):
         """Save current batch of records to the database."""
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
@@ -242,20 +229,38 @@ class AWSReportProcessor(ReportProcessorBase):
         # This will commit all pricing, products, and reservations
         # on the session
         report_db_accessor.commit()
+        # This will add line items to the line item table
         report_db_accessor.bulk_insert_rows(
             csv_file,
-            temp_table,
-            columns)
-        # This will add a batch of line items
-        is_finalized = report_db_accessor.merge_temp_table(
             AWS_CUR_TABLE_MAP['line_item'],
-            temp_table,
-            self.line_item_columns,
-            self.line_item_condition_column,
-            self.line_item_conflict_columns
+            columns
         )
 
-        return is_finalized
+    def _delete_line_items(self):
+        """Delete stale data for the report being processed, if necessary."""
+        if not self.manifest_id:
+            return False
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            if manifest.num_processed_files != 0:
+                return False
+            # Override the bill date to correspond with the manifest
+            bill_date = manifest.billing_period_start_datetime.date()
+            provider_id = manifest.provider_id
+
+        LOG.info('Deleting data for schema: %s and bill date: %s',
+                 self._schema_name, str(bill_date))
+
+        with AWSReportDBAccessor(self._schema_name, self.column_map) as accessor:
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            bills = bills.filter_by(billing_period_start=bill_date).all()
+            for bill in bills:
+                line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                line_item_query.delete()
+                accessor.commit()
+
+        return True
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
@@ -456,9 +461,6 @@ class AWSReportProcessor(ReportProcessorBase):
         data['cost_entry_pricing_id'] = pricing_id
         data['cost_entry_reservation_id'] = reservation_id
 
-        data_str = self._create_line_item_hash_string(data)
-        data['hash'] = self.hasher.hash_string_to_hex(data_str)
-
         self.processed_report.line_items.append(data)
 
         if self.line_item_columns is None:
@@ -608,17 +610,3 @@ class AWSReportProcessor(ReportProcessorBase):
         )
 
         return bill_id
-
-    def _create_line_item_hash_string(self, data):
-        """Build the string to be hashed using line item data.
-
-        Args:
-            data (dict): The processed line item data dictionary
-
-        Returns:
-            (str): A string representation of the data
-
-        """
-        data = stringify_json_data(copy.deepcopy(data))
-        data = [data.get(column, 'None') for column in self.hash_columns]
-        return ':'.join(data)
