@@ -17,6 +17,7 @@
 
 """Models for OCP cost view tables."""
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -74,3 +75,5 @@ class CostSummary(models.Model):
         decimal_places=6,
         null=True
     )
+
+    pod_labels = JSONField(null=True)
