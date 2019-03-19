@@ -39,12 +39,13 @@ class OCPAWSGroupBySerializer(GroupBySerializer):
 class OCPAWSOrderBySerializer(OrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    cluster = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    node = StringOrListField(child=serializers.CharField(),
-                             required=False)
+    ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
+    project = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
+    cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
+    node = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
 
 
 class OCPAWSFilterSerializer(FilterSerializer):
