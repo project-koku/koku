@@ -242,9 +242,9 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                                                                       self.report.get('S3Bucket'))
                 LOG.error(log_msg)
                 raise AWSReportDownloaderNoFileError(log_msg)
-            else:
-                LOG.error('Error downloading file: Error: %s', str(ex))
-                raise AWSReportDownloaderError(str(ex))
+
+            LOG.error('Error downloading file: Error: %s', str(ex))
+            raise AWSReportDownloaderError(str(ex))
 
         if not self._check_size(key, check_inflate=True):
             raise AWSReportDownloaderError(f'Insufficient disk space to download file: {s3_file}')
