@@ -72,7 +72,6 @@ class OCPProvider(ProviderInterface):
 
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""
-        import pdb; pdb.set_trace()
         with tenant_context(tenant):
             objects = OCPAWSUsageLineItemDaily.objects.all()
             clusters = list(objects.values('cluster_id').distinct())
