@@ -41,9 +41,9 @@ class OCPAWSOrderBySerializer(OrderBySerializer):
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
     project = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
+                                      required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
+                                      required=False)
     node = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
 
