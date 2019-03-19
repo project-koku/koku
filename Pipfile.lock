@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "30efa3a1274e43defe1d031a338e94843195b059706cf8964243d31d06776b37"
+            "sha256": "a12ef137380f27289de0360b41d191009ee4b99e5d958b7f7ec77941586db027"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -21,14 +21,15 @@
                 "sha256:1b4a86e1167ba7cbb9dbf2a0a0b86447b35a2b901ae5aace75b8196631680957",
                 "sha256:f5b12367c530dac45782251b672f1e911da5c74285f89850b0f4f5694b8c388c"
             ],
+            "index": "pypi",
             "version": "==1.9.115"
         },
         "botocore": {
             "hashes": [
-                "sha256:7c8ec120bc5bcc4076aebd7dac3a679777ff3a3ce3263c64d7342ea7982b578c",
-                "sha256:f4607f8800f87fd8eacd450699666f92d7fbc48fbb757903ad56825ce08e072a"
+                "sha256:724008bddb35e0833a44613b67bc3c6af3ca07e3f661a55cb3861ccf06bccfb8",
+                "sha256:b0e79b61dda7fb5f05949a4fe319d44108e0ba6db41775d909b891e6992d5a06"
             ],
-            "version": "==1.12.115"
+            "version": "==1.12.116"
         },
         "certifi": {
             "hashes": [
@@ -57,6 +58,7 @@
                 "sha256:1ccedec2973087be9d73f96d58c4f6660c823efc0385581e13efb77f060d0e02",
                 "sha256:fb44f6b9f10de847919305c3f0d38fcfbadfe0dd5cf1c866f37df66ad0dda1bb"
             ],
+            "index": "pypi",
             "version": "==2.5.2"
         },
         "django-environ": {
@@ -310,6 +312,7 @@
                 "sha256:6560e1e1749f68c64a4b5dee4e091fce798d2f0d84ebe638cf0e0585a343acf4",
                 "sha256:b65db1bbaac9f9f4d190199bb8680af6f6f84fd3769a5ea883df8a91fe68b4c4"
             ],
+            "index": "pypi",
             "version": "==2.2.5"
         },
         "babel": {
@@ -536,6 +539,7 @@
                 "sha256:5d77031694a5fb97ea95e828c8d10fc770a1df6eb3906067aaed42201a8a6a09",
                 "sha256:723e3db49555abaf9bf79dc474c6b9e2935ad82230b10c1138a71ea41ac0fff1"
             ],
+            "index": "pypi",
             "version": "==2.3.1"
         },
         "pyparsing": {
@@ -650,7 +654,7 @@
                 "sha256:d659517ca116e6750101a1326107d3479028c5191f0ecee3c7203c50f5b915b0",
                 "sha256:eddd3fb1f3e0f82e5915a899285a39ee34ce18fd25d89582bc89fc9fb16cd2c6"
             ],
-            "markers": "python_version < '3.7' and implementation_name == 'cpython'",
+            "markers": "implementation_name == 'cpython'",
             "version": "==1.3.1"
         },
         "urllib3": {
