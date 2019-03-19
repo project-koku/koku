@@ -896,6 +896,50 @@ class OCPReportViewTest(IamTestCase):
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
+    def test_execute_costs_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            labels = CostSummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=filter_key)\
+                .values(*['pod_labels'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
+
+            totals = CostSummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(**{f'pod_labels__{filter_key}': filter_value})\
+                .aggregate(
+                    **{
+                        'cost': Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                            F('infra_cost')
+                        )
+                    }
+                )
+
+        url = reverse('reports-openshift-costs')
+        client = APIClient()
+        params = {f'filter[tag:{filter_key}]': filter_value}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.data
+        data_totals = data.get('meta', {}).get('total', {})
+        for key in totals:
+            expected = totals[key]
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, expected)
+
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
@@ -942,6 +986,26 @@ class OCPReportViewTest(IamTestCase):
         group_by_key = tag_keys[0]
 
         url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {f'group_by[tag:{group_by_key}]': '*'}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+
+    def test_execute_costs_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
+
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         params = {f'group_by[tag:{group_by_key}]': '*'}
 
