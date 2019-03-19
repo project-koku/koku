@@ -111,7 +111,6 @@ class QueryHandler(object):
         The default is 'total'
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
-        LOG.info('XXX: %s', list(order_by.keys()))
         return list(order_by.keys()).pop()
 
     @property
@@ -123,7 +122,6 @@ class QueryHandler(object):
 
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
-        LOG.info('XXX: %s', list(order_by.values()))
         return list(order_by.values()).pop()
 
     @property
