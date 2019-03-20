@@ -700,7 +700,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -727,7 +727,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -763,7 +763,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -798,7 +798,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -833,7 +833,7 @@ class OCPAWSReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
