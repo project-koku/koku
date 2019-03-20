@@ -18,6 +18,7 @@
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
+from rest_framework import status
 
 from koku.rbac import RbacService, _apply_access, _get_operation, _process_acls
 
@@ -55,29 +56,29 @@ class MockResponse:  # pylint: disable=too-few-public-methods
 def mocked_requests_get_404_json(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock invalid response that returns json."""
     json_response = {'details': 'Invalid path.'}
-    return MockResponse(json_response, 404)
+    return MockResponse(json_response, status.HTTP_404_NOT_FOUND)
 
 
 def mocked_requests_get_404_text(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock invalid response that returns non-json."""
     json_response = 'Not JSON'
-    return MockResponse(json_response, 404)
+    return MockResponse(json_response, status.HTTP_404_NOT_FOUND)
 
 
 def mocked_requests_get_404_except(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock invalid response that returns non-json."""
-    return MockResponse(None, 404, ValueError('JSON Problem'))
+    return MockResponse(None, status.HTTP_404_NOT_FOUND, ValueError('JSON Problem'))
 
 
 def mocked_requests_get_200_text(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock valid status response that returns non-json."""
     json_response = 'Not JSON'
-    return MockResponse(json_response, 200)
+    return MockResponse(json_response, status.HTTP_200_OK)
 
 
 def mocked_requests_get_200_except(*args, **kwargs):  # pylint: disable=unused-argument
     """Mock valid status response that raises an excecption."""
-    return MockResponse(None, 200, ValueError('Decode Problem'))
+    return MockResponse(None, status.HTTP_200_OK, ValueError('Decode Problem'))
 
 
 def mocked_requests_get_200_no_next(*args, **kwargs):  # pylint: disable=unused-argument
@@ -88,7 +89,7 @@ def mocked_requests_get_200_no_next(*args, **kwargs):  # pylint: disable=unused-
         },
         'data': [LIMITED_AWS_ACCESS]
     }
-    return MockResponse(json_response, 200)
+    return MockResponse(json_response, status.HTTP_200_OK)
 
 
 def mocked_requests_get_200_next(*args, **kwargs):  # pylint: disable=unused-argument
@@ -102,7 +103,7 @@ def mocked_requests_get_200_next(*args, **kwargs):  # pylint: disable=unused-arg
     if 'limit' in args[0]:
         json_response['links']['next'] = None
 
-    return MockResponse(json_response, 200)
+    return MockResponse(json_response, status.HTTP_200_OK)
 
 
 def mocked_get_operation(access_item, res_type):  # pylint: disable=unused-argument

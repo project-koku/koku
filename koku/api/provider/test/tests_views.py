@@ -105,7 +105,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
         response = self.create_provider(bucket_name, iam_arn)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('uuid'))
         self.assertIsNotNone(json_result.get('customer'))

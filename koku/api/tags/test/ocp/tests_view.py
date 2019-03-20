@@ -21,6 +21,7 @@ from urllib.parse import quote_plus, urlencode
 
 from dateutil.relativedelta import relativedelta
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
@@ -82,7 +83,7 @@ class OCPTagsViewTest(IamTestCase):
             url = url + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
 
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 
@@ -112,7 +113,7 @@ class OCPTagsViewTest(IamTestCase):
             }
             url = url + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 
@@ -145,7 +146,7 @@ class OCPTagsViewTest(IamTestCase):
             }
             url = url + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
             data = response.json()
             start_range, end_range = self._calculate_expected_range(case.get('value'), case.get('unit'))
 

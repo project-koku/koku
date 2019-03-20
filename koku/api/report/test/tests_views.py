@@ -19,6 +19,7 @@ from unittest.mock import patch
 
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -132,7 +133,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
@@ -143,7 +144,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-instance-type')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
@@ -154,7 +155,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-storage')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
@@ -200,7 +201,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_instance_usage_invalid_query_param(self):
         """Test instance usage reports runs with an invalid query param."""
@@ -208,7 +209,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-instance-type') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_storage_usage_invalid_query_param(self):
         """Test storage usage reports runs with an invalid query param."""
@@ -216,7 +217,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-storage') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_costs_csv(self):
         """Test CSV output of costs reports."""
@@ -226,7 +227,7 @@ class ReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         response.render()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
 
@@ -237,7 +238,7 @@ class ReportViewTest(IamTestCase):
         response = client.get(url, content_type='text/csv', **self.headers)
         response.render()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
 
@@ -248,7 +249,7 @@ class ReportViewTest(IamTestCase):
         response = client.get(url, content_type='text/csv', **self.headers)
         response.render()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.accepted_media_type, 'text/csv')
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
 
@@ -372,7 +373,7 @@ class ReportViewTest(IamTestCase):
         url = reverse('reports-aws-costs') + '?' + qs
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_w_delta_bad_choice(self):
         """Test invalid delta value."""
@@ -383,7 +384,7 @@ class ReportViewTest(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
         result = str(response.data.get('delta')[0])
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
     def test_get_paginator_default(self):
