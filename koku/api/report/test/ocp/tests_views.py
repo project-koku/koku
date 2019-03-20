@@ -794,6 +794,61 @@ class OCPReportViewTest(IamTestCase):
         for entry in data.get('data', []):
             for project in entry.get('projects', []):
                 self.assertEqual(project.get('project'), project_of_interest)
+                values = project.get('values', [])
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+                print(project)
+
+    def test_execute_query_group_by_project_duplicate_projects(self):
+        """Test that same-named projects across clusters are accounted for."""
+        data_config = {'namespaces': ['project_one', 'project_two']}
+        project_of_interest = data_config['namespaces'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'group_by[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for project in entry.get('projects', []):
+                self.assertEqual(project.get('project'), project_of_interest)
+                values = project.get('values', [])
+                self.assertEqual(len(values), 2)
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+
+    def test_execute_query_filter_by_project_duplicate_projects(self):
+        """Test that same-named projects across clusters are accounted for."""
+        data_config = {'namespaces': ['project_one', 'project_two']}
+        project_of_interest = data_config['namespaces'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'filter[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', [])
+            self.assertEqual(len(values), 2)
+            for value in values:
+                self.assertIn('cluster_id', value)
+                self.assertIn('cluster_alias', value)
 
     def test_execute_query_group_by_cluster(self):
         """Test that grouping by cluster filters data."""
@@ -853,6 +908,56 @@ class OCPReportViewTest(IamTestCase):
         for entry in data.get('data', []):
             for node in entry.get('nodes', []):
                 self.assertEqual(node.get('node'), node_of_interest)
+
+    def test_execute_query_group_by_node_duplicate_projects(self):
+        """Test that same-named nodes across clusters are accounted for."""
+        data_config = {'nodes': ['node_one', 'node_two']}
+        node_of_interest = data_config['nodes'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'group_by[node]': node_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for node in entry.get('nodes', []):
+                self.assertEqual(node.get('node'), node_of_interest)
+                values = node.get('values', [])
+                self.assertEqual(len(values), 2)
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+
+    def test_execute_query_filter_by_node_duplicate_projects(self):
+        """Test that same-named nodes across clusters are accounted for."""
+        data_config = {'nodes': ['node_one', 'node_two']}
+        node_of_interest = data_config['nodes'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'filter[node]': node_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', [])
+            self.assertEqual(len(values), 2)
+            for value in values:
+                self.assertIn('cluster_id', value)
+                self.assertIn('cluster_alias', value)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
