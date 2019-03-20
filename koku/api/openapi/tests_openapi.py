@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework import status
 
 from api.openapi.view import get_api_json
 
@@ -39,7 +40,7 @@ class OpenAPIViewTest(TestCase):
         """Test the openapi endpoint."""
         url = reverse('openapi')
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_get_json.assert_called_once()
 
     @patch('api.openapi.view.get_api_json', side_effect=get_api_json_error)
@@ -47,7 +48,7 @@ class OpenAPIViewTest(TestCase):
         """Test the openapi endpoint."""
         url = reverse('openapi')
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         mock_get_json.assert_called_once()
 
     def test_get_api_json(self):
