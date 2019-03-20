@@ -79,11 +79,6 @@ class AWSCostEntryLineItem(models.Model):
 
     """
 
-    class Meta:
-        """Meta for AWSCostEntryLineItem."""
-
-        unique_together = ('hash', 'cost_entry')
-
     id = models.BigAutoField(primary_key=True)
 
     cost_entry = models.ForeignKey('AWSCostEntry',
@@ -98,11 +93,6 @@ class AWSCostEntryLineItem(models.Model):
                                                on_delete=models.PROTECT,
                                                null=True)
 
-    hash = models.TextField(null=True)
-
-    # There is a many-to-many relationship between line-items and tags.
-    # Want to try JSON to avoid having to check if tags exist in the database
-    # for every line item we add.
     tags = JSONField(null=True)
 
     # Invoice ID is null until the bill is finalized
@@ -212,7 +202,8 @@ class AWSCostEntryLineItemDaily(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
@@ -287,7 +278,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     # The following fields are aggregates
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     resource_count = models.IntegerField(null=True)
-    usage_amount = models.FloatField(null=True)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
+                                       null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)

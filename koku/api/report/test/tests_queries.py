@@ -1808,8 +1808,8 @@ class ReportQueryTest(IamTestCase):
                 for value in it.get('values'):
                     self.assertIsInstance(value.get('cost', {}).get('value'), Decimal)
                     self.assertGreater(value.get('cost', {}).get('value'), Decimal(0))
-                    self.assertIsInstance(value.get('usage', {}).get('value'), float)
-                    self.assertGreater(value.get('usage', {}).get('value'), 0.0)
+                    self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
+                    self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
@@ -1845,8 +1845,8 @@ class ReportQueryTest(IamTestCase):
                     for value in srv.get('values'):
                         self.assertIsInstance(value.get('cost', {}).get('value'), Decimal)
                         self.assertGreater(value.get('cost', {}).get('value'), Decimal(0))
-                        self.assertIsInstance(value.get('usage', {}).get('value'), float)
-                        self.assertGreater(value.get('usage', {}).get('value'), 0.0)
+                        self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
+                        self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""

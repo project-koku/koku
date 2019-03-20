@@ -480,7 +480,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        data = response.json()
+        data = response.data
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
@@ -503,8 +503,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(projects[1].get('node'), '1 Other')
                 usage_total = projects[0].get('values')[0].get('usage', {}).get('value') + \
                     projects[1].get('values')[0].get('usage', {}).get('value')
-                self.assertEqual(round(usage_total, 3),
-                                 round(float(totals.get(date)), 3))
+                self.assertEqual(usage_total, totals.get(date))
 
     def test_execute_query_ocp_costs(self):
         """Test that the costs endpoint is reachable."""
@@ -581,7 +580,7 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = response.data
         this_month_start = self.dh.this_month_start
         last_month_start = self.dh.last_month_start
 
@@ -644,7 +643,7 @@ class OCPReportViewTest(IamTestCase):
 
         expected_delta = current_total - prev_total
         delta = data.get('meta', {}).get('delta', {}).get('value')
-        self.assertEqual(round(delta, 3), round(float(expected_delta), 3))
+        self.assertEqual(delta, expected_delta)
         for item in data.get('data'):
             date = item.get('date')
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
@@ -652,7 +651,7 @@ class OCPReportViewTest(IamTestCase):
             delta_value = 0
             if values:
                 delta_value = values[0].get('delta_value')
-            self.assertEqual(round(delta_value, 3), round(float(expected_delta), 3))
+            self.assertEqual(delta_value, expected_delta)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self):
         """Test that bad deltas don't work for costs."""
@@ -723,13 +722,13 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         delta_one, delta_two = delta.split('__')
-        data = response.json()
+        data = response.data
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
             delta_percent = (values.get(delta_one, {}).get('value') /  # noqa: W504
                              values.get(delta_two, {}).get('value') * 100) \
                                  if values.get(delta_two, {}).get('value') else 0
-            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+            self.assertEqual(values.get('delta_percent'), delta_percent)
 
     def test_execute_query_ocp_cpu_with_delta_usage__request(self):
         """Test that usage v request deltas work."""
@@ -744,13 +743,13 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
         delta_one, delta_two = delta.split('__')
-        data = response.json()
+        data = response.data
         for entry in data.get('data', []):
             values = entry.get('values', {})[0]
             delta_percent = (values.get(delta_one, {}).get('value') /  # noqa: W504
                              values.get(delta_two, {}).get('value') * 100) \
                                  if values.get(delta_two, {}).get('value') else 0
-            self.assertEqual(round(values.get('delta_percent'), 3), round(delta_percent, 3))
+            self.assertEqual(values.get('delta_percent'), delta_percent)
 
     def test_execute_query_ocp_cpu_with_delta_request__capacity(self):
         """Test that request v capacity deltas work."""
@@ -890,10 +889,54 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
-        data = response.json()
+        data = response.data
         data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
-            expected = round(float(totals[key]), 6)
+            expected = totals[key]
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, expected)
+
+    def test_execute_costs_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            labels = CostSummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=filter_key)\
+                .values(*['pod_labels'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
+
+            totals = CostSummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(**{f'pod_labels__{filter_key}': filter_value})\
+                .aggregate(
+                    **{
+                        'cost': Sum(
+                            F('pod_charge_cpu_core_hours') +  # noqa: W504
+                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
+                            F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
+                            F('infra_cost')
+                        )
+                    }
+                )
+
+        url = reverse('reports-openshift-costs')
+        client = APIClient()
+        params = {f'filter[tag:{filter_key}]': filter_value}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.data
+        data_totals = data.get('meta', {}).get('total', {})
+        for key in totals:
+            expected = totals[key]
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
@@ -929,10 +972,10 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, 200)
 
-        data = response.json()
+        data = response.data
         data_totals = data.get('meta', {}).get('total', {})
         for key in totals:
-            expected = round(float(totals[key]), 6)
+            expected = totals[key]
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, expected)
 
@@ -943,6 +986,26 @@ class OCPReportViewTest(IamTestCase):
         group_by_key = tag_keys[0]
 
         url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {f'group_by[tag:{group_by_key}]': '*'}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, 200)
+
+        data = response.json()
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+
+    def test_execute_costs_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
+
+        url = reverse('reports-openshift-costs')
         client = APIClient()
         params = {f'group_by[tag:{group_by_key}]': '*'}
 
