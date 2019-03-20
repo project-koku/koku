@@ -66,12 +66,14 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
         with tenant_context(self.tenant):
             query = q_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-            query_group_by = ['date'] + self._get_group_by()
+            group_by_value = self._get_group_by()
+            query_group_by = ['date'] + group_by_value
             query_order_by = ['-date', ]
             query_order_by.extend([self.order])
+            clustered_group_by = self._get_cluster_group_by(query_group_by)
 
             annotations = self._mapper.report_type_map.get('annotations')
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query_data.values(*clustered_group_by).annotate(**annotations)
 
             if 'account' in query_group_by:
                 query_data = query_data.annotate(account_alias=Coalesce(
