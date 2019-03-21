@@ -1996,8 +1996,7 @@
                     "billing_source",
                     "customer",
                     "created_by",
-                    "stats",
-                    "infrastructure"
+                    "stats"
                 ],
                 "properties": {
                     "uuid": {
@@ -2031,11 +2030,6 @@
                                 "summary_data_updated_datetime": "2019-01-07T21:51:32.000Z"
                             }]
                         }
-                    },
-                    "infrastructure": {
-                        "type": "string",
-                        "description": "OpenShift foundational infrastructure type.",
-                        "example": "AWS"
                     }
                 }
             },

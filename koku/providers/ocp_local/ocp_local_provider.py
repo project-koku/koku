@@ -20,7 +20,7 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from ..ocp.ocp_provider import OCPProvider
+from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def error_obj(key, message):
     return error
 
 
-class OCPLocalProvider(OCPProvider):
+class OCPLocalProvider(ProviderInterface):
     """Provider interface defnition."""
 
     def name(self):

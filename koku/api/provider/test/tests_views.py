@@ -167,8 +167,6 @@ class ProviderViewTest(IamTestCase):
         results = json_result.get('data')
         self.assertIsNotNone(results)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].get('infrastructure'), 'Unknown')
-        self.assertEqual(results[0].get('stats'), {})
 
     def test_get_provider(self):
         """Test get a provider."""
@@ -186,8 +184,6 @@ class ProviderViewTest(IamTestCase):
         uuid = json_result.get('uuid')
         self.assertIsNotNone(uuid)
         self.assertEqual(uuid, provider_uuid)
-        self.assertEqual(json_result.get('stats'), {})
-        self.assertEqual(json_result.get('infrastructure'), 'Unknown')
 
     def test_get_provider_other_customer(self):
         """Test get a provider for another customer should fail."""

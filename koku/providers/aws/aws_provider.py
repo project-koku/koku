@@ -179,7 +179,3 @@ class AWSProvider(ProviderInterface):
                      topics_string, storage_resource_name)
         else:
             LOG.info('SNS is not configured for S3 bucket %s', storage_resource_name)
-
-    def infra_type_implementation(self, provider_uuid, tenant):
-        """Return infrastructure type."""
-        return None

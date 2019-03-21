@@ -805,8 +805,9 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {'namespaces': ['project_one', 'project_two']}
         project_of_interest = data_config['namespaces'][0]
-        self.data_generator.add_data_to_tenant(**data_config)
-        self.data_generator.add_data_to_tenant(**data_config)
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
 
         url = reverse('reports-openshift-cpu')
         client = APIClient()
