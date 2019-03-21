@@ -23,7 +23,7 @@ from rest_framework import serializers
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
-from reporting.provider.ocp_aws.models import OCPAWSUsageLineItemDaily
+from reporting.provider.ocp_aws.models import OCPAWSCostLineItemDailySummary
 from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class OCPProvider(ProviderInterface):
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""
         with tenant_context(tenant):
-            objects = OCPAWSUsageLineItemDaily.objects.all()
+            objects = OCPAWSCostLineItemDailySummary.objects.all()
             clusters = list(objects.values('cluster_id').distinct())
             for cluster in clusters:
                 for key, cluster_id in cluster.items():
