@@ -229,8 +229,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         for provider in response.data['data']:
             manager = ProviderManager(provider['uuid'])
             tenant = get_tenant(request.user)
-            provider_stats = manager.provider_statistics(tenant)
-            provider['stats'] = provider_stats
+            provider['stats'] = manager.provider_statistics(tenant)
+            provider['infrastructure'] = manager.get_infrastructure_name(tenant)
         return response
 
     def retrieve(self, request, *args, **kwargs):
@@ -300,8 +300,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         tenant = get_tenant(request.user)
         manager = ProviderManager(kwargs['uuid'])
-        provider_stats = manager.provider_statistics(tenant)
-        response.data['stats'] = provider_stats
+        response.data['infrastructure'] = manager.get_infrastructure_name(tenant)
+        response.data['stats'] = manager.provider_statistics(tenant)
         return response
 
     def destroy(self, request, *args, **kwargs):

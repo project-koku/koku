@@ -20,6 +20,7 @@ import logging
 from unittest.mock import patch
 
 from dateutil import parser
+from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
@@ -28,6 +29,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
+from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from rates.models import Rate
 
 
@@ -349,3 +351,43 @@ class ProviderManagerTest(IamTestCase):
             self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
             self.assertIsNone(value_data.get('summary_data_creation_datetime'))
             self.assertIsNone(value_data.get('summary_data_updated_datetime'))
+
+    def test_ocp_on_aws_infrastructure_type(self):
+        """Test that the provider infrastructure returns AWS when running on AWS."""
+        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator.add_data_to_tenant()
+        data_generator.add_aws_data_to_tenant()
+        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        self.assertEqual(infrastructure_name, 'AWS')
+
+        data_generator.remove_data_from_tenant()
+
+    def test_ocp_infrastructure_type(self):
+        """Test that the provider infrastructure returns Unknown when running stand alone."""
+        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator.add_data_to_tenant()
+        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        infrastructure_name = manager.get_infrastructure_name(self.tenant)
+        self.assertEqual(infrastructure_name, 'Unknown')
+
+        data_generator.remove_data_from_tenant()
+
+    def test_ocp_infrastructure_type_error(self):
+        """Test that the provider infrastructure returns Unknown when running stand alone."""
+        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator.create_ocp_provider('cool-cluster-id', 'awesome-alias')
+
+        provider_uuid = data_generator.provider_uuid
+        manager = ProviderManager(provider_uuid)
+        with patch.object(ProviderAccessor, 'infrastructure_type', side_effect=ProviderAccessorError('mock_error')):
+            infrastructure_name = manager.get_infrastructure_name(self.tenant)
+            self.assertEqual(infrastructure_name, 'Unknown-Error')
+
+        data_generator.remove_data_from_tenant()
