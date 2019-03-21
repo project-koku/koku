@@ -99,5 +99,5 @@ class ProviderAccessorTestCase(TestCase):
         provider = OCPProvider()
         interface = ProviderAccessor(provider.name())
         with self.assertRaises(ProviderAccessorError):
-            with patch.object(OCPProvider, 'infrastructure_type_meat', side_effect=Exception('test')):
+            with patch.object(OCPProvider, 'infra_type_implementation', side_effect=Exception('test')):
                 interface.infrastructure_type(None, None)

@@ -82,7 +82,7 @@ class OCPProvider(ProviderInterface):
 
         return False
 
-    def infrastructure_type_meat(self, provider_uuid, tenant):
+    def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""
         try:
             provider_model = Provider.objects.get(uuid=provider_uuid)

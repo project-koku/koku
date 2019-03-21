@@ -64,7 +64,7 @@ class ProviderInterface(ABC):
         pass
 
     @abstractmethod
-    def infrastructure_type_meat(self, provider_uuid, schema_name):
+    def infra_type_implementation(self, provider_uuid, schema_name):
         """
         Return the type of infrastructure the provider is running on.
 

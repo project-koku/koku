@@ -116,7 +116,8 @@ class ProviderAccessor:
         Return the name of the infrastructure that the provider is running on.
 
         Args:
-            None
+            provider_uuid (String): Provider UUID
+            schema_name (String): Database schema name 
 
         Returns:
             (String) : Name of Service
@@ -124,7 +125,7 @@ class ProviderAccessor:
 
         """
         try:
-            infrastructure_type = self.service.infrastructure_type_meat(provider_uuid, schema_name)
+            infrastructure_type = self.service.infra_type_implementation(provider_uuid, schema_name)
         except Exception as error:
             raise ProviderAccessorError(str(error))
 
