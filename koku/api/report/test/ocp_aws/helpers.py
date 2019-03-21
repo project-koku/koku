@@ -88,9 +88,9 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         self.provider_uuid = provider_uuid
         return provider_id
 
-    def add_data_to_tenant(self, provider_id=False):
+    def add_data_to_tenant(self, **kwargs):
         """Populate tenant with data."""
-        super().add_data_to_tenant(provider_id)
+        super().add_data_to_tenant(**kwargs)
         self.usage_account_id = self.fake.word()
         self.account_alias = self.fake.word()
 

@@ -117,7 +117,7 @@ class ProviderAccessor:
 
         Args:
             provider_uuid (String): Provider UUID
-            schema_name (String): Database schema name 
+            schema_name (String): Database schema name
 
         Returns:
             (String) : Name of Service
