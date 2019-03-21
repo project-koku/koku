@@ -353,7 +353,7 @@ class QueryHandler(object):
 
         for value in self.query_parameters.get('filter', {}).keys():
             if value in ('project', 'node') and 'cluster_id' not in clustered_group_by:
-                clustered_group_by.extend(['cluster_id', 'cluster_alias'])
+                clustered_group_by.extend(['cluster', 'cluster_alias'])
                 break
 
         return clustered_group_by

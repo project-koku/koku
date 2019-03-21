@@ -799,7 +799,6 @@ class OCPReportViewTest(IamTestCase):
                 for value in values:
                     self.assertIn('cluster', value)
                     self.assertIn('cluster_alias', value)
-                print(project)
 
     def test_execute_query_group_by_project_duplicate_projects(self):
         """Test that same-named projects across clusters are accounted for."""
