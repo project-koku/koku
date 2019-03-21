@@ -342,11 +342,13 @@ class QueryHandler(object):
         # here to do the actual grouping, but kepe the original
         # unaltered so as to keep the final API result grouped by
         # the specified group by value
+        if 'cluster' in group_by:
+            return group_by
         clustered_group_by = copy.copy(group_by)
 
         for value in group_by:
             if value in ('project', 'node'):
-                clustered_group_by.extend(['cluster_id', 'cluster_alias'])
+                clustered_group_by.extend(['cluster', 'cluster_alias'])
                 break
 
         for value in self.query_parameters.get('filter', {}).keys():
