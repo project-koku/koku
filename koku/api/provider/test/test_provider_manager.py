@@ -277,7 +277,7 @@ class ProviderManagerTest(IamTestCase):
                                            authentication=provider_authentication,)
 
         data_generator = OCPReportDataGenerator(self.tenant)
-        data_generator.add_data_to_tenant(provider.id)
+        data_generator.add_data_to_tenant(**{'provider_id': provider.id})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -330,7 +330,7 @@ class ProviderManagerTest(IamTestCase):
                                            authentication=provider_authentication,)
 
         data_generator = OCPReportDataGenerator(self.tenant)
-        data_generator.add_data_to_tenant(provider.id)
+        data_generator.add_data_to_tenant(**{'provider_id': provider.id})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)

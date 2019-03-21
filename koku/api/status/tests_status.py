@@ -22,6 +22,7 @@ from unittest.mock import ANY, Mock, PropertyMock, patch
 
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework import status
 
 from api.iam.models import Tenant
 from api.status.models import Status
@@ -122,6 +123,6 @@ class StatusViewTest(TestCase):
         """Test the status endpoint."""
         url = reverse('server-status')
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         # json_result = response.json()
         # self.assertEqual(json_result['api_version'], 1)

@@ -23,6 +23,7 @@ from dateutil import relativedelta
 from django.db.models import Count, F, Sum
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -226,7 +227,7 @@ class OCPReportViewTest(IamTestCase):
         response = _generic_report(request, report='cpu', provider='ocp')
         self.assertIsInstance(response, Response)
         # FIXME
-        # self.assertEqual(response.status_code, 200)
+        # self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_mem_success(self, mock_handler):
@@ -252,7 +253,7 @@ class OCPReportViewTest(IamTestCase):
         response = _generic_report(request, report='memory', provider='ocp')
         self.assertIsInstance(response, Response)
         # FIXME
-        # self.assertEqual(response.status_code, 200)
+        # self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_cpu(self):
         """Test that OCP CPU endpoint works."""
@@ -262,7 +263,7 @@ class OCPReportViewTest(IamTestCase):
 
         expected_end_date = self.dh.today.date().strftime('%Y-%m-%d')
         expected_start_date = self.ten_days_ago.strftime('%Y-%m-%d')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_start_date)
@@ -343,7 +344,7 @@ class OCPReportViewTest(IamTestCase):
         expected_start_date = self.dh.n_days_ago(expected_end_date, 29)
         expected_end_date = str(expected_end_date.date())
         expected_start_date = str(expected_start_date.date())
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_start_date)
@@ -370,7 +371,7 @@ class OCPReportViewTest(IamTestCase):
 
         expected_date = self.dh.today.strftime('%Y-%m')
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_date)
@@ -395,7 +396,7 @@ class OCPReportViewTest(IamTestCase):
         expected_start_date = self.dh.this_month_start.strftime('%Y-%m-%d')
         expected_end_date = self.dh.today.strftime('%Y-%m-%d')
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_start_date)
@@ -422,7 +423,7 @@ class OCPReportViewTest(IamTestCase):
 
         expected_date = self.dh.last_month_start.strftime('%Y-%m')
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_date)
@@ -447,7 +448,7 @@ class OCPReportViewTest(IamTestCase):
         expected_start_date = self.dh.last_month_start.strftime('%Y-%m-%d')
         expected_end_date = self.dh.last_month_end.strftime('%Y-%m-%d')
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_start_date)
@@ -465,7 +466,7 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-openshift-memory')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_memory_group_by_limit(self):
         """Test that OCP Mem endpoint works with limits."""
@@ -510,7 +511,7 @@ class OCPReportViewTest(IamTestCase):
         url = reverse('reports-openshift-costs')
         client = APIClient()
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_costs_group_by_cluster(self):
         """Test that the costs endpoint is reachable."""
@@ -521,7 +522,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_costs_group_by_node(self):
         """Test that the costs endpoint is reachable."""
@@ -532,7 +533,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_costs_group_by_project(self):
         """Test that the costs endpoint is reachable."""
@@ -546,7 +547,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Using .data instead of .json() retains the Decimal types for
         # direct value and type comparisons
@@ -579,7 +580,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
         this_month_start = self.dh.this_month_start
         last_month_start = self.dh.last_month_start
@@ -660,12 +661,12 @@ class OCPReportViewTest(IamTestCase):
         params = {'delta': 'usage'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
         params = {'delta': 'request'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_execute_query_ocp_cpu_with_delta_cost(self):
         """Test that cost deltas work for CPU."""
@@ -676,7 +677,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_cpu_with_delta_usage(self):
         """Test that usage deltas work for CPU."""
@@ -687,7 +688,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_cpu_with_delta_request(self):
         """Test that request deltas work for CPU."""
@@ -698,7 +699,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_memory_with_delta(self):
         """Test that deltas work for CPU."""
@@ -707,7 +708,7 @@ class OCPReportViewTest(IamTestCase):
         params = {'delta': 'request'}
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_cpu_with_delta_usage__capacity(self):
         """Test that usage v capacity deltas work."""
@@ -719,7 +720,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         delta_one, delta_two = delta.split('__')
         data = response.data
@@ -740,7 +741,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         delta_one, delta_two = delta.split('__')
         data = response.data
@@ -761,7 +762,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         delta_one, delta_two = delta.split('__')
         data = response.json()
@@ -788,12 +789,67 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         for entry in data.get('data', []):
             for project in entry.get('projects', []):
                 self.assertEqual(project.get('project'), project_of_interest)
+                values = project.get('values', [])
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+                print(project)
+
+    def test_execute_query_group_by_project_duplicate_projects(self):
+        """Test that same-named projects across clusters are accounted for."""
+        data_config = {'namespaces': ['project_one', 'project_two']}
+        project_of_interest = data_config['namespaces'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'group_by[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for project in entry.get('projects', []):
+                self.assertEqual(project.get('project'), project_of_interest)
+                values = project.get('values', [])
+                self.assertEqual(len(values), 2)
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+
+    def test_execute_query_filter_by_project_duplicate_projects(self):
+        """Test that same-named projects across clusters are accounted for."""
+        data_config = {'namespaces': ['project_one', 'project_two']}
+        project_of_interest = data_config['namespaces'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'filter[project]': project_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', [])
+            self.assertEqual(len(values), 2)
+            for value in values:
+                self.assertIn('cluster_id', value)
+                self.assertIn('cluster_alias', value)
 
     def test_execute_query_group_by_cluster(self):
         """Test that grouping by cluster filters data."""
@@ -812,7 +868,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         for entry in data.get('data', []):
@@ -827,7 +883,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_execute_query_group_by_node(self):
         """Test that grouping by node filters data."""
@@ -847,12 +903,62 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         for entry in data.get('data', []):
             for node in entry.get('nodes', []):
                 self.assertEqual(node.get('node'), node_of_interest)
+
+    def test_execute_query_group_by_node_duplicate_projects(self):
+        """Test that same-named nodes across clusters are accounted for."""
+        data_config = {'nodes': ['node_one', 'node_two']}
+        node_of_interest = data_config['nodes'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'group_by[node]': node_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            for node in entry.get('nodes', []):
+                self.assertEqual(node.get('node'), node_of_interest)
+                values = node.get('values', [])
+                self.assertEqual(len(values), 2)
+                for value in values:
+                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster_alias', value)
+
+    def test_execute_query_filter_by_node_duplicate_projects(self):
+        """Test that same-named nodes across clusters are accounted for."""
+        data_config = {'nodes': ['node_one', 'node_two']}
+        node_of_interest = data_config['nodes'][0]
+        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator.add_data_to_tenant(**data_config)
+        data_generator.add_data_to_tenant(**data_config)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        params = {'filter[node]': node_of_interest}
+
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        data = response.json()
+        for entry in data.get('data', []):
+            values = entry.get('values', [])
+            self.assertEqual(len(values), 2)
+            for value in values:
+                self.assertIn('cluster_id', value)
+                self.assertIn('cluster_alias', value)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
@@ -887,7 +993,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
         data_totals = data.get('meta', {}).get('total', {})
@@ -931,7 +1037,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
         data_totals = data.get('meta', {}).get('total', {})
@@ -970,7 +1076,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
         data_totals = data.get('meta', {}).get('total', {})
@@ -991,7 +1097,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         data = data.get('data', [])
@@ -1011,7 +1117,7 @@ class OCPReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         data = data.get('data', [])
@@ -1036,7 +1142,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         data = data.get('data', [])
@@ -1058,7 +1164,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         data = data.get('data', [])
@@ -1084,7 +1190,7 @@ class OCPReportViewTest(IamTestCase):
 
             url = url + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
             data = response.json()
             data = data.get('data', [])
@@ -1109,7 +1215,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         data = data.get('data', [])
@@ -1136,7 +1242,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
         values = data.get('data')[0].get('values')[0]
@@ -1156,7 +1262,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -1183,7 +1289,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -1219,7 +1325,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -1254,7 +1360,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])
@@ -1289,7 +1395,7 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         response_data = response.json()
         data = response_data.get('data', [])

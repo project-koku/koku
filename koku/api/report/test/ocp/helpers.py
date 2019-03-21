@@ -116,13 +116,20 @@ class OCPReportDataGenerator:
         status_entry.save()
         return status_entry
 
-    def add_data_to_tenant(self, provider_id=None):
+    def add_data_to_tenant(self, **kwargs):
         """Populate tenant with data."""
         words = list(set([self.fake.word() for _ in range(10)]))
+        provider_id = kwargs.get('provider_id')
         self.cluster_id = random.choice(words)
         self.cluster_alias = random.choice(words)
-        self.namespaces = random.sample(words, k=2)
-        self.nodes = random.sample(words, k=2)
+        if kwargs.get('namespaces'):
+            self.namespaces = kwargs['namespaces']
+        else:
+            self.namespaces = random.sample(words, k=2)
+        if kwargs.get('nodes'):
+            self.nodes = kwargs['nodes']
+        else:
+            self.nodes = random.sample(words, k=2)
         self.pods = random.sample(words, k=2)
         self.storage_classes = ['gp2', 'standard', 'magnetic']
         self.line_items = [
