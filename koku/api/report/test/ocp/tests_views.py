@@ -797,7 +797,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(project.get('project'), project_of_interest)
                 values = project.get('values', [])
                 for value in values:
-                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster', value)
                     self.assertIn('cluster_alias', value)
                 print(project)
 
@@ -823,7 +823,7 @@ class OCPReportViewTest(IamTestCase):
                 values = project.get('values', [])
                 self.assertEqual(len(values), 2)
                 for value in values:
-                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster', value)
                     self.assertIn('cluster_alias', value)
 
     def test_execute_query_filter_by_project_duplicate_projects(self):
@@ -847,7 +847,7 @@ class OCPReportViewTest(IamTestCase):
             values = entry.get('values', [])
             self.assertEqual(len(values), 2)
             for value in values:
-                self.assertIn('cluster_id', value)
+                self.assertIn('cluster', value)
                 self.assertIn('cluster_alias', value)
 
     def test_execute_query_group_by_cluster(self):
@@ -932,7 +932,7 @@ class OCPReportViewTest(IamTestCase):
                 values = node.get('values', [])
                 self.assertEqual(len(values), 2)
                 for value in values:
-                    self.assertIn('cluster_id', value)
+                    self.assertIn('cluster', value)
                     self.assertIn('cluster_alias', value)
 
     def test_execute_query_filter_by_node_duplicate_projects(self):
@@ -956,7 +956,7 @@ class OCPReportViewTest(IamTestCase):
             values = entry.get('values', [])
             self.assertEqual(len(values), 2)
             for value in values:
-                self.assertIn('cluster_id', value)
+                self.assertIn('cluster', value)
                 self.assertIn('cluster_alias', value)
 
     def test_execute_query_with_tag_filter(self):
