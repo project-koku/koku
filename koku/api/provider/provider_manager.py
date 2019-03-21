@@ -22,7 +22,6 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
@@ -64,16 +63,6 @@ class ProviderManager:
     def get_name(self):
         """Get the name of the provider."""
         return self.model.name
-
-    def get_infrastructure_name(self, tenant):
-        """Get the name of the infrastructure that the provider is running on."""
-        provider_accessor = ProviderAccessor(self.model.type)
-        try:
-            infra_type = provider_accessor.infrastructure_type(self._uuid, tenant)
-        except ProviderAccessorError as error:
-            LOG.error('Unable to determine infrastructure type. Reason: %s', str(error))
-            infra_type = 'Unknown-Error'
-        return infra_type
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""

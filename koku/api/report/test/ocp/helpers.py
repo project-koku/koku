@@ -54,7 +54,6 @@ class OCPReportDataGenerator:
         self.one_month_ago = self.today - relativedelta(months=1)
 
         self.last_month = self.dh.last_month_start
-        self.resource_id = self.fake.ean8()
 
         if current_month_only:
             report_days = 10
@@ -66,7 +65,7 @@ class OCPReportDataGenerator:
                 (self.dh.this_month_start, self.dh.this_month_end),
             ]
             self.report_ranges = [
-                list(self.today - relativedelta(days=i) for i in range(report_days)),
+                (self.today - relativedelta(days=i) for i in range(report_days)),
             ]
 
         else:
@@ -76,8 +75,8 @@ class OCPReportDataGenerator:
             ]
 
             self.report_ranges = [
-                list(self.one_month_ago - relativedelta(days=i) for i in range(10)),
-                list(self.today - relativedelta(days=i) for i in range(10)),
+                (self.one_month_ago - relativedelta(days=i) for i in range(10)),
+                (self.today - relativedelta(days=i) for i in range(10)),
             ]
 
     def create_manifest_entry(self, billing_period_start, provider_id):
@@ -154,7 +153,7 @@ class OCPReportDataGenerator:
                         report_period,
                         report_date
                     )
-                    self.create_line_items(report_period, report, self.resource_id)
+                    self.create_line_items(report_period, report)
                     self.create_storage_line_items(report_period, report)
 
             self._populate_daily_table()
@@ -250,7 +249,7 @@ class OCPReportDataGenerator:
 
         return labels
 
-    def create_line_items(self, report_period, report, resource_id):
+    def create_line_items(self, report_period, report):
         """Create OCP hourly usage line items."""
         node_cpu_cores = random.randint(1, 8)
         node_memory_gb = random.randint(4, 32)
@@ -271,21 +270,18 @@ class OCPReportDataGenerator:
                 'node_capacity_cpu_core_seconds': Decimal(node_cpu_cores * 3600),
                 'node_capacity_memory_bytes': Decimal(node_memory_gb * 1e9),
                 'node_capacity_memory_byte_seconds': Decimal(node_memory_gb * 1e9 * 3600),
-                'pod_labels': self._gen_pod_labels(report),
-                'resource_id': 'i-{}'.format(resource_id)
+                'pod_labels': self._gen_pod_labels(report)
             }
             line_item = OCPUsageLineItem(**data)
             line_item.save()
 
     def _populate_daily_table(self):
         """Populate the daily table."""
-        OCPUsageLineItemDaily.objects.all().delete()
         included_fields = [
             'namespace',
             'pod',
             'node',
             'pod_labels',
-            'resource_id',
         ]
         annotations = {
             'usage_start': F('report__interval_start'),
@@ -334,7 +330,6 @@ class OCPReportDataGenerator:
 
     def _populate_daily_summary_table(self):
         """Populate the daily summary table."""
-        OCPUsageLineItemDailySummary.objects.all().delete()
         included_fields = [
             'usage_start',
             'usage_end',

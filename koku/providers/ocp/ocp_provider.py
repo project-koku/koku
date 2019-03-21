@@ -17,13 +17,9 @@
 """OCP service provider implementation to be used by Koku."""
 import logging
 
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
-from api.provider.models import Provider
-from reporting.provider.ocp_aws.models import OCPAWSUsageLineItemDaily
 from ..provider_interface import ProviderInterface
 
 LOG = logging.getLogger(__name__)
@@ -35,14 +31,6 @@ def error_obj(key, message):
         key: [_(message)]
     }
     return error
-
-
-class OCPProviderError(Exception):
-    """General Exception class for OCPProvider errors."""
-
-    def __init__(self, message):
-        """Set custom error message for OCPProvider errors."""
-        self.message = message
 
 
 class OCPProvider(ProviderInterface):
@@ -69,28 +57,3 @@ class OCPProvider(ProviderInterface):
         message = 'Stub to verify that OCP report for cluster {} is accessible.'.format(
                   cluster_id)
         LOG.info(message)
-
-    def _is_on_aws(self, tenant, resource_name):
-        """Determine if provider is running on AWS."""
-        with tenant_context(tenant):
-            objects = OCPAWSUsageLineItemDaily.objects.all()
-            clusters = list(objects.values('cluster_id').distinct())
-            for cluster in clusters:
-                for key, cluster_id in cluster.items():
-                    if resource_name == cluster_id:
-                        return True
-
-        return False
-
-    def infra_type_implementation(self, provider_uuid, tenant):
-        """Return infrastructure type."""
-        try:
-            provider_model = Provider.objects.get(uuid=provider_uuid)
-            resource_name = provider_model.authentication.provider_resource_name
-        except (ObjectDoesNotExist, ValidationError) as e:
-            raise(OCPProviderError(str(e)))
-
-        if self._is_on_aws(tenant, resource_name):
-            return Provider.PROVIDER_AWS
-
-        return None
