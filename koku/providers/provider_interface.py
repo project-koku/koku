@@ -62,3 +62,20 @@ class ProviderInterface(ABC):
 
         """
         pass
+
+    @abstractmethod
+    def infra_type_implementation(self, provider_uuid, schema_name):
+        """
+        Return the type of infrastructure the provider is running on.
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            ValidationError: Error string
+
+        """
+        pass
