@@ -73,8 +73,7 @@ class FakeAWSCostData(object):
                  availability_zone=None, bill=None,
                  billing_period_end=None, billing_period_start=None,
                  cost_entry=None, instance_type=None, line_item=None,
-                 pricing=None, region=None, usage_end=None, usage_start=None,
-                 resource_id=None):
+                 pricing=None, region=None, usage_end=None, usage_start=None):
         """Constructor."""
         # properties
         self._account_alias = account_alias
@@ -90,7 +89,6 @@ class FakeAWSCostData(object):
         self._region = region
         self._usage_end = usage_end
         self._usage_start = usage_start
-        self._resource_id = resource_id
 
         self._products = {'fake': {'sku': self.fake.pystr(min_chars=12,
                                                           max_chars=12).upper(),
@@ -295,7 +293,7 @@ class FakeAWSCostData(object):
                                'line_item_type': 'Usage',
                                'operation': operation,
                                'product_code': 'AmazonEC2',
-                               'resource_id': 'i-{}'.format(self.resource_id),
+                               'resource_id': 'i-{}'.format(self.fake.ean8()),
                                'usage_amount': usage,
                                'unblended_cost': ub_rate * usage,
                                'unblended_rate': ub_rate,
@@ -371,13 +369,6 @@ class FakeAWSCostData(object):
         self._usage_end = date
         if self._line_item:
             self._line_item['usage_end'] = date
-
-    @property
-    def resource_id(self):
-        """resource_id."""
-        if not self._resource_id:
-            self._resource_id = self.fake.ean8()
-        return self._resource_id
 
     @property
     def usage_start(self):
