@@ -25,6 +25,7 @@ from urllib.parse import quote_plus
 from django.db.models import CharField, Count, DecimalField, F, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
 from django.db.models.functions import Coalesce
+from providers.provider_access import ProviderAccessor
 
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
@@ -234,6 +235,10 @@ class ProviderMap(object):
                 'node': {
                     'field': 'node',
                     'operation': 'icontains'
+                },
+                'infrastructures': {
+                    'operation': 'exact',
+                    'custom': ProviderAccessor('OCP').infrastructure_key_list
                 },
             },
             'group_by_options': ['cluster', 'project', 'node'],
@@ -966,6 +971,14 @@ class ReportQueryHandler(QueryHandler):
                         for item in list_:
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
+                elif filt.get('custom'):
+                    for item in list_:
+                        custom_list = filt.get('custom')(item, self.tenant)
+                        for list_item in custom_list:
+                            for field, parameter_value in list_item.items():
+                                filt['field'] = field
+                                q_filter = QueryFilter(parameter=parameter_value, **filt)
+                                filters.add(q_filter)
                 else:
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)

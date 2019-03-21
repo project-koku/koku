@@ -183,3 +183,7 @@ class AWSProvider(ProviderInterface):
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""
         return None
+
+    def infra_key_list_implementation(self, infrastructure_type, schema_name):
+        """Return a list of cluster ids on the given infrastructure type."""
+        return []

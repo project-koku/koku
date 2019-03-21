@@ -176,6 +176,7 @@ class QueryHandler(object):
             (Boolean): True if they keys given appear in given query parameters.
 
         """
+        # import pdb; pdb.set_trace()
         return (self.query_parameters and key in self.query_parameters and  # noqa: W504
                 in_key in self.query_parameters.get(key))
 
