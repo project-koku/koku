@@ -368,16 +368,18 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        ocp_aws_data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator = OCPReportDataGenerator(self.tenant, current_month_only=True)
         data_generator.add_data_to_tenant()
-        data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
+        ocp_aws_data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
 
-        provider_uuid = data_generator.provider_uuid
+        provider_uuid = ocp_aws_data_generator.provider_uuid
         manager = ProviderManager(provider_uuid)
         infrastructure_name = manager.get_infrastructure_name(self.tenant)
         self.assertEqual(infrastructure_name, 'Unknown')
 
         data_generator.remove_data_from_tenant()
+        ocp_aws_data_generator.remove_data_from_tenant()
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
