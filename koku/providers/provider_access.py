@@ -29,6 +29,14 @@ from api.provider.models import Provider
 LOG = logging.getLogger(__name__)
 
 
+class ProviderAccessorError(Exception):
+    """General Exception class for ProviderAccessor errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderAccessor errors."""
+        self.message = message
+
+
 class ProviderAccessor:
     """Provider interface for koku to use."""
 
@@ -102,3 +110,23 @@ class ProviderAccessor:
 
         """
         return self.service.cost_usage_source_is_reachable(credential, source_name)
+
+    def infrastructure_type(self, provider_uuid, schema_name):
+        """
+        Return the name of the infrastructure that the provider is running on.
+
+        Args:
+            provider_uuid (String): Provider UUID
+            schema_name (String): Database schema name
+
+        Returns:
+            (String) : Name of Service
+                       example: "AWS"
+
+        """
+        try:
+            infrastructure_type = self.service.infra_type_implementation(provider_uuid, schema_name)
+        except Exception as error:
+            raise ProviderAccessorError(str(error))
+
+        return infrastructure_type if infrastructure_type else 'Unknown'
