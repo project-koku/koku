@@ -23,7 +23,7 @@ from providers.aws.aws_provider import AWSProvider
 from providers.aws_local.aws_local_provider import AWSLocalProvider
 from providers.ocp.ocp_provider import OCPProvider
 from providers.ocp_local.ocp_local_provider import OCPLocalProvider
-from providers.provider_access import ProviderAccessor
+from providers.provider_access import ProviderAccessor, ProviderAccessorError
 
 
 class ProviderAccessorTestCase(TestCase):
@@ -93,3 +93,11 @@ class ProviderAccessorTestCase(TestCase):
         with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
             source_ready = interface.cost_usage_source_ready(credential, source_name)
         self.assertTrue(source_ready)
+
+    def test_get_infrastructure_type_exception(self):
+        """Get infrastructure type with exception."""
+        provider = OCPProvider()
+        interface = ProviderAccessor(provider.name())
+        with self.assertRaises(ProviderAccessorError):
+            with patch.object(OCPProvider, 'infra_type_implementation', side_effect=Exception('test')):
+                interface.infrastructure_type(None, None)
