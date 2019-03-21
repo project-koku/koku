@@ -279,6 +279,7 @@ class OCPReportDataGenerator:
 
     def _populate_daily_table(self):
         """Populate the daily table."""
+        OCPUsageLineItemDaily.objects.all().delete()
         included_fields = [
             'namespace',
             'pod',
@@ -333,6 +334,7 @@ class OCPReportDataGenerator:
 
     def _populate_daily_summary_table(self):
         """Populate the daily summary table."""
+        OCPUsageLineItemDailySummary.objects.all().delete()
         included_fields = [
             'usage_start',
             'usage_end',
