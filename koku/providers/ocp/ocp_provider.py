@@ -73,10 +73,9 @@ class OCPProvider(ProviderInterface):
     def _is_on_aws(self, tenant, resource_name):
         """Determine if provider is running on AWS."""
         clusters = self._aws_clusters(tenant)
-        for cluster in clusters:
-            for key, cluster_id in cluster.items():
-                if resource_name == cluster_id:
-                    return True
+        for cluster_id in clusters:
+            if resource_name == cluster_id:
+                return True
 
         return False
 
@@ -96,8 +95,8 @@ class OCPProvider(ProviderInterface):
     def _aws_clusters(self, tenant):
         """Return a list of OCP clusters running on AWS."""
         with tenant_context(tenant):
-            objects = OCPAWSCostLineItemDailySummary.objects.all()
-            clusters = list(objects.values('cluster_id').distinct())
+            objects = OCPAWSCostLineItemDailySummary.objects.values_list('cluster_id', flat=True)
+            clusters = list(objects.distinct())
         return clusters
 
     def infra_key_list_implementation(self, infrastructure_type, schema_name):

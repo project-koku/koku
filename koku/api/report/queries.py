@@ -237,6 +237,7 @@ class ProviderMap(object):
                     'operation': 'icontains'
                 },
                 'infrastructures': {
+                    'field': 'cluster_id',
                     'operation': 'exact',
                     'custom': ProviderAccessor('OCP').infrastructure_key_list
                 },
@@ -951,6 +952,15 @@ class ReportQueryHandler(QueryHandler):
                 tag_groups.append(filt)
         return tag_groups
 
+    def _build_custom_filter_list(self, type, method, filter_list):
+        """Replace filter list items from custom method."""
+        if type == 'infrastructures' and method:
+            for item in filter_list:
+                custom_list = method(item, self.tenant)
+                filter_list.remove(item)
+                filter_list = list(set(filter_list + custom_list))
+        return filter_list
+
     def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
 
@@ -971,15 +981,8 @@ class ReportQueryHandler(QueryHandler):
                         for item in list_:
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
-                elif filt.get('custom'):
-                    for item in list_:
-                        custom_list = filt.get('custom')(item, self.tenant)
-                        for list_item in custom_list:
-                            for field, parameter_value in list_item.items():
-                                filt['field'] = field
-                                q_filter = QueryFilter(parameter=parameter_value, **filt)
-                                filters.add(q_filter)
                 else:
+                    list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
