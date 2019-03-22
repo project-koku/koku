@@ -133,15 +133,15 @@ class ProviderAccessor:
 
     def infrastructure_key_list(self, infrastructure_type, schema_name):
         """
-        Return the name of the infrastructure that the provider is running on.
+        Return a list of keys identifying the provider running on specified infrastructure type.
 
         Args:
             infrastructure_type (String): Provider type
             schema_name (String): Database schema name
 
         Returns:
-            (String) : Name of Service
-                       example: "AWS"
+            (List) : List of strings
+                       example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
 
         """
         keys = []

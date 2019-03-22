@@ -17,6 +17,8 @@
 """Query Handling for Reports."""
 import copy
 import logging
+import random
+import string
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
@@ -952,11 +954,15 @@ class ReportQueryHandler(QueryHandler):
                 tag_groups.append(filt)
         return tag_groups
 
-    def _build_custom_filter_list(self, type, method, filter_list):
+    def _build_custom_filter_list(self, filter_type, method, filter_list):
         """Replace filter list items from custom method."""
-        if type == 'infrastructures' and method:
+        if filter_type == 'infrastructures' and method:
             for item in filter_list:
                 custom_list = method(item, self.tenant)
+                if not custom_list:
+                    random_name = ''.join(random.choices(string.ascii_lowercase + string.digits,
+                                          k=5))
+                    custom_list = [random_name]
                 filter_list.remove(item)
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
