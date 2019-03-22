@@ -75,7 +75,26 @@ class ProviderInterface(ABC):
             None
 
         Raises:
-            ValidationError: Error string
+            ProviderAccessorError: Error string
+
+        """
+        pass
+
+    @abstractmethod
+    def infra_key_list_implementation(self, infrastructure_type, schema_name):
+        """
+        Return a list of key values to identify resources running on provided infrastructure type.
+
+        Args:
+            infrastructure_type (String): Provider type
+            schema_name (String): Database schema name
+
+        Returns:
+            (List) : List of strings
+                       example: ['ocp-cluster-on-aws-1', 'ocp-cluster-on-aws-2']
+
+        Raises:
+            ProviderAccessorError: Error string
 
         """
         pass

@@ -22,6 +22,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
@@ -160,6 +161,12 @@ class ReportViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
         self.assertTrue(len(json_result.get('data')) > 0)
+
+    def test_process_invalid_query_parameters_format(self):
+        """Test processing of invalid parameters format."""
+        qs = 'group_by%5Baccount%5D=account1&filter%5'
+        with self.assertRaises(ValidationError):
+            process_query_parameters(qs, QueryParamSerializer)
 
     def test_process_query_parameters(self):
         """Test processing of valid parameters."""

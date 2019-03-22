@@ -169,6 +169,10 @@ class FilterSerializer(serializers.Serializer):
         ('month', 'month'),
     )
 
+    INFRASTRUCTURE_CHOICES = (
+        ('aws', 'aws'),
+    )
+
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
                                          required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
@@ -187,6 +191,8 @@ class FilterSerializer(serializers.Serializer):
                             required=False)
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
+    infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES,
+                                              required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the FilterSerializer."""
@@ -216,6 +222,10 @@ class FilterSerializer(serializers.Serializer):
         resolution = data.get('resolution')
         time_scope_value = data.get('time_scope_value')
         time_scope_units = data.get('time_scope_units')
+
+        if data.get('infrastructures'):
+            infra_value = data['infrastructures']
+            data['infrastructures'] = [infra_value.upper()]
 
         if time_scope_units and time_scope_value:
             msg = 'Valid values are {} when time_scope_units is {}'

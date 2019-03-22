@@ -30,7 +30,7 @@ class QueryFilter(UserDict):
     parameter = None
     composition_key = None
 
-    def __init__(self, table=None, field=None, operation=None, parameter=None, composition_key=None):
+    def __init__(self, table=None, field=None, operation=None, parameter=None, composition_key=None, custom=None):
         """Constructor.
 
         Args:
