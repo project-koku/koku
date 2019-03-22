@@ -28,6 +28,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
+from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import CostSummary, OCPUsageLineItemDailySummary
@@ -650,3 +651,63 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsInstance(result, OrderBy)
         self.assertEqual(expression.sql, 'pod_labels -> %s')
         self.assertEqual(expression.params, expected_param)
+
+    def test_filter_by_infrastructure_ocp_on_aws(self):
+        """Test that filter by infrastructure for ocp on aws."""
+        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator.add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month',
+                                   'infrastructures': ['AWS']},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'filter[infrastructures]=aws'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        query_data = handler.execute_query()
+
+        for entry in query_data.get('data', []):
+            for value in entry.get('values', []):
+                self.assertIsNotNone(value.get('usage').get('value'))
+                self.assertIsNotNone(value.get('request').get('value'))
+        data_generator.remove_data_from_tenant()
+
+    def test_filter_by_infrastructure_ocp(self):
+        """Test that filter by infrastructure for ocp not on aws."""
+        data_generator = OCPReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator.add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month',
+                                   'infrastructures': ['AWS']},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'filter[infrastructures]=aws'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        query_data = handler.execute_query()
+
+        for entry in query_data.get('data', []):
+            for value in entry.get('values', []):
+                self.assertEqual(value.get('usage').get('value'), 0)
+                self.assertEqual(value.get('request').get('value'), 0)
+        data_generator.remove_data_from_tenant()

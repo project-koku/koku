@@ -101,3 +101,11 @@ class ProviderAccessorTestCase(TestCase):
         with self.assertRaises(ProviderAccessorError):
             with patch.object(OCPProvider, 'infra_type_implementation', side_effect=Exception('test')):
                 interface.infrastructure_type(None, None)
+
+    def test_get_infrastructure_key_list_exception(self):
+        """Get infrastructure key list with exception."""
+        provider = OCPProvider()
+        interface = ProviderAccessor(provider.name())
+        with self.assertRaises(ProviderAccessorError):
+            with patch.object(OCPProvider, 'infra_key_list_implementation', side_effect=Exception('test')):
+                interface.infrastructure_type(None, None)

@@ -110,6 +110,18 @@ class OCPFilterSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_infrastructure_field_validation_success(self):
+        """Test that infrastructure filter are validated for aws."""
+        query_params = {'infrastructures': 'aws'}
+        serializer = FilterSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_infrastructure_field_validation_failure(self):
+        """Test that infrastructure filter are validated for non-aws."""
+        query_params = {'infrastructures': 'notaws'}
+        serializer = FilterSerializer(data=query_params)
+        self.assertFalse(serializer.is_valid())
+
 
 class OCPGroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""

@@ -221,6 +221,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
                                 }
                             ]
                         }
+                        "infrastructure": "Unknown"
                     }
               ]
             }
@@ -294,7 +295,8 @@ class ProviderViewSet(mixins.CreateModelMixin,
                             "summary_data_updated_datetime": "2019-01-07 21:51:32"
                         }
                     ]
-                }
+                },
+                "infrastructure": "Unknown"
             }
         """
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
