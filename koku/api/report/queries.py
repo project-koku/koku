@@ -17,6 +17,8 @@
 """Query Handling for Reports."""
 import copy
 import logging
+import random
+import string
 from collections import OrderedDict, defaultdict
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from itertools import groupby
@@ -25,6 +27,7 @@ from urllib.parse import quote_plus
 from django.db.models import CharField, Count, DecimalField, F, Max, Q, Sum, Value
 from django.db.models.expressions import ExpressionWrapper, OrderBy, RawSQL
 from django.db.models.functions import Coalesce
+from providers.provider_access import ProviderAccessor
 
 from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
@@ -234,6 +237,11 @@ class ProviderMap(object):
                 'node': {
                     'field': 'node',
                     'operation': 'icontains'
+                },
+                'infrastructures': {
+                    'field': 'cluster_id',
+                    'operation': 'exact',
+                    'custom': ProviderAccessor('OCP').infrastructure_key_list
                 },
             },
             'group_by_options': ['cluster', 'project', 'node'],
@@ -946,6 +954,19 @@ class ReportQueryHandler(QueryHandler):
                 tag_groups.append(filt)
         return tag_groups
 
+    def _build_custom_filter_list(self, filter_type, method, filter_list):
+        """Replace filter list items from custom method."""
+        if filter_type == 'infrastructures' and method:
+            for item in filter_list:
+                custom_list = method(item, self.tenant)
+                if not custom_list:
+                    random_name = ''.join(random.choices(string.ascii_lowercase + string.digits,
+                                          k=5))
+                    custom_list = [random_name]
+                filter_list.remove(item)
+                filter_list = list(set(filter_list + custom_list))
+        return filter_list
+
     def _get_search_filter(self, filters):
         """Populate the query filter collection for search filters.
 
@@ -967,6 +988,7 @@ class ReportQueryHandler(QueryHandler):
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
                 else:
+                    list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
