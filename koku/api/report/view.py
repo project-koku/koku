@@ -185,7 +185,12 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
         (Dict): Dictionary parsed from query params string
     """
     output = None
-    query_params = parser.parse(url_data)
+    try:
+        query_params = parser.parse(url_data)
+    except parser.MalformedQueryStringError:
+        LOG.error('Invalid query parameter format %s.', url_data)
+        error = {'details': _(f'Invalid query parameter format.')}
+        raise ValidationError(error)
     if tag_keys:
         tag_keys = process_tag_query_params(query_params, tag_keys)
         qps = provider_serializer(data=query_params, tag_keys=tag_keys)
