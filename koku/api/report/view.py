@@ -175,7 +175,7 @@ def get_tag_keys(request, summary_model):
     return tags
 
 
-def process_query_parameters(url_data, provider_serializer, tag_keys=None):
+def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwargs):
     """Process query parameters and raise any validation errors.
 
     Args:
@@ -193,9 +193,9 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None):
         raise ValidationError(error)
     if tag_keys:
         tag_keys = process_tag_query_params(query_params, tag_keys)
-        qps = provider_serializer(data=query_params, tag_keys=tag_keys)
+        qps = provider_serializer(data=query_params, tag_keys=tag_keys, context=kwargs)
     else:
-        qps = provider_serializer(data=query_params)
+        qps = provider_serializer(data=query_params, context=kwargs)
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
@@ -364,7 +364,8 @@ def _generic_report(request, provider, report):
     validation, params = process_query_parameters(
         url_data,
         provider_parameter_serializer,
-        tag_keys
+        tag_keys,
+        **{'request': request}
     )
 
     if not validation:

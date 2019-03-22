@@ -304,3 +304,14 @@ class QueryParamSerializer(serializers.Serializer):
             raise serializers.ValidationError(error)
 
         return value
+
+    def validate_delta(self, value):
+        """Validate incoming delta value based on path."""
+        valid_delta = 'usage'
+        request = self.context.get('request')
+        if request and 'costs' in request.path:
+            valid_delta = 'cost'
+        if value != valid_delta:
+            error = {'delta': f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
