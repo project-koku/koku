@@ -2241,6 +2241,12 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "infrastructures": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     }
                 }
             },
