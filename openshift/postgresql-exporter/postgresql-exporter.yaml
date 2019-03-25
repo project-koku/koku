@@ -166,7 +166,7 @@ parameters:
   name: CONTEXT_DIR
   value: openshift/postgresql-exporter
 - description: PostgreSQL connection string
-  displayName: Data source URI
+  displayName: Data source name
   from: ${DATA_SOURCE_NAME}
   name: DATA_SOURCE_NAME
 - description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
