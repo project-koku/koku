@@ -1,5 +1,5 @@
 -i https://pypi.python.org/simple
-boto3==1.9.115
+boto3==1.9.120
 botocore==1.12.115
 certifi==2019.3.9
 chardet==3.0.4
