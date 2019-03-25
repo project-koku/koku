@@ -16,6 +16,7 @@
 #
 """Test the Report serializers."""
 from unittest import TestCase
+from unittest.mock import Mock
 
 from rest_framework import serializers
 
@@ -212,3 +213,33 @@ class QueryParamSerializerTest(TestCase):
         serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_invalid_delta(self):
+        """Test failure while handling invalid delta for different requests."""
+        query_params = {'delta': 'cost'}
+        req = Mock(path='/api/cost-management/v1/reports/aws/storage/')
+        serializer = QueryParamSerializer(data=query_params, context={'request': req})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+        query_params = {'delta': 'usage'}
+        req = Mock(path='/api/cost-management/v1/reports/aws/costs/')
+        serializer = QueryParamSerializer(data=query_params, context={'request': req})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+        query_params = {'delta': 'usage'}
+        req = Mock(path='/api/cost-management/v1/reports/aws/storage/')
+        serializer = QueryParamSerializer(data=query_params, context={'request': req})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError:
+            self.fail('Serizalizer raised error for valid delta')
+
+        query_params = {'delta': 'cost'}
+        req = Mock(path='/api/cost-management/v1/reports/aws/costs/')
+        serializer = QueryParamSerializer(data=query_params, context={'request': req})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError:
+            self.fail('Serizalizer raised error for valid delta')
