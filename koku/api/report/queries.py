@@ -450,8 +450,8 @@ class ProviderMap(object):
                         'usage_units': Value('GB-Mo', output_field=CharField()),
                     },
                     'delta_key': {
-                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_hours'),
-                        'request': Sum('volume_request_storage_gigabyte_hours'),
+                        'usage': Sum('persistentvolumeclaim_usage_gigabyte_months'),
+                        'request': Sum('volume_request_storage_gigabyte_months'),
                         'cost': Sum('persistentvolumeclaim_charge_gb_month')
                     },
                     'filter': {},
