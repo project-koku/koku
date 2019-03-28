@@ -127,6 +127,11 @@ objects:
       to:
         kind: ImageStreamTag
         name: ${NAME}:latest
+    resources:
+      requests:
+        memory: ${BUILD_MEMORY_REQUEST}
+      limits:
+        memory: ${BUILD_MEMORY_LIMIT}
     runPolicy: Serial
     source:
       contextDir: ${CONTEXT_DIR}
@@ -226,3 +231,13 @@ parameters:
 - description: JSON string representing config for rdsexporter. Deployed as config.yaml during build.
   displayName: Config file JSON
   name: RDS_EXPORTER_CONFIG
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
