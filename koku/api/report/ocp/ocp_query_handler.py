@@ -79,12 +79,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
         annotations = copy.deepcopy(self._mapper.report_type_map.get('annotations'))
         if 'capacity' not in annotations:
             return annotations
-        if 'cluster' in group_by_value or 'cluster' in self.query_filter:
-            cluster_capacity = annotations['capacity'].get('cluster')
-            if cluster_capacity:
-                annotations['capacity'] = cluster_capacity
-        else:
-            annotations['capacity'] = annotations['capacity'].get('total')
+        for group in group_by_value:
+            if group in ('project', 'cluster', 'node'):
+                annotations['capacity'] = annotations['capacity'].get('cluster')
+                return annotations
+
+        for filt in self.query_parameters.get('filter', {}).keys():
+            if filt in ('project', 'cluster', 'node'):
+                annotations['capacity'] = annotations['capacity'].get('cluster')
+                return annotations
+
+        annotations['capacity'] = annotations['capacity'].get('total')
         return annotations
 
     def _format_query_response(self):
