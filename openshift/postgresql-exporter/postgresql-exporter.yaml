@@ -1,21 +1,21 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: rdsexporter-template
+  name: postgresql-exporter-template
   annotations:
-    openshift.io/display-name: 'RDS Exporter'
-    openshift.io/description: 'Prometheus exporter for AWS RDS'
-    openshift.io/long-description: 'This template defines resources to export monitoring and metrics data from AWS Cloudwatch about your RDS instances to Prometheus.'
+    openshift.io/display-name: 'PostgreSQL Exporter'
+    openshift.io/description: 'Prometheus exporter for PostgreSQL'
+    openshift.io/long-description: 'This template defines resources to export monitoring and metrics data from a PostgreSQL database to Prometheus.'
 labels:
-  app: rdsexporter
-  template: rdsexporter-template
+  app: postgresql-exporter
+  template: postgresql-exporter-template
 objects:
 - apiVersion: apps.openshift.io/v1
   kind: DeploymentConfig
   metadata:
     labels:
-      app: rdsexporter
-      template: rdsexporter-template
+      app: postgresql-exporter
+      template: postgresql-exporter-template
     name: ${NAME}
   spec:
     replicas: 1
@@ -40,21 +40,16 @@ objects:
       spec:
         containers:
         - env:
-          - name: AWS_ACCESS_KEY_ID
+          - name: DATA_SOURCE_NAME
             valueFrom:
               secretKeyRef:
-                key: aws-access-key-id
-                name: ${NAME}
-          - name: AWS_SECRET_ACCESS_KEY
-            valueFrom:
-              secretKeyRef:
-                key: aws-secret-access-key
+                key: data-source-name
                 name: ${NAME}
           image: ${NAMESPACE}/${NAME}:latest
           imagePullPolicy: Always
-          name: rdsexporter
+          name: postgresql-exporter
           ports:
-          - containerPort: 9042
+          - containerPort: 9187
             protocol: TCP
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
@@ -78,39 +73,19 @@ objects:
   kind: Service
   metadata:
     annotations:
-      prometheus.io/path: /basic
-      prometheus.io/port: "9041"
+      prometheus.io/path: /metrics
+      prometheus.io/port: "9187"
       prometheus.io/scrape: "true"
     labels:
-      app: rdsexporter
-      template: rdsexporter-template
-    name: ${NAME}-basic
+      app: postgresql-exporter
+      template: postgresql-exporter-template
+    name: ${NAME}
   spec:
     ports:
-    - name: 9041-tcp
-      port: 9041
+    - name: 9187-tcp
+      port: 9187
       protocol: TCP
-      targetPort: 9042
-    selector:
-      app: ${NAME}
-      deploymentconfig: ${NAME}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      prometheus.io/path: /enhanced
-      prometheus.io/port: "9042"
-      prometheus.io/scrape: "true"
-    labels:
-      app: rdsexporter
-      template: rdsexporter-template
-    name: ${NAME}-enhanced
-  spec:
-    ports:
-    - name: 9042-tcp
-      port: 9042
-      protocol: TCP
-      targetPort: 9042
+      targetPort: 9187
     selector:
       app: ${NAME}
       deploymentconfig: ${NAME}
@@ -118,8 +93,8 @@ objects:
   kind: BuildConfig
   metadata:
     labels:
-      app: rdsexporter
-      template: rdsexporter-template
+      app: postgresql-exporter
+      template: postgresql-exporter-template
     name: ${NAME}
   spec:
     failedBuildsHistoryLimit: 5
@@ -141,13 +116,6 @@ objects:
       type: Git
     strategy:
       dockerStrategy:
-        env:
-          - name: RDS_EXPORTER_CONFIG
-            valueFrom:
-              configMapKeyRef:
-                name: ${NAME}
-                key: rdsexporter-config
-                optional: false
         from:
           kind: ImageStreamTag
           name: go-toolset-7-centos7:latest
@@ -165,42 +133,29 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      app: rdsexporter
-      template: rdsexporter-template
+      app: postgresql-exporter
+      template: postgresql-exporter-template
     name: ${NAME}
 - apiVersion: v1
   kind: Secret
   metadata:
     labels:
-      app: rdsexporter
-      template: rdsexporter-template
-    annotations:
-      template.openshift.io/expose-aws_access_key_id: "{.data['aws-access-key-id']}"
-      template.openshift.io/expose-aws_secret_access_key: "{.data['aws-secret-access-key']}"
+      app: postgresql-exporter
+      template: postgresql-exporter-template
     name: ${NAME}
   stringData:
-    aws-access-key-id: ${AWS_ACCESS_KEY_ID}
-    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
-- apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    labels:
-      app: rdsexporter
-      template: rdsexporter-template
-    name: ${NAME}
-  data:
-    rdsexporter-config: ${RDS_EXPORTER_CONFIG}
+    data-source-name: ${DATA_SOURCE_NAME}
 parameters:
-- description: The name assigned to all frontend objects defined in this template.
+- description: The name assigned to all objects defined in this template.
   displayName: Name
   name: NAME
   required: true
-  value: rdsexporter
+  value: postgresql-exporter
 - description: The OpenShift Namespace where the ImageStream resides.
   displayName: Namespace
   name: NAMESPACE
   required: true
-  value: rdsexporter
+  value: postgresql-exporter
 - description: The URL of the repository with your application source code.
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
@@ -214,23 +169,16 @@ parameters:
     of your repository.
   displayName: Context Directory
   name: CONTEXT_DIR
-  value: openshift/rdsexporter
-- description: AWS Access Key ID
-  displayName: AWS Access Key ID
-  from: ${AWS_ACCESS_KEY_ID}
-  name: AWS_ACCESS_KEY_ID
-- description: AWS Secret Access Key
-  displayName: AWS Secret Access Key
-  from: ${AWS_SECRET_ACCESS_KEY}
-  name: AWS_SECRET_ACCESS_KEY
+  value: openshift/postgresql-exporter
+- description: PostgreSQL connection string
+  displayName: Data source name
+  from: ${DATA_SOURCE_NAME}
+  name: DATA_SOURCE_NAME
 - description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
   displayName: GitHub Webhook Secret
   from: '[a-zA-Z0-9]{40}'
   generate: expression
   name: GITHUB_WEBHOOK_SECRET
-- description: JSON string representing config for rdsexporter. Deployed as config.yaml during build.
-  displayName: Config file JSON
-  name: RDS_EXPORTER_CONFIG
 - description: Initial amount of memory the build container will request.
   displayName: Build Memory Request
   name: BUILD_MEMORY_REQUEST
