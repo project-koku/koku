@@ -24,6 +24,7 @@ import os
 
 from celery.utils.log import get_task_logger
 
+import masu.prometheus_stats as worker_stats
 from masu.celery import celery
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
@@ -34,7 +35,6 @@ from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
-
 
 LOG = get_task_logger(__name__)
 
@@ -65,6 +65,8 @@ def get_report_files(customer_name,
         None
 
     """
+    worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+
     reports = _get_report_files(customer_name,
                                 authentication,
                                 billing_source,
@@ -114,6 +116,8 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
         None
 
     """
+    worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
+
     try:
         LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
                  schema_name, provider_uuid, report_dict.get('file'))
@@ -133,6 +137,7 @@ def process_report_file(schema_name, provider, provider_uuid, report_dict):
             manifest_id=report_dict.get('manifest_id')
         )
     except ReportProcessorError as processing_error:
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider).inc()
         LOG.error(str(processing_error))
 
 
@@ -181,6 +186,8 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         None
 
     """
+    worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
+
     stmt = ('update_summary_tables called with args:\n'
             ' schema_name: {},\n'
             ' provider: {},\n'
@@ -245,6 +252,8 @@ def update_charge_info(schema_name, provider_uuid):
         None
 
     """
+    worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
+
     stmt = ('update_charge_info called with args:\n'
             ' schema_name: {},\n'
             ' provider_uuid: {}')

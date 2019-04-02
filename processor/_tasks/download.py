@@ -19,6 +19,7 @@
 import psutil
 from celery.utils.log import get_task_logger
 
+import masu.prometheus_stats as worker_stats
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.exceptions import MasuProcessingError, MasuProviderError
@@ -93,5 +94,6 @@ def _get_report_files(customer_name,
                                       report_name=report_name)
         return downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
+        worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(err))
         raise err
