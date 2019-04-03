@@ -296,7 +296,6 @@ class QueryParamSerializer(serializers.Serializer):
         """
         validate_field(self, 'filter', FilterSerializer, value,
                        tag_keys=self.tag_keys)
-        print('validate_filter: ', value)
         return value
 
     def validate_units(self, value):

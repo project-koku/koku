@@ -87,7 +87,7 @@ class StringOrListField(serializers.ListField):
         if isinstance(data, str):
             list_data = [data]
         # Allow comma separated values for a query param
-        if isinstance(list_data, list):
+        if isinstance(list_data, list) and list_data:
             list_data = ','.join(list_data)
             list_data = list_data.split(',')
 
