@@ -19,6 +19,8 @@ import copy
 import datetime
 import logging
 
+from querystring_parser import parser
+
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
 
@@ -62,7 +64,11 @@ class QueryHandler(object):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         LOG.debug(f'Query Params: {query_parameters}')
-        self.query_parameters = query_parameters
+        default_query = self.query_parameters = parser.parse('filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily')
+        if not query_parameters:
+            self.query_parameters = default_query
+        else:
+            self.query_parameters = query_parameters
         self.url_data = url_data
         self.tenant = tenant
         self.default_ordering = default_ordering
