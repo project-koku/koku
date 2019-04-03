@@ -1115,6 +1115,10 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         for item in self.group_by_options:
             group_data = self.get_query_param_data('group_by', item)
+            if not group_data:
+                group_data = self.get_query_param_data('group_by', 'and:' + item)
+            if not group_data:
+                group_data = self.get_query_param_data('group_by', 'or:' + item)
             if group_data:
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))
