@@ -663,10 +663,15 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(expected, out_data)
 
     def test_has_filter_no_filter(self):
-        """Test the has_filter method with no filter in the query params."""
+        """Test the default filter query parameters."""
         handler = AWSReportQueryHandler({}, '', self.tenant,
                                         **{'report_type': 'costs'})
-        self.assertFalse(handler.check_query_params('filter', 'time_scope_value'))
+        self.assertTrue(handler.check_query_params('filter', 'time_scope_units'))
+        self.assertTrue(handler.check_query_params('filter', 'time_scope_value'))
+        self.assertTrue(handler.check_query_params('filter', 'resolution'))
+        self.assertEqual(handler.query_parameters.get('filter').get('time_scope_units'), 'day')
+        self.assertEqual(handler.query_parameters.get('filter').get('time_scope_value'), '-10')
+        self.assertEqual(handler.query_parameters.get('filter').get('resolution'), 'daily')
 
     def test_has_filter_with_filter(self):
         """Test the has_filter method with filter in the query params."""

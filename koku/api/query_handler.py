@@ -64,11 +64,8 @@ class QueryHandler(object):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         LOG.debug(f'Query Params: {query_parameters}')
-        default_query = self.query_parameters = parser.parse('filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily')
-        if not query_parameters:
-            self.query_parameters = default_query
-        else:
-            self.query_parameters = query_parameters
+
+        self.query_parameters = query_parameters
         self.url_data = url_data
         self.tenant = tenant
         self.default_ordering = default_ordering
@@ -82,6 +79,47 @@ class QueryHandler(object):
         self._max_rank = 0
 
         self._get_timeframe()
+
+    @property
+    def query_parameters(self):
+        return self._query_parameters
+
+    @query_parameters.setter
+    def query_parameters(self, new_value):
+        if not new_value:
+            default_query = ('filter[time_scope_units]=day&'
+                             'filter[time_scope_value]=-10&'
+                             'filter[resolution]=daily')
+            new_value = parser.parse(default_query)
+        else:
+            default_query = ''
+            time_scope_units = new_value.get('filter').get('time_scope_units')
+            time_scope_value = new_value.get('filter').get('time_scope_value')
+            resolution = new_value.get('filter').get('resolution')
+            import pdb; pdb.set_trace()
+
+            if not time_scope_value:
+                if time_scope_units is 'month':
+                    time_scope_value = -1
+                else:
+                    time_scope_value = -10
+
+            if not time_scope_units:
+                if int(time_scope_value) in [-1, -2]:
+                    time_scope_units = 'month'
+                else:
+                    time_scope_units = 'day'
+
+            if not resolution:
+                if int(time_scope_value) in [-1, -2]:
+                    resolution = 'monthly'
+                else:
+                    resolution = 'daily'
+            
+            default_query = 'filter[time_scope_units]={}&filter[time_scope_value]={}&filter[resolution]={}'.format(str(time_scope_units), time_scope_value, resolution)
+            new_value = parser.parse(default_query)
+
+        self._query_parameters = new_value
 
     @staticmethod
     def has_wildcard(in_list):
