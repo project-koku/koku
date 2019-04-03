@@ -30,7 +30,8 @@ class QueryFilter(UserDict):
     parameter = None
     composition_key = None
 
-    def __init__(self, table=None, field=None, operation=None, parameter=None, composition_key=None, custom=None):
+    def __init__(self, table=None, field=None, operation=None, parameter=None,
+                 composition_key=None, custom=None, logical_operator=None):
         """Constructor.
 
         Args:
@@ -39,6 +40,7 @@ class QueryFilter(UserDict):
             operation (str) - The name of a DB operation, e.g. 'in' or 'gte'
             parameter (object) - A valid query target, e.g. a list or datetime
             composition_key(str) - A key used for composing filters on different fields into an OR
+            logical_operator (str) - 'and' or 'or'
         """
         super().__init__(table=table, field=field, operation=operation,
                          parameter=parameter)
@@ -47,6 +49,9 @@ class QueryFilter(UserDict):
         self.operation = operation
         self.parameter = parameter
         self.composition_key = composition_key
+        self.logical_operator = 'or'
+        if logical_operator:
+            self.logical_operator = logical_operator
 
     def composed_query_string(self):
         """Return compiled query string."""
@@ -166,6 +171,8 @@ class QueryFilterCollection(object):
             for filter_item in filter_list:
                 if or_filter is None:
                     or_filter = filter_item.composed_Q()
+                elif filter_item.logical_operator == 'and':
+                    or_filter = or_filter & filter_item.composed_Q()
                 else:
                     or_filter = or_filter | filter_item.composed_Q()
             if composed_query is None:
