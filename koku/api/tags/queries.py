@@ -99,10 +99,41 @@ class TagQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
 
+        # Update filters that specifiy and or or in the query parameter
+        filters = self._set_operator_specified_filters(filters, 'and')
+        filters = self._set_operator_specified_filters(filters, 'or')
+
         composed_filters = filters.compose()
 
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
+
+    def _set_operator_specified_filters(self, filters, operator):
+        """Set any filters using AND instead of OR."""
+        for filter_key in SUPPORTED_FILTERS:
+            filter_key = operator + ':' + filter_key
+            filter_value = self.get_query_param_data('filter', filter_key)
+            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+                filter_obj = FILTER_MAP.get(filter_key)
+                if isinstance(filter_obj, list):
+                    for _filt in filter_obj:
+                        for item in filter_value:
+                            q_filter = QueryFilter(
+                                parameter=item,
+                                logical_operator=operator,
+                                **_filt
+                            )
+                            filters.add(q_filter)
+                else:
+                    for item in filter_value:
+                        q_filter = QueryFilter(
+                            parameter=item,
+                            logical_operator=operator,
+                            **filter_obj
+                        )
+                        filters.add(q_filter)
+
+        return filters
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
