@@ -22,8 +22,8 @@ from api.report.serializers import (StringOrListField,
                                     validate_and_field,
                                     validate_field)
 
-OCP_FILTER_OP_FIELDS = ('project')
-AWS_FILTER_OP_FIELDS = ('account')
+OCP_FILTER_OP_FIELDS = ['project']
+AWS_FILTER_OP_FIELDS = ['account']
 
 
 class FilterSerializer(serializers.Serializer):

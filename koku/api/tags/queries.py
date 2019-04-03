@@ -111,8 +111,8 @@ class TagQueryHandler(QueryHandler):
     def _set_operator_specified_filters(self, filters, operator):
         """Set any filters using AND instead of OR."""
         for filter_key in SUPPORTED_FILTERS:
-            filter_key = operator + ':' + filter_key
-            filter_value = self.get_query_param_data('filter', filter_key)
+            operator_key = operator + ':' + filter_key
+            filter_value = self.get_query_param_data('filter', operator_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):

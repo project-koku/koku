@@ -23,11 +23,13 @@ from dateutil.relativedelta import relativedelta
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPTagsViewTest(IamTestCase):
@@ -38,6 +40,7 @@ class OCPTagsViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -159,3 +162,26 @@ class OCPTagsViewTest(IamTestCase):
 
             self.assertTrue(data.get('data'))
             self.assertTrue(isinstance(data.get('data'), list))
+
+    def test_execute_query_with_and_filter(self):
+        """Test the filter[and:] param in the view."""
+        url = reverse('openshift-tags')
+        client = APIClient()
+
+        with tenant_context(self.tenant):
+            projects = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .values('namespace').distinct()
+            projects = [project.get('namespace') for project in projects]
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'filter[and:project]': projects
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        self.assertEqual(response_data.get('data', []), [])
