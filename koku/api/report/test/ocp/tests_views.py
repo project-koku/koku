@@ -1052,7 +1052,7 @@ class OCPReportViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{'pod_labels__has_key': filter_key})\
                 .aggregate(
                     **{
@@ -1067,10 +1067,11 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         params = {
             f'filter[tag:{filter_key}]': '*',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'filter[resolution]': 'monthly'
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'filter[resolution]': 'daily'
         }
+
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
