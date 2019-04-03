@@ -22,6 +22,7 @@ from api.report.aws.serializers import (FilterSerializer,
                                         OrderBySerializer,
                                         QueryParamSerializer,
                                         validate_field)
+from api.report.ocp.serializers import OP_FIELDS
 from api.report.serializers import StringOrListField
 
 
@@ -35,6 +36,18 @@ class OCPAWSGroupBySerializer(GroupBySerializer):
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCPAWSGroupBySerializer."""
+        super().__init__(*args, **kwargs)
+
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
 
 class OCPAWSOrderBySerializer(OrderBySerializer):
     """Serializer for handling query parameter order_by."""
@@ -57,6 +70,19 @@ class OCPAWSFilterSerializer(FilterSerializer):
                                 required=False)
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCPAWSGroupBySerializer."""
+        super().__init__(*args, **kwargs)
+
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
 
 
 class OCPAWSQueryParamSerializer(QueryParamSerializer):

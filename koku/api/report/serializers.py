@@ -40,7 +40,7 @@ def handle_invalid_fields(this, data):
     return data
 
 
-def validate_field(this, field, serializer_cls, value):
+def validate_field(this, field, serializer_cls, value, **kwargs):
     """Validate the provided fields.
 
     Args:
@@ -53,9 +53,20 @@ def validate_field(this, field, serializer_cls, value):
         (ValidationError): if field inputs are invalid
     """
     field_param = this.initial_data.get(field)
-    serializer = serializer_cls(data=field_param)
+    serializer = serializer_cls(data=field_param, **kwargs)
     serializer.is_valid(raise_exception=True)
     return value
+
+
+def validate_and_field(data):
+    """Validate that enough values are provided for use of and."""
+    error = {}
+    and_data = {key:value for key, value in data.items() if key[0:4] == 'and:'}
+    for key, values in and_data.items():
+        if len(values) < 2:
+            error = {key: 'and: fields require at least 2 values.'}
+            break
+    return error
 
 
 class StringOrListField(serializers.ListField):
@@ -75,4 +86,9 @@ class StringOrListField(serializers.ListField):
         list_data = data
         if isinstance(data, str):
             list_data = [data]
+        # Allow comma separated values for a query param
+        if isinstance(list_data, list):
+            list_data = ','.join(list_data)
+            list_data = list_data.split(',')
+
         return super().to_internal_value(list_data)

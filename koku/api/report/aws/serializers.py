@@ -18,26 +18,15 @@
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField, handle_invalid_fields)
+from api.report.serializers import (StringOrListField,
+                                    handle_invalid_fields,
+                                    validate_field,
+                                    validate_and_field)
 from api.utils import UnitConverter
 
-
-def validate_field(this, field, serializer_cls, value, **kwargs):
-    """Validate the provided fields.
-
-    Args:
-        field    (String): the field to be validated
-        serializer_cls (Class): a serializer class for validation
-        value    (Object): the field value
-    Returns:
-        (Dict): Validated value
-    Raises:
-        (ValidationError): if field inputs are invalid
-    """
-    field_param = this.initial_data.get(field)
-    serializer = serializer_cls(data=field_param, **kwargs)
-    serializer.is_valid(raise_exception=True)
-    return value
+GROUP_BY_OP_FIELDS = ('account', 'az', 'instance_type', 'region',
+                      'service', 'storage_type', 'product_family')
+FILTER_OP_FIELDS = ('account', 'service', 'region', 'az', 'product_family')
 
 
 class GroupBySerializer(serializers.Serializer):
@@ -71,6 +60,16 @@ class GroupBySerializer(serializers.Serializer):
             # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in GROUP_BY_OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in GROUP_BY_OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
+
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -82,6 +81,9 @@ class GroupBySerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
         """
         handle_invalid_fields(self, data)
+        error = validate_and_field(data)
+        if error:
+            raise serializers.ValidationError(error)
         return data
 
 
@@ -160,6 +162,15 @@ class FilterSerializer(serializers.Serializer):
             # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in FILTER_OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in FILTER_OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -171,7 +182,9 @@ class FilterSerializer(serializers.Serializer):
             (ValidationError): if filter inputs are invalid
         """
         handle_invalid_fields(self, data)
-
+        error = validate_and_field(data)
+        if error:
+            raise serializers.ValidationError(error)
         resolution = data.get('resolution')
         time_scope_value = data.get('time_scope_value')
         time_scope_units = data.get('time_scope_units')
@@ -283,6 +296,7 @@ class QueryParamSerializer(serializers.Serializer):
         """
         validate_field(self, 'filter', FilterSerializer, value,
                        tag_keys=self.tag_keys)
+        print('validate_filter: ', value)
         return value
 
     def validate_units(self, value):

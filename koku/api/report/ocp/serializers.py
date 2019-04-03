@@ -19,67 +19,13 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.report.serializers import (StringOrListField,
+                                    handle_invalid_fields,
+                                    validate_field,
+                                    validate_and_field)
 from api.utils import UnitConverter
 
-
-def handle_invalid_fields(this, data):
-    """Validate incoming data.
-
-    Args:
-        data    (Dict): data to be validated
-    Returns:
-        (Dict): Validated data
-    Raises:
-        (ValidationError): if field inputs are invalid
-    """
-    unknown_keys = None
-    if hasattr(this, 'initial_data'):
-        unknown_keys = set(this.initial_data.keys()) - set(this.fields.keys())
-    if unknown_keys:
-        error = {}
-        for unknown_key in unknown_keys:
-            error[unknown_key] = _('Unsupported parameter')
-        raise serializers.ValidationError(error)
-    return data
-
-
-def validate_field(this, field, serializer_cls, value, **kwargs):
-    """Validate the provided fields.
-
-    Args:
-        field    (String): the field to be validated
-        serializer_cls (Class): a serializer class for validation
-        value    (Object): the field value
-    Returns:
-        (Dict): Validated value
-    Raises:
-        (ValidationError): if field inputs are invalid
-    """
-    field_param = this.initial_data.get(field)
-    serializer = serializer_cls(data=field_param, **kwargs)
-    serializer.is_valid(raise_exception=True)
-    return value
-
-
-class StringOrListField(serializers.ListField):
-    """Serializer field to handle types that are string or list.
-
-    Converts everything to a list.
-    """
-
-    def to_internal_value(self, data):
-        """Handle string data then call super.
-
-        Args:
-            data    (String or List): data to be converted
-        Returns:
-            (List): Transformed data
-        """
-        list_data = data
-        if isinstance(data, str):
-            list_data = [data]
-        return super().to_internal_value(list_data)
-
+OP_FIELDS = ('project', 'cluster', 'node')
 
 class GroupBySerializer(serializers.Serializer):
     """Serializer for handling query parameter group_by."""
@@ -104,6 +50,15 @@ class GroupBySerializer(serializers.Serializer):
             # Add OCP tag keys to allowable fields
             self.fields.update(tag_keys)
 
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -115,6 +70,9 @@ class GroupBySerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
         """
         handle_invalid_fields(self, data)
+        error = validate_and_field(data)
+        if error:
+            raise serializers.ValidationError(error)
         return data
 
 
@@ -207,6 +165,15 @@ class FilterSerializer(serializers.Serializer):
             # Add OCP tag keys to allowable fields
             self.fields.update(tag_keys)
 
+        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                        required=False)
+                      for field in OP_FIELDS}
+        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                      required=False)
+                      for field in OP_FIELDS}
+        self.fields.update(and_fields)
+        self.fields.update(or_fields)
+
     def validate(self, data):
         """Validate incoming data.
 
@@ -218,6 +185,9 @@ class FilterSerializer(serializers.Serializer):
             (ValidationError): if filter inputs are invalid
         """
         handle_invalid_fields(self, data)
+        error = validate_and_field(data)
+        if error:
+            raise serializers.ValidationError(error)
 
         resolution = data.get('resolution')
         time_scope_value = data.get('time_scope_value')
