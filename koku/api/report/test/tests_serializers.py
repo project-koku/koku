@@ -20,7 +20,9 @@ from unittest.mock import Mock
 
 from rest_framework import serializers
 
-from api.report.aws.serializers import (FilterSerializer,
+from api.report.aws.serializers import (FILTER_OP_FIELDS,
+                                        FilterSerializer,
+                                        GROUP_BY_OP_FIELDS,
                                         GroupBySerializer,
                                         OrderBySerializer,
                                         QueryParamSerializer)
@@ -100,6 +102,112 @@ class FilterSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_filter_params_with_or_string_success_single_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'or:account': 'account1',
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_or_string_success_multi_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'or:az': 'az1,az2',
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_or_list_success_single_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'or:service': ['service1'],
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_or_list_success_multi_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'or:region': ['region1', 'region2'],
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_and_string_success(self):
+        """Test that the and: prefix is allowed with a string of items."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'and:product_family': 'fam1,fam2',
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_and_list_success(self):
+        """Test that the and: prefix is allowed with a list."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'and:account': ['account1', 'account2'],
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_filter_params_with_and_string_failure_not_enough_items(self):
+        """Test that the and: prefix fails with too few items in string."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'and:account': 'account1',
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_filter_params_with_and_list_failure_not_enough_items(self):
+        """Test that the and: prefix fails with too few items in list."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'and:account': ['account1'],
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_filter_params_with_and_failure_bad_param(self):
+        """Test that and/or does not work on a field it is not allowed on."""
+        filter_params = {'resolution': 'daily',
+                         'time_scope_value': '-10',
+                         'time_scope_units': 'day',
+                         'and:resolution': 'daily',
+                         'resource_scope': []}
+        serializer = FilterSerializer(data=filter_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_all_filter_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in FILTER_OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = FilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in FILTER_OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = FilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+
 
 class GroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""
@@ -143,6 +251,76 @@ class GroupBySerializerTest(TestCase):
                                        tag_keys=tag_keys)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_group_by_params_with_or_string_success_single_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        group_by_params = {'or:account': 'account1'}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_or_string_success_multi_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        group_by_params = {'or:account': 'account1,account2'}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_or_list_success_single_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        group_by_params = {'or:account': ['account1']}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_or_list_success_multi_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        group_by_params = {'or:account': ['account1', 'account2']}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_and_string_success(self):
+        """Test that the and: prefix is allowed with a string of items."""
+        group_by_params = {'and:account': 'account1,account2'}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_and_list_success(self):
+        """Test that the and: prefix is allowed with a list."""
+        group_by_params = {'and:account': ['account1', 'account2']}
+        serializer = GroupBySerializer(data=group_by_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_group_by_params_with_and_string_failure_not_enough_items(self):
+        """Test that the and: prefix fails with too few items in string."""
+        group_by_params = {'and:account': 'account1'}
+        serializer = GroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_group_by_params_with_and_list_failure_not_enough_items(self):
+        """Test that the and: prefix fails with too few items in list."""
+        group_by_params = {'and:account': ['account1']}
+        serializer = GroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_group_by_params_with_and_failure_bad_param(self):
+        """Test that and/or does not work on a field it is not allowed on."""
+        group_by_params = {'and:resolution': 'daily'}
+        serializer = GroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_all_group_by_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in GROUP_BY_OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = GroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in GROUP_BY_OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = GroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OrderBySerializerTest(TestCase):

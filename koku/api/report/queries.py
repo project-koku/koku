@@ -1064,7 +1064,6 @@ class ReportQueryHandler(QueryHandler):
                         filters.add(q_filter)
         return filters
 
-
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
 

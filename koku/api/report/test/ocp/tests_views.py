@@ -1072,7 +1072,6 @@ class OCPReportViewTest(IamTestCase):
             'filter[resolution]': 'daily'
         }
 
-
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

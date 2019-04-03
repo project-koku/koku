@@ -15,16 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP tag serializer logic."""
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
                                     handle_invalid_fields,
-                                    validate_field,
-                                    validate_and_field)
+                                    validate_and_field,
+                                    validate_field)
 
 OCP_FILTER_OP_FIELDS = ('project')
 AWS_FILTER_OP_FIELDS = ('account')
+
 
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
@@ -106,7 +106,6 @@ class OCPFilterSerializer(FilterSerializer):
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
-
         super().__init__(*args, **kwargs)
 
         and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
@@ -114,7 +113,7 @@ class OCPFilterSerializer(FilterSerializer):
                       for field in OCP_FILTER_OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in OCP_FILTER_OP_FIELDS}
+                     for field in OCP_FILTER_OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 
@@ -127,7 +126,6 @@ class AWSFilterSerializer(FilterSerializer):
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWSFilterSerializer."""
-
         super().__init__(*args, **kwargs)
 
         and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
@@ -135,7 +133,7 @@ class AWSFilterSerializer(FilterSerializer):
                       for field in AWS_FILTER_OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in AWS_FILTER_OP_FIELDS}
+                     for field in AWS_FILTER_OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 

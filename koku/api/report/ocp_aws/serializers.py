@@ -45,9 +45,10 @@ class OCPAWSGroupBySerializer(GroupBySerializer):
                       for field in OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in OP_FIELDS}
+                     for field in OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
+
 
 class OCPAWSOrderBySerializer(OrderBySerializer):
     """Serializer for handling query parameter order_by."""
@@ -80,7 +81,7 @@ class OCPAWSFilterSerializer(FilterSerializer):
                       for field in OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in OP_FIELDS}
+                     for field in OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 

@@ -24,6 +24,7 @@ from api.report.ocp.serializers import (FilterSerializer,
                                         OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer,
                                         OCPQueryParamSerializer,
+                                        OP_FIELDS,
                                         OrderBySerializer)
 
 
@@ -122,6 +123,19 @@ class OCPFilterSerializerTest(TestCase):
         serializer = FilterSerializer(data=query_params)
         self.assertFalse(serializer.is_valid())
 
+    def test_all_filter_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = FilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = FilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+
 
 class OCPGroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""
@@ -165,6 +179,19 @@ class OCPGroupBySerializerTest(TestCase):
                                        tag_keys=tag_keys)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_all_group_by_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = GroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = GroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OCPOrderBySerializerTest(TestCase):

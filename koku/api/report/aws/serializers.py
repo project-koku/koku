@@ -20,8 +20,8 @@ from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
                                     handle_invalid_fields,
-                                    validate_field,
-                                    validate_and_field)
+                                    validate_and_field,
+                                    validate_field)
 from api.utils import UnitConverter
 
 GROUP_BY_OP_FIELDS = ('account', 'az', 'instance_type', 'region',
@@ -65,10 +65,9 @@ class GroupBySerializer(serializers.Serializer):
                       for field in GROUP_BY_OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in GROUP_BY_OP_FIELDS}
+                     for field in GROUP_BY_OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
-
 
     def validate(self, data):
         """Validate incoming data.
@@ -167,7 +166,7 @@ class FilterSerializer(serializers.Serializer):
                       for field in FILTER_OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in FILTER_OP_FIELDS}
+                     for field in FILTER_OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 

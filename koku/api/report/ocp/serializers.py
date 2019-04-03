@@ -21,11 +21,12 @@ from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
                                     handle_invalid_fields,
-                                    validate_field,
-                                    validate_and_field)
+                                    validate_and_field,
+                                    validate_field)
 from api.utils import UnitConverter
 
 OP_FIELDS = ('project', 'cluster', 'node')
+
 
 class GroupBySerializer(serializers.Serializer):
     """Serializer for handling query parameter group_by."""
@@ -55,7 +56,7 @@ class GroupBySerializer(serializers.Serializer):
                       for field in OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in OP_FIELDS}
+                     for field in OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 
@@ -170,7 +171,7 @@ class FilterSerializer(serializers.Serializer):
                       for field in OP_FIELDS}
         or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
                                                       required=False)
-                      for field in OP_FIELDS}
+                     for field in OP_FIELDS}
         self.fields.update(and_fields)
         self.fields.update(or_fields)
 

@@ -61,7 +61,7 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 def validate_and_field(data):
     """Validate that enough values are provided for use of and."""
     error = {}
-    and_data = {key:value for key, value in data.items() if key[0:4] == 'and:'}
+    and_data = {key: value for key, value in data.items() if key[0:4] == 'and:'}
     for key, values in and_data.items():
         if len(values) < 2:
             error = {key: 'and: fields require at least 2 values.'}
