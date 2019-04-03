@@ -97,7 +97,7 @@ class QueryFilter(UserDict):
 
     def __eq__(self, other):
         """Exact comparison."""
-        return self.data == other.data
+        return self.data == other.data and self.logical_operator == other.logical_operator
 
     def __repr__(self):
         """Return string representation."""
