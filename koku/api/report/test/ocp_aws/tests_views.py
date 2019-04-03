@@ -715,14 +715,14 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_limit_pagination(self):
         """Test that the default pagination works with a limit."""
-        limit = 5
-        start_date = self.dh.this_month_start.date().strftime('%Y-%m-%d')
+        limit = 2
+        start_date = self.ten_days_ago.date().strftime('%Y-%m-%d')
         url = reverse('reports-openshift-aws-instance-type')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
             'limit': limit
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
@@ -735,7 +735,6 @@ class OCPAWSReportViewTest(IamTestCase):
         count = meta.get('count', 0)
 
         self.assertIn('total', meta)
-        self.assertIn('filter', meta)
         self.assertIn('count', meta)
 
         self.assertNotEqual(len(data), count)
@@ -747,17 +746,17 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_execute_query_limit_offset_pagination(self):
         """Test that the default pagination works with an offset."""
-        limit = 5
-        offset = 5
-        start_date = (self.dh.this_month_start + datetime.timedelta(days=5))\
+        limit = 1
+        offset = 1
+        start_date = (self.ten_days_ago + datetime.timedelta(days=offset))\
             .date()\
             .strftime('%Y-%m-%d')
         url = reverse('reports-openshift-aws-instance-type')
         client = APIClient()
         params = {
             'filter[resolution]': 'daily',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
             'limit': limit,
             'offset': offset
         }
@@ -771,7 +770,6 @@ class OCPAWSReportViewTest(IamTestCase):
         count = meta.get('count', 0)
 
         self.assertIn('total', meta)
-        self.assertIn('filter', meta)
         self.assertIn('count', meta)
 
         self.assertNotEqual(len(data), count)
