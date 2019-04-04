@@ -1407,3 +1407,55 @@ class OCPReportViewTest(IamTestCase):
                 self.assertEqual(len(projects), max((count - offset), 0))
             else:
                 self.assertEqual(len(projects), limit)
+
+    def test_execute_query_with_and_filter(self):
+        """Test the filter[and:] param in the view."""
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+
+        with tenant_context(self.tenant):
+            projects = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .values('namespace').distinct()
+            projects = [project.get('namespace') for project in projects]
+
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'filter[and:project]': projects
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        for entry in data:
+            self.assertEqual(entry.get('values'), [])
+
+    def test_execute_query_with_and_group_by(self):
+        """Test the group_by[and:] param in the view."""
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        self.data_generator.add_data_to_tenant()
+
+        with tenant_context(self.tenant):
+            clusters = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .values('cluster_id').distinct()
+            clusters = [cluster.get('cluster_id') for cluster in clusters]
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'group_by[and:cluster]': clusters
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        data = response_data.get('data', [])
+        for entry in data:
+            self.assertEqual(entry.get('clusters'), [])

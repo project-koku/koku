@@ -36,6 +36,7 @@ class AWSTagsViewTest(IamTestCase):
         """Set up the test class."""
         super().setUpClass()
         cls.dh = DateHelper()
+        cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
     def setUp(self):
         """Set up the customer view tests."""
@@ -110,3 +111,21 @@ class AWSTagsViewTest(IamTestCase):
 
             self.assertEqual(data.get('data'), [])
             self.assertTrue(isinstance(data.get('data'), list))
+
+    def test_execute_query_with_and_filter(self):
+        """Test the filter[and:] param in the view."""
+        url = reverse('aws-tags')
+        client = APIClient()
+
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            'filter[and:account]': ['account1', 'account2']
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_data = response.json()
+        self.assertEqual(response_data.get('data', []), [])
