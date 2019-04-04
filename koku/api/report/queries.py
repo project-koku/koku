@@ -1344,11 +1344,12 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def _ranked_list(self, data_list):
+    def _ranked_list(self, data_list, exclusions=[]):
         """Get list of ranked items less than top.
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
+            exclusions (List): A list of column names to exclude from the "others"
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
@@ -1361,12 +1362,13 @@ class ReportQueryHandler(QueryHandler):
         for date in date_grouped_data:
             ranked_list = self._perform_rank_summation(
                 date_grouped_data[date],
-                is_offset)
+                is_offset,
+                exclusions)
             rank_limited_data[date] = ranked_list
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    def _perform_rank_summation(self, entry, is_offset):
+    def _perform_rank_summation(self, entry, is_offset, exclusions):
         """Do the actual rank limiting for rank_list."""
         other = None
         ranked_list = []
@@ -1396,9 +1398,7 @@ class ReportQueryHandler(QueryHandler):
             if 'account' in group_by:
                 other['account_alias'] = others_label
 
-            # don't include these in the "others" data.
-            not_others = ['cluster_alias', 'cluster']
-            for exclude in not_others:
+            for exclude in exclusions:
                 if exclude in other:
                     del other[exclude]
 
