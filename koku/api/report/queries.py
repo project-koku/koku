@@ -1395,8 +1395,13 @@ class ReportQueryHandler(QueryHandler):
                 other[group] = others_label
             if 'account' in group_by:
                 other['account_alias'] = others_label
-            if 'cluster_alias' in other:
-                del other['cluster_alias']
+
+            # don't include these in the "others" data.
+            not_others = ['cluster_alias', 'cluster']
+            for exclude in not_others:
+                if exclude in other:
+                    del other[exclude]
+
             ranked_list.append(other)
 
         return ranked_list
