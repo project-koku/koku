@@ -1368,7 +1368,8 @@ class ReportQueryHandler(QueryHandler):
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
-    def _perform_rank_summation(self, entry, is_offset, exclusions):
+    # needs refactoring, but disabling pylint's complexity check for now.
+    def _perform_rank_summation(self, entry, is_offset, exclusions):    # noqa: C901
         """Do the actual rank limiting for rank_list."""
         other = None
         ranked_list = []
