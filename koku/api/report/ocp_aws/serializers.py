@@ -23,7 +23,7 @@ from api.report.aws.serializers import (FilterSerializer,
                                         QueryParamSerializer,
                                         validate_field)
 from api.report.ocp.serializers import OP_FIELDS
-from api.report.serializers import StringOrListField
+from api.report.serializers import StringOrListField, add_operator_specified_fields
 
 
 class OCPAWSGroupBySerializer(GroupBySerializer):
@@ -39,15 +39,7 @@ class OCPAWSGroupBySerializer(GroupBySerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCPAWSGroupBySerializer."""
         super().__init__(*args, **kwargs)
-
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, OP_FIELDS)
 
 
 class OCPAWSOrderBySerializer(OrderBySerializer):
@@ -75,15 +67,7 @@ class OCPAWSFilterSerializer(FilterSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCPAWSGroupBySerializer."""
         super().__init__(*args, **kwargs)
-
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, OP_FIELDS)
 
 
 class OCPAWSQueryParamSerializer(QueryParamSerializer):

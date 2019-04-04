@@ -19,6 +19,7 @@ from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
+                                    add_operator_specified_fields,
                                     handle_invalid_fields,
                                     validate_and_field,
                                     validate_field)
@@ -60,14 +61,7 @@ class GroupBySerializer(serializers.Serializer):
             # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in GROUP_BY_OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in GROUP_BY_OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, GROUP_BY_OP_FIELDS)
 
     def validate(self, data):
         """Validate incoming data.
@@ -161,14 +155,7 @@ class FilterSerializer(serializers.Serializer):
             # Add AWS tag keys to allowable fields
             self.fields.update(tag_keys)
 
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in FILTER_OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in FILTER_OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, FILTER_OP_FIELDS)
 
     def validate(self, data):
         """Validate incoming data.

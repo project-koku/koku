@@ -69,6 +69,19 @@ def validate_and_field(data):
     return error
 
 
+def add_operator_specified_fields(fields, field_list):
+    """Add the specified and: and or: fields to the serialzer."""
+    and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
+                                                    required=False)
+                  for field in field_list}
+    or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
+                                                  required=False)
+                 for field in field_list}
+    fields.update(and_fields)
+    fields.update(or_fields)
+    return fields
+
+
 class StringOrListField(serializers.ListField):
     """Serializer field to handle types that are string or list.
 

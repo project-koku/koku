@@ -18,6 +18,7 @@
 from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
+                                    add_operator_specified_fields,
                                     handle_invalid_fields,
                                     validate_and_field,
                                     validate_field)
@@ -107,15 +108,7 @@ class OCPFilterSerializer(FilterSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCPFilterSerializer."""
         super().__init__(*args, **kwargs)
-
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in OCP_FILTER_OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in OCP_FILTER_OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, OCP_FILTER_OP_FIELDS)
 
 
 class AWSFilterSerializer(FilterSerializer):
@@ -127,15 +120,7 @@ class AWSFilterSerializer(FilterSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the AWSFilterSerializer."""
         super().__init__(*args, **kwargs)
-
-        and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
-                                                        required=False)
-                      for field in AWS_FILTER_OP_FIELDS}
-        or_fields = {'or:' + field: StringOrListField(child=serializers.CharField(),
-                                                      required=False)
-                     for field in AWS_FILTER_OP_FIELDS}
-        self.fields.update(and_fields)
-        self.fields.update(or_fields)
+        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS)
 
 
 class TagsQueryParamSerializer(serializers.Serializer):
