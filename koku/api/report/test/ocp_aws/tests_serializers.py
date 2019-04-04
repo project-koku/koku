@@ -20,7 +20,8 @@ from unittest import TestCase
 from api.report.ocp_aws.serializers import (OCPAWSFilterSerializer,
                                             OCPAWSGroupBySerializer,
                                             OCPAWSOrderBySerializer,
-                                            OCPAWSQueryParamSerializer)
+                                            OCPAWSQueryParamSerializer,
+                                            OP_FIELDS)
 
 
 class OCPAWSFilterSerializerTest(TestCase):
@@ -53,6 +54,19 @@ class OCPAWSFilterSerializerTest(TestCase):
         serializer = OCPAWSFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
+    def test_all_filter_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = OCPAWSFilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = OCPAWSFilterSerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+
 
 class OCPAWSGroupBySerializerTest(TestCase):
     """Tests for the group_by serializer."""
@@ -74,6 +88,19 @@ class OCPAWSGroupBySerializerTest(TestCase):
         group_params = {'node': ['*']}
         serializer = OCPAWSGroupBySerializer(data=group_params)
         self.assertTrue(serializer.is_valid())
+
+    def test_all_group_by_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OP_FIELDS:
+            field = 'and:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = OCPAWSGroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OP_FIELDS:
+            field = 'or:' + field
+            filter_param = {field: ['1', '2']}
+            serializer = OCPAWSGroupBySerializer(data=filter_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OCPAWSOrderBySerializerTest(TestCase):
