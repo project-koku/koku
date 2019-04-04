@@ -18,8 +18,7 @@
 import copy
 import datetime
 import logging
-
-from querystring_parser import parser
+from collections import OrderedDict
 
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
@@ -82,42 +81,47 @@ class QueryHandler(object):
 
     @property
     def query_parameters(self):
+        """Return the query parameters."""
         return self._query_parameters
 
     @query_parameters.setter
     def query_parameters(self, new_value):
-        if not new_value:
-            default_query = ('filter[time_scope_units]=day&'
-                             'filter[time_scope_value]=-10&'
-                             'filter[resolution]=daily')
-            new_value = parser.parse(default_query)
-        else:
-            default_query = ''
+        """Set the default filter parameters in addition to new_value."""
+        time_scope_units = None
+        time_scope_value = None
+        resolution = None
+
+        if new_value == '':
+            new_value = {}
+
+        if new_value.get('filter'):
             time_scope_units = new_value.get('filter').get('time_scope_units')
             time_scope_value = new_value.get('filter').get('time_scope_value')
             resolution = new_value.get('filter').get('resolution')
-            import pdb; pdb.set_trace()
+        else:
+            new_value['filter'] = OrderedDict()
 
-            if not time_scope_value:
-                if time_scope_units is 'month':
-                    time_scope_value = -1
-                else:
-                    time_scope_value = -10
+        if not time_scope_value:
+            if time_scope_units == 'month':
+                time_scope_value = -1
+            else:
+                time_scope_value = -10
 
-            if not time_scope_units:
-                if int(time_scope_value) in [-1, -2]:
-                    time_scope_units = 'month'
-                else:
-                    time_scope_units = 'day'
+        if not time_scope_units:
+            if int(time_scope_value) in [-1, -2]:
+                time_scope_units = 'month'
+            else:
+                time_scope_units = 'day'
 
-            if not resolution:
-                if int(time_scope_value) in [-1, -2]:
-                    resolution = 'monthly'
-                else:
-                    resolution = 'daily'
-            
-            default_query = 'filter[time_scope_units]={}&filter[time_scope_value]={}&filter[resolution]={}'.format(str(time_scope_units), time_scope_value, resolution)
-            new_value = parser.parse(default_query)
+        if not resolution:
+            if int(time_scope_value) in [-1, -2]:
+                resolution = 'monthly'
+            else:
+                resolution = 'daily'
+
+        new_value.get('filter').update({'time_scope_value': str(time_scope_value),
+                                        'time_scope_units': str(time_scope_units),
+                                        'resolution': str(resolution)})
 
         self._query_parameters = new_value
 
