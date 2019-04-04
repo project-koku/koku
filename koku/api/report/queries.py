@@ -1000,7 +1000,7 @@ class ReportQueryHandler(QueryHandler):
         filters = self._set_tag_filters(filters)
 
         composed_filters = filters.compose()
-        LOG.info(f'_get_search_filter: {composed_filters}')
+        LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
 
     def _set_tag_filters(self, filters):
