@@ -37,6 +37,16 @@ from .provider_manager import ProviderManager
 LOG = logging.getLogger(__name__)
 
 
+class ProviderFilter(filters.FilterSet):
+    """Provider custom filters."""
+
+    name = filters.CharFilter(lookup_expr='icontains')
+
+    class Meta:
+        model = Provider
+        fields = ['type']
+
+
 class ProviderDeleteException(APIException):
     """Provider deletion custom internal error exception."""
 
@@ -63,7 +73,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     queryset = Provider.objects.all()
     permission_classes = (AllowAny,)
     filter_backends = (filters.DjangoFilterBackend,)
-    filterset_fields = ('type', 'name')
+    filterset_class = ProviderFilter
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""

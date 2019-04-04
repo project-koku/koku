@@ -189,6 +189,40 @@ class ProviderViewTest(IamTestCase):
         self.assertEqual(json_result.get('stats'), {})
         self.assertEqual(json_result.get('infrastructure'), 'Unknown')
 
+    def test_filter_providers_by_name_contains(self):
+        """Test that providers that contain name appear."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+        url = '%s?mame=provider' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 1)
+
+    def test_filter_providers_by_name_not_contain(self):
+        """Test that all providers that do not contain name will not appear."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        create_response = self.create_provider(bucket_name, iam_arn, )
+        provider_result = create_response.json()
+        provider_uuid = provider_result.get('uuid')
+        self.assertIsNotNone(provider_uuid)
+        url = '%s?name=blabla' % reverse('provider-list')
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 0)
+
     def test_get_provider_other_customer(self):
         """Test get a provider for another customer should fail."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
