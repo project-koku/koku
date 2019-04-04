@@ -1395,6 +1395,8 @@ class ReportQueryHandler(QueryHandler):
                 other[group] = others_label
             if 'account' in group_by:
                 other['account_alias'] = others_label
+            if 'cluster_alias' in other:
+                del other['cluster_alias']
             ranked_list.append(other)
 
         return ranked_list
