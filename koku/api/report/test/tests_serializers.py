@@ -162,27 +162,24 @@ class FilterSerializerTest(TestCase):
         serializer = FilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
-    def test_filter_params_with_and_string_failure_not_enough_items(self):
-        """Test that the and: prefix fails with too few items in string."""
+    def test_filter_params_with_and_string_success_single_item(self):
+        """Test that the and: prefix succeeds with one item."""
         filter_params = {'resolution': 'daily',
                          'time_scope_value': '-10',
                          'time_scope_units': 'day',
                          'and:account': 'account1',
                          'resource_scope': []}
         serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        self.assertTrue(serializer.is_valid())
 
-    def test_filter_params_with_and_list_failure_not_enough_items(self):
-        """Test that the and: prefix fails with too few items in list."""
+    def test_filter_params_with_and_list_success_single_item(self):
+        """Test that the and: prefix succeeds with one item."""
         filter_params = {'resolution': 'daily',
                          'time_scope_value': '-10',
                          'time_scope_units': 'day',
                          'and:account': ['account1'],
                          'resource_scope': []}
         serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
 
     def test_filter_params_with_and_failure_bad_param(self):
         """Test that and/or does not work on a field it is not allowed on."""
@@ -288,19 +285,17 @@ class GroupBySerializerTest(TestCase):
         serializer = GroupBySerializer(data=group_by_params)
         self.assertTrue(serializer.is_valid())
 
-    def test_group_by_params_with_and_string_failure_not_enough_items(self):
-        """Test that the and: prefix fails with too few items in string."""
+    def test_group_by_params_with_and_string_success_single_item(self):
+        """Test that the and: prefix is okay with one item."""
         group_by_params = {'and:account': 'account1'}
         serializer = GroupBySerializer(data=group_by_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        self.assertTrue(serializer.is_valid())
 
-    def test_group_by_params_with_and_list_failure_not_enough_items(self):
-        """Test that the and: prefix fails with too few items in list."""
+    def test_group_by_params_with_and_list_success_single_item(self):
+        """Test that the and: prefix is okay with one item."""
         group_by_params = {'and:account': ['account1']}
         serializer = GroupBySerializer(data=group_by_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        self.assertTrue(serializer.is_valid())
 
     def test_group_by_params_with_and_failure_bad_param(self):
         """Test that and/or does not work on a field it is not allowed on."""

@@ -58,17 +58,6 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     return value
 
 
-def validate_and_field(data):
-    """Validate that enough values are provided for use of and."""
-    error = {}
-    and_data = {key: value for key, value in data.items() if key[0:4] == 'and:'}
-    for key, values in and_data.items():
-        if len(values) < 2:
-            error = {key: 'and: fields require at least 2 values.'}
-            break
-    return error
-
-
 def add_operator_specified_fields(fields, field_list):
     """Add the specified and: and or: fields to the serialzer."""
     and_fields = {'and:' + field: StringOrListField(child=serializers.CharField(),
