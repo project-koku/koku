@@ -142,8 +142,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 rank_by_total = self.get_rank_window_function(group_by_value)
                 query_data = query_data.annotate(rank=rank_by_total)
                 query_order_by.insert(1, 'rank')
-                query_data = self._ranked_list(query_data,
-                                               exclusions=['cluster_alias', 'cluster'])
+                query_data = self._ranked_list(query_data)
 
             # Populate the 'total' section of the API response
             if query.exists():
@@ -167,8 +166,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if is_csv_output:
                 if self._limit:
-                    data = self._ranked_list(list(query_data),
-                                             exclusions=['cluster_alias', 'cluster'])
+                    data = self._ranked_list(list(query_data))
                 else:
                     data = list(query_data)
             else:

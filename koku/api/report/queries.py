@@ -1344,7 +1344,7 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def _ranked_list(self, data_list, exclusions=[]):
+    def _ranked_list(self, data_list):
         """Get list of ranked items less than top.
 
         Args:
@@ -1369,7 +1369,7 @@ class ReportQueryHandler(QueryHandler):
         return self.unpack_date_grouped_data(rank_limited_data)
 
     # needs refactoring, but disabling pylint's complexity check for now.
-    def _perform_rank_summation(self, entry, is_offset, exclusions):    # noqa: C901
+    def _perform_rank_summation(self, entry, is_offset):    # noqa: C901
         """Do the actual rank limiting for rank_list."""
         other = None
         ranked_list = []
@@ -1389,15 +1389,25 @@ class ReportQueryHandler(QueryHandler):
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
             others_label = '{} Others'.format(num_others)
+
             if num_others == 1:
                 others_label = '{} Other'.format(num_others)
+
             other.update(other_sums)
             other['rank'] = self._limit + 1
             group_by = self._get_group_by()
+
             for group in group_by:
                 other[group] = others_label
+
             if 'account' in group_by:
                 other['account_alias'] = others_label
+
+            if 'cluster' in group_by:
+                other['cluster_alias'] = others_label
+                exclusions = []
+            else:
+                exclusions = ['cluster', 'cluster_alias']
 
             for exclude in exclusions:
                 if exclude in other:
