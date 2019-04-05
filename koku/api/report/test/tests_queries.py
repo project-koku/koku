@@ -2100,11 +2100,13 @@ class ReportQueryTest(IamTestCase):
 
         query_params = {'filter': {'resolution': 'monthly',
                                    'time_scope_value': -1,
-                                   'time_scope_units': 'month'},
+                                   'time_scope_units': 'month',
+                                   'limit': 3},
                         'group_by': {'cluster': ['*']}}
         query_string = '?filter[resolution]=monthly&' + \
                        'filter[time_scope_value]=-1&' + \
                        'filter[time_scope_units]=month&' + \
+                       'filter[limit]=3&' + \
                        'group_by[cluster]=*'
 
         handler = OCPReportQueryHandler(
