@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the project middleware."""
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import (UserSerializer,
@@ -144,3 +144,18 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                               email=self.user_data['email'],
                                               customer=customer,
                                               request=mock_request)
+
+    @patch('koku.rbac.RbacService.get_access_for_user')
+    def test_process_non_admin(self, get_access_mock):
+        """Test case for process_request as a non-admin user, verify that _get_access_for_user is called."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                       create_tenant=True, is_admin=False)
+        mock_request = request_context['request']
+        mock_request.path = '/api/v1/providers/'
+        mock_request.META['QUERY_STRING'] = ''
+
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        get_access_mock.assert_called()
