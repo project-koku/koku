@@ -2095,8 +2095,8 @@ class ReportQueryTest(IamTestCase):
 
     def test_ocp_cpu_query_group_by_cluster(self):
         """Test that group by cluster includes cluster and cluster_alias."""
-        data_generator = OCPReportDataGenerator(self.tenant)
-        data_generator.add_data_to_tenant()
+        for _ in range(1, 5):
+            OCPReportDataGenerator(self.tenant).add_data_to_tenant()
 
         query_params = {'filter': {'resolution': 'monthly',
                                    'time_scope_value': -1,
