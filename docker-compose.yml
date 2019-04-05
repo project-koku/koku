@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  server:
+  koku-server:
       build:
           context: .
           dockerfile: Dockerfile-env
@@ -19,8 +19,11 @@ services:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
-        - DEVELOPMENT=True
-        - DJANGO_DEBUG=True
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - DJANGO_DEBUG=${DJANGO_DEBUG-True}
+        - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
+        - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-8000}
+        - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
       privileged: true
       ports:
           - 8000:8000
