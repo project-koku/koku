@@ -1349,7 +1349,6 @@ class ReportQueryHandler(QueryHandler):
 
         Args:
             data_list (List(Dict)): List of ranked data points from the same bucket
-            exclusions (List): A list of column names to exclude from the "others"
         Returns:
             List(Dict): List of data points meeting the rank criteria
         """
@@ -1407,6 +1406,8 @@ class ReportQueryHandler(QueryHandler):
                 other['cluster_alias'] = others_label
                 exclusions = []
             else:
+                # delete these labels from the Others category if we're not
+                # grouping by cluster.
                 exclusions = ['cluster', 'cluster_alias']
 
             for exclude in exclusions:
