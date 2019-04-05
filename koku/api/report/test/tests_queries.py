@@ -33,8 +33,9 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.queries import strip_tag_prefix
-# from api.report.view import get_tag_keys
+from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
@@ -45,7 +46,6 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
-# from reporting.provider.aws.models import AWSTagsSummary
 
 
 class FakeAWSCostData(object):
@@ -2092,3 +2092,38 @@ class ReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    def test_ocp_cpu_query_group_by_cluster(self):
+        """Test that group by cluster includes cluster and cluster_alias."""
+        for _ in range(1, 5):
+            OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month',
+                                   'limit': 3},
+                        'group_by': {'cluster': ['*']}}
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&' + \
+                       'filter[limit]=3&' + \
+                       'group_by[cluster]=*'
+
+        handler = OCPReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'cpu'}
+        )
+
+        query_data = handler.execute_query()
+        for data in query_data.get('data'):
+            self.assertIn('clusters', data)
+            for cluster_data in data.get('clusters'):
+                self.assertIn('cluster', cluster_data)
+                self.assertIn('values', cluster_data)
+                for cluster_value in cluster_data.get('values'):
+                    self.assertIn('cluster', cluster_value)
+                    self.assertIn('cluster_alias', cluster_value)
+                    self.assertIsNotNone('cluster', cluster_value)
+                    self.assertIsNotNone('cluster_alias', cluster_value)
