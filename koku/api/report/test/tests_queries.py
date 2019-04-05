@@ -2107,7 +2107,6 @@ class ReportQueryTest(IamTestCase):
                        'filter[time_scope_units]=month&' + \
                        'group_by[cluster]=*'
 
-
         handler = OCPReportQueryHandler(
             query_params,
             query_string,
