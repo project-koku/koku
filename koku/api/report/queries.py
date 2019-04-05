@@ -993,6 +993,9 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
 
+        # Update filters that specifiy and or or in the query parameter
+        filters = self._set_operator_specified_filters(filters, 'and')
+        filters = self._set_operator_specified_filters(filters, 'or')
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
 
@@ -1029,6 +1032,36 @@ class ReportQueryHandler(QueryHandler):
                 q_filter = QueryFilter(parameter=strip_tag_prefix(tag),
                                        **wild_card_filt)
                 filters.add(q_filter)
+        return filters
+
+    def _set_operator_specified_filters(self, filters, operator):
+        """Set any filters using AND instead of OR."""
+        fields = self._mapper._provider_map.get('filters')
+
+        for q_param, filt in fields.items():
+            q_param = operator + ':' + q_param
+            group_by = self.get_query_param_data('group_by', q_param, list())
+            filter_ = self.get_query_param_data('filter', q_param, list())
+            list_ = list(set(group_by + filter_))    # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                if isinstance(filt, list):
+                    for _filt in filt:
+                        for item in list_:
+                            q_filter = QueryFilter(
+                                parameter=item,
+                                logical_operator=operator,
+                                **_filt
+                            )
+                            filters.add(q_filter)
+                else:
+                    list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
+                    for item in list_:
+                        q_filter = QueryFilter(
+                            parameter=item,
+                            logical_operator=operator,
+                            **filt
+                        )
+                        filters.add(q_filter)
         return filters
 
     def _get_filter(self, delta=False):
@@ -1082,6 +1115,10 @@ class ReportQueryHandler(QueryHandler):
         group_by = []
         for item in self.group_by_options:
             group_data = self.get_query_param_data('group_by', item)
+            if not group_data:
+                group_data = self.get_query_param_data('group_by', 'and:' + item)
+            if not group_data:
+                group_data = self.get_query_param_data('group_by', 'or:' + item)
             if group_data:
                 group_pos = self.url_data.index(item)
                 group_by.append((item, group_pos))

@@ -22,7 +22,8 @@ from api.report.aws.serializers import (FilterSerializer,
                                         OrderBySerializer,
                                         QueryParamSerializer,
                                         validate_field)
-from api.report.serializers import StringOrListField
+from api.report.ocp.serializers import OP_FIELDS
+from api.report.serializers import StringOrListField, add_operator_specified_fields
 
 
 class OCPAWSGroupBySerializer(GroupBySerializer):
@@ -34,6 +35,11 @@ class OCPAWSGroupBySerializer(GroupBySerializer):
                                 required=False)
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCPAWSGroupBySerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, OP_FIELDS)
 
 
 class OCPAWSOrderBySerializer(OrderBySerializer):
@@ -57,6 +63,11 @@ class OCPAWSFilterSerializer(FilterSerializer):
                                 required=False)
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCPAWSGroupBySerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, OP_FIELDS)
 
 
 class OCPAWSQueryParamSerializer(QueryParamSerializer):
