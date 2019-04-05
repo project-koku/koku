@@ -1361,8 +1361,7 @@ class ReportQueryHandler(QueryHandler):
         for date in date_grouped_data:
             ranked_list = self._perform_rank_summation(
                 date_grouped_data[date],
-                is_offset,
-                exclusions)
+                is_offset)
             rank_limited_data[date] = ranked_list
 
         return self.unpack_date_grouped_data(rank_limited_data)
