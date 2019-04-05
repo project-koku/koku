@@ -18,11 +18,11 @@
 import copy
 import logging
 
-from django.db.models import Count
+from django.db.models import Count, Q
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
-from api.query_filter import QueryFilter
+from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
@@ -100,40 +100,50 @@ class TagQueryHandler(QueryHandler):
                         filters.add(q_filter)
 
         # Update filters that specifiy and or or in the query parameter
-        filters = self._set_operator_specified_filters(filters, 'and')
-        filters = self._set_operator_specified_filters(filters, 'or')
+        and_composed_filters = self._set_operator_specified_filters('and')
+        or_composed_filters = self._set_operator_specified_filters('or')
 
         composed_filters = filters.compose()
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
 
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
-    def _set_operator_specified_filters(self, filters, operator):
+    def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
+        filters = QueryFilterCollection()
+        composed_filter = Q()
         for filter_key in SUPPORTED_FILTERS:
             operator_key = operator + ':' + filter_key
             filter_value = self.get_query_param_data('filter', operator_key)
+            logical_operator = operator
+            if filter_value and len(filter_value) < 2:
+                logical_operator = 'or'
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
+                        filt_filters = QueryFilterCollection()
                         for item in filter_value:
                             q_filter = QueryFilter(
                                 parameter=item,
-                                logical_operator=operator,
+                                logical_operator=logical_operator,
                                 **_filt
                             )
-                            filters.add(q_filter)
+                            filt_filters.add(q_filter)
+                        composed_filter = composed_filter | filt_filters.compose()
                 else:
                     for item in filter_value:
                         q_filter = QueryFilter(
                             parameter=item,
-                            logical_operator=operator,
+                            logical_operator=logical_operator,
                             **filter_obj
                         )
                         filters.add(q_filter)
+        if filters:
+            composed_filter = composed_filter & filters.compose()
 
-        return filters
+        return composed_filter
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""

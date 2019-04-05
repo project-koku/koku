@@ -42,7 +42,7 @@ LOG = logging.getLogger(__name__)
 
 def strip_tag_prefix(tag):
     """Remove the query tag prefix from a tag key."""
-    return tag.replace('tag:', '')
+    return tag.replace('tag:', '').replace('and:', '').replace('or:', '')
 
 
 class ProviderMap(object):
@@ -993,13 +993,16 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
 
-        # Update filters that specifiy and or or in the query parameter
-        filters = self._set_operator_specified_filters(filters, 'and')
-        filters = self._set_operator_specified_filters(filters, 'or')
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
+        filters = self._set_operator_sepecified_tag_filters(filters, 'and')
+        filters = self._set_operator_sepecified_tag_filters(filters, 'or')
 
+        # Update filters that specifiy and or or in the query parameter
+        and_composed_filters = self._set_operator_specified_filters('and')
+        or_composed_filters = self._set_operator_specified_filters('or')
         composed_filters = filters.compose()
+        composed_filters = composed_filters & and_composed_filters & or_composed_filters
         LOG.debug(f'_get_search_filter: {composed_filters}')
         return composed_filters
 
@@ -1009,7 +1012,8 @@ class ReportQueryHandler(QueryHandler):
         tag_filters = self.get_tag_filter_keys()
         tag_group_by = self.get_tag_group_by_keys()
         tag_filters.extend(tag_group_by)
-
+        tag_filters = [tag for tag in tag_filters
+                       if 'and:' not in tag and 'or:' not in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
@@ -1034,35 +1038,88 @@ class ReportQueryHandler(QueryHandler):
                 filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_filters(self, filters, operator):
+    def _set_operator_sepecified_tag_filters(self, filters, operator):
+        """Create tag_filters."""
+        tag_column = self._mapper.tag_column
+        tag_filters = self.get_tag_filter_keys()
+        tag_group_by = self.get_tag_group_by_keys()
+        tag_filters.extend(tag_group_by)
+        tag_filters = [tag for tag in tag_filters if operator + ':' in tag]
+        for tag in tag_filters:
+            # Update the filter to use the label column name
+            tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
+            filt = {
+                'field': tag_db_name,
+                'operation': 'icontains'
+            }
+            group_by = self.get_query_param_data('group_by', tag, list())
+            filter_ = self.get_query_param_data('filter', tag, list())
+            list_ = list(set(group_by + filter_))  # uniquify the list
+            if list_ and not ReportQueryHandler.has_wildcard(list_):
+                for item in list_:
+                    q_filter = QueryFilter(
+                        parameter=item,
+                        logical_operator=operator,
+                        **filt
+                    )
+                    filters.add(q_filter)
+        return filters
+
+    def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
         fields = self._mapper._provider_map.get('filters')
+        filters = QueryFilterCollection()
+        composed_filter = Q()
 
         for q_param, filt in fields.items():
             q_param = operator + ':' + q_param
             group_by = self.get_query_param_data('group_by', q_param, list())
             filter_ = self.get_query_param_data('filter', q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
+            logical_operator = operator
+            # This is a flexibilty feature allowing a user to set
+            # a single and: value and still get a result instead
+            # of erroring on validation
+            if len(list_) < 2:
+                logical_operator = 'or'
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 if isinstance(filt, list):
                     for _filt in filt:
+                        filt_filters = QueryFilterCollection()
                         for item in list_:
                             q_filter = QueryFilter(
                                 parameter=item,
-                                logical_operator=operator,
+                                logical_operator=logical_operator,
                                 **_filt
                             )
-                            filters.add(q_filter)
+                            filt_filters.add(q_filter)
+                        # List filter are a complex mix of and/or logic
+                        # Each filter in the list must be ORed together
+                        # regardless of the operator on the item in the filter
+                        # Ex:
+                        # (OR:
+                        #     (AND:
+                        #         ('cluster_alias__icontains', 'ni'),
+                        #         ('cluster_alias__icontains', 'se')
+                        #     ),
+                        #     (AND:
+                        #         ('cluster_id__icontains', 'ni'),
+                        #         ('cluster_id__icontains', 'se')
+                        #     )
+                        # )
+                        composed_filter = composed_filter | filt_filters.compose()
                 else:
                     list_ = self._build_custom_filter_list(q_param, filt.get('custom'), list_)
                     for item in list_:
                         q_filter = QueryFilter(
                             parameter=item,
-                            logical_operator=operator,
+                            logical_operator=logical_operator,
                             **filt
                         )
                         filters.add(q_filter)
-        return filters
+        if filters:
+            composed_filter = composed_filter & filters.compose()
+        return composed_filter
 
     def _get_filter(self, delta=False):
         """Create dictionary for filter parameters.
