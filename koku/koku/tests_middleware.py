@@ -147,7 +147,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
 
     @patch('koku.rbac.RbacService.get_access_for_user')
     def test_process_non_admin(self, get_access_mock):
-        """Test case for process_request as a non-admin user, verify that _get_access_for_user is called."""
+        """Test case for process_request as a non-admin user."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
