@@ -222,6 +222,10 @@ class QueryFilterCollection(object):
             out += filt.__repr__() + ', '
         return out
 
+    def __len__(self):
+        """Return the length of the collection."""
+        return len(self._filters)
+
     def delete(self, query_filter=None, table=None, field=None,
                operation=None, parameter=None):
         """Delete a query filter from the collection.
