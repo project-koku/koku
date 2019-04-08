@@ -152,12 +152,12 @@ REDIS_PORT = ENVIRONMENT.get_value('REDIS_PORT', default='6379')
 if 'test' in sys.argv:
     CACHES = {
         "default": {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-            "IGNORE_EXCEPTIONS": True
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
         },
         "rbac": {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-            "IGNORE_EXCEPTIONS": True
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
         }
     }
 else:

@@ -145,24 +145,29 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                               customer=customer,
                                               request=mock_request)
 
-    @patch('koku.rbac.RbacService.get_access_for_user', return_value={'aws.account': {'read': ['589173575009']}, 'openshift.cluster': {'read': ['589173575009']}, 'openshift.node': {'read': ['589173575009']}, 'openshift.project': {'read': ['589173575009']}, 'provider': {'read': ['589173575009'], 'write': []}, 'rate': {'read': ['589173575009'], 'write': []}})
+    @patch('koku.rbac.RbacService.get_access_for_user')
     def test_process_non_admin(self, get_access_mock):
         """Test case for process_request as a non-admin user."""
+        mock_access = {'aws.account': {'read': ['999999999999']},
+                       'openshift.cluster': {'read': ['999999999999']},
+                       'openshift.node': {'read': ['999999999999']},
+                       'openshift.project': {'read': ['999999999999']},
+                       'provider': {'read': ['999999999999'], 'write': []},
+                       'rate': {'read': ['999999999999'], 'write': []}}
+        get_access_mock.return_value = mock_access
+
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
-                                                    create_tenant=True, is_admin=False)
+                                                       create_tenant=True, is_admin=False)
         mock_request = request_context['request']
         mock_request.path = '/api/v1/providers/'
         mock_request.META['QUERY_STRING'] = ''
 
         middleware = IdentityHeaderMiddleware()
-
-        import pdb; pdb.set_trace()
         middleware.process_request(mock_request)
 
         user_uuid = mock_request.user.uuid
         from django.core.cache import caches
         cache = caches['rbac']
-        self.assertIsNotNone(cache.get(user_uuid))
-        
+        self.assertEqual(cache.get(user_uuid), mock_access)
