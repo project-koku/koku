@@ -34,7 +34,6 @@ coverage = ">=4.5.0"
 codecov = ">=2.0.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.6"
-v = {editable = true,version = "*"}
 
 [requires]
 python_version = "3.6"
