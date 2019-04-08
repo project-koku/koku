@@ -212,11 +212,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             }
             user.admin = is_admin
 
-            cache = caches['default']
+            cache = caches['rbac']
             user_access = cache.get(user.uuid)
             if not user_access:
                 user_access = self._get_access(user)
-                cache.set(user.uuid, user_access, 30)
+                cache.set(user.uuid, user_access, self.rbac.cache_ttl)
             user.access = user_access
             request.user = user
 

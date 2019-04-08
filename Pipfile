@@ -22,6 +22,7 @@ pint = "==0.9"
 pytz = "==2018.9"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.6.0"
+django-redis = "==4.10.0"
 
 [dev-packages]
 astroid = "==2.2.5"
@@ -33,6 +34,7 @@ coverage = ">=4.5.0"
 codecov = ">=2.0.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.6"
+v = {editable = true,version = "*"}
 
 [requires]
 python_version = "3.6"
