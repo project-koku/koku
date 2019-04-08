@@ -995,8 +995,8 @@ class ReportQueryHandler(QueryHandler):
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
-        filters = self._set_operator_sepecified_tag_filters(filters, 'and')
-        filters = self._set_operator_sepecified_tag_filters(filters, 'or')
+        filters = self._set_operator_specified_tag_filters(filters, 'and')
+        filters = self._set_operator_specified_tag_filters(filters, 'or')
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters('and')
@@ -1038,7 +1038,7 @@ class ReportQueryHandler(QueryHandler):
                 filters.add(q_filter)
         return filters
 
-    def _set_operator_sepecified_tag_filters(self, filters, operator):
+    def _set_operator_specified_tag_filters(self, filters, operator):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
         tag_filters = self.get_tag_filter_keys()
