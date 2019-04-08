@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the project middleware."""
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from api.iam.models import Customer, Tenant, User
 from api.iam.serializers import (UserSerializer,
@@ -144,3 +144,25 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                               email=self.user_data['email'],
                                               customer=customer,
                                               request=mock_request)
+
+    @patch('koku.rbac.RbacService.get_access_for_user', return_value={'aws.account': {'read': ['589173575009']}, 'openshift.cluster': {'read': ['589173575009']}, 'openshift.node': {'read': ['589173575009']}, 'openshift.project': {'read': ['589173575009']}, 'provider': {'read': ['589173575009'], 'write': []}, 'rate': {'read': ['589173575009'], 'write': []}})
+    def test_process_non_admin(self, get_access_mock):
+        """Test case for process_request as a non-admin user."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                    create_tenant=True, is_admin=False)
+        mock_request = request_context['request']
+        mock_request.path = '/api/v1/providers/'
+        mock_request.META['QUERY_STRING'] = ''
+
+        middleware = IdentityHeaderMiddleware()
+
+        import pdb; pdb.set_trace()
+        middleware.process_request(mock_request)
+
+        user_uuid = mock_request.user.uuid
+        from django.core.cache import caches
+        cache = caches['rbac']
+        self.assertIsNotNone(cache.get(user_uuid))
+        

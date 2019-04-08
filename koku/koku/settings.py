@@ -149,24 +149,36 @@ WSGI_APPLICATION = 'koku.wsgi.application'
 
 REDIS_HOST = ENVIRONMENT.get_value('REDIS_HOST', default='redis')
 REDIS_PORT = ENVIRONMENT.get_value('REDIS_PORT', default='6379')
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+if 'test' in sys.argv:
+    CACHES = {
+        "default": {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
             "IGNORE_EXCEPTIONS": True
         },
-    },
-    "rbac": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        "rbac": {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
             "IGNORE_EXCEPTIONS": True
-        },
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True
+            },
+        },
+        "rbac": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "IGNORE_EXCEPTIONS": True
+            },
+        }
+    }
 
 DATABASES = {
     'default': database.config()
