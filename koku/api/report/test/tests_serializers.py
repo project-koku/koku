@@ -180,6 +180,7 @@ class FilterSerializerTest(TestCase):
                          'and:account': ['account1'],
                          'resource_scope': []}
         serializer = FilterSerializer(data=filter_params)
+        self.assertTrue(serializer.is_valid())
 
     def test_filter_params_with_and_failure_bad_param(self):
         """Test that and/or does not work on a field it is not allowed on."""
