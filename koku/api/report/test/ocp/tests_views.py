@@ -1459,3 +1459,59 @@ class OCPReportViewTest(IamTestCase):
         data = response_data.get('data', [])
         for entry in data:
             self.assertEqual(entry.get('clusters'), [])
+
+    def test_execute_query_with_and_tag_filter(self):
+        """Test the filter[and:tag:] param in the view."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        filter_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            labels = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=filter_key)\
+                .values(*['pod_labels'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            f'filter[and:tag:{filter_key}]': filter_value
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_execute_query_with_and_tag_group_by(self):
+        """Test the group_by[and:tag:] param in the view."""
+        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
+
+        with tenant_context(self.tenant):
+            labels = OCPUsageLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(pod_labels__has_key=group_by_key)\
+                .values(*['pod_labels'])\
+                .all()
+            label_of_interest = labels[0]
+            group_by_value = label_of_interest.get('pod_labels', {}).get(group_by_key)
+
+        url = reverse('reports-openshift-cpu')
+        client = APIClient()
+        self.data_generator.add_data_to_tenant()
+        params = {
+            'filter[resolution]': 'daily',
+            'filter[time_scope_value]': '-10',
+            'filter[time_scope_units]': 'day',
+            f'group_by[and:tag:{group_by_key}]': group_by_value
+        }
+        url = url + '?' + urlencode(params, quote_via=quote_plus)
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

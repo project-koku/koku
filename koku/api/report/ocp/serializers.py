@@ -22,7 +22,6 @@ from rest_framework import serializers
 from api.report.serializers import (StringOrListField,
                                     add_operator_specified_fields,
                                     handle_invalid_fields,
-                                    validate_and_field,
                                     validate_field)
 from api.utils import UnitConverter
 
@@ -64,9 +63,6 @@ class GroupBySerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
         """
         handle_invalid_fields(self, data)
-        error = validate_and_field(data)
-        if error:
-            raise serializers.ValidationError(error)
         return data
 
 
@@ -171,9 +167,6 @@ class FilterSerializer(serializers.Serializer):
             (ValidationError): if filter inputs are invalid
         """
         handle_invalid_fields(self, data)
-        error = validate_and_field(data)
-        if error:
-            raise serializers.ValidationError(error)
 
         resolution = data.get('resolution')
         time_scope_value = data.get('time_scope_value')
