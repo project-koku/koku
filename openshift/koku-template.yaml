@@ -560,6 +560,20 @@ objects:
       targetPort: 5432
     selector:
       name: ${DATABASE_SERVICE_NAME}
+- apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    maxReplicas: 10
+    minReplicas: 1
+    scaleTargetRef:
+      apiVersion: apps.openshift.io/v1
+      kind: DeploymentConfig
+      name: koku
+    targetCPUUtilizationPercentage: 90
+
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
   displayName: Name
