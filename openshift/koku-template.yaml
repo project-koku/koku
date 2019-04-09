@@ -591,10 +591,27 @@ objects:
         - env:
           image: redis:5.0.4
           imagePullPolicy: IfNotPresent
+          livenessProbe:
+            exec:
+              command:
+              - /usr/libexec/check-container
+              - --live
+            failureThreshold: 3
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 10
           name: koku-redis
           ports:
           - containerPort: "6379"
             protocol: TCP
+          volumeMounts:
+          - mountPath: /var/lib/redis/data
+            name: koku-redis-data
+        volumes:
+        - name: koku-redis-data
+          persistentVolumeClaim:
+            claimName: koku-redis
     triggers:
     - imageChangeParams:
         automatic: true
@@ -619,6 +636,19 @@ objects:
       requests:
         storage: ${VOLUME_CAPACITY}
 - apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: koku
+      template: koku-template
+    name: koku-redis
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${VOLUME_CAPACITY}
+- apiVersion: v1
   kind: Service
   metadata:
     annotations:
@@ -635,6 +665,23 @@ objects:
       targetPort: 5432
     selector:
       name: ${DATABASE_SERVICE_NAME}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes the redis service
+    labels:
+      app: koku
+      template: koku-template
+    name: koku-redis
+  spec:
+    ports:
+    - name: koku-redis
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    selector:
+      name: koku-redis
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
   displayName: Name
