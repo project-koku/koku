@@ -109,6 +109,8 @@ objects:
     rbac-service-host: ${RBAC_SERVICE_HOST}
     rbac-service-port: ${RBAC_SERVICE_PORT}
     rbac-service-path: ${RBAC_SERVICE_PATH}
+    redis-service-host: ${NAME}-redis.${NAMESPACE}.svc
+    redis-service-port: "6379"
 - apiVersion: v1
   kind: Service
   metadata:
@@ -396,6 +398,18 @@ objects:
                   name: koku-env
                   key: rbac-service-path
                   optional: false
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: redis-service-host
+                  optional: false
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: redis-service-port
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -530,6 +544,53 @@ objects:
           namespace: ${NAMESPACE}
       type: ImageChange
     - type: ConfigChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the redis service
+      template.alpha.openshift.io/wait-for-ready: "true"
+    labels:
+      app: koku
+      template: koku-template
+    name: koku-redis
+  spec:
+    replicas: 1
+    selector:
+      name: koku-redis
+    resources:
+      limits:
+        memory: ${MEMORY_REQUEST}
+      limits:
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: koku
+          name: koku-redis
+          template: koku-template
+        name: koku-redis
+      spec:
+        containers:
+        - env:
+          image: redis:5.0.4
+          imagePullPolicy: IfNotPresent
+          name: koku-redis
+          ports:
+          - containerPort: "6379"
+            protocol: TCP
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - koku-redis
+        from:
+          kind: ImageStreamTag
+          name: redis:5.0.4
+          namespace: ${NAMESPACE}
+      type: ImageChange
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
@@ -717,3 +778,13 @@ parameters:
   name: RBAC_SERVICE_PATH
   required: true
   value: "/r/insights/platform/rbac/v1/access/"
+- description: Redis Service host
+  displayName: Redis service host
+  name: REDIS_SERVICE_HOST
+  required: true
+  value: "/r/insights/platform/rbac/v1/access/"
+- description: Redis Service port
+  displayName: Redis service port
+  name: REDIS_SERVICE_PORT
+  required: true
+  value: "6379"

@@ -39,7 +39,7 @@ services:
 
   redis:
     container_name: koku_redis
-    image: redis
+    image: redis:5.0.4
     ports:
       - "6379:6379"
 

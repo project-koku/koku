@@ -141,6 +141,9 @@ oc-clean: oc-down
 oc-create-tags:
 	oc get istag postgresql:$(PGSQL_VERSION) || oc create istag postgresql:$(PGSQL_VERSION) --from-image=centos/postgresql-96-centos7
 
+oc-create-redis-tags:
+	oc get istag redis:5.0.4 || oc create istag redis:5.0.4 --from-image=redis
+
 oc-create-db:
 	oc process openshift//postgresql-persistent \
 		-p NAMESPACE=myproject \
