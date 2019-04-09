@@ -171,3 +171,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         from django.core.cache import caches
         cache = caches['rbac']
         self.assertEqual(cache.get(user_uuid), mock_access)
+
+        middleware.process_request(mock_request)
+        cache = caches['rbac']
+        self.assertEqual(cache.get(user_uuid), mock_access)
