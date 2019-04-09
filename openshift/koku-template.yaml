@@ -125,6 +125,7 @@ objects:
     rbac-service-path: ${RBAC_SERVICE_PATH}
     redis-service-host: ${NAME}-redis.${NAMESPACE}.svc
     redis-service-port: "6379"
+    rbac-cache-ttl: "30"
 - apiVersion: v1
   kind: Service
   metadata:
@@ -424,6 +425,12 @@ objects:
                   name: koku-env
                   key: redis-service-port
                   optional: false
+            - name: RBAC_CACHE_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: rbac-cache-ttl
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -591,16 +598,6 @@ objects:
         - env:
           image: redis:5.0.4
           imagePullPolicy: IfNotPresent
-          livenessProbe:
-            exec:
-              command:
-              - /usr/libexec/check-container
-              - --live
-            failureThreshold: 3
-            initialDelaySeconds: 120
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 10
           name: koku-redis
           ports:
           - containerPort: "6379"
