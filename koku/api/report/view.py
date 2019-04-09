@@ -171,8 +171,11 @@ def get_tag_keys(request, summary_model):
     tenant = get_tenant(request.user)
     with tenant_context(tenant):
         tags = summary_model.objects.values('key')
-        tags = [':'.join(['tag', tag.get('key')]) for tag in tags]
-    return tags
+        tag_list = [':'.join(['tag', tag.get('key')]) for tag in tags]
+        tag_list.extend([':'.join(['and:tag', tag.get('key')]) for tag in tags])
+        tag_list.extend([':'.join(['or:tag', tag.get('key')]) for tag in tags])
+
+    return tag_list
 
 
 def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwargs):
