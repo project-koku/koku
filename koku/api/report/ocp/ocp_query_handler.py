@@ -49,7 +49,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
-        if group_by and 'project' in group_by and self._report_type == 'costs':
+        if (group_by and 'project' in group_by or 'project' in self.query_parameters.get('filter', {}).keys()) \
+                and self._report_type == 'costs':
             self._report_type = self._report_type + '_by_project'
             self._mapper = ProviderMap(provider=provider,
                                        report_type=self._report_type)
