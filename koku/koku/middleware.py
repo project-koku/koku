@@ -19,6 +19,7 @@
 import logging
 from json.decoder import JSONDecodeError
 
+from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.utils import IntegrityError
@@ -210,7 +211,13 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 'decoded': json_rh_auth
             }
             user.admin = is_admin
-            user.access = self._get_access(user)
+
+            cache = caches['rbac']
+            user_access = cache.get(user.uuid)
+            if not user_access:
+                user_access = self._get_access(user)
+                cache.set(user.uuid, user_access, self.rbac.cache_ttl)
+            user.access = user_access
             request.user = user
 
 

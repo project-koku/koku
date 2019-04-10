@@ -166,6 +166,7 @@ class RbacService:  # pylint: disable=too-few-public-methods
         self.host = rbac_conn_info.get(HOST)
         self.port = rbac_conn_info.get(PORT)
         self.path = rbac_conn_info.get(PATH)
+        self.cache_ttl = int(ENVIRONMENT.get_value('RBAC_CACHE_TTL', default='30'))
 
     def _get_rbac_service(self):  # pylint: disable=no-self-use
         """Get RBAC service host and port info from environment."""

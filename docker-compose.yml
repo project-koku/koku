@@ -2,6 +2,7 @@ version: '3'
 
 services:
   koku-server:
+      container_name: koku_server
       build:
           context: .
           dockerfile: Dockerfile-env
@@ -24,6 +25,8 @@ services:
         - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
         - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-8000}
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
       privileged: true
       ports:
           - 8000:8000
@@ -34,7 +37,14 @@ services:
       depends_on:
         - db
 
+  redis:
+    container_name: koku_redis
+    image: redis:5.0.4
+    ports:
+      - "6379:6379"
+
   db:
+    container_name: koku_db
     image: postgres:9.6
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}

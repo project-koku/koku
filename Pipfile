@@ -25,6 +25,7 @@ pint = "==0.9"
 pytz = "==2018.9"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.6.0"
+django-redis = "==4.10.0"
 
 
 [dev-packages]

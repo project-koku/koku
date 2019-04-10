@@ -45,6 +45,20 @@ objects:
       referencePolicy:
         type: Source
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: redis
+    namespace: ${NAMESPACE}
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: redis
+        resourceVersion: latest
+      name: "5.0.4"
+      referencePolicy:
+        type: Source
+- apiVersion: v1
   kind: Secret
   metadata:
     labels:
@@ -109,6 +123,9 @@ objects:
     rbac-service-host: ${RBAC_SERVICE_HOST}
     rbac-service-port: ${RBAC_SERVICE_PORT}
     rbac-service-path: ${RBAC_SERVICE_PATH}
+    redis-service-host: ${NAME}-redis.${NAMESPACE}.svc
+    redis-service-port: "6379"
+    rbac-cache-ttl: "30"
 - apiVersion: v1
   kind: Service
   metadata:
@@ -396,6 +413,24 @@ objects:
                   name: koku-env
                   key: rbac-service-path
                   optional: false
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: redis-service-host
+                  optional: false
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: redis-service-port
+                  optional: false
+            - name: RBAC_CACHE_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-env
+                  key: rbac-cache-ttl
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -531,12 +566,79 @@ objects:
       type: ImageChange
     - type: ConfigChange
 - apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the redis service
+      template.alpha.openshift.io/wait-for-ready: "true"
+    labels:
+      app: koku
+      template: koku-template
+    name: ${NAME}-redis
+  spec:
+    replicas: 1
+    selector:
+      name: ${NAME}-redis
+    resources:
+      limits:
+        memory: ${MEMORY_REQUEST}
+      limits:
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: koku
+          name: ${NAME}-redis
+          template: koku-template
+        name: ${NAME}-redis
+      spec:
+        containers:
+        - env:
+          image: redis:5.0.4
+          imagePullPolicy: IfNotPresent
+          name: ${NAME}-redis
+          ports:
+          - containerPort: "6379"
+            protocol: TCP
+          volumeMounts:
+          - mountPath: /var/lib/redis/data
+            name: ${NAME}-redis-data
+        volumes:
+        - name: ${NAME}-redis-data
+          persistentVolumeClaim:
+            claimName: ${NAME}-redis
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${NAME}-redis
+        from:
+          kind: ImageStreamTag
+          name: redis:5.0.4
+          namespace: ${NAMESPACE}
+      type: ImageChange
+- apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     labels:
       app: koku
       template: koku-template
     name: ${DATABASE_SERVICE_NAME}
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${VOLUME_CAPACITY}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    labels:
+      app: koku
+      template: koku-template
+    name: ${NAME}-redis
   spec:
     accessModes:
     - ReadWriteOnce
@@ -560,6 +662,23 @@ objects:
       targetPort: 5432
     selector:
       name: ${DATABASE_SERVICE_NAME}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes the redis service
+    labels:
+      app: koku
+      template: koku-template
+    name: ${NAME}-redis
+  spec:
+    ports:
+    - name: ${NAME}-redis
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+    selector:
+      name: ${NAME}-redis
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
@@ -731,3 +850,13 @@ parameters:
   name: RBAC_SERVICE_PATH
   required: true
   value: "/r/insights/platform/rbac/v1/access/"
+- description: Redis Service host
+  displayName: Redis service host
+  name: REDIS_SERVICE_HOST
+  required: true
+  value: "/r/insights/platform/rbac/v1/access/"
+- description: Redis Service port
+  displayName: Redis service port
+  name: REDIS_SERVICE_PORT
+  required: true
+  value: "6379"
