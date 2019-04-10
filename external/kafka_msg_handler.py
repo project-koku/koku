@@ -38,7 +38,6 @@ LOG = logging.getLogger(__name__)
 EVENT_LOOP = asyncio.get_event_loop()
 MSG_PENDING_QUEUE = asyncio.Queue()
 HCCM_TOPIC = 'platform.upload.hccm'
-AVAILABLE_TOPIC = 'platform.upload.available'
 VALIDATION_TOPIC = 'platform.upload.validation'
 SUCCESS_CONFIRM_STATUS = 'success'
 FAILURE_CONFIRM_STATUS = 'failure'
@@ -208,13 +207,6 @@ def handle_message(msg):
         except KafkaMsgHandlerError as error:
             LOG.error('Unable to extract payload. Error: %s', str(error))
             return FAILURE_CONFIRM_STATUS
-
-    elif msg.topic == AVAILABLE_TOPIC:
-        value = json.loads(msg.value.decode('utf-8'))
-        # Decide if we want to keep track of confirmed messages.
-        # If so we will have to store the hash for hccm topic msg and
-        # look for them on a list here to get the validated url.
-        LOG.info('File available: %s', value['url'])
     else:
         LOG.error('Unexpected Message')
     return None
@@ -291,7 +283,7 @@ def asyncio_worker_thread(loop):  # pragma: no cover
         while True:
 
             consumer = AIOKafkaConsumer(
-                AVAILABLE_TOPIC, HCCM_TOPIC,
+                HCCM_TOPIC,
                 loop=EVENT_LOOP, bootstrap_servers=Config.INSIGHTS_KAFKA_ADDRESS,
                 group_id='hccm-group'
             )
