@@ -574,11 +574,11 @@ objects:
     labels:
       app: koku
       template: koku-template
-    name: koku-redis
+    name: ${NAME}-redis
   spec:
     replicas: 1
     selector:
-      name: koku-redis
+      name: ${NAME}-redis
     resources:
       limits:
         memory: ${MEMORY_REQUEST}
@@ -590,30 +590,30 @@ objects:
       metadata:
         labels:
           app: koku
-          name: koku-redis
+          name: ${NAME}-redis
           template: koku-template
-        name: koku-redis
+        name: ${NAME}-redis
       spec:
         containers:
         - env:
           image: redis:5.0.4
           imagePullPolicy: IfNotPresent
-          name: koku-redis
+          name: ${NAME}-redis
           ports:
           - containerPort: "6379"
             protocol: TCP
           volumeMounts:
           - mountPath: /var/lib/redis/data
-            name: koku-redis-data
+            name: ${NAME}-redis-data
         volumes:
-        - name: koku-redis-data
+        - name: ${NAME}-redis-data
           persistentVolumeClaim:
-            claimName: koku-redis
+            claimName: ${NAME}-redis
     triggers:
     - imageChangeParams:
         automatic: true
         containerNames:
-        - koku-redis
+        - ${NAME}-redis
         from:
           kind: ImageStreamTag
           name: redis:5.0.4
@@ -638,7 +638,7 @@ objects:
     labels:
       app: koku
       template: koku-template
-    name: koku-redis
+    name: ${NAME}-redis
   spec:
     accessModes:
     - ReadWriteOnce
@@ -670,15 +670,15 @@ objects:
     labels:
       app: koku
       template: koku-template
-    name: koku-redis
+    name: ${NAME}-redis
   spec:
     ports:
-    - name: koku-redis
+    - name: ${NAME}-redis
       port: 6379
       protocol: TCP
       targetPort: 6379
     selector:
-      name: koku-redis
+      name: ${NAME}-redis
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
