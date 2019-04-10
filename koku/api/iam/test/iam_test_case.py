@@ -94,7 +94,7 @@ class IamTestCase(TestCase):
 
     @classmethod
     def _create_request_context(cls, customer_data, user_data,
-                                create_customer=True, create_tenant=False):
+                                create_customer=True, create_tenant=False, is_admin=True):
         """Create the request context for a user."""
         customer = customer_data
         account = customer.get('account_id')
@@ -110,7 +110,7 @@ class IamTestCase(TestCase):
                 'user': {
                     'username': user_data['username'],
                     'email': user_data['email'],
-                    'is_org_admin': True
+                    'is_org_admin': is_admin
                 }
             }
         }
