@@ -93,6 +93,14 @@ objects:
     aws-access-key-id: ${AWS_ACCESS_KEY_ID}
     aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
 - apiVersion: v1
+  data:
+    redis.conf: |
+      dir /var/lib/redis/data
+  kind: ConfigMap
+  metadata:
+    name: redis-config
+    namespace: ${NAMESPACE}
+- apiVersion: v1
   kind: ConfigMap
   metadata:
     name: koku-env
@@ -597,6 +605,10 @@ objects:
         containers:
         - env:
           image: redis:5.0.4
+          command:
+            - "redis-server"
+          args:
+            - "/etc/redis/redis.conf"
           imagePullPolicy: IfNotPresent
           name: ${NAME}-redis
           ports:
@@ -605,10 +617,15 @@ objects:
           volumeMounts:
           - mountPath: /var/lib/redis/data
             name: ${NAME}-redis-data
+          - mountPath: /etc/redis/
+            name: ${NAME}-redis-config
         volumes:
-        - name: ${NAME}-redis-data
-          persistentVolumeClaim:
-            claimName: ${NAME}-redis
+          - name: ${NAME}-redis-data
+            persistentVolumeClaim:
+              claimName: ${NAME}-redis
+          - name: ${NAME}-redis-config
+            configMap:
+              name: redis-config
     triggers:
     - imageChangeParams:
         automatic: true
