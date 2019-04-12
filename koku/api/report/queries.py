@@ -514,6 +514,10 @@ class ProviderMap(object):
                     'field': 'product_code',
                     'operation': 'icontains'
                 },
+                'product_family': {
+                    'field': 'product_family',
+                    'operation': 'icontains'
+                },
                 'az': {
                     'field': 'availability_zone',
                     'operation': 'icontains'
@@ -523,7 +527,7 @@ class ProviderMap(object):
                     'operation': 'icontains'
                 }
             },
-            'group_by_options': ['account', 'service', 'region', 'cluster', 'project', 'node'],
+            'group_by_options': ['account', 'service', 'region', 'cluster', 'project', 'node', 'product_family'],
             'tag_column': 'tags',
             'report_type': {
                 'costs': {
