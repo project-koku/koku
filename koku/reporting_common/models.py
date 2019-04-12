@@ -26,7 +26,12 @@ from api.provider.models import Provider
 class CostUsageReportManifest(models.Model):
     """Information gathered from a cost usage report manifest file."""
 
-    assembly_id = models.TextField(unique=True)
+    class Meta:
+        """Meta for CostUsageReportManifest."""
+
+        unique_together = ('provider', 'assembly_id')
+
+    assembly_id = models.TextField()
     manifest_creation_datetime = models.DateTimeField(null=True,
                                                       default=timezone.now)
     manifest_updated_datetime = models.DateTimeField(null=True,
