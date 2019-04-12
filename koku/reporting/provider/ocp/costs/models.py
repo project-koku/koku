@@ -22,13 +22,12 @@ from django.db import models
 
 
 class CostSummary(models.Model):
-    """A summary view of OCP costs."""
+    """A summary table of OCP costs."""
 
     class Meta:
         """Meta for CostSummary."""
 
         db_table = 'reporting_ocpcosts_summary'
-        managed = False
 
     cluster_id = models.CharField(max_length=50, null=True)
 
