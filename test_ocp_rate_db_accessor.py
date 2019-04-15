@@ -109,22 +109,22 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def test_get_metric(self):
         """Test get metric."""
         cpu_usage_metric = self.accessor.get_metric('cpu_core_usage_per_hour')
-        self.assertEquals(cpu_usage_metric, 'cpu_core_usage_per_hour')
+        self.assertEqual(cpu_usage_metric, 'cpu_core_usage_per_hour')
 
         mem_usage_metric = self.accessor.get_metric('memory_gb_usage_per_hour')
-        self.assertEquals(mem_usage_metric, 'memory_gb_usage_per_hour')
+        self.assertEqual(mem_usage_metric, 'memory_gb_usage_per_hour')
 
         cpu_request_metric = self.accessor.get_metric('cpu_core_request_per_hour')
-        self.assertEquals(cpu_request_metric, 'cpu_core_request_per_hour')
+        self.assertEqual(cpu_request_metric, 'cpu_core_request_per_hour')
 
         mem_request_metric = self.accessor.get_metric('memory_gb_request_per_hour')
-        self.assertEquals(mem_request_metric, 'memory_gb_request_per_hour')
+        self.assertEqual(mem_request_metric, 'memory_gb_request_per_hour')
 
         storage_usage_metric = self.accessor.get_metric('storage_gb_usage_per_month')
-        self.assertEquals(storage_usage_metric, 'storage_gb_usage_per_month')
+        self.assertEqual(storage_usage_metric, 'storage_gb_usage_per_month')
 
         storage_request_metric = self.accessor.get_metric('storage_gb_request_per_month')
-        self.assertEquals(storage_request_metric, 'storage_gb_request_per_month')
+        self.assertEqual(storage_request_metric, 'storage_gb_request_per_month')
 
         missing_metric = self.accessor.get_metric('wrong_metric')
         self.assertIsNone(missing_metric)
@@ -132,22 +132,22 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def test_get_rates(self):
         """Test get metric."""
         cpu_usage_rate = self.accessor.get_rates('cpu_core_usage_per_hour')
-        self.assertEquals(type(cpu_usage_rate), dict)
+        self.assertEqual(type(cpu_usage_rate), dict)
 
         mem_usage_rate = self.accessor.get_rates('memory_gb_usage_per_hour')
-        self.assertEquals(type(mem_usage_rate), dict)
+        self.assertEqual(type(mem_usage_rate), dict)
 
         cpu_request_rate = self.accessor.get_rates('cpu_core_request_per_hour')
-        self.assertEquals(type(cpu_request_rate), dict)
+        self.assertEqual(type(cpu_request_rate), dict)
 
         mem_request_rate = self.accessor.get_rates('memory_gb_request_per_hour')
-        self.assertEquals(type(mem_request_rate), dict)
+        self.assertEqual(type(mem_request_rate), dict)
 
         storage_usage_rate = self.accessor.get_rates('storage_gb_usage_per_month')
-        self.assertEquals(type(storage_usage_rate), dict)
+        self.assertEqual(type(storage_usage_rate), dict)
 
         storage_request_rate = self.accessor.get_rates('storage_gb_request_per_month')
-        self.assertEquals(type(storage_request_rate), dict)
+        self.assertEqual(type(storage_request_rate), dict)
 
         missing_rate = self.accessor.get_rates('wrong_metric')
         self.assertIsNone(missing_rate)
@@ -155,35 +155,35 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def test_get_cpu_core_usage_per_hour_rates(self):
         """Test get cpu usage rates."""
         cpu_rates = self.accessor.get_cpu_core_usage_per_hour_rates()
-        self.assertEquals(type(cpu_rates), dict)
+        self.assertEqual(type(cpu_rates), dict)
         self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 1.5)
 
     def test_get_memory_gb_usage_per_hour_rates(self):
         """Test get memory usage rates."""
         mem_rates = self.accessor.get_memory_gb_usage_per_hour_rates()
-        self.assertEquals(type(mem_rates), dict)
+        self.assertEqual(type(mem_rates), dict)
         self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 2.5)
 
     def test_get_cpu_core_request_per_hour_rates(self):
         """Test get cpu request rates."""
         cpu_rates = self.accessor.get_cpu_core_request_per_hour_rates()
-        self.assertEquals(type(cpu_rates), dict)
+        self.assertEqual(type(cpu_rates), dict)
         self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 3.5)
 
     def test_get_memory_gb_request_per_hour_rates(self):
         """Test get memory request rates."""
         mem_rates = self.accessor.get_memory_gb_request_per_hour_rates()
-        self.assertEquals(type(mem_rates), dict)
+        self.assertEqual(type(mem_rates), dict)
         self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 4.5)
 
     def test_get_storage_gb_usage_per_month_rates(self):
         """Test get memory request rates."""
         storage_rates = self.accessor.get_storage_gb_usage_per_month_rates()
-        self.assertEquals(type(storage_rates), dict)
+        self.assertEqual(type(storage_rates), dict)
         self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 5.5)
 
     def test_get_storage_gb_request_per_month_rates(self):
         """Test get memory request rates."""
         storage_rates = self.accessor.get_storage_gb_request_per_month_rates()
-        self.assertEquals(type(storage_rates), dict)
+        self.assertEqual(type(storage_rates), dict)
         self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 6.5)

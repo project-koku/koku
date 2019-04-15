@@ -59,7 +59,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_get_manifest(self):
         """Test that the right manifest is returned."""
-        added_manifest = self.manifest_accessor.add(self.manifest_dict)
+        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
 
         assembly_id = self.manifest_dict.get('assembly_id')
@@ -77,7 +77,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
-        added_manifest = self.manifest_accessor.add(self.manifest_dict)
+        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
         manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
         self.assertIsNotNone(manifest)
@@ -85,7 +85,7 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
-        manifest = self.manifest_accessor.add(self.manifest_dict)
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
         now = DateAccessor().today_with_timezone('UTC')
         self.manifest_accessor.mark_manifest_as_updated(manifest)

@@ -77,7 +77,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         accessor = copy.copy(self.accessor)
         accessor._session = mock_session
         accessor._test = Mock()
-        accessor.add('test', {'foo': 'bar'})
+        accessor.add('test', {'foo': 'bar'}, use_savepoint=False)
         mock_session.add.assert_called()
 
     def test_commit(self):

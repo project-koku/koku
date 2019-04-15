@@ -167,7 +167,7 @@ class ReportDBAccessorTest(MasuTestCase):
             reservation
         )
 
-        self.manifest = self.manifest_accessor.add(self.manifest_dict)
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
 
     def tearDown(self):
