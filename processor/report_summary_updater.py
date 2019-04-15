@@ -17,6 +17,7 @@
 """Update reporting summary tables."""
 # pylint: skip-file
 
+import datetime
 import logging
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -24,7 +25,9 @@ from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
+from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
+from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 
 LOG = logging.getLogger(__name__)
@@ -50,10 +53,11 @@ class ReportSummaryUpdater:
         """
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
+        self._date_accessor = DateAccessor()
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_type()
         try:
-            self._updater = self._set_updater()
+            self._updater, self._ocp_cloud_updater = self._set_updater()
         except Exception as err:
             raise ReportSummaryUpdaterError(err)
 
@@ -74,10 +78,12 @@ class ReportSummaryUpdater:
 
         """
         if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-            return AWSReportSummaryUpdater(self._schema)
+            return (AWSReportSummaryUpdater(self._schema),
+                    OCPCloudReportSummaryUpdater(self._schema))
         if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
                               OCP_LOCAL_SERVICE_PROVIDER):
-            return OCPReportSummaryUpdater(self._schema)
+            return (OCPReportSummaryUpdater(self._schema),
+                    OCPCloudReportSummaryUpdater(self._schema))
 
         return None
 
@@ -92,5 +98,27 @@ class ReportSummaryUpdater:
             None
 
         """
-        self._updater.update_summary_tables(start_date, end_date,
-                                            self._provider_uuid, manifest_id)
+        if isinstance(start_date, datetime.date):
+            start_date = start_date.strftime('%Y-%m-%d')
+        if isinstance(end_date, datetime.date):
+            end_date = end_date.strftime('%Y-%m-%d')
+        elif end_date is None:
+            # Run up to the current date
+            end_date = self._date_accessor.today_with_timezone('UTC')
+            end_date = end_date.strftime('%Y-%m-%d')
+        LOG.info('Using start date: %s', start_date)
+        LOG.info('Using end date: %s', end_date)
+
+        start_date, end_date = self._updater.update_summary_tables(
+            start_date,
+            end_date,
+            self._provider_uuid,
+            manifest_id
+        )
+
+        self._ocp_cloud_updater.update_summary_tables(
+            start_date,
+            end_date,
+            self._provider_uuid,
+            manifest_id
+        )

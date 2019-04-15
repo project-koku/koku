@@ -58,18 +58,6 @@ class OCPReportSummaryUpdater:
             None
 
         """
-        # Validate dates as strings
-        if isinstance(start_date, datetime.date):
-            start_date = start_date.strftime('%Y-%m-%d')
-        if isinstance(end_date, datetime.date):
-            end_date = end_date.strftime('%Y-%m-%d')
-        elif end_date is None:
-            # Run up to the current date
-            end_date = self._date_accessor.today_with_timezone('UTC')
-            end_date = end_date.strftime('%Y-%m-%d')
-        LOG.info('Using start date: %s', start_date)
-        LOG.info('Using end date: %s', end_date)
-
         cluster_id = get_cluster_id_from_provider(provider_uuid, self._schema_name)
         LOG.info('Starting report data summarization for provider uuid: %s (cluster id: %s).',
                  provider_uuid, cluster_id)
@@ -87,7 +75,7 @@ class OCPReportSummaryUpdater:
                 # Bail if all manifest files have not been processed
                 if self.manifest.num_processed_files != self.manifest.num_total_files:
                     LOG.info('Not all manifest files have completed processing.  Summary defered')
-                    return
+                    return start_date, end_date
 
                 # Override the bill date to correspond with the manifest
                 bill_date = self.manifest.billing_period_start_datetime.date()
@@ -114,8 +102,8 @@ class OCPReportSummaryUpdater:
                     end_date = end_date.strftime('%Y-%m-%d')
                     LOG.info('Overriding start and end date to process full month.')
 
-            LOG.info('Updating report summary tables for %s from %s to %s',
-                     self._schema_name, start_date, end_date)
+            LOG.info('Updating OpenShift report summary tables for schema: %s and provider: %s from %s to %s',
+                     self._schema_name, provider_uuid, start_date, end_date)
 
             accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
             accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id)
@@ -133,6 +121,7 @@ class OCPReportSummaryUpdater:
                     self._date_accessor.today_with_timezone('UTC')
 
             accessor.commit()
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, report_period):
         """Decide whether to update summary tables for full billing period."""
