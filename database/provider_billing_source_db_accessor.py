@@ -33,8 +33,9 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._billing_source_id = billing_source_id
-        self._billing_source = self.get_base().classes.api_providerbillingsource
+        self._table = self.get_base().classes.api_providerbillingsource
 
+    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the provider billing source object.
@@ -44,8 +45,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        obj = self.get_session().query(self._billing_source).filter_by(id=self._billing_source_id)
-        return obj
+        return super()._get_db_obj_query(id=self._billing_source_id)
 
     def get_uuid(self):
         """

@@ -361,10 +361,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         self._session.add(table)
         self._session.flush()
 
-    def commit(self):
-        """Commit all objects on the current session."""
-        self._session.commit()
-
     def clean_data(self, data, table_name):
         """Clean data for insertion into database.
 
@@ -414,3 +410,16 @@ class ReportDBAccessorBase(KokuDBAccess):
                 LOG.warning(err)
                 value = None
         return value
+
+    def _commit_and_vacuum(self, table, sql, start=None, end=None):
+        """Commit query to a table and vacuum."""
+        if start and end:
+            LOG.info('Updating %s from %s to %s.',
+                     table, start, end)
+        else:
+            LOG.info('Updating %s', table)
+
+        self._cursor.execute(sql)
+        self._pg2_conn.commit()
+        self.vacuum_table(table)
+        LOG.info('Finished updating %s.', table)

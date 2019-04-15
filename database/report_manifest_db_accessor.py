@@ -27,33 +27,9 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Access the AWS report manifest database table."""
         self._schema = 'public'
         super().__init__(self._schema)
-        self._manifest_model = \
+        self._table = \
             self.get_base().classes.reporting_common_costusagereportmanifest
         self.date_accessor = DateAccessor()
-
-    def _get_db_obj_query(self):
-        """
-        Return the sqlachemy query for the report stats object.
-
-        Args:
-            None
-        Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_..."
-
-        """
-        return self._session.query(self._manifest_model)
-
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-
-        """
-        self._session.commit()
 
     def get_manifest(self, assembly_id, provider_id):
         """Get the manifest associated with the provided provider and id."""
@@ -66,18 +42,17 @@ class ReportManifestDBAccessor(KokuDBAccess):
         query = self._get_db_obj_query()
         return query.filter_by(id=manifest_id).first()
 
-    # pylint: disable=no-self-use
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         manifest.manifest_updated_datetime = \
             self.date_accessor.today_with_timezone('UTC')
 
-    def add(self, fields_dict):
+    def add(self, use_savepoint=True, **kwargs):
         """
         Add a new row to the CUR stats database.
 
         Args:
-            fields_dict (dict): Fields containing CUR Manifest attributes.
+            kwargs (dict): Fields containing CUR Manifest attributes.
 
             Valid keys are: assembly_id,
                             billing_period_start_datetime,
@@ -88,24 +63,11 @@ class ReportManifestDBAccessor(KokuDBAccess):
             None
 
         """
-        if 'manifest_creation_datetime' not in fields_dict:
-            fields_dict['manifest_creation_datetime'] = \
+        if 'manifest_creation_datetime' not in kwargs:
+            kwargs['manifest_creation_datetime'] = \
                 self.date_accessor.today_with_timezone('UTC')
-        if 'num_processed_files' not in fields_dict:
-            fields_dict['num_processed_files'] = 0
-        new_entry = self._manifest_model(**fields_dict)
-        self._session.add(new_entry)
 
-        return new_entry
+        if 'num_processed_files' not in kwargs:
+            kwargs['num_processed_files'] = 0
 
-    def delete(self, manifest):
-        """
-        Remove a CUR manifest from the database.
-
-        Args:
-            manifest (SQLALchemy mapped object) The manifest object to delete.
-        Returns:
-            None
-
-        """
-        self._session.delete(manifest)
+        return super().add(use_savepoint, **kwargs)

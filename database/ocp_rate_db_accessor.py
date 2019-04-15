@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP rate data."""
-# pylint: skip-file
 
 import logging
 
