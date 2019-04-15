@@ -73,6 +73,10 @@ class OrderBySerializer(serializers.Serializer):
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                                  required=False)
+    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                           required=False)
     cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
                                       required=False)
     project = serializers.ChoiceField(choices=ORDER_CHOICES,
