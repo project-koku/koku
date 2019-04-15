@@ -137,7 +137,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         return {res.reservation_arn: res.id for res in reservs}
 
-    # pylint: disable=duplicate-code
     def populate_line_item_daily_table(self, start_date, end_date):
         """Populate the daily aggregate of line items table.
 
@@ -159,14 +158,9 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info('Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(daily_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
-    # pylint: disable=invalid-name,duplicate-code
+    # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date):
         """Populate the daily aggregated summary of line items table.
 
@@ -188,12 +182,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info('Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(summary_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
@@ -206,7 +195,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         if bill.finalized_datetime is None:
             bill.finalized_datetime = self.date_accessor.today_with_timezone('UTC')
 
-    # pylint: disable=invalid-name,duplicate-code
+    # pylint: disable=invalid-name
     def populate_tags_summary_table(self):
         """Populate the line item aggregated totals data table."""
         table_name = AWS_CUR_TABLE_MAP['tags_summary']
@@ -215,12 +204,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_awstags_summary.sql'
         )
-
-        LOG.info('Updating %s.', table_name)
-        self._cursor.execute(agg_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, agg_sql)
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date):
         """Populate the daily cost aggregated summary for OCP on AWS.
@@ -243,9 +227,4 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             start_date=start_date,
             end_date=end_date
         )
-        LOG.info('Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(summary_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)

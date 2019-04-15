@@ -33,13 +33,14 @@ class AccountAliasAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._account_id = account_id
-        self._account_alias = self.get_base().classes.reporting_awsaccountalias
+        self._table = self.get_base().classes.reporting_awsaccountalias
 
         if self.does_db_entry_exist() is False:
             self.add(self._account_id)
 
         self._obj = self._get_db_obj_query().first()
 
+    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the customer object.
@@ -49,19 +50,7 @@ class AccountAliasAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ...",
         """
-        obj = self.get_session().query(self._account_alias).filter_by(account_id=self._account_id)
-        return obj
-
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.commit()
+        return super()._get_db_obj_query(account_id=self._account_id)
 
     def add(self, account_id):
         """
@@ -74,8 +63,7 @@ class AccountAliasAccessor(KokuDBAccess):
             None
 
         """
-        new_entry = self._account_alias(account_id=account_id, account_alias=account_id)
-        self._session.add(new_entry)
+        super().add(account_id=account_id, account_alias=account_id)
 
     def set_account_alias(self, alias):
         """

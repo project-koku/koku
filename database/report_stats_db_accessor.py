@@ -35,16 +35,17 @@ class ReportStatsDBAccessor(KokuDBAccess):
         super().__init__(schema)
         self._manifest_id = manifest_id
         self._report_name = report_name
-        self._costentrystatus = self.get_base().classes.reporting_common_costusagereportstatus
+        self._table = self.get_base().classes.reporting_common_costusagereportstatus
 
         if self.does_db_entry_exist() is False:
             update_fields = {}
             update_fields['report_name'] = self._report_name
             update_fields['manifest_id'] = self._manifest_id
-            self.add(update_fields)
+            self.add(**update_fields)
 
         self._obj = self._get_db_obj_query().first()
 
+    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the report stats object.
@@ -54,19 +55,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        obj = self._session.query(self._costentrystatus).filter_by(report_name=self._report_name)
-        return obj
-
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.commit()
+        return super()._get_db_obj_query(report_name=self._report_name)
 
     def get_cursor_position(self):
         """
@@ -146,36 +135,6 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return self._obj.etag
 
-    def add(self, fields_dict):
-        """
-        Add a new row to the CUR stats database.
-
-        Args:
-            (Dictionary): Fields containing CUR Status attributes.
-
-            Valid keys are: report_name,
-                            manifest_id,
-                            last_completed_date (optional),
-                            last_started_date (optional),
-                            etag (optional)
-        Returns:
-            None
-
-        """
-        new_entry = self._costentrystatus(**fields_dict)
-        self._session.add(new_entry)
-
-    def remove(self):
-        """
-        Remove a CUR statistics from the database.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.delete(self._obj)
-
     def update(self,
                cursor_position=None,
                last_completed_datetime=None,
@@ -203,3 +162,4 @@ class ReportStatsDBAccessor(KokuDBAccess):
             obj_to_update.last_started_datetime = last_started_datetime
         if etag:
             obj_to_update.etag = etag
+        self.commit()

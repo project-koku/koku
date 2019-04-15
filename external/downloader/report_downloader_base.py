@@ -66,9 +66,8 @@ class ReportDownloaderBase():
                     'num_total_files': num_of_files,
                     'provider_id': self._provider_id
                 }
-                manifest_entry = manifest_accessor.add(manifest_dict)
+                manifest_entry = manifest_accessor.add(**manifest_dict)
 
-            manifest_accessor.commit()
             manifest_accessor.mark_manifest_as_updated(manifest_entry)
             manifest_accessor.commit()
             manifest_id = manifest_entry.id
