@@ -58,19 +58,6 @@ class AWSReportSummaryUpdater:
 
         """
         LOG.info('Starting report data summarization for provider uuid: %s.', provider_uuid)
-
-        # Validate dates as strings
-        if isinstance(start_date, datetime.date):
-            start_date = start_date.strftime('%Y-%m-%d')
-        if isinstance(end_date, datetime.date):
-            end_date = end_date.strftime('%Y-%m-%d')
-        elif end_date is None:
-            # Run up to the current date
-            end_date = self._date_accessor.today_with_timezone('UTC')
-            end_date = end_date.strftime('%Y-%m-%d')
-        LOG.info('Using start date: %s', start_date)
-        LOG.info('Using end date: %s', end_date)
-
         # Default to this month's bill
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
@@ -85,7 +72,7 @@ class AWSReportSummaryUpdater:
                     if self.manifest.num_processed_files != self.manifest.num_total_files:
                         LOG.info('Not all manifest files have completed processing.'
                                  'Summary defered')
-                        return
+                        return start_date, end_date
 
                 # Override the bill date to correspond with the manifest
                 bill_date = self.manifest.billing_period_start_datetime.date()
@@ -108,13 +95,13 @@ class AWSReportSummaryUpdater:
                     end_date = end_date.strftime('%Y-%m-%d')
                     LOG.info('Overriding start and end date to process full month.')
 
-            LOG.info('Updating report summary tables for %s from %s to %s',
-                     self._schema_name, start_date, end_date)
+            LOG.info('Updating AWS report summary tables for schema: %s'
+                     'and provider: %s from %s to %s',
+                     self._schema_name, provider_uuid, start_date, end_date)
 
             accessor.populate_line_item_daily_table(start_date, end_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date)
             accessor.populate_tags_summary_table()
-            accessor.populate_ocp_on_aws_cost_daily_summary(start_date, end_date)
 
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
@@ -124,6 +111,7 @@ class AWSReportSummaryUpdater:
                     self._date_accessor.today_with_timezone('UTC')
 
             accessor.commit()
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
