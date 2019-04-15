@@ -82,6 +82,10 @@ class OrderBySerializer(serializers.Serializer):
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
     cost = serializers.ChoiceField(choices=ORDER_CHOICES,
                                    required=False)
+    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                                  required=False)
+    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                           required=False)
     usage = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES,

@@ -1172,7 +1172,8 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        order_by_options = ['cost', 'usage', 'request', 'limit']
+        order_by_options = ['cost', 'derived_cost', 'infrastructure_cost',
+                            'usage', 'request', 'limit']
         for option in order_by_options:
             url = reverse('reports-openshift-cpu')
             client = APIClient()
@@ -1197,6 +1198,25 @@ class OCPReportViewTest(IamTestCase):
                 current_value = entry.get('values', [])[0].get(option, {}).get('value')
                 self.assertTrue(current_value <= previous_value)
                 previous_value = current_value
+
+    def test_execute_query_with_order_by(self):
+        """Test that the possible order by options work."""
+        order_by_options = ['cost', 'derived_cost', 'infrastructure_cost',
+                            'usage', 'request', 'limit']
+        for option in order_by_options:
+            url = reverse('reports-openshift-cpu')
+            client = APIClient()
+            order_by_dict_key = 'order_by[{}]'.format(option)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: 'desc',
+            }
+
+            url = url + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_with_order_by_delta_and_limit(self):
         """Test that data is grouped and limited by order by delta."""
