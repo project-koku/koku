@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
-# pylint: skip-file
 
 import logging
 import pkgutil
@@ -43,7 +42,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.column_map = column_map
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,arguments-differ
     def merge_temp_table(self, table_name, temp_table_name, columns,
                          conflict_columns):
         """INSERT temp table rows into the primary table specified.
@@ -186,7 +185,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         reports = self._get_db_obj_query(table_name).all()
 
-        return {(entry.report_period_id, entry.interval_start.strftime(self._datetime_format)): entry.id
+        return {(entry.report_period_id,
+                 entry.interval_start.strftime(self._datetime_format)): entry.id
                 for entry in reports}
 
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
@@ -199,57 +199,44 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
+    def _get_reports(self, table, cluster_id=None):
+        """Return requested reports from given table."""
+        if cluster_id:
+            reports = self._get_db_obj_query(table).filter_by(cluster_id=cluster_id)
+        else:
+            reports = self._get_db_obj_query(table).all()
+        return reports
+
     def get_pod_request_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
+        reports = self._get_reports(table_name, cluster_id)
         return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
 
     def get_pod_usage_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_usage hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
+        reports = self._get_reports(table_name, cluster_id)
         return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
     def get_pod_request_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_request_hours."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
+        reports = self._get_reports(table_name, cluster_id)
         return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
     def get_persistentvolumeclaim_usage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
+        reports = self._get_reports(table_name, cluster_id)
         return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
+        reports = self._get_reports(table_name, cluster_id)
         return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
-    # pylint: disable=duplicate-code
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
 
@@ -274,14 +261,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date=end_date,
             cluster_id=cluster_id
         )
-        LOG.info(f'Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(daily_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
-    # pylint: disable=duplicate-code
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
 
@@ -306,12 +287,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date=end_date,
             cluster_id=cluster_id
         )
-        LOG.info(f'Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(daily_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
         """Populate the memory and cpu charge on daily summary table.
@@ -335,11 +311,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             mem_temp=mem_temp_table
         )
 
-        self._cursor.execute(charge_line_sql)
-        LOG.info(f'Updating pod charge')
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, charge_line_sql)
 
     def populate_storage_charge(self, temp_table_name):
         """Populate the storage charge into the daily summary table.
@@ -360,11 +332,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql = daily_charge_sql.decode('utf-8').format(
             temp_table=temp_table_name
         )
-        self._cursor.execute(charge_line_sql)
-        LOG.info(f'Updating storage_charge')
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, charge_line_sql)
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -390,12 +358,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date=end_date,
             cluster_id=cluster_id
         )
-        LOG.info(f'Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(summary_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of storage line items table.
@@ -420,14 +383,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             end_date=end_date,
             cluster_id=cluster_id
         )
-        LOG.info(f'Updating %s from %s to %s.',
-                 table_name, start_date, end_date)
-        self._cursor.execute(summary_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info('Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
-    # pylint: disable=invalid-name,duplicate-code
+    # pylint: disable=invalid-name
     def populate_pod_label_summary_table(self):
         """Populate the line item aggregated totals data table."""
         table_name = OCP_REPORT_TABLE_MAP['pod_label_summary']
@@ -437,13 +395,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             f'sql/reporting_ocpusagepodlabel_summary.sql'
         )
 
-        LOG.info('Updating %s.', table_name)
-        self._cursor.execute(agg_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info(f'Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, agg_sql)
 
-    # pylint: disable=invalid-name,duplicate-code
+    # pylint: disable=invalid-name
     def populate_volume_claim_label_summary_table(self):
         """Populate the OCP volume claim label summary table."""
         table_name = OCP_REPORT_TABLE_MAP['volume_claim_label_summary']
@@ -453,13 +407,9 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             f'sql/reporting_ocpstoragevolumeclaimlabel_summary.sql'
         )
 
-        LOG.info('Updating %s.', table_name)
-        self._cursor.execute(agg_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info(f'Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, agg_sql)
 
-    # pylint: disable=invalid-name,duplicate-code
+    # pylint: disable=invalid-name
     def populate_volume_label_summary_table(self):
         """Populate the OCP volume label summary table."""
         table_name = OCP_REPORT_TABLE_MAP['volume_label_summary']
@@ -469,8 +419,4 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             f'sql/reporting_ocpstoragevolumelabel_summary.sql'
         )
 
-        LOG.info('Updating %s.', table_name)
-        self._cursor.execute(agg_sql)
-        self._pg2_conn.commit()
-        self.vacuum_table(table_name)
-        LOG.info(f'Finished updating %s.', table_name)
+        self._commit_and_vacuum(table_name, agg_sql)

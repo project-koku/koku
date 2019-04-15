@@ -16,7 +16,7 @@
 #
 """Accessor for Customer information from koku database."""
 
-from abc import ABC, abstractmethod
+import logging
 
 import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
@@ -24,10 +24,13 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from masu.database.engine import DB_ENGINE
 
+LOG = logging.getLogger(__name__)
 
-class KokuDBAccess(ABC):
+
+class KokuDBAccess:
     """Base Class to connect to the koku database."""
 
+    # pylint: disable=no-member
     def __init__(self, schema):
         """
         Establish database connection.
@@ -72,7 +75,7 @@ class KokuDBAccess(ABC):
         return self._session_registry()
 
     def close_session(self):
-        """Close the dtabase session."""
+        """Close the database session."""
         self._session.close()
 
     def _prepare_base(self):
@@ -132,16 +135,19 @@ class KokuDBAccess(ABC):
         """
         return self._meta
 
-    @abstractmethod
-    def _get_db_obj_query(self):  # pragma: no cover
+    def _get_db_obj_query(self, **filter_args):
         """
-        Abstract method for database object query to be implemented by subclasses.
+        Return the sqlachemy query for this table .
 
         Args:
             None
         Returns:
-            None
+            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
+        obj = self._session.query(self._table)
+        if filter_args:
+            return obj.filter_by(**filter_args)
+        return obj
 
     def does_db_entry_exist(self):
         """
@@ -153,3 +159,75 @@ class KokuDBAccess(ABC):
             (Boolean): "True/False",
         """
         return bool(self._get_db_obj_query().first())
+
+    def add(self, use_savepoint=True, **kwargs):
+        """
+        Add a new row to this table.
+
+        Args:
+            use_savepoint (bool) whether a transaction savepoint should be used
+            kwargs (Dictionary): Fields containing table attributes.
+
+        Returns:
+            (Object): new model object
+
+        """
+        new_entry = self._table(**kwargs)
+        if use_savepoint:
+            self.savepoint(self._session.add, new_entry)
+        else:
+            self._session.add(new_entry)
+        return new_entry
+
+    def delete(self, obj=None, use_savepoint=True):
+        """
+        Delete our object from the database.
+
+        Args:
+            obj (object) model object to delete
+            use_savepoint (bool) whether a transaction savepoint should be used
+        Returns:
+            None
+        """
+        if obj:
+            deleteme = obj
+        else:
+            deleteme = self._obj
+
+        if use_savepoint:
+            self.savepoint(self._session.delete, deleteme)
+        else:
+            self._session.delete(deleteme)
+
+    def commit(self):
+        """
+        Commit pending database changes.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        self._session.commit()
+
+    def savepoint(self, func, *args, **kwargs):
+        """Wrap a db access function in a savepoint block.
+
+        For more info, see:
+            https://docs.sqlalchemy.org/en/latest/orm/session_transaction.html#using-savepoint
+
+        Args:
+            func (bound method) a function reference.
+            args (object) function's positional arguments
+            kwargs (object) function's keyword arguments
+        Returns:
+            None
+
+        """
+        try:
+            with self._session.begin_nested():
+                func(*args, **kwargs)
+            self._session.commit()
+        except sqlalchemy.exc.IntegrityError as exc:
+            LOG.warning('query transaction failed: %s', exc)
+            self._session.rollback()

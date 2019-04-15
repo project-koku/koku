@@ -36,8 +36,9 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._uuid = provider_uuid
-        self._provider = self.get_base().classes.api_provider
+        self._table = self.get_base().classes.api_provider
 
+    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the provider object.
@@ -47,19 +48,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        obj = self.get_session().query(self._provider).filter_by(uuid=self._uuid)
-        return obj
-
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.commit()
+        return super()._get_db_obj_query(uuid=self._uuid)
 
     def get_provider(self):
         """Return the provider."""

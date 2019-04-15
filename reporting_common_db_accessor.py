@@ -73,18 +73,7 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
         return column_map
 
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.commit()
-
-    def add(self, table, fields):
+    def add(self, table, fields, use_savepoint=True):
         """
         Add a new row to the database.
 
@@ -98,4 +87,7 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
         """
         new = getattr(self, f'_{table.lower()}')(**fields)
-        self._session.add(new)
+        if use_savepoint:
+            self.savepoint(self._session.add, new)
+        else:
+            self._session.add(new)

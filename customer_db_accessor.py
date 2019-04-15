@@ -33,8 +33,9 @@ class CustomerDBAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._customer_id = customer_id
-        self._customer = self.get_base().classes.api_customer
+        self._table = self.get_base().classes.api_customer
 
+    # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
         Return the sqlachemy query for the customer object.
@@ -44,8 +45,7 @@ class CustomerDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ...",
         """
-        obj = self.get_session().query(self._customer).filter_by(id=self._customer_id)
-        return obj
+        return super()._get_db_obj_query(id=self._customer_id)
 
     def get_uuid(self):
         """
