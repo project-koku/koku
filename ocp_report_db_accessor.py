@@ -385,6 +385,46 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
+    def populate_cost_summary_table(self, cluster_id, start_date=None, end_date=None):
+        """Populate the cost summary table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+            cluster_id (String) Cluster Identifier
+        Returns
+            (None)
+
+        """
+        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+        if start_date is None:
+            usage_start = getattr(
+                getattr(self.report_schema, table_name),
+                'usage_start'
+            )
+            start_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.asc()).first()
+            start_date = str(start_date_qry.usage_start)
+        if end_date is None:
+            usage_start = getattr(
+                getattr(self.report_schema, table_name),
+                'usage_start'
+            )
+            end_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.desc()).first()
+            end_date = str(end_date_qry.usage_start)
+
+        summary_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpcosts_summary.sql'
+        )
+        if start_date and end_date:
+            summary_sql = summary_sql.decode('utf-8').format(
+                uuid=str(uuid.uuid4()).replace('-', '_'),
+                start_date=start_date,
+                end_date=end_date,
+                cluster_id=cluster_id
+            )
+            self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+
     # pylint: disable=invalid-name
     def populate_pod_label_summary_table(self):
         """Populate the line item aggregated totals data table."""
