@@ -605,6 +605,15 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "name": "provider_uuid",
+                        "in": "query",
+                        "description": "Filter response onprovider uuid.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
                     }
                 ],
                 "responses": {

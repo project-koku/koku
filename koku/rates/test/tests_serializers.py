@@ -393,3 +393,12 @@ class RateSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
+
+    def test_get_metric_display_data(self):
+        """Test the display data helper function."""
+        serializer = RateSerializer(data=None)
+
+        for metric_choice in Rate.METRIC_CHOICES:
+            response = serializer._get_metric_display_data(metric_choice[0])
+            self.assertIsNotNone(response.get('unit'))
+            self.assertIsNotNone(response.get('display_name'))
