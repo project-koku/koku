@@ -25,7 +25,7 @@ from dateutil.relativedelta import relativedelta
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.exceptions import (MasuConfigurationError, MasuProviderError)
+from masu.exceptions import MasuConfigurationError
 from masu.external import (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM)
 
 LOG = logging.getLogger(__name__)
@@ -128,7 +128,8 @@ def get_cluster_id_from_provider(provider_uuid, schema):
     if provider_type not in (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM):
         err_msg = 'Provider UUID is not an OpenShift type.  It is {}'.\
             format(provider_type)
-        raise MasuProviderError(err_msg)
+        LOG.warning(err_msg)
+        return cluster_id
 
     with OCPReportDBAccessor(schema, column_map) as report_accessor:
         usage_period_qry = report_accessor.get_usage_period_query_by_provider(provider_obj.id)

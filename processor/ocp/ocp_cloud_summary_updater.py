@@ -20,8 +20,10 @@
 import logging
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -61,3 +63,11 @@ class OCPCloudReportSummaryUpdater:
                      self._schema_name, provider_uuid, start_date, end_date)
             accessor.populate_ocp_on_aws_cost_daily_summary(start_date, end_date)
             accessor.commit()
+
+        cluster_id = get_cluster_id_from_provider(provider_uuid, self._schema_name)
+        if cluster_id:
+            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                LOG.info('Updating OpenShift on OCP cost summary table for schema: %s and provider: %s from %s to %s',
+                         self._schema_name, provider_uuid, start_date, end_date)
+                accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
+                accessor.commit()
