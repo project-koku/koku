@@ -848,3 +848,44 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertEqual(len(projects), max((count - offset), 0))
             else:
                 self.assertEqual(len(projects), limit)
+
+    def test_execute_query_with_order_by(self):
+        """Test that the possible order by options work."""
+        order_by_numeric = ['cost', 'derived_cost', 'infrastructure_cost',
+                            'usage', 'delta']
+        order_by_non_numeric = ['project', 'cluster', 'node', 'account_alias',
+                                'region', 'service', 'product_family']
+        baseurl = reverse('reports-openshift-aws-instance-type')
+        client = APIClient()
+
+        for option in order_by_numeric:
+            order_by_dict_key = 'order_by[{}]'.format(option)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: 'desc',
+            }
+            if option == 'delta':
+                params.update({'delta': 'usage'})
+
+            url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        for option in order_by_non_numeric:
+            order_by_dict_key = 'order_by[{}]'.format(option)
+            group_by = option
+            if option == 'account_alias':
+                group_by = 'account'
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: 'desc',
+                f'group_by[{group_by}]': '*'
+            }
+
+            url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
