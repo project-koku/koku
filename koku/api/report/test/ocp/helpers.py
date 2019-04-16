@@ -29,7 +29,8 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.utils import DateHelper
-from reporting.models import (OCPStorageLineItem,
+from reporting.models import (CostSummary,
+                              OCPStorageLineItem,
                               OCPStorageLineItemDaily,
                               OCPStorageLineItemDailySummary,
                               OCPUsageLineItem,
@@ -161,6 +162,7 @@ class OCPReportDataGenerator:
             self._populate_daily_summary_table()
             self._populate_storage_daily_table()
             self._populate_storage_daily_summary_table()
+            self._populate_cost_summary_table()
             self._populate_charge_info()
             self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
@@ -429,6 +431,33 @@ class OCPReportDataGenerator:
             entry.persistentvolumeclaim_charge_gb_month = storage_charge
 
             entry.save()
+
+    def _populate_cost_summary_table(self):
+        """Populate the cost summary table."""
+        CostSummary.objects.all().delete()
+        included_fields = [
+            'usage_start',
+            'usage_end',
+            'namespace',
+            'pod',
+            'node',
+            'cluster_id',
+            'cluster_alias',
+            'pod_labels',
+        ]
+        usage_annotations = {
+            'pod_charge_cpu_core_hours': Coalesce(F('pod_charge_cpu_core_hours'), Decimal(0)),
+            'pod_charge_memory_gigabyte_hours': Coalesce(F('pod_charge_memory_gigabyte_hours'), Decimal(0)),
+            'infra_cost': Coalesce(F('pod_charge_memory_gigabyte_hours'), Decimal(0)),
+            'project_infra_cost': Coalesce(F('pod_charge_memory_gigabyte_hours'), Decimal(0)),
+            'persistentvolumeclaim_charge_gb_month': Coalesce(F('pod_charge_memory_gigabyte_hours'), Decimal(0)),
+        }
+
+        usage_entries = OCPUsageLineItemDailySummary.objects.values(*included_fields).annotate(**usage_annotations)
+
+        for entry in usage_entries:
+            summary = CostSummary(**entry)
+            summary.save()
 
     def create_storage_line_items(self, report_period, report):
         """Create OCP hourly usage line items."""
