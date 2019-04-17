@@ -82,14 +82,13 @@ objects:
       template: koku-template
     annotations:
       template.openshift.io/expose-django_secret_key: "{.data['django-secret-key']}"
+      template.openshift.io/expose-db_client_cert: "{.data['db-client-cert']}"
       template.openshift.io/expose-aws_access_key_id: "{.data['aws-access-key-id']}"
       template.openshift.io/expose-aws_secret_access_key: "{.data['aws-secret-access-key']}"
     name: ${NAME}-secret
   stringData:
     django-secret-key: ${DJANGO_SECRET_KEY}
-    service-admin-user: ${SERVICE_ADMIN_USER}
-    service-admin-email: ${SERVICE_ADMIN_EMAIL}
-    service-admin-password: ${SERVICE_ADMIN_PASSWORD}
+    db-client-cert: ${DATABASE_SERVICE_CERT}
     aws-access-key-id: ${AWS_ACCESS_KEY_ID}
     aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
 - apiVersion: v1
@@ -277,6 +276,12 @@ objects:
                   key: database-password
                   name: ${DATABASE_SERVICE_NAME}
                   optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: db-client-cert
+                  name: ${NAME}-secret
+                  optional: true
             - name: DJANGO_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -810,6 +815,9 @@ parameters:
   from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: DATABASE_ADMIN_PASSWORD
+- displayName: Database Client Certificate
+  name: DATABASE_SERVICE_CERT
+  required: false
 - description: Absolute path to Gunicorn configuration file (optional).
   displayName: Application Configuration File Path
   name: APP_CONFIG

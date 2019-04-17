@@ -498,7 +498,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         }
         handler = OCPReportQueryHandler(
             query_params,
-            f'?filter[{key_of_interest}]=\'\'',
+            f"?filter[{key_of_interest}]=\'\'",
             self.tenant,
             **{
                 'report_type': 'cpu',
