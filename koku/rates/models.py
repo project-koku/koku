@@ -20,6 +20,7 @@ from uuid import uuid4
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
+from api.provider.models import Provider
 
 
 class Rate(models.Model):
@@ -44,7 +45,7 @@ class Rate(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
-    provider_uuid = models.UUIDField(null=False)
+
     metric = models.CharField(max_length=256, null=False,
                               choices=METRIC_CHOICES, default=METRIC_CPU_CORE_USAGE_HOUR)
     rates = JSONField(default=dict)
@@ -53,4 +54,13 @@ class Rate(models.Model):
         """Meta for Rate."""
 
         ordering = ['-id']
-        unique_together = ('provider_uuid', 'metric')
+
+
+class RateMap(models.Model):
+    """Map for provider and rate objects."""
+
+    provider = models.ForeignKey(Provider, null=True, blank=True,
+                                 on_delete=models.DO_NOTHING)
+
+    rate = models.ForeignKey('Rate', null=True, blank=True,
+                             on_delete=models.DO_NOTHING)

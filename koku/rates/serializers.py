@@ -20,7 +20,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.provider.models import (Provider)
-from rates.models import Rate
+from rates.models import Rate, RateMap
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
@@ -102,7 +102,7 @@ class RateSerializer(serializers.ModelSerializer):
     DECIMALS = ('value', 'usage_start', 'usage_end')
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_uuid = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
+    provider_uuid = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'))
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
@@ -166,16 +166,10 @@ class RateSerializer(serializers.ModelSerializer):
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
             RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
-    def validate_provider_uuid(self, provider_uuid):
-        """Check that provider_uuid is a valid identifier."""
-        if Provider.objects.filter(uuid=provider_uuid).count() == 1:
-            return provider_uuid
-        else:
-            raise serializers.ValidationError('Provider object does not exist with given uuid.')
-
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
+
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -189,9 +183,13 @@ class RateSerializer(serializers.ModelSerializer):
     def to_representation(self, rate):
         """Create external representation of a rate."""
         rates = rate.rates
+        providers_query = RateMap.objects.filter(rate=rate)
+        provider_uuids = []
+        for provider in providers_query:
+            provider_uuids.append(str(provider.provider.uuid))
         out = {
             'uuid': rate.uuid,
-            'provider_uuid': rate.provider_uuid,
+            'provider_uuid': provider_uuids,
             'metric': rate.metric
         }
         for rate_type in rates.values():
@@ -207,13 +205,35 @@ class RateSerializer(serializers.ModelSerializer):
         """Create the rate object in the database."""
         provider_uuid = validated_data.pop('provider_uuid')
         metric = validated_data.pop('metric')
-        return Rate.objects.create(provider_uuid=provider_uuid,
-                                   metric=metric,
-                                   rates=validated_data)
+        rate_obj = Rate.objects.create(metric=metric,
+                                       rates=validated_data)
+        for uuid in provider_uuid:
+            provider_obj = Provider.objects.filter(uuid=uuid).first()
+
+            RateMap.objects.create(rate=rate_obj, provider=provider_obj)
+        return rate_obj
 
     def update(self, instance, validated_data):
         """Update the rate object in the database."""
+        current_providers_for_instance = []
+        for rate_map_instance in RateMap.objects.filter(rate=instance):
+            current_providers_for_instance.append(rate_map_instance.provider)
+
         provider_uuid = validated_data.pop('provider_uuid')
+        new_providers_for_instance = []
+        for uuid in provider_uuid:
+            new_providers_for_instance.append(Provider.objects.filter(uuid=uuid).first())
+    
+        providers_to_delete = set(current_providers_for_instance).difference(new_providers_for_instance)
+        providers_to_create = set(new_providers_for_instance).difference(current_providers_for_instance)
+
+        for provider in providers_to_delete:
+            RateMap.objects.filter(provider=provider).delete()
+
+        for provider in providers_to_create:
+            provider_obj = Provider.objects.filter(uuid=provider.uuid).first()
+            RateMap.objects.create(rate=instance, provider=provider_obj)
+
         metric = validated_data.pop('metric')
         instance.provider_uuid = provider_uuid
         instance.metric = metric
