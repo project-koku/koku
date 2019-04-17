@@ -32,7 +32,7 @@ class DatabaseStatusTest(IamTestCase):
         """Test DatabaseStatus constructor."""
         dbs = DatabaseStatus()
         self.assertIsNotNone(dbs.uri)
-        self.assertRegex(dbs.uri, r'\w+://\w+:[a-zA-Z0-9\']*@\w+:\d+/\w+')
+        self.assertRegex(dbs.uri, r"\w+://\w+:[a-zA-Z0-9\']*@\w+:\d+/\w+")
 
     @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):
