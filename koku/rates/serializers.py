@@ -186,20 +186,44 @@ class RateSerializer(serializers.ModelSerializer):
             error_msg = 'A rated must be provided (e.g. {}).'.format(rate_keys_str)
             raise serializers.ValidationError(error_msg)
 
+    def _get_metric_display_data(self, metric):
+        """Return API display metadata."""
+        metric_map = {Rate.METRIC_CPU_CORE_USAGE_HOUR: {'unit': 'core-hours',
+                                                        'display_name': 'Compute usage rate'},
+                      Rate.METRIC_CPU_CORE_REQUEST_HOUR: {'unit': 'core-hours',
+                                                          'display_name': 'Compute request rate'},
+                      Rate.METRIC_MEM_GB_USAGE_HOUR: {'unit': 'GB-hours',
+                                                      'display_name': 'Memory usage rate'},
+                      Rate.METRIC_MEM_GB_REQUEST_HOUR: {'unit': 'GB-hours',
+                                                        'display_name': 'Memory request rate'},
+                      Rate.METRIC_STORAGE_GB_USAGE_MONTH: {'unit': 'GB-months',
+                                                           'display_name': 'Volume usage rate'},
+                      Rate.METRIC_STORAGE_GB_REQUEST_MONTH: {'unit': 'GB-months',
+                                                             'display_name': 'Volume request rate'}}
+        return metric_map[metric]
+
     def to_representation(self, rate):
         """Create external representation of a rate."""
         rates = rate.rates
+        display_data = self._get_metric_display_data(rate.metric)
         out = {
             'uuid': rate.uuid,
             'provider_uuid': rate.provider_uuid,
-            'metric': rate.metric
+            'metric': {'name': rate.metric,
+                       'unit': display_data.get('unit'),
+                       'display_name': display_data.get('display_name')}
         }
         for rate_type in rates.values():
             if isinstance(rate_type, list):
                 for rate_item in rate_type:
                     RateSerializer._convert_to_decimal(rate_item)
+                    if not rate_item.get('usage'):
+                        rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
+                                              'usage_end': rate_item.pop('usage_end'),
+                                              'unit': display_data.get('unit')}
             else:
                 RateSerializer._convert_to_decimal(rate_type)
+
         out.update(rates)
         return out
 

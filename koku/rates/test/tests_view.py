@@ -97,7 +97,7 @@ class RateViewTests(IamTestCase):
 
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuid'))
-        self.assertEqual(test_data['metric'], response.data.get('metric'))
+        self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
     def test_create_rate_invalid(self):
@@ -123,7 +123,7 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuid'))
-        self.assertEqual(self.fake_data['metric'], response.data.get('metric'))
+        self.assertEqual(self.fake_data['metric'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
     def test_read_rate_invalid(self):
@@ -147,7 +147,7 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertEqual(test_data['tiered_rate'][0]['value'],
                          response.data.get('tiered_rate')[0].get('value'))
-        self.assertEqual(test_data['metric'], response.data.get('metric'))
+        self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
 
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
@@ -194,4 +194,32 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('provider_uuid'))
-        self.assertEqual(self.fake_data['metric'], rate.get('metric'))
+        self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
+
+    def test_read_rate_list_success_provider_query(self):
+        """Test that we can read a list of rates for a specific provider uuid."""
+        url = '{}?provider_uuid={}'.format(reverse('rates-list'), self.provider.uuid)
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for keyname in ['meta', 'links', 'data']:
+            self.assertIn(keyname, response.data)
+        self.assertIsInstance(response.data.get('data'), list)
+        self.assertEqual(len(response.data.get('data')), 1)
+
+        rate = response.data.get('data')[0]
+        self.assertIsNotNone(rate.get('uuid'))
+        self.assertIsNotNone(rate.get('uuid'))
+        self.assertIsNotNone(rate.get('provider_uuid'))
+        self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
+
+    def test_read_rate_list_failure_provider_query(self):
+        """Test that we throw proper error for invalid provider_uuid query."""
+        url = '{}?provider_uuid={}'.format(reverse('rates-list'), 'not_a_uuid')
+
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertIsNotNone(response.data.get('errors'))
