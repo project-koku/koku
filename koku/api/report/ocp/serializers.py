@@ -317,12 +317,16 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         """Validate incoming order_by data.
 
         Args:
-            data    (Dict): data to be validated
+            value    (Dict): data to be validated
         Returns:
             (Dict): Validated data
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        import logging
+        logging.disable(0)
+        LOG = logging.getLogger(__name__)
+        LOG.warning('XXX: %s', self.__dict__)
         validate_field(self, 'order_by', InventoryOrderBySerializer, value)
         return value
 
