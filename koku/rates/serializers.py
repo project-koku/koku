@@ -102,7 +102,7 @@ class RateSerializer(serializers.ModelSerializer):
     DECIMALS = ('value', 'usage_start', 'usage_end')
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_uuid = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'))
+    provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'))
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
@@ -207,7 +207,7 @@ class RateSerializer(serializers.ModelSerializer):
         display_data = self._get_metric_display_data(rate.metric)
         out = {
             'uuid': rate.uuid,
-            'provider_uuid': provider_uuids,
+            'provider_uuids': provider_uuids,
             'metric': {'name': rate.metric,
                        'unit': display_data.get('unit'),
                        'display_name': display_data.get('display_name')}
@@ -228,13 +228,12 @@ class RateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create the rate object in the database."""
-        provider_uuid = validated_data.pop('provider_uuid')
+        provider_uuids = validated_data.pop('provider_uuids')
         metric = validated_data.pop('metric')
         rate_obj = Rate.objects.create(metric=metric,
                                        rates=validated_data)
-        for uuid in provider_uuid:
+        for uuid in provider_uuids:
             provider_obj = Provider.objects.filter(uuid=uuid).first()
-            import pdb; pdb.set_trace()
             RateMap.objects.create(rate=rate_obj, provider_uuid=provider_obj.uuid)
         return rate_obj
 
@@ -244,9 +243,9 @@ class RateSerializer(serializers.ModelSerializer):
         for rate_map_instance in RateMap.objects.filter(rate=instance):
             current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
 
-        provider_uuid = validated_data.pop('provider_uuid')
+        provider_uuids = validated_data.pop('provider_uuids')
         new_providers_for_instance = []
-        for uuid in provider_uuid:
+        for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
 
         providers_to_delete = set(current_providers_for_instance).difference(new_providers_for_instance)
@@ -256,11 +255,11 @@ class RateSerializer(serializers.ModelSerializer):
             RateMap.objects.filter(provider_uuid=provider).delete()
 
         for provider in providers_to_create:
-            provider_obj = Provider.objects.filter(uuid=provider.uuid).first()
+            provider_obj = Provider.objects.filter(uuid=provider).first()
             RateMap.objects.create(rate=instance, provider_uuid=provider_obj.uuid)
 
         metric = validated_data.pop('metric')
-        instance.provider_uuid = provider_uuid
+        instance.provider_uuids = provider_uuids
         instance.metric = metric
         instance.rates = validated_data
         instance.save()
@@ -268,4 +267,4 @@ class RateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Rate
-        fields = ('uuid', 'provider_uuid', 'metric', 'tiered_rate')
+        fields = ('uuid', 'provider_uuids', 'metric', 'tiered_rate')
