@@ -20,7 +20,6 @@ from uuid import uuid4
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from api.provider.models import Provider
 
 
 class Rate(models.Model):
@@ -54,6 +53,7 @@ class Rate(models.Model):
         """Meta for Rate."""
 
         ordering = ['-id']
+        unique_together = ('metric', 'rates')
 
 
 class RateMap(models.Model):
@@ -64,3 +64,9 @@ class RateMap(models.Model):
 
     rate = models.ForeignKey('Rate', null=True, blank=True,
                              on_delete=models.DO_NOTHING)
+
+    class Meta:
+        """Meta for Rate."""
+
+        ordering = ['-id']
+        unique_together = ('provider_uuid', 'rate')

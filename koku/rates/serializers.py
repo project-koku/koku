@@ -166,9 +166,35 @@ class RateSerializer(serializers.ModelSerializer):
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
             RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
+    def validate_provider_uuids(self, provider_uuids):
+        """Check that uuids in provider_uuids are valid identifiers."""
+        valid_uuids = []
+        invalid_uuids = []
+        for uuid in provider_uuids:
+            if Provider.objects.filter(uuid=uuid).count() == 1:
+                valid_uuids.append(uuid)
+            else:
+                invalid_uuids.append(uuid)
+        if invalid_uuids:
+            err_msg = 'Provider object does not exist with following uuid(s): {}.'.format(invalid_uuids)
+            raise serializers.ValidationError(err_msg)
+        return valid_uuids
+
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
+
+        invalid_provider_metrics = []
+        for uuid in data.get('provider_uuids'):
+            map_query = RateMap.objects.filter(provider_uuid=uuid)
+            for map_obj in map_query:
+                if map_obj.rate.metric == data.get('metric'):
+                    invalid_provider_metrics.append({'uuid': uuid, 'metric': data.get('metric')})
+
+        if invalid_provider_metrics:
+            duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)
+            duplicate_metrics_err = 'Dupicate metrics found for the following providers: {}'.format(duplicate_err_msg)
+            raise serializers.ValidationError(duplicate_metrics_err)
 
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
@@ -179,6 +205,8 @@ class RateSerializer(serializers.ModelSerializer):
             rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)
             error_msg = 'A rated must be provided (e.g. {}).'.format(rate_keys_str)
             raise serializers.ValidationError(error_msg)
+
+
 
     def _get_metric_display_data(self, metric):
         """Return API display metadata."""
@@ -259,7 +287,6 @@ class RateSerializer(serializers.ModelSerializer):
             RateMap.objects.create(rate=instance, provider_uuid=provider_obj.uuid)
 
         metric = validated_data.pop('metric')
-        instance.provider_uuids = provider_uuids
         instance.metric = metric
         instance.rates = validated_data
         instance.save()
