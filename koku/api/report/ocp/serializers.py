@@ -303,12 +303,16 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         'request',
     )
 
-    curren_month_delta_fields = (
+    delta_fields = (
         'usage',
         'request',
         'limit',
         'capacity'
     )
+
+    # fields that can be ordered without a corresponding group-by
+    order_by_whitelist = ('cost', 'derived_cost', 'infrastructure_cost',
+                          'delta', 'usage', 'request', 'limit', 'capacity')
 
     delta = serializers.CharField(required=False)
     order_by = InventoryOrderBySerializer(required=False)
@@ -323,10 +327,19 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
-        import logging
-        logging.disable(0)
-        LOG = logging.getLogger(__name__)
-        LOG.warning('XXX: %s', self.__dict__)
+        error = {}
+
+        for key, val in value.items():
+            if key in self.order_by_whitelist:
+                continue    # fields that do not require a group-by
+
+            if 'group_by' in self.initial_data:
+                if key in self.initial_data.get('group_by').keys():
+                    continue    # found matching group-by
+
+            error[key] = _(f'Order-by "{key}" requires matching Group-by.')
+            raise serializers.ValidationError(error)
+
         validate_field(self, 'order_by', InventoryOrderBySerializer, value)
         return value
 
@@ -339,7 +352,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
                 error[value] = _('Only two fields may be compared')
                 raise serializers.ValidationError(error)
             for val in values:
-                if val not in self.curren_month_delta_fields:
+                if val not in self.delta_fields:
                     error[value] = _('Unsupported parameter')
                     raise serializers.ValidationError(error)
         else:
