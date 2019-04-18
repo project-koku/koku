@@ -17,10 +17,9 @@
 
 """Models for OCP on AWS tables."""
 
-from django.contrib.postgres.fields import ArrayField ,JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
-
 
 
 class OCPAWSCostLineItemDailySummary(models.Model):
