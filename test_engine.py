@@ -20,7 +20,7 @@
 from sqlalchemy import engine, pool
 
 from masu.config import Config
-from masu.database.engine import create_engine
+from masu.database.engine import create_engine, _create_engine_kwargs
 from tests import MasuTestCase
 
 class DBEngineTest(MasuTestCase):
@@ -42,3 +42,15 @@ class DBEngineTest(MasuTestCase):
         self.assertEqual(repr(db_engine.url), expected_url)
         self.assertIsInstance(db_engine.pool, pool.QueuePool)
         self.assertEqual(db_engine.pool.size(), Config.SQLALCHEMY_POOL_SIZE)
+
+    def test_create_engine_kwargs(self):
+        kwargs, cert_file = _create_engine_kwargs('dummy_cert')
+        expected = {
+            'client_encoding': 'utf8',
+            'pool_size': Config.SQLALCHEMY_POOL_SIZE,
+            'connect_args': {
+                'sslmode': 'verify-full',
+                'sslrootcert': cert_file
+            }
+        }
+        self.assertEqual(expected, kwargs)
