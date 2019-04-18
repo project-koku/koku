@@ -16,6 +16,7 @@
 #
 """Django database settings."""
 import os
+from tempfile import NamedTemporaryFile
 
 from django.conf import settings
 
@@ -27,6 +28,22 @@ engines = {
     'postgresql': 'tenant_schemas.postgresql_backend',
     'mysql': 'django.db.backends.mysql',
 }
+
+
+def _cert_config(db_config, database_cert):
+    """Add certificate configuration as needed."""
+    if database_cert:
+        temp_cert_file = NamedTemporaryFile(delete=False, mode='w', suffix='pem')
+        with open(temp_cert_file.name, mode='w') as cert_file:
+            cert_file.write(database_cert)
+        db_options = {
+            'OPTIONS': {
+                'sslmode': 'verify-full',
+                'sslrootcert': temp_cert_file.name
+            }
+        }
+        db_config.update(db_options)
+    return db_config
 
 
 def config():
@@ -44,7 +61,7 @@ def config():
     if not name and engine == engines['sqlite']:
         name = os.path.join(settings.BASE_DIR, 'db.sqlite3')
 
-    return {
+    db_config = {
         'ENGINE': engine,
         'NAME': name,
         'USER': ENVIRONMENT.get_value('DATABASE_USER', default=None),
@@ -54,3 +71,6 @@ def config():
         'PORT': ENVIRONMENT.get_value('{}_SERVICE_PORT'.format(service_name),
                                       default=None),
     }
+
+    database_cert = ENVIRONMENT.get_value('DATABASE_SERVICE_CERT', default=None)
+    return _cert_config(db_config, database_cert)

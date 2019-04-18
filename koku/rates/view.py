@@ -16,11 +16,30 @@
 #
 
 """View for Rates."""
-from rest_framework import mixins, viewsets
+import logging
+
+from django.core.exceptions import ValidationError
+from django.utils.encoding import force_text
+from rest_framework import mixins, status, viewsets
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
 from rates.models import Rate
 from rates.serializers import RateSerializer
+
+
+LOG = logging.getLogger(__name__)
+
+
+class RateProviderQueryException(APIException):
+    """Rate query custom internal error exception."""
+
+    default_detail = 'Invalid provider uuid'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        self.detail = {'detail': force_text(self.default_detail)}
 
 
 class RateViewSet(mixins.CreateModelMixin,
@@ -41,6 +60,18 @@ class RateViewSet(mixins.CreateModelMixin,
     permission_classes = (AllowAny,)
     lookup_field = 'uuid'
 
+    def get_queryset(self):
+        """Get a queryset.
+
+        Restricts the returned data to provider_uuid if supplied as a query parameter.
+        """
+        queryset = Rate.objects.all()
+
+        provider_uuid = self.request.query_params.get('provider_uuid')
+        if provider_uuid:
+            queryset = Rate.objects.filter(provider_uuid=provider_uuid)
+        return queryset
+
     def create(self, request, *args, **kwargs):
         """Create a rate.
 
@@ -60,7 +91,7 @@ class RateViewSet(mixins.CreateModelMixin,
         @apiParamExample {json} Request Body:
             {
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                "metric": "cpu_core_per_hour",
+                "metric": "cpu_core_usage_per_hour",
                 "tiered_rate": [{
                     "value": 0.022,
                     "unit": "USD",
@@ -80,7 +111,7 @@ class RateViewSet(mixins.CreateModelMixin,
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                "metric": "cpu_core_per_hour",
+                "metric": "cpu_core_usage_per_hour",
                 "tiered_rate": [{
                     "value": 0.022,
                     "unit": "USD",
@@ -122,33 +153,48 @@ class RateViewSet(mixins.CreateModelMixin,
                     'last': /cost-management/v1/rates/?page=1
                 },
                 'data': [
-                                {
-                                    "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
-                                    "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                                    "metric": "cpu_core_per_hour",
-                                    "tiered_rate": [{
-                                        "value": 0.022,
-                                        "unit": "USD",
-                                        "usage_start": null,
-                                        "usage_end": null,
-                                    }]
-                                },
-                                {
-                                    "uuid": "20ecdcd0-397c-4ede-8940-f3439bf40212",
-                                    "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                                    "metric": "memory_gb_per_hour",
-                                    "tiered_rate": [{
-                                        "value": 0.022,
-                                        "unit": "USD",
-                                        "usage_start": null,
-                                        "usage_end": null,
-                                    }]
-                                }
-                            ]
+                    {
+                        "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
+                        "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                        "metric": {
+                            "name": "cpu_core_usage_per_hour",
+                            "unit": "core-hours",
+                            "display_name": "Compute usage rate"
+                        }
+                        "tiered_rate": [{
+                            "value": 0.022,
+                            "unit": "USD",
+                            "usage": {
+                                "usage_start": null,
+                                "usage_end": null,
+                                "unit": "cpu-hours"
+                            }
+                        }]
+                    },
+                    {
+                        "uuid": "20ecdcd0-397c-4ede-8940-f3439bf40212",
+                        "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
+                        "metric": "memory_gb_usage_per_hour",
+                        "tiered_rate": [{
+                            "value": 0.022,
+                            "unit": "USD",
+                            "usage": {
+                                "usage_start": null,
+                                "usage_end": null,
+                                "unit": "GB-hours"
+                            }
+                        }]
+                    }
+                ]
             }
 
         """
-        return super().list(request=request, args=args, kwargs=kwargs)
+        try:
+            response = super().list(request=request, args=args, kwargs=kwargs)
+        except ValidationError:
+            raise RateProviderQueryException
+
+        return response
 
     def retrieve(self, request, *args, **kwargs):
         """Get a rate.
@@ -174,7 +220,11 @@ class RateViewSet(mixins.CreateModelMixin,
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                "metric": "cpu_core_per_hour",
+                "metric": {
+                    "name": "cpu_core_usage_per_hour",
+                    "unit": "core-hours",
+                    "display_name": "Compute usage rate"
+                }
                 "tiered_rate": [{
                     "value": 0.022,
                     "unit": "USD",
@@ -227,7 +277,7 @@ class RateViewSet(mixins.CreateModelMixin,
             {
                 "uuid": "16fd2706-8baf-433b-82eb-8c7fada847da",
                 "provider_uuid": "a1de6812-0c26-4b33-acdb-3bad8b1ef295",
-                "metric": "cpu_core_per_hour",
+                "metric": "cpu_core_usage_per_hour",
                 "tiered_rate": [{
                     "value": 0.022,
                     "unit": "USD",
