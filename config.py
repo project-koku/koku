@@ -39,6 +39,7 @@ class Config:
     DB_PASSWORD = os.getenv('DATABASE_PASSWORD', 'postgres')
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
     DB_PORT = os.getenv('DATABASE_PORT', '15432')
+    DB_CA_CERT = os.getenv('DATABASE_CA_CERT')
 
     SQLALCHEMY_DATABASE_URI = \
         f'{DB_ENGINE}://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
