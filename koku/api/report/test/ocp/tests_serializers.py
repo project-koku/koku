@@ -391,7 +391,8 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
             'order_by': {'node': 'asc'}
         }
         serializer = OCPInventoryQueryParamSerializer(data=query_params)
-        self.assertFalse(serializer.is_valid())
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
 
 
 class OCPCostQueryParamSerializerTest(TestCase):
