@@ -202,7 +202,7 @@ class RateSerializer(serializers.ModelSerializer):
         providers_query = RateMap.objects.filter(rate=rate)
         provider_uuids = []
         for provider in providers_query:
-            provider_uuids.append(str(provider.provider.uuid))
+            provider_uuids.append(str(provider.provider_uuid))
 
         display_data = self._get_metric_display_data(rate.metric)
         out = {
@@ -234,30 +234,30 @@ class RateSerializer(serializers.ModelSerializer):
                                        rates=validated_data)
         for uuid in provider_uuid:
             provider_obj = Provider.objects.filter(uuid=uuid).first()
-
-            RateMap.objects.create(rate=rate_obj, provider=provider_obj)
+            import pdb; pdb.set_trace()
+            RateMap.objects.create(rate=rate_obj, provider_uuid=provider_obj.uuid)
         return rate_obj
 
     def update(self, instance, validated_data):
         """Update the rate object in the database."""
         current_providers_for_instance = []
         for rate_map_instance in RateMap.objects.filter(rate=instance):
-            current_providers_for_instance.append(rate_map_instance.provider)
+            current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
 
         provider_uuid = validated_data.pop('provider_uuid')
         new_providers_for_instance = []
         for uuid in provider_uuid:
-            new_providers_for_instance.append(Provider.objects.filter(uuid=uuid).first())
-    
+            new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
+
         providers_to_delete = set(current_providers_for_instance).difference(new_providers_for_instance)
         providers_to_create = set(new_providers_for_instance).difference(current_providers_for_instance)
 
         for provider in providers_to_delete:
-            RateMap.objects.filter(provider=provider).delete()
+            RateMap.objects.filter(provider_uuid=provider).delete()
 
         for provider in providers_to_create:
             provider_obj = Provider.objects.filter(uuid=provider.uuid).first()
-            RateMap.objects.create(rate=instance, provider=provider_obj)
+            RateMap.objects.create(rate=instance, provider_uuid=provider_obj.uuid)
 
         metric = validated_data.pop('metric')
         instance.provider_uuid = provider_uuid

@@ -59,8 +59,8 @@ class Rate(models.Model):
 class RateMap(models.Model):
     """Map for provider and rate objects."""
 
-    provider = models.ForeignKey(Provider, null=True, blank=True,
-                                 on_delete=models.DO_NOTHING)
+    provider_uuid = models.UUIDField(default=uuid4, editable=False,
+                                     unique=False, null=False)
 
     rate = models.ForeignKey('Rate', null=True, blank=True,
                              on_delete=models.DO_NOTHING)
