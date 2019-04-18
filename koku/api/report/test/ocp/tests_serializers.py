@@ -394,6 +394,23 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_order_by_node_with_groupby(self):
+        """Test that order_by[node] works with a matching group-by."""
+        query_params = {
+            'group_by': {'node': 'asc'},
+            'order_by': {'node': 'asc'}
+        }
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertFalse(serializer.is_valid())
+
+    def test_order_by_node_without_groupby(self):
+        """Test that order_by[node] fails without a matching group-by."""
+        query_params = {
+            'order_by': {'node': 'asc'}
+        }
+        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        self.assertFalse(serializer.is_valid())
+
 
 class OCPCostQueryParamSerializerTest(TestCase):
     """Tests for the handling charge query parameter parsing serializer."""
