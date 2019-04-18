@@ -401,7 +401,7 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
             'order_by': {'node': 'asc'}
         }
         serializer = OCPInventoryQueryParamSerializer(data=query_params)
-        self.assertFalse(serializer.is_valid())
+        self.assertTrue(serializer.is_valid())
 
     def test_order_by_node_without_groupby(self):
         """Test that order_by[node] fails without a matching group-by."""
