@@ -20,7 +20,8 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.provider.models import (Provider)
-from rates.models import Rate, RateMap
+from rates.models import Rate
+from rates.rate_manager import RateManager, RateManagerError
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
@@ -184,18 +185,6 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
 
-        invalid_provider_metrics = []
-        for uuid in data.get('provider_uuids'):
-            map_query = RateMap.objects.filter(provider_uuid=uuid)
-            for map_obj in map_query:
-                if map_obj.rate.metric == data.get('metric'):
-                    invalid_provider_metrics.append({'uuid': uuid, 'metric': data.get('metric')})
-
-        if invalid_provider_metrics:
-            duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)
-            duplicate_metrics_err = 'Dupicate metrics found for the following providers: {}'.format(duplicate_err_msg)
-            raise serializers.ValidationError(duplicate_metrics_err)
-
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -205,8 +194,6 @@ class RateSerializer(serializers.ModelSerializer):
             rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)
             error_msg = 'A rated must be provided (e.g. {}).'.format(rate_keys_str)
             raise serializers.ValidationError(error_msg)
-
-
 
     def _get_metric_display_data(self, metric):
         """Return API display metadata."""
@@ -227,10 +214,8 @@ class RateSerializer(serializers.ModelSerializer):
     def to_representation(self, rate):
         """Create external representation of a rate."""
         rates = rate.rates
-        providers_query = RateMap.objects.filter(rate=rate)
-        provider_uuids = []
-        for provider in providers_query:
-            provider_uuids.append(str(provider.provider_uuid))
+
+        provider_uuids = RateManager(rate_uuid=rate.uuid).get_provider_uuids()
 
         display_data = self._get_metric_display_data(rate.metric)
         out = {
@@ -258,38 +243,27 @@ class RateSerializer(serializers.ModelSerializer):
         """Create the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids')
         metric = validated_data.pop('metric')
-        rate_obj = Rate.objects.create(metric=metric,
-                                       rates=validated_data)
-        for uuid in provider_uuids:
-            provider_obj = Provider.objects.filter(uuid=uuid).first()
-            RateMap.objects.create(rate=rate_obj, provider_uuid=provider_obj.uuid)
+        try:
+            rate_obj = RateManager().create(metric=metric,
+                                            rates=validated_data,
+                                            provider_uuids=provider_uuids)
+        except RateManagerError as create_error:
+            raise serializers.ValidationError(create_error.message)
         return rate_obj
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        current_providers_for_instance = []
-        for rate_map_instance in RateMap.objects.filter(rate=instance):
-            current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
-
         provider_uuids = validated_data.pop('provider_uuids')
+        metric = validated_data.pop('metric')
+
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
 
-        providers_to_delete = set(current_providers_for_instance).difference(new_providers_for_instance)
-        providers_to_create = set(new_providers_for_instance).difference(current_providers_for_instance)
-
-        for provider in providers_to_delete:
-            RateMap.objects.filter(provider_uuid=provider).delete()
-
-        for provider in providers_to_create:
-            provider_obj = Provider.objects.filter(uuid=provider).first()
-            RateMap.objects.create(rate=instance, provider_uuid=provider_obj.uuid)
-
-        metric = validated_data.pop('metric')
-        instance.metric = metric
-        instance.rates = validated_data
-        instance.save()
+        manager = RateManager(rate_uuid=instance.uuid)
+        manager.update_provider_uuids(new_providers_for_instance)
+        manager.update_metric(metric)
+        manager.update_rates(validated_data)
         return instance
 
     class Meta:

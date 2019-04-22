@@ -18,7 +18,6 @@
 """View for Rates."""
 import logging
 
-from django.db.models.query import QuerySet
 from django.core.exceptions import ValidationError
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
@@ -41,6 +40,15 @@ class RateProviderQueryException(APIException):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         self.detail = {'detail': force_text(self.default_detail)}
+
+
+class RateProviderMethodException(APIException):
+    """General Exception class for ProviderManager errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderManager errors."""
+        self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+        self.detail = {'detail': force_text(message)}
 
 
 class RateViewSet(mixins.CreateModelMixin,
@@ -289,4 +297,6 @@ class RateViewSet(mixins.CreateModelMixin,
                 }]
             }
         """
+        if request.method == 'PATCH':
+            raise RateProviderMethodException('PATCH not supported')
         return super().update(request=request, args=args, kwargs=kwargs)
