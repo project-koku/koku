@@ -17,21 +17,18 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         SELECT cluster_id,
             usage_start,
             namespace,
-            pod,
             node,
             sum(ocp_aws.unblended_cost / ocp_aws.shared_projects) as infra_cost,
-            sum(ocp_aws.pod_cost) as project_infra_cost
-        FROM reporting_ocpawscostlineitem_daily_summary AS ocp_aws
+            sum(ocp_aws.project_cost) as project_infra_cost
+        FROM reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
         GROUP BY cluster_id,
                 usage_start,
                 namespace,
-                pod,
                 node
     ) as ocp_aws
         ON usageli.usage_start = ocp_aws.usage_start
             AND usageli.cluster_id = ocp_aws.cluster_id
             AND usageli.namespace = ocp_aws.namespace
-            AND usageli.pod = ocp_aws.pod
             AND usageli.node = ocp_aws.node
 
     UNION
@@ -54,21 +51,18 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         SELECT cluster_id,
             usage_start,
             namespace,
-            pod,
             node,
             sum(ocp_aws.unblended_cost / ocp_aws.shared_projects) as infra_cost,
-            sum(ocp_aws.pod_cost) as project_infra_cost
-        FROM reporting_ocpawscostlineitem_daily_summary AS ocp_aws
+            sum(ocp_aws.project_cost) as project_infra_cost
+        FROM reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
         GROUP BY cluster_id,
                 usage_start,
                 namespace,
-                pod,
                 node
     ) as ocp_aws
         ON storageli.usage_start = ocp_aws.usage_start
             AND storageli.cluster_id = ocp_aws.cluster_id
             AND storageli.namespace = ocp_aws.namespace
-            AND storageli.pod = ocp_aws.pod
             AND storageli.node = ocp_aws.node
 )
 ;
