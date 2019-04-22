@@ -36,7 +36,8 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDaily,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import (OCPAWSCostLineItemDailySummary,
+                              OCPAWSCostLineItemProjectDailySummary)
 
 
 class OCPAWSReportDataGenerator(OCPReportDataGenerator):
@@ -107,6 +108,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             for i, period in enumerate(self.period_ranges):
                 for report_date in self.report_ranges[i]:
                     self._populate_ocp_aws_cost_line_item_daily_summary(report_date)
+                    self._populate_ocp_aws_cost_line_item_project_daily_summary(report_date)
             self._populate_aws_tag_summary()
 
     def add_aws_data_to_tenant(self, product='ec2'):
@@ -307,7 +309,6 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'cluster_id': self.cluster_id,
                     'cluster_alias': self.cluster_alias,
                     'namespace': row.get('namespace'),
-                    'pod': row.get('pod'),
                     'node': row.get('node'),
                     'resource_id': resource_prefix + row.get('resource_id'),
                     'usage_start': report_date,
@@ -325,7 +326,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'normalized_usage_amount': usage_amount,
                     'project_cost': Decimal(random.random()) * unblended_cost
                 }
-                line_item = OCPAWSCostLineItemDailySummary(**data)
+                line_item = OCPAWSCostLineItemProjectDailySummary(**data)
                 line_item.save()
 
     def _populate_aws_tag_summary(self):
