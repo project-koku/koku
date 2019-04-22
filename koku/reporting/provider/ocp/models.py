@@ -596,6 +596,29 @@ class OCPStorageLineItemDailySummary(models.Model):
 
         db_table = 'reporting_ocpstoragelineitem_daily_summary'
 
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='storage_summary_ocp_usage_idx',
+            ),
+            models.Index(
+                fields=['namespace'],
+                name='storage_summary_namespace_idx',
+            ),
+            models.Index(
+                fields=['pod'],
+                name='storage_summary_pod_idx',
+            ),
+            models.Index(
+                fields=['node'],
+                name='storage_summary_node_idx',
+            ),
+            GinIndex(
+                fields=['volume_labels'],
+                name='storage_volume_labels_idx',
+            ),
+        ]
+
     id = models.BigAutoField(primary_key=True)
 
     cluster_id = models.CharField(max_length=50, null=True)
