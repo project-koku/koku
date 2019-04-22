@@ -51,6 +51,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
                 fields=['tags'],
                 name='cost_tags_idx',
             ),
+            models.Index(
+                fields=['product_family'],
+                name='ocp_aws_product_family_idx',
+            ),
         ]
 
     # OCP Fields
@@ -144,6 +148,10 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
             GinIndex(
                 fields=['tags'],
                 name='cost_proj_tags_idx',
+            ),
+            models.Index(
+                fields=['product_family'],
+                name='ocp_aws_proj_prod_fam_idx',
             ),
         ]
 
