@@ -55,6 +55,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
                 fields=['product_family'],
                 name='ocp_aws_product_family_idx',
             ),
+            models.Index(
+                fields=['instance_type'],
+                name='ocp_aws_instance_type_idx',
+            ),
         ]
 
     # OCP Fields
@@ -152,6 +156,10 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
             models.Index(
                 fields=['product_family'],
                 name='ocp_aws_proj_prod_fam_idx',
+            ),
+            models.Index(
+                fields=['instance_type'],
+                name='ocp_aws_proj_inst_type_idx',
             ),
         ]
 

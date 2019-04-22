@@ -263,6 +263,10 @@ class AWSCostEntryLineItemDailySummary(models.Model):
                 fields=['product_family'],
                 name='summary_product_family_idx',
             ),
+            models.Index(
+                fields=['instance_type'],
+                name='summary_instance_type_idx',
+            ),
         ]
 
     id = models.BigAutoField(primary_key=True)
