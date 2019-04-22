@@ -53,7 +53,6 @@ class Rate(models.Model):
         """Meta for Rate."""
 
         ordering = ['-id']
-        unique_together = ('metric', 'rates')
 
 
 class RateMap(models.Model):
