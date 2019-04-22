@@ -79,6 +79,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{uuid} AS (
         ocp.persistentvolumeclaim_usage_byte_seconds,
         ocp.persistentvolume_labels,
         ocp.persistentvolumeclaim_labels,
+        aws.id as aws_id,
         aws.cost_entry_product_id,
         aws.cost_entry_pricing_id,
         aws.cost_entry_reservation_id,
@@ -183,6 +184,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{uuid} AS (
         ocp.node_capacity_memory_byte_seconds,
         ocp.cluster_capacity_cpu_core_seconds,
         ocp.cluster_capacity_memory_byte_seconds,
+        aws.id as aws_id,
         aws.cost_entry_product_id,
         aws.cost_entry_pricing_id,
         aws.cost_entry_reservation_id,
@@ -234,6 +236,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{uuid} AS (
         ocp.node_capacity_memory_byte_seconds,
         ocp.cluster_capacity_cpu_core_seconds,
         ocp.cluster_capacity_memory_byte_seconds,
+        aws.id as aws_id,
         aws.cost_entry_product_id,
         aws.cost_entry_pricing_id,
         aws.cost_entry_reservation_id,
@@ -277,81 +280,154 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{uuid} AS (
 
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
-    SELECT li.cluster_id,
-        li.cluster_alias,
-        li.namespace,
-        li.pod,
-        li.node,
-        li.resource_id,
-        li.usage_start,
-        li.usage_end,
-        li.pod_labels as openshift_labels,
-        li.product_code,
-        p.product_family,
-        p.instance_type,
-        li.usage_account_id,
-        aa.id as account_alias_id,
-        li.availability_zone,
-        p.region,
-        pr.unit,
+    WITH cte_pod_project_cost AS (
+        SELECT pc.aws_id,
+            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
+        FROM (
+            SELECT li.aws_id,
+                li.namespace,
+                sum((li.pod_usage_cpu_core_seconds / li.node_capacity_cpu_core_seconds) * li.unblended_cost) as pod_cost
+            FROM reporting_ocpawsusagelineitem_daily_{uuid} as li
+            GROUP BY li.aws_id, li.namespace
+        ) AS pc
+        GROUP BY pc.aws_id
+    ),
+    cte_storage_project_cost AS (
+        SELECT pc.aws_id,
+            jsonb_object_agg(pc.namespace, pc.pod_cost) as project_costs
+        FROM (
+            SELECT li.aws_id,
+                li.namespace,
+                max(li.unblended_cost) / max(li.shared_projects) as pod_cost
+            FROM reporting_ocpawsstoragelineitem_daily_{uuid} as li
+            GROUP BY li.aws_id, li.namespace
+        ) AS pc
+        GROUP BY pc.aws_id
+    )
+    SELECT max(li.cluster_id) as cluster_id,
+        max(li.cluster_alias) as cluster_alias,
+        array_agg(DISTINCT li.namespace) as namespace,
+        array_agg(DISTINCT li.pod) as pod,
+        max(li.node) as node,
+        max(li.resource_id) as resource_id,
+        max(li.usage_start) as usage_start,
+        max(li.usage_end) as usage_end,
+        max(li.product_code) as product_code,
+        max(p.product_family) as product_family,
+        max(p.instance_type) as instance_type,
+        max(li.usage_account_id) as usage_account_id,
+        max(aa.id) as account_alias_id,
+        max(li.availability_zone) as availability_zone,
+        max(p.region) as region,
+        max(pr.unit) as unit,
         li.tags,
-        li.usage_amount,
-        li.normalized_usage_amount,
-        li.unblended_cost,
-        li.shared_projects,
-        (li.pod_usage_cpu_core_seconds / li.node_capacity_cpu_core_seconds) *
-            li.unblended_cost as pod_cost
+        max(li.usage_amount) as usage_amount,
+        max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.unblended_cost) as unblended_cost,
+        count(DISTINCT li.namespace) as shared_projects,
+        pc.project_costs as project_costs
     FROM reporting_ocpawsusagelineitem_daily_{uuid} as li
     JOIN reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
+    JOIN cte_pod_project_cost as pc
+        ON li.aws_id = pc.aws_id
     LEFT JOIN reporting_awscostentrypricing as pr
         ON li.cost_entry_pricing_id = pr.id
     LEFT JOIN reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= '{start_date}'
-        AND li.usage_start <= '{end_date}'
+    WHERE date(li.usage_start) >= '{start_date}'
+        AND date(li.usage_start) <= '{end_date}'
+    -- Dedup on AWS line item so we never double count usage or cost
+    GROUP BY li.aws_id, li.tags, pc.project_costs
 
     UNION
 
+    SELECT max(li.cluster_id) as cluster_id,
+        max(li.cluster_alias) as cluster_alias,
+        array_agg(DISTINCT li.namespace) as namespace,
+        array_agg(DISTINCT li.pod) as pod,
+        max(li.node) as node,
+        max(li.resource_id) as resource_id,
+        max(li.usage_start) as usage_start,
+        max(li.usage_end) as usage_end,
+        max(li.product_code) as product_code,
+        max(p.product_family) as product_family,
+        max(p.instance_type) as instance_type,
+        max(li.usage_account_id) as usage_account_id,
+        max(aa.id) as account_alias_id,
+        max(li.availability_zone) as availability_zone,
+        max(p.region) as region,
+        max(pr.unit) as unit,
+        li.tags,
+        max(li.usage_amount) as usage_amount,
+        max(li.normalized_usage_amount) as normalized_usage_amount,
+        max(li.unblended_cost) as unblended_cost,
+        count(DISTINCT li.namespace) as shared_projects,
+        pc.project_costs
+    FROM reporting_ocpawsstoragelineitem_daily_{uuid} as li
+    JOIN reporting_awscostentryproduct AS p
+        ON li.cost_entry_product_id = p.id
+    JOIN cte_storage_project_cost AS pc
+        ON li.aws_id = pc.aws_id
+    LEFT JOIN reporting_awscostentrypricing as pr
+        ON li.cost_entry_pricing_id = pr.id
+    LEFT JOIN reporting_awsaccountalias AS aa
+        ON li.usage_account_id = aa.account_id
+    WHERE date(li.usage_start) >= '{start_date}'
+        AND date(li.usage_start) <= '{end_date}'
+    GROUP BY li.aws_id, li.tags, pc.project_costs
+)
+;
+
+CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid} AS (
     SELECT li.cluster_id,
         li.cluster_alias,
-        li.namespace,
-        li.pod,
+        pc.key as namespace,
         li.node,
         li.resource_id,
         li.usage_start,
         li.usage_end,
-        li.persistentvolume_labels || li.persistentvolumeclaim_labels as openshift_labels,
         li.product_code,
-        p.product_family,
-        p.instance_type,
+        li.product_family,
+        li.instance_type,
         li.usage_account_id,
-        aa.id as account_alias_id,
+        li.account_alias_id,
         li.availability_zone,
-        p.region,
-        pr.unit,
+        li.region,
+        li.unit,
         li.tags,
-        li.usage_amount,
-        li.normalized_usage_amount,
-        li.unblended_cost,
-        li.shared_projects,
-        li.unblended_cost / li.shared_projects as pod_cost
-    FROM reporting_ocpawsstoragelineitem_daily_{uuid} as li
-    JOIN reporting_awscostentryproduct AS p
-        ON li.cost_entry_product_id = p.id
-    LEFT JOIN reporting_awscostentrypricing as pr
-        ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN reporting_awsaccountalias AS aa
-        ON li.usage_account_id = aa.account_id
-    WHERE li.usage_start >= '{start_date}'
-        AND li.usage_start <= '{end_date}'
+        sum(li.usage_amount) as usage_amount,
+        sum(li.normalized_usage_amount) as normalized_usage_amount,
+        sum(li.unblended_cost) as unblended_cost,
+        max(shared_projects) as shared_projects,
+        sum(cast(pc.value as numeric(24,6))) as project_cost
+    FROM reporting_ocpawscostlineitem_daily_summary_{uuid} li,
+        jsonb_each_text(li.project_costs) pc
+    WHERE date(li.usage_start) >= '{start_date}'
+        AND date(li.usage_start) <= '{end_date}'
+    GROUP BY li.cluster_id,
+        li.cluster_alias,
+        pc.key,
+        li.node,
+        li.resource_id,
+        li.usage_start,
+        li.usage_end,
+        li.product_code,
+        li.product_family,
+        li.instance_type,
+        li.usage_account_id,
+        li.account_alias_id,
+        li.availability_zone,
+        li.region,
+        li.unit,
+        li.tags
 )
 ;
 
 -- Clear out old entries first
 DELETE FROM reporting_ocpawscostlineitem_daily_summary
-WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}'
+WHERE date(usage_start) >= '{start_date}'
+    AND date(usage_start) <= '{end_date}'
 ;
 
 -- Populate the daily aggregate line item data
@@ -364,7 +440,6 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     resource_id,
     usage_start,
     usage_end,
-    openshift_labels,
     product_code,
     product_family,
     instance_type,
@@ -378,7 +453,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     normalized_usage_amount,
     unblended_cost,
     shared_projects,
-    pod_cost
+    project_costs
 )
     SELECT cluster_id,
         cluster_alias,
@@ -388,7 +463,6 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         resource_id,
         usage_start,
         usage_end,
-        openshift_labels,
         product_code,
         product_family,
         instance_type,
@@ -402,6 +476,57 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         normalized_usage_amount,
         unblended_cost,
         shared_projects,
-        pod_cost
+        project_costs
     FROM reporting_ocpawscostlineitem_daily_summary_{uuid}
 ;
+
+DELETE FROM reporting_ocpawscostlineitem_project_daily_summary
+WHERE date(usage_start) >= '{start_date}'
+    AND date(usage_start) <= '{end_date}'
+;
+
+INSERT INTO reporting_ocpawscostlineitem_project_daily_summary (
+    cluster_id,
+    cluster_alias,
+    namespace,
+    node,
+    resource_id,
+    usage_start,
+    usage_end,
+    product_code,
+    product_family,
+    instance_type,
+    usage_account_id,
+    account_alias_id,
+    availability_zone,
+    region,
+    unit,
+    tags,
+    usage_amount,
+    normalized_usage_amount,
+    unblended_cost,
+    shared_projects,
+    project_cost
+)
+    SELECT cluster_id,
+        cluster_alias,
+        namespace,
+        node,
+        resource_id,
+        usage_start,
+        usage_end,
+        product_code,
+        product_family,
+        instance_type,
+        usage_account_id,
+        account_alias_id,
+        availability_zone,
+        region,
+        unit,
+        tags,
+        usage_amount,
+        normalized_usage_amount,
+        unblended_cost,
+        shared_projects,
+        project_cost
+    FROM reporting_ocpawscostlineitem_project_daily_summary_{uuid}
