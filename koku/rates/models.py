@@ -63,7 +63,7 @@ class RateMap(models.Model):
                                      unique=False, null=False)
 
     rate = models.ForeignKey('Rate', null=True, blank=True,
-                             on_delete=models.DO_NOTHING)
+                             on_delete=models.CASCADE)
 
     class Meta:
         """Meta for Rate."""
