@@ -533,45 +533,18 @@ class ProviderMap(object):
             'report_type': {
                 'costs': {
                     'aggregates': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                     },
                     'annotations': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Value(0, output_field=DecimalField()),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                     },
                     'count': None,
-                    'delta_key': {
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
-                    },
+                    'delta_key': {'cost': Sum(F('unblended_cost'))},
                     'filter': {},
                     'cost_units_key': 'currency_code',
                     'cost_units_fallback': 'USD',
@@ -605,49 +578,19 @@ class ProviderMap(object):
                 },
                 'storage': {
                     'aggregates': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
-                        'usage': Sum(
-                            ExpressionWrapper(
-                                F('usage_amount') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'usage': Sum(F('usage_amount')),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
-                        'usage': Sum(
-                            ExpressionWrapper(
-                                F('usage_amount') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'usage': Sum(F('usage_amount')),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'count': None,
@@ -712,53 +655,23 @@ class ProviderMap(object):
                 },
                 'instance_type': {
                     'aggregates': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
-                        'usage': Sum(
-                            ExpressionWrapper(
-                                F('usage_amount') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'usage': Sum(F('usage_amount')),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'aggregate_key': 'usage_amount',
                     'annotations': {
-                        'infrastructure_cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'infrastructure_cost': Sum(F('unblended_cost')),
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                        'cost': Sum(
-                            ExpressionWrapper(
-                                F('unblended_cost') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'cost': Sum(F('unblended_cost')),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                         'count': Count('resource_id', distinct=True),
                         'count_units': Value('instances', output_field=CharField()),
-                        'usage': Sum(
-                            ExpressionWrapper(
-                                F('usage_amount') / F('shared_projects'),
-                                output_field=DecimalField()
-                            )
-                        ),
+                        'usage': Sum(F('usage_amount')),
                         'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                     },
                     'count': 'resource_id',
