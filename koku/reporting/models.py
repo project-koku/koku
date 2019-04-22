@@ -38,5 +38,4 @@ from reporting.provider.ocp.models import (OCPStorageLineItem,                 #
                                            OCPUsageReport,                     # noqa: F401
                                            OCPUsageReportPeriod)               # noqa: F401
 from reporting.provider.ocp_aws.models import (OCPAWSCostLineItemDailySummary,  # noqa: F401
-                                               OCPAWSStorageLineItemDaily,     # noqa: F401
-                                               OCPAWSUsageLineItemDaily)       # noqa: F401
+                                               OCPAWSCostLineItemProjectDailySummary)  # noqa: F401
