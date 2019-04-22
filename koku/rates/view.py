@@ -18,13 +18,14 @@
 """View for Rates."""
 import logging
 
+from django.db.models.query import QuerySet
 from django.core.exceptions import ValidationError
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
-from rates.models import Rate
+from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
 
@@ -66,10 +67,12 @@ class RateViewSet(mixins.CreateModelMixin,
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
         queryset = Rate.objects.all()
-
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
-            queryset = Rate.objects.filter(provider_uuid=provider_uuid)
+            rate_ids = []
+            for e in RateMap.objects.filter(provider_uuid=provider_uuid):
+                rate_ids.append(e.rate_id)
+            queryset = Rate.objects.filter(id__in=rate_ids)
         return queryset
 
     def create(self, request, *args, **kwargs):
