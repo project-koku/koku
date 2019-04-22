@@ -939,11 +939,14 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_populate_ocp_on_aws_cost_daily_summary(self):
         """Test that the OCP on AWS cost summary table is populated."""
         summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
+        project_summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+        project_table = getattr(self.accessor.report_schema, project_summary_table_name)
 
         today = DateAccessor().today_with_timezone('UTC')
         last_month = today - relativedelta.relativedelta(months=1)
         resource_id = 'i-12345'
-
         for cost_entry_date in (today, last_month):
             bill = self.creator.create_cost_entry_bill(cost_entry_date)
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
@@ -960,6 +963,13 @@ class ReportDBAccessorTest(MasuTestCase):
             )
 
         self.accessor.populate_line_item_daily_table(last_month, today)
+
+        li_table_name = AWS_CUR_TABLE_MAP['line_item']
+        li_table = getattr(self.accessor.report_schema, li_table_name)
+
+        sum_aws_cost = self.accessor._session.query(
+            func.sum(li_table.unblended_cost)
+        ).first()
 
         with OCPReportDBAccessor('acct10001', self.column_map) as ocp_accessor:
             ocp_creator = ReportObjectCreator(
@@ -990,3 +1000,14 @@ class ReportDBAccessorTest(MasuTestCase):
                                                              today)
 
         self.assertNotEqual(query.count(), initial_count)
+
+        sum_cost = self.accessor._session.query(
+            func.sum(summary_table.unblended_cost)
+        ).first()
+
+        sum_project_cost = self.accessor._session.query(
+            func.sum(project_table.unblended_cost)
+        ).first()
+
+        self.assertEqual(sum_cost, sum_project_cost)
+        self.assertLessEqual(sum_cost, sum_aws_cost)
