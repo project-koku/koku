@@ -21,14 +21,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='ocpstoragelineitemdailysummary',
-            index=models.Index(fields=['pod'], name='storage_summary_pod_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='ocpstoragelineitemdailysummary',
             index=models.Index(fields=['node'], name='storage_summary_node_idx'),
         ),
         migrations.AddIndex(
             model_name='ocpstoragelineitemdailysummary',
             index=django.contrib.postgres.indexes.GinIndex(fields=['volume_labels'], name='storage_volume_labels_idx'),
+        ),
+        migrations.RemoveIndex(
+            model_name='ocpusagelineitemdailysummary',
+            name='summary_pod_idx',
         ),
     ]

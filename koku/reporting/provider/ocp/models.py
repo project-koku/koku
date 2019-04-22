@@ -322,10 +322,6 @@ class OCPUsageLineItemDailySummary(models.Model):
                 name='summary_namespace_idx',
             ),
             models.Index(
-                fields=['pod'],
-                name='summary_pod_idx',
-            ),
-            models.Index(
                 fields=['node'],
                 name='summary_node_idx',
             ),
@@ -604,10 +600,6 @@ class OCPStorageLineItemDailySummary(models.Model):
             models.Index(
                 fields=['namespace'],
                 name='storage_summary_namespace_idx',
-            ),
-            models.Index(
-                fields=['pod'],
-                name='storage_summary_pod_idx',
             ),
             models.Index(
                 fields=['node'],
