@@ -27,6 +27,8 @@ services:
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
+        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-5000}
       privileged: true
       ports:
           - 8000:8000
