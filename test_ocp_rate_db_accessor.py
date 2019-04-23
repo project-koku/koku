@@ -106,31 +106,8 @@ class OCPRateDBAccessorTest(MasuTestCase):
         self.assertIsNotNone(self.accessor._conn)
         self.assertIsNotNone(self.accessor._cursor)
 
-    def test_get_metric(self):
-        """Test get metric."""
-        cpu_usage_metric = self.accessor.get_metric('cpu_core_usage_per_hour')
-        self.assertEqual(cpu_usage_metric, 'cpu_core_usage_per_hour')
-
-        mem_usage_metric = self.accessor.get_metric('memory_gb_usage_per_hour')
-        self.assertEqual(mem_usage_metric, 'memory_gb_usage_per_hour')
-
-        cpu_request_metric = self.accessor.get_metric('cpu_core_request_per_hour')
-        self.assertEqual(cpu_request_metric, 'cpu_core_request_per_hour')
-
-        mem_request_metric = self.accessor.get_metric('memory_gb_request_per_hour')
-        self.assertEqual(mem_request_metric, 'memory_gb_request_per_hour')
-
-        storage_usage_metric = self.accessor.get_metric('storage_gb_usage_per_month')
-        self.assertEqual(storage_usage_metric, 'storage_gb_usage_per_month')
-
-        storage_request_metric = self.accessor.get_metric('storage_gb_request_per_month')
-        self.assertEqual(storage_request_metric, 'storage_gb_request_per_month')
-
-        missing_metric = self.accessor.get_metric('wrong_metric')
-        self.assertIsNone(missing_metric)
-
     def test_get_rates(self):
-        """Test get metric."""
+        """Test get rates."""
         cpu_usage_rate = self.accessor.get_rates('cpu_core_usage_per_hour')
         self.assertEqual(type(cpu_usage_rate), dict)
 

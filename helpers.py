@@ -29,6 +29,8 @@ from faker import Faker
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database.provider_db_accessor import ProviderDBAccessor
+
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ['Storage', 'Compute Instance',
@@ -291,13 +293,20 @@ class ReportObjectCreator:
         table_name = OCP_REPORT_TABLE_MAP['rate']
 
         data = {'metric': metric,
-                'provider_uuid': provider_uuid,
                 'rates': rates,
                 'uuid': str(uuid.uuid4())}
 
-        row = self.db_accessor.create_db_object(table_name, data)
+        rate_obj = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor._session.add(row)
+        self.db_accessor._session.add(rate_obj)
         self.db_accessor._session.commit()
 
-        return row
+        rate_map_table = OCP_REPORT_TABLE_MAP['rate_map']
+        provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
+        data = {'provider_uuid': provider_obj.uuid, 'rate_id': rate_obj.id}
+        rate_map_obj = self.db_accessor.create_db_object(rate_map_table, data)
+
+        self.db_accessor._session.add(rate_map_obj)
+        self.db_accessor._session.commit()
+
+        return rate_obj
