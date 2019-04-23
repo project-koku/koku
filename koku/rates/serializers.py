@@ -103,7 +103,8 @@ class RateSerializer(serializers.ModelSerializer):
     DECIMALS = ('value', 'usage_start', 'usage_end')
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'))
+    provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
+                                           required=False)
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
@@ -241,7 +242,7 @@ class RateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create the rate object in the database."""
-        provider_uuids = validated_data.pop('provider_uuids')
+        provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
         try:
             rate_obj = RateManager().create(metric=metric,
@@ -253,7 +254,7 @@ class RateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        provider_uuids = validated_data.pop('provider_uuids')
+        provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
 
         new_providers_for_instance = []
@@ -264,7 +265,7 @@ class RateSerializer(serializers.ModelSerializer):
         manager.update_provider_uuids(new_providers_for_instance)
         manager.update_metric(metric)
         manager.update_rates(validated_data)
-        return instance
+        return manager.instance
 
     class Meta:
         model = Rate

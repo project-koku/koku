@@ -54,7 +54,7 @@ class RateViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.fake_data = {'provider_uuid': self.provider.uuid,
+        self.fake_data = {'provider_uuids': [self.provider.uuid],
                           'metric': Rate.METRIC_MEM_GB_USAGE_HOUR,
                           'tiered_rate': [{
                               'value': round(Decimal(random.random()), 6),
@@ -75,7 +75,7 @@ class RateViewTests(IamTestCase):
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
-        test_data = {'provider_uuid': self.provider.uuid,
+        test_data = {'provider_uuids': [self.provider.uuid],
                      'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
@@ -88,7 +88,8 @@ class RateViewTests(IamTestCase):
         # create a rate
         url = reverse('rates-list')
         client = APIClient()
-        response = client.post(url, test_data, format='json', **self.headers)
+        response = client.post(url, data=test_data, format='json', **self.headers)
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         # test that we can retrieve the rate
@@ -96,13 +97,14 @@ class RateViewTests(IamTestCase):
         response = client.get(url, **self.headers)
 
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuid'))
+        self.assertIsNotNone(response.data.get('provider_uuids'))
         self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
     def test_create_rate_invalid(self):
         """Test that creating an invalid rate returns an error."""
         test_data = {'name': self.fake.word(),
+                     'provider_uuids': [],
                      'description': self.fake.text(),
                      'price': round(Decimal(random.random()), 6),
                      'timeunit': 'jiffy',
@@ -122,7 +124,7 @@ class RateViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuid'))
+        self.assertIsNotNone(response.data.get('provider_uuids'))
         self.assertEqual(self.fake_data['metric'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
@@ -193,7 +195,7 @@ class RateViewTests(IamTestCase):
         rate = response.data.get('data')[0]
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('provider_uuid'))
+        self.assertIsNotNone(rate.get('provider_uuids'))
         self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
 
     def test_read_rate_list_success_provider_query(self):
@@ -211,7 +213,7 @@ class RateViewTests(IamTestCase):
         rate = response.data.get('data')[0]
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('provider_uuid'))
+        self.assertIsNotNone(rate.get('provider_uuids'))
         self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
 
     def test_read_rate_list_failure_provider_query(self):

@@ -47,8 +47,13 @@ class RateManager:
             self._model = Rate.objects.get(uuid=rate_uuid)
             self._rate_uuid = rate_uuid
 
+    @property
+    def instance(self):
+        """Return the rate model instance."""
+        return self._model
+
     @transaction.atomic
-    def create(self, metric, rates, provider_uuids=None):
+    def create(self, metric, rates, provider_uuids=[]):
         """Create rate and optionally associate to providers."""
         invalid_provider_metrics = []
         for uuid in provider_uuids:

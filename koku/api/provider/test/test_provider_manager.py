@@ -30,7 +30,8 @@ from api.provider.models import Provider, ProviderAuthentication, ProviderBillin
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from rates.models import Rate
+from rates.models import Rate, RateMap
+from rates.rate_manager import RateManager
 
 
 class MockResponse:
@@ -221,20 +222,17 @@ class ProviderManagerTest(IamTestCase):
             other_user = user_serializer.save()
 
         with tenant_context(self.tenant):
-            rate = {'provider_uuid': provider.uuid,
-                    'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
-                    'rates': {'tiered_rate': [{
-                        'unit': 'USD',
-                        'value': 1.0,
-                        'usage_start': None,
-                        'usage_end': None
-                    }]}
-                    }
-
-            Rate.objects.create(**rate)
+            rates = {'tiered_rate': [{
+                'unit': 'USD',
+                'value': 1.0,
+                'usage_start': None,
+                'usage_end': None
+            }]}
+            manager = RateManager()
+            manager.create(metric=Rate.METRIC_CPU_CORE_USAGE_HOUR, rates=rates, provider_uuids=[provider.uuid])
             manager = ProviderManager(provider_uuid)
             manager.remove(other_user)
-            rates_query = Rate.objects.all().filter(provider_uuid=provider_uuid)
+            rates_query = RateMap.objects.all().filter(provider_uuid=provider_uuid)
             self.assertFalse(rates_query)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
