@@ -322,10 +322,6 @@ class OCPUsageLineItemDailySummary(models.Model):
                 name='summary_namespace_idx',
             ),
             models.Index(
-                fields=['pod'],
-                name='summary_pod_idx',
-            ),
-            models.Index(
                 fields=['node'],
                 name='summary_node_idx',
             ),
@@ -595,6 +591,25 @@ class OCPStorageLineItemDailySummary(models.Model):
         """Meta for OCPStorageLineItemDailySummary."""
 
         db_table = 'reporting_ocpstoragelineitem_daily_summary'
+
+        indexes = [
+            models.Index(
+                fields=['usage_start'],
+                name='storage_summary_ocp_usage_idx',
+            ),
+            models.Index(
+                fields=['namespace'],
+                name='storage_summary_namespace_idx',
+            ),
+            models.Index(
+                fields=['node'],
+                name='storage_summary_node_idx',
+            ),
+            GinIndex(
+                fields=['volume_labels'],
+                name='storage_volume_labels_idx',
+            ),
+        ]
 
     id = models.BigAutoField(primary_key=True)
 
