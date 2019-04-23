@@ -93,6 +93,7 @@ class AWSProviderTestCase(TestCase):
     @patch('providers.aws.aws_provider.boto3.client')
     def test_get_sts_access_fail(self, mock_boto3_client):
         """Test _get_sts_access fail."""
+        logging.disable(logging.NOTSET)
         sts_client = Mock()
         sts_client.assume_role.side_effect = _mock_boto3_kwargs_exception
         mock_boto3_client.return_value = sts_client
@@ -264,3 +265,69 @@ class AWSProviderTestCase(TestCase):
             provider_interface.cost_usage_source_is_reachable('iam_arn', 'bucket_name')
         except Exception:
             self.fail('Unexpected Error')
+
+    @patch('providers.aws.aws_provider.boto3.client')
+    def test_cur_has_resourceids(self, mock_boto3_client):
+        """Test that a CUR with resource IDs succeeds."""
+        bucket = FAKE.word()
+        s3_client = Mock()
+        s3_client.describe_report_definitions.return_value = {'ReportDefinitions': [
+            {'ReportName': FAKE.word(),
+             'TimeUnit': 'HOURLY',
+             'Format': 'textORcsv',
+             'Compression': 'GZIP',
+             'AdditionalSchemaElements': ['RESOURCES'],
+             'S3Bucket': bucket,
+             'S3Prefix': FAKE.word(),
+             'S3Region': 'us-east-1',
+             'AdditionalArtifacts': [],
+             'RefreshClosedReports': True,
+             'ReportVersioning': 'CREATE_NEW_REPORT'}],
+            'ResponseMetadata': {'RequestId': FAKE.uuid4(),
+                                 'HTTPStatusCode': 200,
+                                 'HTTPHeaders': {'x-amzn-requestid': FAKE.uuid4(),
+                                                 'content-type': 'application/x-amz-json-1.1',
+                                                 'content-length': '1234',
+                                                 'date': FAKE.date_time()},
+                                 'RetryAttempts': 0}}
+        mock_boto3_client.return_value = s3_client
+        try:
+            _check_cost_report_access(FAKE.word(),
+                                      {'aws_access_key_id': FAKE.md5(),
+                                       'aws_secret_access_key': FAKE.md5(),
+                                       'aws_session_token': FAKE.md5()},
+                                      bucket=bucket)
+        except Exception as exc:
+            self.fail(str(exc))
+
+    @patch('providers.aws.aws_provider.boto3.client')
+    def test_cur_without_resourceids(self, mock_boto3_client):
+        """Test that a CUR without resource IDs raises ValidationError."""
+        bucket = FAKE.word()
+        s3_client = Mock()
+        s3_client.describe_report_definitions.return_value = {'ReportDefinitions': [
+            {'ReportName': FAKE.word(),
+             'TimeUnit': 'HOURLY',
+             'Format': 'textORcsv',
+             'Compression': 'GZIP',
+             'AdditionalSchemaElements': [],
+             'S3Bucket': bucket,
+             'S3Prefix': FAKE.word(),
+             'S3Region': 'us-east-1',
+             'AdditionalArtifacts': [],
+             'RefreshClosedReports': True,
+             'ReportVersioning': 'CREATE_NEW_REPORT'}],
+            'ResponseMetadata': {'RequestId': FAKE.uuid4(),
+                                 'HTTPStatusCode': 200,
+                                 'HTTPHeaders': {'x-amzn-requestid': FAKE.uuid4(),
+                                                 'content-type': 'application/x-amz-json-1.1',
+                                                 'content-length': '1234',
+                                                 'date': FAKE.date_time()},
+                                 'RetryAttempts': 0}}
+        mock_boto3_client.return_value = s3_client
+        with self.assertRaises(ValidationError):
+            _check_cost_report_access(FAKE.word(),
+                                      {'aws_access_key_id': FAKE.md5(),
+                                       'aws_secret_access_key': FAKE.md5(),
+                                       'aws_session_token': FAKE.md5()},
+                                      bucket=bucket)

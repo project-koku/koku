@@ -101,7 +101,8 @@ def _check_cost_report_access(credential_name, credentials,
     reports = None
 
     try:
-        reports = cur_client.describe_report_definitions()
+        response = cur_client.describe_report_definitions()
+        reports = response.get('ReportDefinitions')
     except (ClientError, BotoConnectionError) as boto_error:
         LOG.exception(boto_error)
         key = 'authentication.provider_resource_name'
