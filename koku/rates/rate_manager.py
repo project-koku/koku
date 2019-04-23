@@ -83,7 +83,7 @@ class RateManager:
         providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
 
         for provider in providers_to_delete:
-            RateMap.objects.filter(provider_uuid=provider).delete()
+            RateMap.objects.filter(provider_uuid=provider, rate=self._model).delete()
 
         for provider in providers_to_create:
             provider_obj = Provider.objects.filter(uuid=provider).first()
