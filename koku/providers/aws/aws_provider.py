@@ -101,11 +101,26 @@ def _check_cost_report_access(credential_name, credentials,
     reports = None
 
     try:
-        cur_client.describe_report_definitions()
+        reports = cur_client.describe_report_definitions()
     except (ClientError, BotoConnectionError) as boto_error:
         LOG.exception(boto_error)
-        access_ok = False
-    return access_ok
+        key = 'authentication.provider_resource_name'
+        message = 'Unable to obtain cost and usage report ' \
+                  'definition data with {}.'.format(credential_name)
+        raise serializers.ValidationError(error_obj(key, message))
+
+    if reports and bucket:
+        # filter report definitions to reports with a matching S3 bucket name.
+        bucket_matched = list(
+            filter(lambda rep: bucket in rep.get('S3Bucket'),
+                   reports))
+
+        for report in bucket_matched:
+            if 'RESOURCES' not in report.get('AdditionalSchemaElements'):
+                key = 'report_configuration'
+                msg = 'Required Resource IDs are not included ' \
+                      'in report "{}".'.format(report.get('ReportName'))
+                raise serializers.ValidationError(error_obj(key, msg))
 
 
 class AWSProvider(ProviderInterface):
