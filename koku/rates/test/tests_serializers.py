@@ -67,7 +67,7 @@ class RateSerializerTest(IamTestCase):
 
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
-        rate = {'provider_uuid': '1dd7204c-72c4-4ec4-95bc-d5c447688b27',
+        rate = {'provider_uuids': ['1dd7204c-72c4-4ec4-95bc-d5c447688b27'],
                 'metric': Rate.METRIC_MEM_GB_USAGE_HOUR,
                 'tiered_rate': [{
                     'value': round(Decimal(random.random()), 6),

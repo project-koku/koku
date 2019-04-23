@@ -151,6 +151,18 @@ class RateViewTests(IamTestCase):
                          response.data.get('tiered_rate')[0].get('value'))
         self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
 
+    def test_patch_failure(self):
+        """Test that PATCH throws exception."""
+        test_data = self.fake_data
+        test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+
+        rate = Rate.objects.first()
+        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+        client = APIClient()
+
+        response = client.patch(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
         test_data = self.fake_data

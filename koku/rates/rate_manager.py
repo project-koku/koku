@@ -72,6 +72,7 @@ class RateManager:
             RateMap.objects.create(rate=rate_obj, provider_uuid=uuid)
         return rate_obj
 
+    @transaction.atomic
     def update_provider_uuids(self, provider_uuids):
         """Update rate with new provider uuids."""
         current_providers_for_instance = []
