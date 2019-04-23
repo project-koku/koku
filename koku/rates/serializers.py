@@ -262,7 +262,11 @@ class RateSerializer(serializers.ModelSerializer):
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
 
         manager = RateManager(rate_uuid=instance.uuid)
-        manager.update_provider_uuids(new_providers_for_instance)
+        try:
+            manager.update_provider_uuids(new_providers_for_instance)
+        except RateManagerError as create_error:
+            raise serializers.ValidationError(create_error.message)
+
         manager.update_metric(metric)
         manager.update_rates(validated_data)
         return manager.instance

@@ -215,3 +215,45 @@ class RateManagerTest(IamTestCase):
 
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
             self.assertEqual(len(rate_map), 0)
+
+    def test_update_provider_uuids_duplicate_metric(self):
+        """Test updating a rate with a metric colision for a provider."""
+        provider_name = 'sample_provider'
+        provider = Provider.objects.create(name=provider_name,
+                                           created_by=self.user,
+                                           customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        rates = [{'unit': 'USD', 'value': 0.22}]
+
+        with tenant_context(self.tenant):
+            manager = RateManager()
+            rate_obj = manager.create(metric=metric,
+                                      rates=rates,
+                                      provider_uuids=[provider_uuid])
+            self.assertEqual(rate_obj.metric, metric)
+            self.assertEqual(rate_obj.rates, rates)
+            self.assertIsNotNone(rate_obj.uuid)
+
+            rate_map = RateMap.objects.filter(rate=rate_obj.id)
+            self.assertIsNotNone(rate_map)
+            self.assertEqual(rate_map.first().provider_uuid, provider_uuid)
+            self.assertEqual(RateManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
+
+        # Create another rate with same metric
+        rates_2 = [{'unit': 'USD', 'value': 0.52}]
+
+        with tenant_context(self.tenant):
+            manager_2 = RateManager()
+            rate_obj_2 = manager_2.create(metric=metric, rates=rates_2)
+            rate_map = RateMap.objects.filter(rate=rate_obj_2.id)
+            self.assertIsNotNone(rate_map)
+            self.assertEqual(len(rate_map), 0)
+
+        # Update rate_2 with provider uuid that is already associated with another rate of same type
+        with tenant_context(self.tenant):
+            manager_3 = RateManager(rate_uuid=rate_obj_2.uuid)
+            with self.assertRaises(RateManagerError):
+                manager_3.update_provider_uuids(provider_uuids=[provider_uuid])

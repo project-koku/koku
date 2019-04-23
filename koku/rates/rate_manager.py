@@ -52,9 +52,8 @@ class RateManager:
         """Return the rate model instance."""
         return self._model
 
-    @transaction.atomic
-    def create(self, metric, rates, provider_uuids=[]):
-        """Create rate and optionally associate to providers."""
+    def _check_for_duplicate_metrics(self, metric, provider_uuids):
+        """Check for duplicate metrics for a list of provider uuids."""
         invalid_provider_metrics = []
         for uuid in provider_uuids:
             map_query = RateMap.objects.filter(provider_uuid=uuid)
@@ -66,6 +65,11 @@ class RateManager:
             duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)    # noqa: E501
             duplicate_metrics_err = 'Dupicate metrics found for the following providers: {}'.format(duplicate_err_msg)
             raise RateManagerError(duplicate_metrics_err)
+
+    @transaction.atomic
+    def create(self, metric, rates, provider_uuids=[]):
+        """Create rate and optionally associate to providers."""
+        self._check_for_duplicate_metrics(metric, provider_uuids)
 
         rate_obj = Rate.objects.create(metric=metric, rates=rates)
         for uuid in provider_uuids:
@@ -84,6 +88,8 @@ class RateManager:
 
         for provider in providers_to_delete:
             RateMap.objects.filter(provider_uuid=provider, rate=self._model).delete()
+
+        self._check_for_duplicate_metrics(self._model.metric, providers_to_create)
 
         for provider in providers_to_create:
             provider_obj = Provider.objects.filter(uuid=provider).first()

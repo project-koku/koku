@@ -29,7 +29,7 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from rates.models import Rate
+from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
 
@@ -72,6 +72,8 @@ class RateViewTests(IamTestCase):
         """Tear down rate view tests."""
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
+            RateMap.objects.all().delete()
+            Provider.objects.all().delete()
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
@@ -150,6 +152,57 @@ class RateViewTests(IamTestCase):
         self.assertEqual(test_data['tiered_rate'][0]['value'],
                          response.data.get('tiered_rate')[0].get('value'))
         self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
+
+    def test_update_rate_failure(self):
+        """Test that we update fails with metric type duplication."""
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, data=test_data, format='json', **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        test_data = {'provider_uuids': [],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate
+        url = reverse('rates-list')
+        response = client.post(url, data=test_data, format='json', **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        rate_2_uuid = response.data.get('uuid')
+
+        # Update rate_2_uuid rate (no provider) with the provider that is associated with rate_1
+        url = reverse('rates-detail', kwargs={'uuid': rate_2_uuid})
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        response = client.put(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_patch_failure(self):
         """Test that PATCH throws exception."""
