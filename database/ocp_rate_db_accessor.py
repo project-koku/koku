@@ -18,7 +18,6 @@
 
 import logging
 
-from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 LOG = logging.getLogger(__name__)
@@ -42,27 +41,22 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
 
     def _get_base_entry(self, metric_value):
         """Get base metric query."""
-        table_name = OCP_REPORT_TABLE_MAP['rate']
-        metric = getattr(
-            getattr(self.report_schema, table_name),
-            'metric'
-        )
-        provider = getattr(
-            getattr(self.report_schema, table_name),
-            'provider_uuid'
-        )
-        base_query = self._get_db_obj_query(table_name).filter(provider == self.provider_uuid)
-        return base_query.filter(metric == metric_value).first() if base_query else None
+        query_sql = f"""
+            SELECT rates_table.rates
+            FROM {self.schema}.rates_rate as rates_table
+            JOIN {self.schema}.rates_ratemap as rates_map
+                ON rates_table.id = rates_map.rate_id
+            WHERE rates_map.provider_uuid = '{self.provider_uuid}'
+                AND rates_table.metric = '{metric_value}'
+            """
+        response = self._db.execute(query_sql)
+        results = response.fetchall()
 
-    def get_metric(self, value):
-        """Get the metric."""
-        metric_entry = self._get_base_entry(value)
-        return metric_entry.metric if metric_entry else None
+        return results[0][0] if len(results) == 1 else None
 
     def get_rates(self, value):
         """Get the rates."""
-        rate_entry = self._get_base_entry(value)
-        return rate_entry.rates if rate_entry else None
+        return self._get_base_entry(value)
 
     def get_cpu_core_usage_per_hour_rates(self):
         """Get cpu usage rates."""

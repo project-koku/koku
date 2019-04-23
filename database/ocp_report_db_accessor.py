@@ -403,14 +403,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 'usage_start'
             )
             start_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.asc()).first()
-            start_date = str(start_date_qry.usage_start)
+            start_date = str(start_date_qry.usage_start) if start_date_qry else None
         if end_date is None:
             usage_start = getattr(
                 getattr(self.report_schema, table_name),
                 'usage_start'
             )
             end_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.desc()).first()
-            end_date = str(end_date_qry.usage_start)
+            end_date = str(end_date_qry.usage_start) if end_date_qry else None
 
         summary_sql = pkgutil.get_data(
             'masu.database',
