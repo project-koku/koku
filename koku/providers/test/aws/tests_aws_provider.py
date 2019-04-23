@@ -164,7 +164,25 @@ class AWSProviderTestCase(TestCase):
     def test_check_cost_report_access(self, mock_boto3_client):
         """Test _check_cost_report_access success."""
         s3_client = Mock()
-        s3_client.describe_report_definitions.return_value = True
+        s3_client.describe_report_definitions.return_value = {'ReportDefinitions': [
+            {'ReportName': FAKE.word(),
+             'TimeUnit': 'HOURLY',
+             'Format': 'textORcsv',
+             'Compression': 'GZIP',
+             'AdditionalSchemaElements': ['RESOURCES'],
+             'S3Bucket': FAKE.word(),
+             'S3Prefix': FAKE.word(),
+             'S3Region': 'us-east-1',
+             'AdditionalArtifacts': [],
+             'RefreshClosedReports': True,
+             'ReportVersioning': 'CREATE_NEW_REPORT'}],
+            'ResponseMetadata': {'RequestId': FAKE.uuid4(),
+                                 'HTTPStatusCode': 200,
+                                 'HTTPHeaders': {'x-amzn-requestid': FAKE.uuid4(),
+                                                 'content-type': 'application/x-amz-json-1.1',
+                                                 'content-length': '1234',
+                                                 'date': FAKE.date_time()},
+                                 'RetryAttempts': 0}}
         mock_boto3_client.return_value = s3_client
         try:
             _check_cost_report_access(FAKE.word(),
