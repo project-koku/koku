@@ -24,6 +24,13 @@ class Migration(migrations.Migration):
                 'unique_together': {('provider_uuid', 'rate')},
             },
         ),
+        migrations.RunSQL(
+            """
+            INSERT INTO rates_ratemap (provider_uuid, rate_id)
+            SELECT provider_uuid, id 
+            FROM rates_rate;
+            """
+        ),
         migrations.AlterUniqueTogether(
             name='rate',
             unique_together=set(),
