@@ -12,14 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterUniqueTogether(
-            name='rate',
-            unique_together=set(),
-        ),
-        migrations.RemoveField(
-            model_name='rate',
-            name='provider_uuid',
-        ),
         migrations.CreateModel(
             name='RateMap',
             fields=[
@@ -31,5 +23,13 @@ class Migration(migrations.Migration):
                 'ordering': ['-id'],
                 'unique_together': {('provider_uuid', 'rate')},
             },
+        ),
+        migrations.AlterUniqueTogether(
+            name='rate',
+            unique_together=set(),
+        ),
+        migrations.RemoveField(
+            model_name='rate',
+            name='provider_uuid',
         ),
     ]
