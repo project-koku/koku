@@ -104,5 +104,5 @@ class RateManager:
         providers_query = RateMap.objects.filter(rate=self._model)
         provider_uuids = []
         for provider in providers_query:
-            provider_uuids.append(str(provider.provider_uuid))
+            provider_uuids.append(provider.provider_uuid)
         return provider_uuids
