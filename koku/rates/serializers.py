@@ -21,6 +21,7 @@ from rest_framework import serializers
 
 from api.provider.models import (Provider)
 from rates.models import Rate
+from rates.rate_manager import RateManager, RateManagerError
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
@@ -102,7 +103,8 @@ class RateSerializer(serializers.ModelSerializer):
     DECIMALS = ('value', 'usage_start', 'usage_end')
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_uuid = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
+    provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
+                                           required=False)
     metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
                                      required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
@@ -166,16 +168,24 @@ class RateSerializer(serializers.ModelSerializer):
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
             RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
-    def validate_provider_uuid(self, provider_uuid):
-        """Check that provider_uuid is a valid identifier."""
-        if Provider.objects.filter(uuid=provider_uuid).count() == 1:
-            return provider_uuid
-        else:
-            raise serializers.ValidationError('Provider object does not exist with given uuid.')
+    def validate_provider_uuids(self, provider_uuids):
+        """Check that uuids in provider_uuids are valid identifiers."""
+        valid_uuids = []
+        invalid_uuids = []
+        for uuid in provider_uuids:
+            if Provider.objects.filter(uuid=uuid).count() == 1:
+                valid_uuids.append(uuid)
+            else:
+                invalid_uuids.append(uuid)
+        if invalid_uuids:
+            err_msg = 'Provider object does not exist with following uuid(s): {}.'.format(invalid_uuids)
+            raise serializers.ValidationError(err_msg)
+        return valid_uuids
 
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
+
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -205,10 +215,13 @@ class RateSerializer(serializers.ModelSerializer):
     def to_representation(self, rate):
         """Create external representation of a rate."""
         rates = rate.rates
+
+        provider_uuids = RateManager(rate_uuid=rate.uuid).get_provider_uuids()
+
         display_data = self._get_metric_display_data(rate.metric)
         out = {
             'uuid': rate.uuid,
-            'provider_uuid': rate.provider_uuid,
+            'provider_uuids': provider_uuids,
             'metric': {'name': rate.metric,
                        'unit': display_data.get('unit'),
                        'display_name': display_data.get('display_name')}
@@ -229,22 +242,35 @@ class RateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """Create the rate object in the database."""
-        provider_uuid = validated_data.pop('provider_uuid')
+        provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
-        return Rate.objects.create(provider_uuid=provider_uuid,
-                                   metric=metric,
-                                   rates=validated_data)
+        try:
+            rate_obj = RateManager().create(metric=metric,
+                                            rates=validated_data,
+                                            provider_uuids=provider_uuids)
+        except RateManagerError as create_error:
+            raise serializers.ValidationError(create_error.message)
+        return rate_obj
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
-        provider_uuid = validated_data.pop('provider_uuid')
+        provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
-        instance.provider_uuid = provider_uuid
-        instance.metric = metric
-        instance.rates = validated_data
-        instance.save()
-        return instance
+
+        new_providers_for_instance = []
+        for uuid in provider_uuids:
+            new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
+
+        manager = RateManager(rate_uuid=instance.uuid)
+        try:
+            manager.update_provider_uuids(new_providers_for_instance)
+        except RateManagerError as create_error:
+            raise serializers.ValidationError(create_error.message)
+
+        manager.update_metric(metric)
+        manager.update_rates(validated_data)
+        return manager.instance
 
     class Meta:
         model = Rate
-        fields = ('uuid', 'provider_uuid', 'metric', 'tiered_rate')
+        fields = ('uuid', 'provider_uuids', 'metric', 'tiered_rate')

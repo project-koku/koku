@@ -24,7 +24,7 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 
-from rates.models import Rate
+from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
 
@@ -40,6 +40,15 @@ class RateProviderQueryException(APIException):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         self.detail = {'detail': force_text(self.default_detail)}
+
+
+class RateProviderMethodException(APIException):
+    """General Exception class for ProviderManager errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderManager errors."""
+        self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+        self.detail = {'detail': force_text(message)}
 
 
 class RateViewSet(mixins.CreateModelMixin,
@@ -66,10 +75,12 @@ class RateViewSet(mixins.CreateModelMixin,
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
         queryset = Rate.objects.all()
-
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
-            queryset = Rate.objects.filter(provider_uuid=provider_uuid)
+            rate_ids = []
+            for e in RateMap.objects.filter(provider_uuid=provider_uuid):
+                rate_ids.append(e.rate_id)
+            queryset = Rate.objects.filter(id__in=rate_ids)
         return queryset
 
     def create(self, request, *args, **kwargs):
@@ -286,4 +297,6 @@ class RateViewSet(mixins.CreateModelMixin,
                 }]
             }
         """
+        if request.method == 'PATCH':
+            raise RateProviderMethodException('PATCH not supported')
         return super().update(request=request, args=args, kwargs=kwargs)
