@@ -68,12 +68,10 @@ class RateProviderPermissionDenied(APIException):
 class RateProviderQueryException(APIException):
     """Rate query custom internal error exception."""
 
-    default_detail = 'Invalid provider uuid'
-
-    def __init__(self):
+    def __init__(self, message):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(self.default_detail)}
+        self.detail = {'detail': force_text(message)}
 
 
 class RateProviderMethodException(APIException):
@@ -116,7 +114,10 @@ class RateViewSet(mixins.CreateModelMixin,
                 rate_ids.append(e.rate_id)
             queryset = Rate.objects.filter(id__in=rate_ids)
         if not self.request.user.admin:
-            queryset = self.queryset.filter(uuid__in=self.request.user.access.get('rate').get('read'))
+            try:
+                queryset = self.queryset.filter(uuid__in=self.request.user.access.get('rate').get('read'))
+            except ValidationError as queryset_error:
+                LOG.error(queryset_error)
         return queryset
 
     @rate_permissions('write')
@@ -241,7 +242,7 @@ class RateViewSet(mixins.CreateModelMixin,
         try:
             response = super().list(request=request, args=args, kwargs=kwargs)
         except ValidationError:
-            raise RateProviderQueryException
+            raise RateProviderQueryException('Invalid provider uuid')
 
         return response
 

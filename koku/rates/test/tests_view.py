@@ -37,17 +37,16 @@ from rates.serializers import RateSerializer
 class RateViewTests(IamTestCase):
     """Test the Rate view."""
 
-    def initialize_request(self, request_context=None):
+    def initialize_request(self, context=None):
         """Initialize model data."""
-        if request_context:
-            self.request_context = request_context
-            user_data = {'username': request_context['request'].user,
-                         'email': '{}@me.com'.format(request_context['request'].user)}
+        if context:
+            request_context = context.get('request_context')
             request = request_context['request']
-            serializer = UserSerializer(data=user_data, context=self.request_context)
+            serializer = UserSerializer(data=context.get('user_data'), context=request_context)
         else:
-            request = self.request_context['request']
-            serializer = UserSerializer(data=self.user_data, context=self.request_context)
+            request_context = self.request_context
+            request = request_context['request']
+            serializer = UserSerializer(data=self.user_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
             request.user = user
@@ -57,7 +56,7 @@ class RateViewTests(IamTestCase):
                          'authentication': {
                              'provider_resource_name': self.fake.word()
                          }}
-        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
+        serializer = ProviderSerializer(data=provider_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
@@ -71,7 +70,7 @@ class RateViewTests(IamTestCase):
                           }]
                           }
         with tenant_context(self.tenant):
-            serializer = RateSerializer(data=self.fake_data, context=self.request_context)
+            serializer = RateSerializer(data=self.fake_data, context=request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
@@ -306,17 +305,20 @@ class RateViewTests(IamTestCase):
     @patch('koku.rbac.RbacService.get_access_for_user')
     def test_list_rates_no_access(self, get_access_mock):
         """Test GET /rates with user that does not have access."""
-        mock_access = {'rate': {'read': [], 'write': []}}
+        mock_access = {'rate': {'read': ['999'], 'write': []}}
         get_access_mock.return_value = mock_access
 
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
-                                                       create_tenant=True, is_admin=False)
-        self.initialize_request(request_context=request_context)
+                                                       is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
         url = reverse('rates-list')
         client = APIClient()
 
-        response = client.get(url, **self.request_context['request'].META)
-
+        response = client.get(url, **request_context['request'].META)
+        
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        #response = client.get(url, **self.request_context['request'].META)
+        response = client.get(url, **self.headers)
