@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Rate views."""
+from unittest.mock import patch
 
 import random
 from decimal import Decimal
@@ -36,11 +37,17 @@ from rates.serializers import RateSerializer
 class RateViewTests(IamTestCase):
     """Test the Rate view."""
 
-    def setUp(self):
-        """Set up the rate view tests."""
-        super().setUp()
-        request = self.request_context['request']
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+    def initialize_request(self, request_context=None):
+        """Initialize model data."""
+        if request_context:
+            self.request_context = request_context
+            user_data = {'username': request_context['request'].user,
+                         'email': '{}@me.com'.format(request_context['request'].user)}
+            request = request_context['request']
+            serializer = UserSerializer(data=user_data, context=self.request_context)
+        else:
+            request = self.request_context['request']
+            serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
             request.user = user
@@ -67,6 +74,11 @@ class RateViewTests(IamTestCase):
             serializer = RateSerializer(data=self.fake_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
+
+    def setUp(self):
+        """Set up the rate view tests."""
+        super().setUp()
+        self.initialize_request()
 
     def tearDown(self):
         """Tear down rate view tests."""
@@ -290,3 +302,21 @@ class RateViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data.get('errors'))
+
+    @patch('koku.rbac.RbacService.get_access_for_user')
+    def test_list_rates_no_access(self, get_access_mock):
+        """Test GET /rates with user that does not have access."""
+        mock_access = {'rate': {'read': [], 'write': []}}
+        get_access_mock.return_value = mock_access
+
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                       create_tenant=True, is_admin=False)
+        self.initialize_request(request_context=request_context)
+        url = reverse('rates-list')
+        client = APIClient()
+
+        response = client.get(url, **self.request_context['request'].META)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

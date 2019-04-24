@@ -41,10 +41,11 @@ def rate_permissions(operation):
                 given_uuid = str(UUID(url_parts[url_parts.index('rates') + 1]))
             except ValueError:
                 given_uuid = None
-
             if not request.user.admin:
                 access_list = request.user.access.get('rate').get(operation, [])
                 if '*' not in access_list:
+                    if not access_list:
+                        raise RateProviderPermissionDenied
                     if given_uuid and given_uuid not in access_list:
                         raise RateProviderPermissionDenied
             result = function(*args, **kwargs)
