@@ -238,6 +238,21 @@ class RateViewTests(IamTestCase):
         response = client.put(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+        # Attempt to update again but now remove the provider and it should be successful
+        test_data = {'provider_uuids': [],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        url = reverse('rates-detail', kwargs={'uuid': rate_3_uuid})
+        response = client.put(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
     def test_patch_failure(self):
         """Test that PATCH throws exception."""
         test_data = self.fake_data
