@@ -32,29 +32,6 @@ from api.common.permissions.rates_access import RatesAccessPermission
 LOG = logging.getLogger(__name__)
 
 
-def rate_permissions(operation):
-    """Verify the rate permissions for provided operation."""
-    def decorator(function):
-        def wrapper(*args, **kwargs):
-            request = args[1]
-            url_parts = request.META.get('PATH_INFO').split('/')
-            try:
-                given_uuid = str(UUID(url_parts[url_parts.index('rates') + 1]))
-            except ValueError:
-                given_uuid = None
-            if not request.user.admin:
-                access_list = request.user.access.get('rate').get(operation, [])
-                if '*' not in access_list:
-                    if not access_list:
-                        raise RateProviderPermissionDenied
-                    if given_uuid and given_uuid not in access_list:
-                        raise RateProviderPermissionDenied
-            result = function(*args, **kwargs)
-            return result
-        return wrapper
-    return decorator
-
-
 class RateProviderPermissionDenied(APIException):
     """Rate query custom internal error exception."""
 
@@ -129,7 +106,6 @@ class RateViewSet(mixins.CreateModelMixin,
                     LOG.error(queryset_error)
         return queryset
 
-    # @rate_permissions('write')
     def create(self, request, *args, **kwargs):
         """Create a rate.
 
@@ -180,7 +156,6 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    # @rate_permissions('read')
     def list(self, request, *args, **kwargs):
         """Obtain the list of rates for the tenant.
 
@@ -255,7 +230,6 @@ class RateViewSet(mixins.CreateModelMixin,
 
         return response
 
-    # @rate_permissions('read')
     def retrieve(self, request, *args, **kwargs):
         """Get a rate.
 
@@ -295,7 +269,6 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
-    # @rate_permissions('write')
     def destroy(self, request, *args, **kwargs):
         """Delete a rate.
 
@@ -314,7 +287,6 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
-    # @rate_permissions('write')
     def update(self, request, *args, **kwargs):
         """Update a rate.
 

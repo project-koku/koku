@@ -342,11 +342,24 @@ class RateViewTests(IamTestCase):
                      }
 
         # create a rate
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                             is_admin=True)
+
         url = reverse('rates-list')
         client = APIClient()
-        response = client.post(url, data=test_data, format='json', **self.headers)
+        response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
         rate_uuid = response.data.get('uuid')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user_data = self._create_user_data()
+        # customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=False,
+                                                    is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+
 
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
@@ -357,16 +370,10 @@ class RateViewTests(IamTestCase):
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
 
-            user_data = self._create_user_data()
-            customer = self._create_customer_data()
-            request_context = self._create_request_context(customer, user_data, create_customer=True,
-                                                        is_admin=False)
-
-            self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
             client = APIClient()
-            response = client.get(url, **request_context['request'].META)
             import pdb; pdb.set_trace()
+            response = client.get(url, **request_context['request'].META)
 
             self.assertEqual(response.status_code, test_case.get('expected_response'))
             # Figure out why we need to do a request with original admin context for subsequent tests...
