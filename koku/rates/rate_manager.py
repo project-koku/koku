@@ -97,6 +97,7 @@ class RateManager:
 
     def update_metric(self, metric):
         """Update rate with new metric value."""
+        self._check_for_duplicate_metrics(metric, self.get_provider_uuids())
         self._model.metric = metric
         self._model.save()
 
