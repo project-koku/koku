@@ -27,6 +27,7 @@ from rest_framework.permissions import AllowAny
 
 from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
+from api.common.permissions.rates_access import RatesAccessPermission
 
 LOG = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
     queryset = Rate.objects.all()
     serializer_class = RateSerializer
-    permission_classes = (AllowAny,)
+    permission_classes = (RatesAccessPermission,)
     lookup_field = 'uuid'
 
     def get_queryset(self):
@@ -114,13 +115,21 @@ class RateViewSet(mixins.CreateModelMixin,
                 rate_ids.append(e.rate_id)
             queryset = Rate.objects.filter(id__in=rate_ids)
         if not self.request.user.admin:
-            try:
-                queryset = self.queryset.filter(uuid__in=self.request.user.access.get('rate').get('read'))
-            except ValidationError as queryset_error:
-                LOG.error(queryset_error)
+            read_access_list = self.request.user.access.get('rate').get('read')
+            if '*' not in read_access_list:
+                for access_item in read_access_list:
+                    try:
+                        UUID(access_item)
+                    except ValueError:
+                        err_msg = 'Unexpected rbac access item.  {} is not a uuid.'.format(access_item)
+                        raise RateProviderQueryException(err_msg)
+                try:
+                    queryset = self.queryset.filter(uuid__in=read_access_list)
+                except ValidationError as queryset_error:
+                    LOG.error(queryset_error)
         return queryset
 
-    @rate_permissions('write')
+    # @rate_permissions('write')
     def create(self, request, *args, **kwargs):
         """Create a rate.
 
@@ -171,7 +180,7 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    @rate_permissions('read')
+    # @rate_permissions('read')
     def list(self, request, *args, **kwargs):
         """Obtain the list of rates for the tenant.
 
@@ -246,7 +255,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
         return response
 
-    @rate_permissions('read')
+    # @rate_permissions('read')
     def retrieve(self, request, *args, **kwargs):
         """Get a rate.
 
@@ -286,7 +295,7 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
-    @rate_permissions('write')
+    # @rate_permissions('write')
     def destroy(self, request, *args, **kwargs):
         """Delete a rate.
 
@@ -305,7 +314,7 @@ class RateViewSet(mixins.CreateModelMixin,
         """
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
-    @rate_permissions('write')
+    # @rate_permissions('write')
     def update(self, request, *args, **kwargs):
         """Update a rate.
 

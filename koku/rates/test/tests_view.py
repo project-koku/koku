@@ -303,22 +303,71 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(response.data.get('errors'))
 
     @patch('koku.rbac.RbacService.get_access_for_user')
-    def test_list_rates_no_access(self, get_access_mock):
-        """Test GET /rates with user that does not have access."""
-        mock_access = {'rate': {'read': ['999'], 'write': []}}
-        get_access_mock.return_value = mock_access
-
+    def test_list_rates_rbac_access(self, get_access_mock):
+        """Test GET /rates with an rbac user."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
-                                                       is_admin=False)
+                                                    is_admin=False)
 
         self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+        
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': []}},
+                        'expected_response': status.HTTP_200_OK},
+                       {'access': {'rate': {'read': ['not-a-uuid'], 'write': []}},
+                        'expected_response': status.HTTP_500_INTERNAL_SERVER_ERROR}]
+        for test_case in test_matrix:
+            get_access_mock.return_value = test_case.get('access')
+            url = reverse('rates-list')
+            client = APIClient()
+            response = client.get(url, **request_context['request'].META)
+            
+            self.assertEqual(response.status_code, test_case.get('expected_response'))
+        # Figure out why we need to do a request with original admin context for subsequent tests...
+        response = client.get(url, **self.headers)
+
+    @patch('koku.rbac.RbacService.get_access_for_user')
+    def test_get_rate_rbac_access(self, get_access_mock):
+        """Test GET /rates/{uuid} with an rbac user."""
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate
         url = reverse('rates-list')
         client = APIClient()
+        response = client.post(url, data=test_data, format='json', **self.headers)
+        rate_uuid = response.data.get('uuid')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        response = client.get(url, **request_context['request'].META)
-        
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        #response = client.get(url, **self.request_context['request'].META)
-        response = client.get(url, **self.headers)
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': []}},
+                        'expected_response': status.HTTP_200_OK},
+                       {'access': {'rate': {'read': [rate_uuid], 'write': []}},
+                        'expected_response': status.HTTP_200_OK}]
+        for test_case in test_matrix:
+            get_access_mock.return_value = test_case.get('access')
+
+            user_data = self._create_user_data()
+            customer = self._create_customer_data()
+            request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                        is_admin=False)
+
+            self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+            url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+            client = APIClient()
+            response = client.get(url, **request_context['request'].META)
+            import pdb; pdb.set_trace()
+
+            self.assertEqual(response.status_code, test_case.get('expected_response'))
+            # Figure out why we need to do a request with original admin context for subsequent tests...
+            response = client.get(url, **self.headers)
