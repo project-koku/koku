@@ -30,6 +30,9 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
             AND usageli.cluster_id = ocp_aws.cluster_id
             AND usageli.namespace = ocp_aws.namespace
             AND usageli.node = ocp_aws.node
+    WHERE usageli.usage_start >= '{start_date}'
+        AND usageli.usage_start <= '{end_date}'
+        AND usageli.cluster_id = '{cluster_id}'
 
     UNION
 
@@ -64,6 +67,9 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
             AND storageli.cluster_id = ocp_aws.cluster_id
             AND storageli.namespace = ocp_aws.namespace
             AND storageli.node = ocp_aws.node
+    WHERE storageli.usage_start >= '{start_date}'
+        AND storageli.usage_start <= '{end_date}'
+        AND storageli.cluster_id = '{cluster_id}'
 )
 ;
 
