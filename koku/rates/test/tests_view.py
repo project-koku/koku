@@ -204,6 +204,40 @@ class RateViewTests(IamTestCase):
         response = client.put(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+        # Create another rate of a different type that's associated with the same provider
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_REQUEST_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, data=test_data, format='json', **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        rate_3_uuid = response.data.get('uuid')
+
+        # Attempt to update this new rate to be the same type as the other rate with provider association
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        url = reverse('rates-detail', kwargs={'uuid': rate_3_uuid})
+        response = client.put(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_patch_failure(self):
         """Test that PATCH throws exception."""
         test_data = self.fake_data
