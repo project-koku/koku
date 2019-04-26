@@ -19,17 +19,19 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField,
-                                    add_operator_specified_fields,
-                                    handle_invalid_fields,
+from api.report.serializers import (FilterSerializer as BaseFilterSerializer,
+                                    GroupSerializer,
+                                    OrderSerializer,
+                                    ParamSerializer,
+                                    StringOrListField,
                                     validate_field)
 from api.utils import UnitConverter
 
-OP_FIELDS = ('project', 'cluster', 'node')
 
-
-class GroupBySerializer(serializers.Serializer):
+class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
+
+    _opfields = ('project', 'cluster', 'node')
 
     cluster = StringOrListField(child=serializers.CharField(),
                                 required=False)
@@ -38,62 +40,24 @@ class GroupBySerializer(serializers.Serializer):
     node = StringOrListField(child=serializers.CharField(),
                              required=False)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the GroupBySerializer."""
-        tag_keys = kwargs.pop('tag_keys', None)
 
-        super().__init__(*args, **kwargs)
-
-        if tag_keys is not None:
-            tag_keys = {key: StringOrListField(child=serializers.CharField(),
-                                               required=False)
-                        for key in tag_keys}
-            # Add OCP tag keys to allowable fields
-            self.fields.update(tag_keys)
-        add_operator_specified_fields(self.fields, OP_FIELDS)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if field inputs are invalid
-        """
-        handle_invalid_fields(self, data)
-        return data
-
-
-class OrderBySerializer(serializers.Serializer):
+class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
+    _opfields = ('project', 'cluster', 'node')
 
-    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
-    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                                  required=False)
-    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                           required=False)
-    cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
+    cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
-    project = serializers.ChoiceField(choices=ORDER_CHOICES,
+    project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
-    node = serializers.ChoiceField(choices=ORDER_CHOICES,
+    node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                    required=False)
-    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                    required=False)
-
-    def validate(self, data):
-        """Validate incoming data."""
-        handle_invalid_fields(self, data)
-        return data
 
 
 class InventoryOrderBySerializer(OrderBySerializer):
     """Order By Serializer for CPU and Memory endpoints."""
+
+    _opfields = ('project', 'cluster', 'node', 'usage', 'request', 'limit')
 
     usage = serializers.ChoiceField(choices=OrderBySerializer.ORDER_CHOICES,
                                     required=False)
@@ -103,38 +67,15 @@ class InventoryOrderBySerializer(OrderBySerializer):
                                     required=False)
 
 
-class FilterSerializer(serializers.Serializer):
+class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
-
-    RESOLUTION_CHOICES = (
-        ('daily', 'daily'),
-        ('monthly', 'monthly'),
-    )
-    TIME_CHOICES = (
-        ('-10', '-10'),
-        ('-30', '-30'),
-        ('-1', '1'),
-        ('-2', '-2'),
-    )
-    TIME_UNIT_CHOICES = (
-        ('day', 'day'),
-        ('month', 'month'),
-    )
 
     INFRASTRUCTURE_CHOICES = (
         ('aws', 'aws'),
     )
 
-    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
-                                         required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
-                                               required=False)
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
-                                               required=False)
-    resource_scope = StringOrListField(child=serializers.CharField(),
-                                       required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
-    offset = serializers.IntegerField(required=False, min_value=0)
+    _opfields = ('project', 'cluster', 'node', 'pod', 'infrastructures')
+
     project = StringOrListField(child=serializers.CharField(),
                                 required=False)
     cluster = StringOrListField(child=serializers.CharField(),
@@ -146,20 +87,6 @@ class FilterSerializer(serializers.Serializer):
     infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES,
                                               required=False)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the FilterSerializer."""
-        tag_keys = kwargs.pop('tag_keys', None)
-
-        super().__init__(*args, **kwargs)
-
-        if tag_keys is not None:
-            tag_keys = {key: StringOrListField(child=serializers.CharField(),
-                                               required=False)
-                        for key in tag_keys}
-            # Add OCP tag keys to allowable fields
-            self.fields.update(tag_keys)
-        add_operator_specified_fields(self.fields, OP_FIELDS)
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -170,62 +97,31 @@ class FilterSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if filter inputs are invalid
         """
-        handle_invalid_fields(self, data)
-
-        resolution = data.get('resolution')
-        time_scope_value = data.get('time_scope_value')
-        time_scope_units = data.get('time_scope_units')
+        super().validate(data)
 
         if data.get('infrastructures'):
             infra_value = data['infrastructures']
             data['infrastructures'] = [infra_value.upper()]
 
-        if time_scope_units and time_scope_value:
-            msg = 'Valid values are {} when time_scope_units is {}'
-            if (time_scope_units == 'day' and  # noqa: W504
-                (time_scope_value == '-1' or time_scope_value == '-2')):
-                valid_values = ['-10', '-30']
-                valid_vals = ', '.join(valid_values)
-                error = {'time_scope_value': msg.format(valid_vals, 'day')}
-                raise serializers.ValidationError(error)
-            if (time_scope_units == 'day' and resolution == 'monthly'):
-                valid_values = ['daily']
-                valid_vals = ', '.join(valid_values)
-                error = {'resolution': msg.format(valid_vals, 'day')}
-                raise serializers.ValidationError(error)
-            if (time_scope_units == 'month' and  # noqa: W504
-                    (time_scope_value == '-10' or time_scope_value == '-30')):
-                valid_values = ['-1', '-2']
-                valid_vals = ', '.join(valid_values)
-                error = {'time_scope_value': msg.format(valid_vals, 'month')}
-                raise serializers.ValidationError(error)
         return data
 
 
-class OCPQueryParamSerializer(serializers.Serializer):
+class OCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
     group_by = GroupBySerializer(required=False)
     units = serializers.CharField(required=False)
+    filter = FilterSerializer(required=False)
 
-    # Adding pagination fields to the serializer because we validate
-    # before running reports and paginating
-    limit = serializers.IntegerField(required=False)
-    offset = serializers.IntegerField(required=False)
+    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
+
         super().__init__(*args, **kwargs)
-
-        tag_fields = {
-            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
-            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
-        }
-
-        self.fields.update(tag_fields)
 
     def validate(self, data):
         """Validate incoming data.
@@ -237,12 +133,11 @@ class OCPQueryParamSerializer(serializers.Serializer):
         Raises:
             (ValidationError): if field inputs are invalid
         """
+        super().validate(data)
         error = {}
         if 'delta' in data.get('order_by', {}) and 'delta' not in data:
             error['order_by'] = _('Cannot order by delta without a delta param')
             raise serializers.ValidationError(error)
-
-        handle_invalid_fields(self, data)
         return data
 
     def validate_group_by(self, value):
