@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Rate views."""
+import os
 from unittest.mock import patch
 
 import random
@@ -78,6 +79,7 @@ class RateViewTests(IamTestCase):
         """Set up the rate view tests."""
         super().setUp()
         self.initialize_request()
+        os.environ['RBAC_CACHE_TTL'] = '0'
 
     def tearDown(self):
         """Tear down rate view tests."""
@@ -87,6 +89,7 @@ class RateViewTests(IamTestCase):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
             Provider.objects.all().delete()
+        del os.environ['RBAC_CACHE_TTL']
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
@@ -354,24 +357,94 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user_data = self._create_user_data()
-        # customer = self._create_customer_data()
+
         request_context = self._create_request_context(customer, user_data, create_customer=False,
                                                     is_admin=False)
 
         self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
 
-
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
                        {'access': {'rate': {'read': ['*'], 'write': []}},
                         'expected_response': status.HTTP_200_OK},
-                       {'access': {'rate': {'read': [rate_uuid], 'write': []}},
+                       {'access': {'rate': {'read': [str(rate_uuid)], 'write': []}},
                         'expected_response': status.HTTP_200_OK}]
+        client = APIClient()
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
 
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
-            client = APIClient()
             response = client.get(url, **request_context['request'].META)
+            self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    @patch('koku.rbac.RbacService.get_access_for_user')
+    def test_write_rate_rbac_access(self, get_access_mock):
+        """Test POST and PUT for rates with an rbac user."""
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate as admin
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+
+        admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                             is_admin=True)
+        get_access_mock.return_value = None
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
+        rate_uuid = response.data.get('uuid')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user_data = self._create_user_data()
+
+        request_context = self._create_request_context(customer, user_data, create_customer=False,
+                                                    is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                       {'access': {'rate': {'read': [], 'write': ['*']}},
+                        'expected_response': status.HTTP_201_CREATED,
+                        'metric': Rate.METRIC_CPU_CORE_REQUEST_HOUR},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_201_CREATED,
+                        'metric': Rate.METRIC_MEM_GB_REQUEST_HOUR}]
+        client = APIClient()
+        other_rates = []
+        for test_case in test_matrix:
+            get_access_mock.return_value = test_case.get('access')
+            url = reverse('rates-list')
+            test_data['metric'] = test_case.get('metric')
+            response = client.post(url, data=test_data, format='json', **request_context['request'].META)
+            self.assertEqual(response.status_code, test_case.get('expected_response'))
+            other_rates.append(response.data.get('uuid'))
+
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                        {'access': {'rate': {'read': ['*'], 'write': [str(other_rates.pop())]}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                        {'access': {'rate': {'read': [], 'write': ['*']}},
+                         'expected_response': status.HTTP_200_OK,
+                         'value': round(Decimal(random.random()), 6)},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(rate_uuid)]}},
+                        'expected_response': status.HTTP_200_OK,
+                        'value': round(Decimal(random.random()), 6)}]
+        client = APIClient()
+        for test_case in test_matrix:
+            get_access_mock.return_value = test_case.get('access')
+            url = reverse('rates-list')
+            test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+            url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+            response = client.put(url, data=test_data, format='json', **request_context['request'].META)
             import pdb; pdb.set_trace()
             self.assertEqual(response.status_code, test_case.get('expected_response'))
