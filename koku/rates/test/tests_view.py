@@ -81,6 +81,8 @@ class RateViewTests(IamTestCase):
 
     def tearDown(self):
         """Tear down rate view tests."""
+        # Figure out why we need to do a request with original admin context for subsequent tests...
+        APIClient().get(reverse('rates-list'), **self.headers)
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
@@ -318,15 +320,12 @@ class RateViewTests(IamTestCase):
                         'expected_response': status.HTTP_200_OK},
                        {'access': {'rate': {'read': ['not-a-uuid'], 'write': []}},
                         'expected_response': status.HTTP_500_INTERNAL_SERVER_ERROR}]
+        client = APIClient()
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
-            client = APIClient()
             response = client.get(url, **request_context['request'].META)
-            
             self.assertEqual(response.status_code, test_case.get('expected_response'))
-        # Figure out why we need to do a request with original admin context for subsequent tests...
-        response = client.get(url, **self.headers)
 
     @patch('koku.rbac.RbacService.get_access_for_user')
     def test_get_rate_rbac_access(self, get_access_mock):
@@ -344,6 +343,7 @@ class RateViewTests(IamTestCase):
         # create a rate
         user_data = self._create_user_data()
         customer = self._create_customer_data()
+
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
                                                              is_admin=True)
 
@@ -372,9 +372,6 @@ class RateViewTests(IamTestCase):
 
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
             client = APIClient()
-            import pdb; pdb.set_trace()
             response = client.get(url, **request_context['request'].META)
-
+            import pdb; pdb.set_trace()
             self.assertEqual(response.status_code, test_case.get('expected_response'))
-            # Figure out why we need to do a request with original admin context for subsequent tests...
-            response = client.get(url, **self.headers)
