@@ -21,6 +21,7 @@ from decimal import Decimal
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.core.cache import caches
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -28,6 +29,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.iam.models import User
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from rates.models import Rate, RateMap
@@ -77,6 +79,13 @@ class RateViewTests(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
+        cache = caches['rbac']
+        cache.clear()
+        with tenant_context(self.tenant):
+            Rate.objects.all().delete()
+            RateMap.objects.all().delete()
+            Provider.objects.all().delete()
+            User.objects.all().delete()
         self.initialize_request()
         os.environ['RBAC_CACHE_TTL'] = '0'
 
@@ -88,6 +97,7 @@ class RateViewTests(IamTestCase):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
             Provider.objects.all().delete()
+            User.objects.all().delete()
         del os.environ['RBAC_CACHE_TTL']
 
     def test_create_rate_success(self):
@@ -326,6 +336,7 @@ class RateViewTests(IamTestCase):
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
+            print('mock_permission: ', test_case.get('access'))
             response = client.get(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
 
@@ -373,6 +384,7 @@ class RateViewTests(IamTestCase):
             get_access_mock.return_value = test_case.get('access')
 
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+            print('mock_permission: ', test_case.get('access'))
             response = client.get(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
 
@@ -425,7 +437,9 @@ class RateViewTests(IamTestCase):
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
             test_data['metric'] = test_case.get('metric')
+            print('mock_permission: ', test_case.get('access'))
             response = client.post(url, data=test_data, format='json', **request_context['request'].META)
+
             self.assertEqual(response.status_code, test_case.get('expected_response'))
             if response.data.get('uuid'):
                 other_rates.append(response.data.get('uuid'))
@@ -447,6 +461,7 @@ class RateViewTests(IamTestCase):
             url = reverse('rates-list')
             test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+            print('mock_permission: ', test_case.get('access'))
             response = client.put(url, data=test_data, format='json', **request_context['request'].META)
 
             self.assertEqual(response.status_code, test_case.get('expected_response'))
@@ -469,5 +484,6 @@ class RateViewTests(IamTestCase):
             get_access_mock.return_value = test_case.get('access')
             test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
             url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
+            print('mock_permission: ', test_case.get('access'))
             response = client.delete(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
