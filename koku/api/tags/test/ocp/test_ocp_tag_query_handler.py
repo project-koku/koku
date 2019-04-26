@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-from django.db.models import Count
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -213,7 +212,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
@@ -221,7 +220,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             storage_tag_keys = OCPStorageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
@@ -249,7 +248,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
@@ -257,7 +256,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             storage_tag_keys = OCPStorageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
@@ -287,7 +286,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
@@ -318,7 +317,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
             storage_tag_keys = OCPStorageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
-                .annotate(tag_count=Count('tag_keys'))\
+                .distinct()\
                 .all()
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = storage_tag_keys
