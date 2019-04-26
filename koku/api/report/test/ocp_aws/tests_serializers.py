@@ -20,8 +20,7 @@ from unittest import TestCase
 from api.report.ocp_aws.serializers import (OCPAWSFilterSerializer,
                                             OCPAWSGroupBySerializer,
                                             OCPAWSOrderBySerializer,
-                                            OCPAWSQueryParamSerializer,
-                                            OP_FIELDS)
+                                            OCPAWSQueryParamSerializer)
 
 
 class OCPAWSFilterSerializerTest(TestCase):
@@ -56,12 +55,12 @@ class OCPAWSFilterSerializerTest(TestCase):
 
     def test_all_filter_op_fields(self):
         """Test that the allowed fields pass."""
-        for field in OP_FIELDS:
+        for field in OCPAWSFilterSerializer._opfields:
             field = 'and:' + field
             filter_param = {field: ['1', '2']}
             serializer = OCPAWSFilterSerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
-        for field in OP_FIELDS:
+        for field in OCPAWSFilterSerializer._opfields:
             field = 'or:' + field
             filter_param = {field: ['1', '2']}
             serializer = OCPAWSFilterSerializer(data=filter_param)
@@ -91,12 +90,12 @@ class OCPAWSGroupBySerializerTest(TestCase):
 
     def test_all_group_by_op_fields(self):
         """Test that the allowed fields pass."""
-        for field in OP_FIELDS:
+        for field in OCPAWSGroupBySerializer._opfields:
             field = 'and:' + field
             filter_param = {field: ['1', '2']}
             serializer = OCPAWSGroupBySerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
-        for field in OP_FIELDS:
+        for field in OCPAWSGroupBySerializer._opfields:
             field = 'or:' + field
             filter_param = {field: ['1', '2']}
             serializer = OCPAWSGroupBySerializer(data=filter_param)

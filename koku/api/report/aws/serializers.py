@@ -14,23 +14,24 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Report Serializers."""
+"""AWS Report Serializers."""
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
-from api.report.serializers import (StringOrListField,
-                                    add_operator_specified_fields,
-                                    handle_invalid_fields,
+from api.report.serializers import (FilterSerializer as BaseFilterSerializer,
+                                    GroupSerializer,
+                                    OrderSerializer,
+                                    ParamSerializer,
+                                    StringOrListField,
                                     validate_field)
 from api.utils import UnitConverter
 
-GROUP_BY_OP_FIELDS = ('account', 'az', 'instance_type', 'region',
-                      'service', 'storage_type', 'product_family')
-FILTER_OP_FIELDS = ('account', 'service', 'region', 'az', 'product_family')
 
-
-class GroupBySerializer(serializers.Serializer):
+class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
+
+    _opfields = ('account', 'az', 'instance_type', 'region',
+                 'service', 'storage_type', 'product_family')
 
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
@@ -47,92 +48,29 @@ class GroupBySerializer(serializers.Serializer):
     product_family = StringOrListField(child=serializers.CharField(),
                                        required=False)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the GroupBySerializer."""
-        tag_keys = kwargs.pop('tag_keys', None)
 
-        super().__init__(*args, **kwargs)
-
-        if tag_keys is not None:
-            tag_keys = {key: StringOrListField(child=serializers.CharField(),
-                                               required=False)
-                        for key in tag_keys}
-            # Add AWS tag keys to allowable fields
-            self.fields.update(tag_keys)
-
-        add_operator_specified_fields(self.fields, GROUP_BY_OP_FIELDS)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if field inputs are invalid
-        """
-        handle_invalid_fields(self, data)
-        return data
-
-
-class OrderBySerializer(serializers.Serializer):
+class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
-    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
-    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                                  required=False)
-    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                           required=False)
-    usage = serializers.ChoiceField(choices=ORDER_CHOICES,
+    _opfields = ('usage', 'accout_alias', 'region', 'service', 'product_family')
+
+    usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                     required=False)
-    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                    required=False)
-    account_alias = serializers.ChoiceField(choices=ORDER_CHOICES,
+    account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                             required=False)
-    region = serializers.ChoiceField(choices=ORDER_CHOICES,
+    region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                      required=False)
-    service = serializers.ChoiceField(choices=ORDER_CHOICES,
+    service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
-    product_family = serializers.ChoiceField(choices=ORDER_CHOICES,
+    product_family = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                              required=False)
 
-    def validate(self, data):
-        """Validate incoming data."""
-        handle_invalid_fields(self, data)
-        return data
 
-
-class FilterSerializer(serializers.Serializer):
+class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    RESOLUTION_CHOICES = (
-        ('daily', 'daily'),
-        ('monthly', 'monthly'),
-    )
-    TIME_CHOICES = (
-        ('-10', '-10'),
-        ('-30', '-30'),
-        ('-1', '1'),
-        ('-2', '-2'),
-    )
-    TIME_UNIT_CHOICES = (
-        ('day', 'day'),
-        ('month', 'month'),
-    )
+    _opfields = ('account', 'service', 'region', 'az', 'product_family')
 
-    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
-                                         required=False)
-    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
-                                               required=False)
-    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
-                                               required=False)
-    resource_scope = StringOrListField(child=serializers.CharField(),
-                                       required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
-    offset = serializers.IntegerField(required=False, min_value=0)
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
     service = StringOrListField(child=serializers.CharField(),
@@ -144,57 +82,8 @@ class FilterSerializer(serializers.Serializer):
     product_family = StringOrListField(child=serializers.CharField(),
                                        required=False)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the FilterSerializer."""
-        tag_keys = kwargs.pop('tag_keys', None)
-        super().__init__(*args, **kwargs)
-        if tag_keys is not None:
-            tag_keys = {key: StringOrListField(child=serializers.CharField(),
-                                               required=False)
-                        for key in tag_keys}
-            # Add AWS tag keys to allowable fields
-            self.fields.update(tag_keys)
 
-        add_operator_specified_fields(self.fields, FILTER_OP_FIELDS)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if filter inputs are invalid
-        """
-        handle_invalid_fields(self, data)
-        resolution = data.get('resolution')
-        time_scope_value = data.get('time_scope_value')
-        time_scope_units = data.get('time_scope_units')
-
-        if time_scope_units and time_scope_value:
-            msg = 'Valid values are {} when time_scope_units is {}'
-            if (time_scope_units == 'day' and  # noqa: W504
-                    (time_scope_value == '-1' or time_scope_value == '-2')):
-                valid_values = ['-10', '-30']
-                valid_vals = ', '.join(valid_values)
-                error = {'time_scope_value': msg.format(valid_vals, 'day')}
-                raise serializers.ValidationError(error)
-            if (time_scope_units == 'day' and resolution == 'monthly'):
-                valid_values = ['daily']
-                valid_vals = ', '.join(valid_values)
-                error = {'resolution': msg.format(valid_vals, 'day')}
-                raise serializers.ValidationError(error)
-            if (time_scope_units == 'month' and  # noqa: W504
-                    (time_scope_value == '-10' or time_scope_value == '-30')):
-                valid_values = ['-1', '-2']
-                valid_vals = ', '.join(valid_values)
-                error = {'time_scope_value': msg.format(valid_vals, 'month')}
-                raise serializers.ValidationError(error)
-        return data
-
-
-class QueryParamSerializer(serializers.Serializer):
+class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
@@ -204,41 +93,19 @@ class QueryParamSerializer(serializers.Serializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+
     group_by = GroupBySerializer(required=False)
     order_by = OrderBySerializer(required=False)
     filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
 
-    # Adding pagination fields to the serializer because we validate
-    # before running reports and paginating
-    limit = serializers.IntegerField(required=False)
-    offset = serializers.IntegerField(required=False)
+    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""
         # Grab tag keys to pass to filter serializer
         self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
-
-        tag_fields = {
-            'filter': FilterSerializer(required=False, tag_keys=self.tag_keys),
-            'group_by': GroupBySerializer(required=False, tag_keys=self.tag_keys)
-        }
-
-        self.fields.update(tag_fields)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if field inputs are invalid
-        """
-        handle_invalid_fields(self, data)
-        return data
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
