@@ -1233,10 +1233,6 @@ class OCPReportViewTest(IamTestCase):
         }
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        import logging
-        logging.disable(0)
-        log = logging.getLogger(__name__)
-        log.critical('XXX: %s', response.content)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
