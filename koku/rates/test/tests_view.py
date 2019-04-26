@@ -16,10 +16,9 @@
 #
 """Test the Rate views."""
 import os
-from unittest.mock import patch
-
 import random
 from decimal import Decimal
+from unittest.mock import patch
 from uuid import uuid4
 
 from django.urls import reverse
@@ -313,10 +312,10 @@ class RateViewTests(IamTestCase):
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
-                                                    is_admin=False)
+                                                       is_admin=False)
 
         self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
-        
+
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
                        {'access': {'rate': {'read': ['*'], 'write': []}},
@@ -359,7 +358,7 @@ class RateViewTests(IamTestCase):
         user_data = self._create_user_data()
 
         request_context = self._create_request_context(customer, user_data, create_customer=False,
-                                                    is_admin=False)
+                                                       is_admin=False)
 
         self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
 
@@ -379,7 +378,7 @@ class RateViewTests(IamTestCase):
 
     @patch('koku.rbac.RbacService.get_access_for_user')
     def test_write_rate_rbac_access(self, get_access_mock):
-        """Test POST and PUT for rates with an rbac user."""
+        """Test POST, PUT, and DELETE for rates with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
                      'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
                      'tiered_rate': [{
@@ -406,10 +405,11 @@ class RateViewTests(IamTestCase):
         user_data = self._create_user_data()
 
         request_context = self._create_request_context(customer, user_data, create_customer=False,
-                                                    is_admin=False)
+                                                       is_admin=False)
 
         self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
 
+        # POST tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN,
                         'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR},
@@ -427,15 +427,17 @@ class RateViewTests(IamTestCase):
             test_data['metric'] = test_case.get('metric')
             response = client.post(url, data=test_data, format='json', **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
-            other_rates.append(response.data.get('uuid'))
+            if response.data.get('uuid'):
+                other_rates.append(response.data.get('uuid'))
 
+        # PUT tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
-                        {'access': {'rate': {'read': ['*'], 'write': [str(other_rates.pop())]}},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
-                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
-                         'expected_response': status.HTTP_200_OK,
-                         'value': round(Decimal(random.random()), 6)},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_200_OK,
+                        'value': round(Decimal(random.random()), 6)},
                        {'access': {'rate': {'read': ['*'], 'write': [str(rate_uuid)]}},
                         'expected_response': status.HTTP_200_OK,
                         'value': round(Decimal(random.random()), 6)}]
@@ -446,5 +448,26 @@ class RateViewTests(IamTestCase):
             test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
             response = client.put(url, data=test_data, format='json', **request_context['request'].META)
-            import pdb; pdb.set_trace()
+
+            self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+        # DELETE tests
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_204_NO_CONTENT,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'expected_response': status.HTTP_204_NO_CONTENT,
+                        'rate_uuid': other_rates[0]}]
+        client = APIClient()
+        for test_case in test_matrix:
+            get_access_mock.return_value = test_case.get('access')
+            test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+            url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
+            response = client.delete(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
