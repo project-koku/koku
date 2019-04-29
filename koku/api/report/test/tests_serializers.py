@@ -20,9 +20,7 @@ from unittest.mock import Mock
 
 from rest_framework import serializers
 
-from api.report.aws.serializers import (FILTER_OP_FIELDS,
-                                        FilterSerializer,
-                                        GROUP_BY_OP_FIELDS,
+from api.report.aws.serializers import (FilterSerializer,
                                         GroupBySerializer,
                                         OrderBySerializer,
                                         QueryParamSerializer)
@@ -195,12 +193,12 @@ class FilterSerializerTest(TestCase):
 
     def test_all_filter_op_fields(self):
         """Test that the allowed fields pass."""
-        for field in FILTER_OP_FIELDS:
+        for field in FilterSerializer._opfields:
             field = 'and:' + field
             filter_param = {field: ['1', '2']}
             serializer = FilterSerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
-        for field in FILTER_OP_FIELDS:
+        for field in FilterSerializer._opfields:
             field = 'or:' + field
             filter_param = {field: ['1', '2']}
             serializer = FilterSerializer(data=filter_param)
@@ -307,12 +305,12 @@ class GroupBySerializerTest(TestCase):
 
     def test_all_group_by_op_fields(self):
         """Test that the allowed fields pass."""
-        for field in GROUP_BY_OP_FIELDS:
+        for field in GroupBySerializer._opfields:
             field = 'and:' + field
             filter_param = {field: ['1', '2']}
             serializer = GroupBySerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
-        for field in GROUP_BY_OP_FIELDS:
+        for field in GroupBySerializer._opfields:
             field = 'or:' + field
             filter_param = {field: ['1', '2']}
             serializer = GroupBySerializer(data=filter_param)

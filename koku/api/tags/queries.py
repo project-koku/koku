@@ -18,7 +18,7 @@
 import copy
 import logging
 
-from django.db.models import Count, Q
+from django.db.models import Q
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -160,7 +160,7 @@ class TagQueryHandler(QueryHandler):
 
                 tag_keys_query = tag_keys_query.annotate(tag_keys=JSONBObjectKeys(source.get('db_column')))\
                     .values('tag_keys')\
-                    .annotate(tag_count=Count('tag_keys'))\
+                    .distinct()\
                     .all()
                 tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
