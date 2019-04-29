@@ -187,23 +187,26 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwa
         (Boolean): True if query params are valid, False otherwise
         (Dict): Dictionary parsed from query params string
     """
-    output = None
     try:
         query_params = parser.parse(url_data)
     except parser.MalformedQueryStringError:
         LOG.error('Invalid query parameter format %s.', url_data)
         error = {'details': _(f'Invalid query parameter format.')}
         raise ValidationError(error)
+
     if tag_keys:
         tag_keys = process_tag_query_params(query_params, tag_keys)
         qps = provider_serializer(data=query_params, tag_keys=tag_keys, context=kwargs)
     else:
         qps = provider_serializer(data=query_params, context=kwargs)
+
+    output = None
     validation = qps.is_valid()
     if not validation:
         output = qps.errors
     else:
         output = qps.data
+
     return (validation, output)
 
 
@@ -350,7 +353,7 @@ def _generic_report(request, provider, report):
         (Response): The report in a Response object
 
     """
-    LOG.info(f'API: {request.path} USER: {request.user.username}')
+    LOG.debug(f'API: {request.path} USER: {request.user.username}')
     tenant = get_tenant(request.user)
 
     cm = ClassMapper()
@@ -368,7 +371,7 @@ def _generic_report(request, provider, report):
         url_data,
         provider_parameter_serializer,
         tag_keys,
-        **{'request': request}
+        request=request
     )
 
     if not validation:

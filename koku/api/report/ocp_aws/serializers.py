@@ -14,79 +14,42 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Report Serializers."""
-from rest_framework import serializers
+"""OCP-on-AWS Report Serializers."""
 
-from api.report.aws.serializers import (FilterSerializer,
-                                        GroupBySerializer,
-                                        OrderBySerializer,
-                                        QueryParamSerializer,
-                                        validate_field)
-from api.report.ocp.serializers import OP_FIELDS
-from api.report.serializers import StringOrListField, add_operator_specified_fields
+import api.report.aws.serializers as awsser
+import api.report.ocp.serializers as ocpser
+from api.report.serializers import validate_field
 
 
-class OCPAWSGroupBySerializer(GroupBySerializer):
+class OCPAWSGroupBySerializer(awsser.GroupBySerializer,
+                              ocpser.GroupBySerializer):
     """Serializer for handling query parameter group_by."""
 
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    cluster = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    node = StringOrListField(child=serializers.CharField(),
-                             required=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the OCPAWSGroupBySerializer."""
-        super().__init__(*args, **kwargs)
-        add_operator_specified_fields(self.fields, OP_FIELDS)
+    _opfields = ('account', 'az', 'instance_type', 'region',
+                 'service', 'storage_type', 'product_family',
+                 'project', 'cluster', 'node')
 
 
-class OCPAWSOrderBySerializer(OrderBySerializer):
+class OCPAWSOrderBySerializer(awsser.OrderBySerializer,
+                              ocpser.OrderBySerializer):
     """Serializer for handling query parameter order_by."""
 
-    ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
-    project = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                      required=False)
-    cluster = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                      required=False)
-    node = serializers.ChoiceField(choices=ORDER_CHOICES,
-                                   required=False)
+    pass
 
 
-class OCPAWSFilterSerializer(FilterSerializer):
+class OCPAWSFilterSerializer(awsser.FilterSerializer,
+                             ocpser.FilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    project = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    cluster = StringOrListField(child=serializers.CharField(),
-                                required=False)
-    node = StringOrListField(child=serializers.CharField(),
-                             required=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the OCPAWSGroupBySerializer."""
-        super().__init__(*args, **kwargs)
-        add_operator_specified_fields(self.fields, OP_FIELDS)
+    pass
 
 
-class OCPAWSQueryParamSerializer(QueryParamSerializer):
+class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
     """Serializer for handling query parameters."""
 
     group_by = OCPAWSGroupBySerializer(required=False)
     order_by = OCPAWSOrderBySerializer(required=False)
     filter = OCPAWSFilterSerializer(required=False)
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the AWS query param serializer."""
-        super().__init__(*args, **kwargs)
-
-        tag_fields = {
-            'filter': OCPAWSFilterSerializer(required=False, tag_keys=self.tag_keys),
-            'group_by': OCPAWSGroupBySerializer(required=False, tag_keys=self.tag_keys)
-        }
-
-        self.fields.update(tag_fields)
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
