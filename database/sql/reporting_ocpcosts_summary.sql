@@ -44,14 +44,14 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         ocp_aws.cluster_id,
         ocp_aws.cluster_alias,
         ocp_aws.namespace,
-        NULL as pod,
+        ocp_aws.pod,
         ocp_aws.node,
-        '{{}}'::jsonb as pod_labels,
+        ocp_aws.pod_labels,
         0::decimal AS pod_charge_cpu_core_hours,
         0::decimal AS pod_charge_memory_gigabyte_hours,
         0::decimal AS persistentvolumeclaim_charge_gb_month,
-        ocp_aws.unblended_cost / ocp_aws.shared_projects AS infra_cost,
-        ocp_aws.project_cost AS project_infra_cost
+        ocp_aws.unblended_cost AS infra_cost,
+        ocp_aws.pod_cost AS project_infra_cost
     FROM reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
     WHERE date(ocp_aws.usage_start) >= '{start_date}'
         AND date(ocp_aws.usage_start) <= '{end_date}'
