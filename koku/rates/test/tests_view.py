@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Rate views."""
-import os
 import copy
+import os
 import random
 from decimal import Decimal
 from unittest.mock import patch
@@ -28,11 +28,12 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
-from api.iam.models import User
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
+from koku.rbac import RbacService
 from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
@@ -82,8 +83,6 @@ class RateViewTests(IamTestCase):
         super().setUp()
         cache = caches['rbac']
         cache.clear()
-        # Figure out why we need to do a request with original admin context for subsequent tests...
-        # APIClient().get(reverse('rates-list'), **self.headers)
 
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
@@ -95,8 +94,6 @@ class RateViewTests(IamTestCase):
 
     def tearDown(self):
         """Tear down rate view tests."""
-        # Figure out why we need to do a request with original admin context for subsequent tests...
-        # APIClient().get(reverse('rates-list'), **self.headers)
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
@@ -369,8 +366,7 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data.get('errors'))
 
-    @patch('koku.rbac.RbacService.get_access_for_user')
-    def test_list_rates_rbac_access(self, get_access_mock):
+    def test_list_rates_rbac_access(self):
         """Test GET /rates with an rbac user."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
@@ -386,14 +382,15 @@ class RateViewTests(IamTestCase):
                        {'access': {'rate': {'read': ['not-a-uuid'], 'write': []}},
                         'expected_response': status.HTTP_500_INTERNAL_SERVER_ERROR}]
         client = APIClient()
-        for test_case in test_matrix:
-            get_access_mock.return_value = test_case.get('access')
-            url = reverse('rates-list')
-            response = client.get(url, **request_context['request'].META)
-            self.assertEqual(response.status_code, test_case.get('expected_response'))
 
-    @patch('koku.rbac.RbacService.get_access_for_user')
-    def test_get_rate_rbac_access(self, get_access_mock):
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                caches['rbac'].clear()
+                response = client.get(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    def test_get_rate_rbac_access(self):
         """Test GET /rates/{uuid} with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
                      'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
@@ -432,17 +429,15 @@ class RateViewTests(IamTestCase):
                        {'access': {'rate': {'read': [str(rate_uuid)], 'write': []}},
                         'expected_response': status.HTTP_200_OK}]
         client = APIClient()
+
         for test_case in test_matrix:
-            get_access_mock.return_value = test_case.get('access')
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                caches['rbac'].clear()
+                response = client.get(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
 
-            url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
-            print('mock_permission: ', test_case.get('access'))
-            import pdb; pdb.set_trace()
-            response = client.get(url, **request_context['request'].META)
-            self.assertEqual(response.status_code, test_case.get('expected_response'))
-
-    @patch('koku.rbac.RbacService.get_access_for_user')
-    def test_write_rate_rbac_access(self, get_access_mock):
+    def test_write_rate_rbac_access(self):
         """Test POST, PUT, and DELETE for rates with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
                      'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
@@ -460,13 +455,13 @@ class RateViewTests(IamTestCase):
 
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
                                                              is_admin=True)
-        get_access_mock.return_value = None
-        url = reverse('rates-list')
-        client = APIClient()
+        with patch.object(RbacService, 'get_access_for_user', return_value=None):
+            url = reverse('rates-list')
+            client = APIClient()
 
-        response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
-        rate_uuid = response.data.get('uuid')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+            response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
+            rate_uuid = response.data.get('uuid')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user_data = self._create_user_data()
 
@@ -487,17 +482,18 @@ class RateViewTests(IamTestCase):
                         'metric': Rate.METRIC_MEM_GB_REQUEST_HOUR}]
         client = APIClient()
         other_rates = []
-        for test_case in test_matrix:
-            get_access_mock.return_value = test_case.get('access')
-            url = reverse('rates-list')
-            rate_data = copy.deepcopy(test_data)
-            rate_data['metric'] = test_case.get('metric')
-            print('mock_permission: ', test_case.get('access'))
-            response = client.post(url, data=rate_data, format='json', **request_context['request'].META)
 
-            self.assertEqual(response.status_code, test_case.get('expected_response'))
-            if response.data.get('uuid'):
-                other_rates.append(response.data.get('uuid'))
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                rate_data = copy.deepcopy(test_data)
+                rate_data['metric'] = test_case.get('metric')
+                caches['rbac'].clear()
+                response = client.post(url, data=rate_data, format='json', **request_context['request'].META)
+
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+                if response.data.get('uuid'):
+                    other_rates.append(response.data.get('uuid'))
 
         # PUT tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
@@ -513,16 +509,16 @@ class RateViewTests(IamTestCase):
         client = APIClient()
 
         for test_case in test_matrix:
-            get_access_mock.return_value = test_case.get('access')
-            url = reverse('rates-list')
-            rate_data = copy.deepcopy(test_data)
-            rate_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                rate_data = copy.deepcopy(test_data)
+                rate_data.get('tiered_rate')[0]['value'] = test_case.get('value')
 
-            url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
-            print('mock_permission: ', test_case.get('access'))
-            response = client.put(url, data=rate_data, format='json', **request_context['request'].META)
+                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                caches['rbac'].clear()
+                response = client.put(url, data=rate_data, format='json', **request_context['request'].META)
 
-            self.assertEqual(response.status_code, test_case.get('expected_response'))
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
 
         # DELETE tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
@@ -539,9 +535,9 @@ class RateViewTests(IamTestCase):
                         'rate_uuid': other_rates[0]}]
         client = APIClient()
         for test_case in test_matrix:
-            get_access_mock.return_value = test_case.get('access')
-            test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
-            url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
-            print('mock_permission: ', test_case.get('access'))
-            response = client.delete(url, **request_context['request'].META)
-            self.assertEqual(response.status_code, test_case.get('expected_response'))
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+                url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
+                caches['rbac'].clear()
+                response = client.delete(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
