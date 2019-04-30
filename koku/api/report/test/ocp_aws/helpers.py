@@ -55,6 +55,14 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         self.aws_info = FakeAWSCostData(usage_start=aws_usage_start,
                                         usage_end=aws_usage_end,
                                         resource_id=self.resource_id)
+        self._tags = self._generate_tags()
+
+    @property
+    def tags(self):
+        """Generated tags property."""
+        if not self._tags:
+            self._tags = self._generate_tags()
+        return self._tags
 
     def create_ocp_provider(self, cluster_id, cluster_alias):
         """Create OCP test provider."""
@@ -212,7 +220,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                           Provider):
                 table.objects.all().delete()
 
-    def _get_tags(self):
+    def _generate_tags(self):
         """Create tags for output data."""
         apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
                 self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
@@ -279,7 +287,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'availability_zone': az,
                     'region': region,
                     'unit': unit,
-                    'tags': self._get_tags(),
+                    'tags': self.tags,
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
                     'unblended_cost': unblended_cost,
@@ -321,7 +329,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'availability_zone': az,
                     'region': region,
                     'unit': unit,
-                    'tags': self._get_tags(),
+                    'tags': self.tags,
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
                     'project_cost': Decimal(random.random()) * unblended_cost
