@@ -1295,6 +1295,9 @@ class ReportQueryHandler(QueryHandler):
     def get_tag_order_by(self, tag):
         """Generate an OrderBy clause forcing JSON column->key to be used.
 
+        This is only for helping to create a Window() for purposes of grouping
+        by tag.
+
         Args:
             tag (str): The Django formatted tag string
                        Ex. pod_labels__key

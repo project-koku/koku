@@ -163,6 +163,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data,
                 query_group_by
             )
+            # XXX: order-by
             query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:

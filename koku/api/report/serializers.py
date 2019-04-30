@@ -61,11 +61,29 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
 
     # extract tag_keys from field_params and recreate the tag_keys param
     tag_keys = None
-    if not kwargs.get('tag_keys'):
-        tag_keys = filter(lambda x: 'tag:' in x, field_param)
+    if not kwargs.get('tag_keys') and getattr(serializer_cls,
+                                              '_tagkey_support', False):
+        tag_keys = list(filter(lambda x: 'tag:' in x, field_param))
         kwargs['tag_keys'] = tag_keys
 
     serializer = serializer_cls(data=field_param, **kwargs)
+
+    # Handle validation of multi-inherited classes.
+    #
+    # The serializer classes call super(). So, validation happens bottom-up from
+    # the BaseSerializer. This handles the case where a a child class has two
+    # parents with differing sets of fields.
+    subclasses = serializer_cls.__subclasses__()
+    if subclasses and not serializer.is_valid():
+        for subcls in subclasses:
+            for parent in subcls.__bases__:
+                # when using multiple inheritance, the data is valid as long as one
+                # parent class validates the data.
+                serializer = parent(data=field_param, **kwargs)
+                if serializer.is_valid():
+                    return value
+        raise serializers.ValidationError({field: _('Unsupported parameter')})
+
     serializer.is_valid(raise_exception=True)
     return value
 
@@ -112,6 +130,7 @@ class BaseSerializer(serializers.Serializer):
     """A common serializer base for all of our serializers."""
 
     _opfields = None
+    _tagkey_support = None
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
@@ -144,6 +163,8 @@ class BaseSerializer(serializers.Serializer):
 
 class FilterSerializer(BaseSerializer):
     """A base serializer for filter operations."""
+
+    _tagkey_support = True
 
     RESOLUTION_CHOICES = (
         ('daily', 'daily'),
@@ -211,11 +232,13 @@ class FilterSerializer(BaseSerializer):
 class GroupSerializer(BaseSerializer):
     """A base serializer for group-by operations."""
 
-    pass
+    _tagkey_support = True
 
 
 class OrderSerializer(BaseSerializer):
     """A base serializer for order-by operations."""
+
+    _tagkey_support = True
 
     ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
 
@@ -232,10 +255,16 @@ class OrderSerializer(BaseSerializer):
 class ParamSerializer(BaseSerializer):
     """A base serializer for query parameter operations."""
 
+    _tagkey_support = True
+
     # Adding pagination fields to the serializer because we validate
     # before running reports and paginating
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
+
+    # fields that can be ordered without a corresponding group-by
+    order_by_whitelist = ('cost', 'derived_cost', 'infrastructure_cost',
+                          'delta', 'usage', 'request', 'limit', 'capacity')
 
     def _init_tagged_fields(self, **kwargs):
         """Initialize serializer fields that support tagging.
@@ -252,3 +281,32 @@ class ParamSerializer(BaseSerializer):
             inst = val(required=False, tag_keys=self.tag_keys)
             setattr(self, key, inst)
             self.fields[key] = inst
+
+    def validate_order_by(self, value):
+        """Validate incoming order_by data.
+
+        Args:
+            value    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+        """
+        error = {}
+
+        for key, val in value.items():
+            if key in self.order_by_whitelist:
+                continue    # fields that do not require a group-by
+
+            if 'group_by' in self.initial_data:
+                group_keys = self.initial_data.get('group_by').keys()
+                if key in group_keys:
+                    continue    # found matching group-by
+
+                # special case: we order by account_alias, but we group by account.
+                if key == 'account_alias' and 'account' in group_keys:
+                    continue
+
+            error[key] = _(f'Order-by "{key}" requires matching Group-by.')
+            raise serializers.ValidationError(error)
+        return value

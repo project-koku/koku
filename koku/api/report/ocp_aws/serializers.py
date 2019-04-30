@@ -78,6 +78,7 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        super().validate_order_by(value)
         validate_field(self, 'order_by', OCPAWSOrderBySerializer, value)
         return value
 
