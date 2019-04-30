@@ -310,6 +310,8 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'cluster_alias': self.cluster_alias,
                     'namespace': row.get('namespace'),
                     'node': row.get('node'),
+                    'pod': row.get('pod'),
+                    'pod_labels': self._get_tags(),
                     'resource_id': resource_prefix + row.get('resource_id'),
                     'usage_start': report_date,
                     'usage_end': report_date,
@@ -321,10 +323,9 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'availability_zone': az,
                     'region': region,
                     'unit': unit,
-                    'tags': self._get_tags(),
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
-                    'project_cost': Decimal(random.random()) * unblended_cost
+                    'pod_cost': Decimal(random.random()) * unblended_cost
                 }
                 line_item = OCPAWSCostLineItemProjectDailySummary(**data)
                 line_item.save()
