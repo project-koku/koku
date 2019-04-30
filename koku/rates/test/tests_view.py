@@ -16,6 +16,7 @@
 #
 """Test the Rate views."""
 import os
+import copy
 import random
 from decimal import Decimal
 from unittest.mock import patch
@@ -81,6 +82,9 @@ class RateViewTests(IamTestCase):
         super().setUp()
         cache = caches['rbac']
         cache.clear()
+        # Figure out why we need to do a request with original admin context for subsequent tests...
+        # APIClient().get(reverse('rates-list'), **self.headers)
+
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
@@ -92,7 +96,7 @@ class RateViewTests(IamTestCase):
     def tearDown(self):
         """Tear down rate view tests."""
         # Figure out why we need to do a request with original admin context for subsequent tests...
-        APIClient().get(reverse('rates-list'), **self.headers)
+        # APIClient().get(reverse('rates-list'), **self.headers)
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
@@ -282,13 +286,13 @@ class RateViewTests(IamTestCase):
         """Test that PATCH throws exception."""
         test_data = self.fake_data
         test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+        with tenant_context(self.tenant):
+            rate = Rate.objects.first()
+            url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+            client = APIClient()
 
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
-        client = APIClient()
-
-        response = client.patch(url, test_data, format='json', **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+            response = client.patch(url, test_data, format='json', **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
@@ -385,7 +389,6 @@ class RateViewTests(IamTestCase):
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
-            print('mock_permission: ', test_case.get('access'))
             response = client.get(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
 
@@ -434,6 +437,7 @@ class RateViewTests(IamTestCase):
 
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
             print('mock_permission: ', test_case.get('access'))
+            import pdb; pdb.set_trace()
             response = client.get(url, **request_context['request'].META)
             self.assertEqual(response.status_code, test_case.get('expected_response'))
 
@@ -459,6 +463,7 @@ class RateViewTests(IamTestCase):
         get_access_mock.return_value = None
         url = reverse('rates-list')
         client = APIClient()
+
         response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
         rate_uuid = response.data.get('uuid')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -485,9 +490,10 @@ class RateViewTests(IamTestCase):
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
-            test_data['metric'] = test_case.get('metric')
+            rate_data = copy.deepcopy(test_data)
+            rate_data['metric'] = test_case.get('metric')
             print('mock_permission: ', test_case.get('access'))
-            response = client.post(url, data=test_data, format='json', **request_context['request'].META)
+            response = client.post(url, data=rate_data, format='json', **request_context['request'].META)
 
             self.assertEqual(response.status_code, test_case.get('expected_response'))
             if response.data.get('uuid'):
@@ -505,13 +511,16 @@ class RateViewTests(IamTestCase):
                         'expected_response': status.HTTP_200_OK,
                         'value': round(Decimal(random.random()), 6)}]
         client = APIClient()
+
         for test_case in test_matrix:
             get_access_mock.return_value = test_case.get('access')
             url = reverse('rates-list')
-            test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+            rate_data = copy.deepcopy(test_data)
+            rate_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+
             url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
             print('mock_permission: ', test_case.get('access'))
-            response = client.put(url, data=test_data, format='json', **request_context['request'].META)
+            response = client.put(url, data=rate_data, format='json', **request_context['request'].META)
 
             self.assertEqual(response.status_code, test_case.get('expected_response'))
 

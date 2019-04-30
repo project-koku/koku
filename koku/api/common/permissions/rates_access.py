@@ -34,7 +34,6 @@ class RatesAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission based on the defined access."""
-        print('has_permission: ', request.user.access)
         if request.user.admin:
             return True
         if request.method in permissions.SAFE_METHODS:
