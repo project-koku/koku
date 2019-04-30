@@ -329,8 +329,7 @@ class OrderBySerializerTest(TestCase):
     def test_order_by_params_invalid_fields(self):
         """Test parse of order_by params for invalid fields."""
         order_params = {'cost': 'asc',
-                        'invalid': 'param'
-                        }
+                        'invalid': 'param'}
         serializer = OrderBySerializer(data=order_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

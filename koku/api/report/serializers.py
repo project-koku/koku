@@ -58,6 +58,13 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
         (ValidationError): if field inputs are invalid
     """
     field_param = this.initial_data.get(field)
+
+    # extract tag_keys from field_params and recreate the tag_keys param
+    tag_keys = None
+    if not kwargs.get('tag_keys'):
+        tag_keys = filter(lambda x: 'tag:' in x, field_param)
+        kwargs['tag_keys'] = tag_keys
+
     serializer = serializer_cls(data=field_param, **kwargs)
     serializer.is_valid(raise_exception=True)
     return value
@@ -107,22 +114,30 @@ class BaseSerializer(serializers.Serializer):
     _opfields = None
 
     def __init__(self, *args, **kwargs):
-        """Initialize the FilterSerializer."""
-        tag_keys = kwargs.pop('tag_keys', None)
+        """Initialize the BaseSerializer."""
+        self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
 
-        if tag_keys is not None:
-            tag_keys = {key: StringOrListField(child=serializers.CharField(),
-                                               required=False)
-                        for key in tag_keys}
+        if self.tag_keys is not None:
+            tag_fields = {key: StringOrListField(child=serializers.CharField(),
+                                                 required=False)
+                          for key in self.tag_keys}
             # Add tag keys to allowable fields
-            self.fields.update(tag_keys)
+            self.fields.update(tag_fields)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
 
     def validate(self, data):
-        """Validate incoming data."""
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
         handle_invalid_fields(self, data)
         return data
 
@@ -222,25 +237,18 @@ class ParamSerializer(BaseSerializer):
     limit = serializers.IntegerField(required=False)
     offset = serializers.IntegerField(required=False)
 
-    def __init__(self, *args, **kwargs):
-        """Initialize the query param serializer."""
-        if self.tag_keys and self.tag_fields:
-            inst = {}
-            for key, val in self.tag_fields.items():
-                # replace class references with instances of the class.
-                inst[key] = val(required=False, tag_keys=self.tag_keys)
-            self.fields.update(inst)
-        super().__init__(*args, **kwargs)
+    def _init_tagged_fields(self, **kwargs):
+        """Initialize serializer fields that support tagging.
 
-    def validate(self, data):
-        """Validate incoming data.
+        This method is used by sub-classed __init__() functions for instantiating Filter,
+        Order, and Group classes. This enables us to pass our tag keys into the
+        serializer.
 
         Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if field inputs are invalid
+            kwargs (dict) {field_name: FieldObject}
+
         """
-        handle_invalid_fields(self, data)
-        return data
+        for key, val in kwargs.items():
+            inst = val(required=False, tag_keys=self.tag_keys)
+            setattr(self, key, inst)
+            self.fields[key] = inst

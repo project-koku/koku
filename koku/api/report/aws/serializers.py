@@ -93,19 +93,14 @@ class QueryParamSerializer(ParamSerializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-
-    group_by = GroupBySerializer(required=False)
-    order_by = OrderBySerializer(required=False)
-    filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
-
-    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""
-        # Grab tag keys to pass to filter serializer
-        self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=OrderBySerializer)
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.

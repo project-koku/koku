@@ -110,18 +110,14 @@ class OCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    group_by = GroupBySerializer(required=False)
     units = serializers.CharField(required=False)
-    filter = FilterSerializer(required=False)
-
-    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
-        # Grab tag keys to pass to filter serializer
-        self.tag_keys = kwargs.pop('tag_keys', None)
-
         super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=OrderBySerializer)
 
     def validate(self, data):
         """Validate incoming data.
@@ -210,7 +206,13 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
                           'delta', 'usage', 'request', 'limit', 'capacity')
 
     delta = serializers.CharField(required=False)
-    order_by = InventoryOrderBySerializer(required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCP query param serializer."""
+        super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=InventoryOrderBySerializer)
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.
@@ -263,7 +265,6 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     DELTA_CHOICES = (('cost', 'cost'))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    order_by = OrderBySerializer(required=False)
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.
