@@ -122,7 +122,7 @@ objects:
       template: rdsexporter-template
     name: ${NAME}
   spec:
-    failedBuildsHistoryLimit: 5
+    failedBuildsHistoryLimit: 1
     output:
       to:
         kind: ImageStreamTag
@@ -153,7 +153,7 @@ objects:
           name: go-toolset-7-centos7:latest
           namespace: ${NAMESPACE}
       type: Docker
-    successfulBuildsHistoryLimit: 5
+    successfulBuildsHistoryLimit: 2
     triggers:
     - github:
         secret: ${GITHUB_WEBHOOK_SECRET}
