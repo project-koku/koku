@@ -150,8 +150,8 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
                 name='cost_proj_sum_resource_idx',
             ),
             GinIndex(
-                fields=['tags'],
-                name='cost_proj_tags_idx',
+                fields=['pod_labels'],
+                name='cost_proj_pod_labels_idx',
             ),
             models.Index(
                 fields=['product_family'],
@@ -171,7 +171,11 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
+    pod = models.CharField(max_length=253, null=True)
+
     node = models.CharField(max_length=253, null=False)
+
+    pod_labels = JSONField(null=True)
 
     resource_id = models.CharField(max_length=253, null=True)
 
@@ -198,8 +202,6 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     unit = models.CharField(max_length=63, null=True)
 
-    tags = JSONField(null=True)
-
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9,
                                        null=True)
 
@@ -210,11 +212,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
 
-    # This is a count of the number of projects that share an AWS resource
-    # It is used to divide cost evenly among projects
-    shared_projects = models.IntegerField(null=False, default=1)
-
-    project_cost = models.DecimalField(
+    pod_cost = models.DecimalField(
         max_digits=24,
         decimal_places=6,
         null=True
