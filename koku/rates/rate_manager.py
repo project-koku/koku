@@ -63,7 +63,7 @@ class RateManager:
 
         if invalid_provider_metrics:
             duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)    # noqa: E501
-            duplicate_metrics_err = 'Dupicate metrics found for the following providers: {}'.format(duplicate_err_msg)
+            duplicate_metrics_err = 'Duplicate metrics found for the following providers: {}'.format(duplicate_err_msg)
             raise RateManagerError(duplicate_metrics_err)
 
     @transaction.atomic
