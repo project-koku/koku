@@ -14,14 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Defines the Group Access Permissions class."""
+"""Defines the Rate Access Permissions class."""
 from uuid import UUID
 
 from rest_framework import permissions
 
 
 class RatesAccessPermission(permissions.BasePermission):
-    """Determines if a user has access to Group APIs."""
+    """Determines if a user has access to RATE APIs."""
 
     def get_uuid_from_url(self, request):
         """Get the uuid from the request url."""
