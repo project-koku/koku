@@ -16,7 +16,6 @@
 #
 """Test the Rate views."""
 import copy
-import os
 import random
 from decimal import Decimal
 from unittest.mock import patch
@@ -81,8 +80,7 @@ class RateViewTests(IamTestCase):
     def setUp(self):
         """Set up the rate view tests."""
         super().setUp()
-        cache = caches['rbac']
-        cache.clear()
+        caches['rbac'].clear()
 
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
@@ -90,7 +88,6 @@ class RateViewTests(IamTestCase):
             Provider.objects.all().delete()
             User.objects.all().delete()
         self.initialize_request()
-        os.environ['RBAC_CACHE_TTL'] = '0'
 
     def tearDown(self):
         """Tear down rate view tests."""
@@ -99,7 +96,6 @@ class RateViewTests(IamTestCase):
             RateMap.objects.all().delete()
             Provider.objects.all().delete()
             User.objects.all().delete()
-        del os.environ['RBAC_CACHE_TTL']
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""

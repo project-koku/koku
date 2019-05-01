@@ -36,20 +36,18 @@ class RatesAccessPermission(permissions.BasePermission):
         """Check permission based on the defined access."""
         if request.user.admin:
             return True
+
+        if not request.user.access:
+            return False
+
         if request.method in permissions.SAFE_METHODS:
-            username = request.query_params.get('username')
-            if username:
-                decoded = request.user.identity_header.get('decoded', {})
-                identity_username = decoded.get('identity', {}).get('user', {}).get('username')
-                return username == identity_username
-            else:
-                group_read = request.user.access.get('rate', {}).get('read', [])
-                if group_read:
-                    return True
-        else:
-            group_write = request.user.access.get('rate', {}).get('write', [])
-            if '*' in group_write:
+            rates_read = request.user.access.get('rate', {}).get('read', [])
+            if rates_read:
                 return True
-            if self.get_uuid_from_url(request) in group_write:
+        else:
+            rates_write = request.user.access.get('rate', {}).get('write', [])
+            if '*' in rates_write:
+                return True
+            if self.get_uuid_from_url(request) in rates_write:
                 return True
         return False
