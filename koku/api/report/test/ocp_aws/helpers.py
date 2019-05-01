@@ -275,7 +275,6 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'cluster_alias': self.cluster_alias,
                     'namespace': [row.get('namespace')],
                     'pod': [row.get('pod')],
-                    'pod_labels': self.tags,
                     'node': row.get('node'),
                     'resource_id': resource_prefix + row.get('resource_id'),
                     'usage_start': report_date,

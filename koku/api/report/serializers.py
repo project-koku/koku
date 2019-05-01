@@ -124,3 +124,189 @@ class StringOrListField(serializers.ListField):
             list_data = list_data.split(',')
 
         return super().to_internal_value(list_data)
+
+
+class BaseSerializer(serializers.Serializer):
+    """A common serializer base for all of our serializers."""
+
+    _opfields = None
+    _tagkey_support = None
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the BaseSerializer."""
+        self.tag_keys = kwargs.pop('tag_keys', None)
+        super().__init__(*args, **kwargs)
+
+        if self.tag_keys is not None:
+            tag_fields = {key: StringOrListField(child=serializers.CharField(),
+                                                 required=False)
+                          for key in self.tag_keys}
+            # Add tag keys to allowable fields
+            self.fields.update(tag_fields)
+
+        if self._opfields:
+            add_operator_specified_fields(self.fields, self._opfields)
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
+        handle_invalid_fields(self, data)
+        return data
+
+
+class FilterSerializer(BaseSerializer):
+    """A base serializer for filter operations."""
+
+    _tagkey_support = True
+
+    RESOLUTION_CHOICES = (
+        ('daily', 'daily'),
+        ('monthly', 'monthly'),
+    )
+    TIME_CHOICES = (
+        ('-10', '-10'),
+        ('-30', '-30'),
+        ('-1', '1'),
+        ('-2', '-2'),
+    )
+    TIME_UNIT_CHOICES = (
+        ('day', 'day'),
+        ('month', 'month'),
+    )
+
+    resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES,
+                                         required=False)
+    time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES,
+                                               required=False)
+    time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES,
+                                               required=False)
+    resource_scope = StringOrListField(child=serializers.CharField(),
+                                       required=False)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+        """
+        handle_invalid_fields(self, data)
+        resolution = data.get('resolution')
+        time_scope_value = data.get('time_scope_value')
+        time_scope_units = data.get('time_scope_units')
+
+        if time_scope_units and time_scope_value:
+            msg = 'Valid values are {} when time_scope_units is {}'
+            if (time_scope_units == 'day' and  # noqa: W504
+                    (time_scope_value == '-1' or time_scope_value == '-2')):
+                valid_values = ['-10', '-30']
+                valid_vals = ', '.join(valid_values)
+                error = {'time_scope_value': msg.format(valid_vals, 'day')}
+                raise serializers.ValidationError(error)
+            if (time_scope_units == 'day' and resolution == 'monthly'):
+                valid_values = ['daily']
+                valid_vals = ', '.join(valid_values)
+                error = {'resolution': msg.format(valid_vals, 'day')}
+                raise serializers.ValidationError(error)
+            if (time_scope_units == 'month' and  # noqa: W504
+                    (time_scope_value == '-10' or time_scope_value == '-30')):
+                valid_values = ['-1', '-2']
+                valid_vals = ', '.join(valid_values)
+                error = {'time_scope_value': msg.format(valid_vals, 'month')}
+                raise serializers.ValidationError(error)
+        return data
+
+
+class GroupSerializer(BaseSerializer):
+    """A base serializer for group-by operations."""
+
+    _tagkey_support = True
+
+
+class OrderSerializer(BaseSerializer):
+    """A base serializer for order-by operations."""
+
+    _tagkey_support = True
+
+    ORDER_CHOICES = (('asc', 'asc'), ('desc', 'desc'))
+
+    cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                   required=False)
+    infrastructure_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                                  required=False)
+    derived_cost = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                           required=False)
+    delta = serializers.ChoiceField(choices=ORDER_CHOICES,
+                                    required=False)
+
+
+class ParamSerializer(BaseSerializer):
+    """A base serializer for query parameter operations."""
+
+    _tagkey_support = True
+
+    # Adding pagination fields to the serializer because we validate
+    # before running reports and paginating
+    limit = serializers.IntegerField(required=False)
+    offset = serializers.IntegerField(required=False)
+
+    # fields that can be ordered without a corresponding group-by
+    order_by_whitelist = ('cost', 'derived_cost', 'infrastructure_cost',
+                          'delta', 'usage', 'request', 'limit', 'capacity')
+
+    def _init_tagged_fields(self, **kwargs):
+        """Initialize serializer fields that support tagging.
+
+        This method is used by sub-classed __init__() functions for instantiating Filter,
+        Order, and Group classes. This enables us to pass our tag keys into the
+        serializer.
+
+        Args:
+            kwargs (dict) {field_name: FieldObject}
+
+        """
+        for key, val in kwargs.items():
+            inst = val(required=False, tag_keys=self.tag_keys)
+            setattr(self, key, inst)
+            self.fields[key] = inst
+
+    def validate_order_by(self, value):
+        """Validate incoming order_by data.
+
+        Args:
+            value    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if order_by field inputs are invalid
+        """
+        error = {}
+
+        for key, val in value.items():
+            if key in self.order_by_whitelist:
+                continue    # fields that do not require a group-by
+
+            if 'group_by' in self.initial_data:
+                group_keys = self.initial_data.get('group_by').keys()
+                if key in group_keys:
+                    continue    # found matching group-by
+
+                # special case: we order by account_alias, but we group by account.
+                if key == 'account_alias' and 'account' in group_keys:
+                    continue
+
+            error[key] = _(f'Order-by "{key}" requires matching Group-by.')
+            raise serializers.ValidationError(error)
+        return value
