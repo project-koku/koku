@@ -74,14 +74,6 @@ class TieredRateSerializer(serializers.Serializer):
             raise serializers.ValidationError('A tiered rate usage_end must be positive.')
         return data
 
-    def validate_usage_end(self, usage_end):
-        """Check that usage_end is a positive value."""
-        if usage_end is None:
-            return usage_end
-        elif usage_end <= 0:
-            raise serializers.ValidationError('A tiered rate usage_end must be positive.')
-        return str(usage_end)
-
     def validate(self, data):
         """Validate that usage_end is greater than usage_start."""
         usage_start = data.get('usage_start')
@@ -120,8 +112,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers has no gaps."""
         next_tier = None
         for tier in sorted_tiers:
-            usage_start = tier.get('usage_start')
-            usage_end = tier.get('usage_end')
+            usage_start = tier.get('usage').get('usage_start')
+            usage_end = tier.get('usage').get('usage_end')
 
             if (next_tier is not None and usage_start is not None
                     and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
@@ -136,8 +128,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers have no overlaps."""
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
-            next_bucket_usage_start = next_bucket.get('usage_start')
-            usage_end = tier.get('usage_end')
+            next_bucket_usage_start = next_bucket.get('usage').get('usage_start')
+            usage_end = tier.get('usage').get('usage_end')
 
             if (usage_end != next_bucket_usage_start):
                 error_msg = 'tiered_rate must not have overlapping tiers.' \
