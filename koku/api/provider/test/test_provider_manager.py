@@ -225,7 +225,8 @@ class ProviderManagerTest(IamTestCase):
             rates = {'tiered_rate': [{
                 'unit': 'USD',
                 'value': 1.0,
-                'usage': {'usage_start': None, 'usage_end': None}
+                'usage_start': None,
+                'usage_end': None
             }]}
             manager = RateManager()
             manager.create(metric=Rate.METRIC_CPU_CORE_USAGE_HOUR, rates=rates, provider_uuids=[provider.uuid])

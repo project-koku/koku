@@ -219,15 +219,26 @@ class RateSerializer(serializers.ModelSerializer):
                 for rate_item in rate_type:
                     RateSerializer._convert_to_decimal(rate_item)
                     if not rate_item.get('usage'):
-                        if rate_item.get('usage_start') or rate_item.get('usage_end'):
-                            rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
-                                                  'usage_end': rate_item.pop('usage_end'),
-                                                  'unit': display_data.get('unit')}
+                        rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
+                                                'usage_end': rate_item.pop('usage_end'),
+                                                'unit': display_data.get('unit')}
             else:
                 RateSerializer._convert_to_decimal(rate_type)
 
         out.update(rates)
         return out
+
+    def _transform_rate_for_db(self, rates):
+        """Convert rate from API response to format proper for database."""
+        for rate in rates.get('tiered_rate'):
+            if rate.get('usage'):
+                rate['usage_start'] = rate.get('usage', {}).get('usage_start')
+                rate['usage_end'] = rate.get('usage', {}).get('usage_end')
+                del rate['usage']
+            else:
+                rate['usage_start'] = None
+                rate['usage_end'] = None
+        return rates
 
     def create(self, validated_data):
         """Create the rate object in the database."""
@@ -235,7 +246,7 @@ class RateSerializer(serializers.ModelSerializer):
         metric = validated_data.pop('metric')
         try:
             rate_obj = RateManager().create(metric=metric.get('name'),
-                                            rates=validated_data,
+                                            rates=self._transform_rate_for_db(validated_data),
                                             provider_uuids=provider_uuids)
         except RateManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
@@ -257,7 +268,7 @@ class RateSerializer(serializers.ModelSerializer):
         except RateManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
 
-        manager.update_rates(validated_data)
+        manager.update_rates(self._transform_rate_for_db(validated_data))
         return manager.instance
 
     class Meta:
