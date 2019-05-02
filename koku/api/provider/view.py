@@ -17,10 +17,15 @@
 
 """View for Providers."""
 import logging
+from functools import reduce
+from operator import and_
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
-from django_filters import rest_framework as filters
+from django_filters import CharFilter, FilterSet
+from django_filters.filters import BaseCSVFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.permissions import AllowAny
@@ -37,10 +42,22 @@ from .provider_manager import ProviderManager
 LOG = logging.getLogger(__name__)
 
 
-class ProviderFilter(filters.FilterSet):
+class CharListFilter(BaseCSVFilter, CharFilter):
+    """Add query filter capability to provide an anded list of filter values."""
+
+    def filter(self, qs, value):
+        """Filter to create a composite and filter of the value list."""
+        if not value:
+            return qs
+        value_list = ','.join(value).split(',')
+        queries = [Q(**{self.lookup_expr: val}) for val in value_list]
+        return qs.filter(reduce(and_, queries))
+
+
+class ProviderFilter(FilterSet):
     """Provider custom filters."""
 
-    name = filters.CharFilter(lookup_expr='icontains')
+    name = CharListFilter(field_name='name', lookup_expr='name__icontains')
 
     class Meta:
         model = Provider
@@ -72,7 +89,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
     lookup_field = 'uuid'
     queryset = Provider.objects.all()
     permission_classes = (AllowAny,)
-    filter_backends = (filters.DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = ProviderFilter
 
     def get_serializer_class(self):
