@@ -44,7 +44,7 @@ class ProviderFilter(filters.FilterSet):
 
     class Meta:
         model = Provider
-        fields = ['type']
+        fields = ['type', 'name']
 
 
 class ProviderDeleteException(APIException):
