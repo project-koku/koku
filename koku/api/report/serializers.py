@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Common serializer logic."""
+import inspect
 import logging
 
 from django.utils.translation import ugettext as _
@@ -66,6 +67,13 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     LOG.critical('%s ; %s = %s', serializer_cls, field, value)
     LOG.critical('%s', kwargs)
     LOG.critical('--------------------------------------------------')
+    stack = inspect.stack()
+    for line in stack:
+        if 'site-packages' not in line.filename:
+            LOG.critical('%s (%s) - %s', line.filename, line.lineno, line.function)
+            for el in line.code_context:
+                LOG.critical(el)
+    LOG.critical('--------------------------------------------------')
 
     field_param = this.initial_data.get(field)
 
@@ -85,16 +93,21 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     # parents with differing sets of fields.
     subclasses = serializer_cls.__subclasses__()
     if subclasses and not serializer.is_valid():
+        error = None
         for subcls in subclasses:
             for parent in subcls.__bases__:
                 LOG.critical('XXX: %s <-> %s', parent, subcls)
                 # when using multiple inheritance, the data is valid as long as one
                 # parent class validates the data.
                 serializer = parent(data=field_param, **kwargs)
-                if serializer.is_valid():
+                try:
+                    serializer.is_valid(raise_exception=True)
                     LOG.critical('XXX: valid')
                     return value
-        raise serializers.ValidationError({field: _('Unsupported parameter')})
+                except serializers.ValidationError as exc:
+                    LOG.critical('YYY: %s', exc)
+                    error = exc
+        raise error
 
     serializer.is_valid(raise_exception=True)
     return value
