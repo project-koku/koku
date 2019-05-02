@@ -407,3 +407,60 @@ class ReportViewTest(IamTestCase):
         paginator = get_paginator(params, 0)
 
         self.assertIsInstance(paginator, ReportRankedPagination)
+
+    # def test_order_by_tag_wo_group(self):
+    #     """Test that order by tags without a group-by fails."""
+    #     baseurl = reverse('reports-aws-costs')
+    #     client = APIClient()
+
+    #     for key, val in self.data_generator.tags.items():
+    #         order_by_dict_key = 'order_by[tag:{}]'.format(key)
+    #         params = {
+    #             'filter[resolution]': 'monthly',
+    #             'filter[time_scope_value]': '-1',
+    #             'filter[time_scope_units]': 'month',
+    #             order_by_dict_key: random.choice(['asc', 'desc']),
+    #         }
+
+    #         url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+    #         response = client.get(url, **self.headers)
+    #         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # def test_order_by_tag_w_wrong_group(self):
+    #     """Test that order by tags with a non-matching group-by fails."""
+    #     baseurl = reverse('reports-aws-costs')
+    #     client = APIClient()
+
+    #     for key, val in self.data_generator.tags.items():
+    #         order_by_dict_key = 'order_by[tag:{}]'.format(key)
+    #         params = {
+    #             'filter[resolution]': 'monthly',
+    #             'filter[time_scope_value]': '-1',
+    #             'filter[time_scope_units]': 'month',
+    #             order_by_dict_key: random.choice(['asc', 'desc']),
+    #             'group_by[usage]': random.choice(['asc', 'desc']),
+    #         }
+
+    #         url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+    #         response = client.get(url, **self.headers)
+    #         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # def test_order_by_tag_w_tag_group(self):
+    #     """Test that order by tags with a matching group-by tag works."""
+    #     baseurl = reverse('reports-aws-costs')
+    #     client = APIClient()
+
+    #     for key, val in self.data_generator.tags.items():
+    #         order_by_dict_key = 'order_by[tag:{}]'.format(key)
+    #         group_by_dict_key = 'group_by[tag:{}]'.format(key)
+    #         params = {
+    #             'filter[resolution]': 'monthly',
+    #             'filter[time_scope_value]': '-1',
+    #             'filter[time_scope_units]': 'month',
+    #             order_by_dict_key: random.choice(['asc', 'desc']),
+    #             group_by_dict_key: random.choice(['asc', 'desc']),
+    #         }
+
+    #         url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+    #         response = client.get(url, **self.headers)
+    #         self.assertEqual(response.status_code, status.HTTP_200_OK)

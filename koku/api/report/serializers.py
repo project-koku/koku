@@ -15,8 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Common serializer logic."""
+import logging
+
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+
+LOG = logging.getLogger(__name__)
 
 
 def handle_invalid_fields(this, data):
@@ -57,6 +61,12 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     Raises:
         (ValidationError): if field inputs are invalid
     """
+    LOG.critical('--------------------------------------------------')
+    LOG.critical('%s', this)
+    LOG.critical('%s ; %s = %s', serializer_cls, field, value)
+    LOG.critical('%s', kwargs)
+    LOG.critical('--------------------------------------------------')
+
     field_param = this.initial_data.get(field)
 
     # extract tag_keys from field_params and recreate the tag_keys param
@@ -77,10 +87,12 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     if subclasses and not serializer.is_valid():
         for subcls in subclasses:
             for parent in subcls.__bases__:
+                LOG.critical('XXX: %s <-> %s', parent, subcls)
                 # when using multiple inheritance, the data is valid as long as one
                 # parent class validates the data.
                 serializer = parent(data=field_param, **kwargs)
                 if serializer.is_valid():
+                    LOG.critical('XXX: valid')
                     return value
         raise serializers.ValidationError({field: _('Unsupported parameter')})
 
