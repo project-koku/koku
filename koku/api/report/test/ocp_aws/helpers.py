@@ -59,7 +59,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     @property
     def tags(self):
-        """Generated tags property."""
+        """Tags property."""
         if not self._tags:
             self._tags = self._generate_tags()
         return self._tags

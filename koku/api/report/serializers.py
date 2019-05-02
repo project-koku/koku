@@ -15,12 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Common serializer logic."""
-import inspect
-import logging
-
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+import logging
+logging.disable(0)
 LOG = logging.getLogger(__name__)
 
 
@@ -38,10 +37,13 @@ def handle_invalid_fields(this, data):
     Raises:
         (ValidationError): if field inputs are invalid
     """
+    LOG.critical('XXX: %s', this)
+    LOG.critical('YYY: %s', data)
     unknown_keys = None
     if hasattr(this, 'initial_data'):
         unknown_keys = set(this.initial_data.keys()) - set(this.fields.keys())
 
+    LOG.critical('ZZZ: %s', unknown_keys)
     if unknown_keys:
         error = {}
         for unknown_key in unknown_keys:
@@ -85,9 +87,9 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
             for parent in subcls.__bases__:
                 # when using multiple inheritance, the data is valid as long as one
                 # parent class validates the data.
-                serializer = parent(data=field_param, **kwargs)
+                parent_serializer = parent(data=field_param, **kwargs)
                 try:
-                    serializer.is_valid(raise_exception=True)
+                    parent_serializer.is_valid(raise_exception=True)
                     return value
                 except serializers.ValidationError as exc:
                     error = exc
@@ -286,8 +288,17 @@ class ParamSerializer(BaseSerializer):
             kwargs (dict) {field_name: FieldObject}
 
         """
+        LOG.critical('GGG: %s', self)
         for key, val in kwargs.items():
-            inst = val(required=False, tag_keys=self.tag_keys)
+            data = {}
+            if issubclass(val, FilterSerializer):
+                data = self.initial_data.get('filter')
+            elif issubclass(val, OrderSerializer):
+                data = self.initial_data.get('order_by')
+            elif issubclass(val, GroupSerializer):
+                data = self.initial_data.get('group_by')
+
+            inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)
             self.fields[key] = inst
 
@@ -301,19 +312,24 @@ class ParamSerializer(BaseSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        LOG.critical('AAA: %s', self)
+        LOG.critical('BBB: %s', value)
         error = {}
 
         for key, val in value.items():
             if key in self.order_by_whitelist:
+                LOG.critical('CCC: whitelisted - %s', value)
                 continue    # fields that do not require a group-by
 
             if 'group_by' in self.initial_data:
                 group_keys = self.initial_data.get('group_by').keys()
                 if key in group_keys:
+                    LOG.critical('CCC: matched group_by - %s', value)
                     continue    # found matching group-by
 
                 # special case: we order by account_alias, but we group by account.
                 if key == 'account_alias' and 'account' in group_keys:
+                    LOG.critical('CCC: matched account<->alias - %s', value)
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
