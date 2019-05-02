@@ -58,7 +58,7 @@ class RateManagerTest(IamTestCase):
     def test_create(self):
         """Test creating a rate."""
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
             manager = RateManager()
@@ -82,7 +82,7 @@ class RateManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
             manager = RateManager()
@@ -108,7 +108,7 @@ class RateManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
             manager = RateManager()
@@ -141,7 +141,7 @@ class RateManagerTest(IamTestCase):
         provider_uuid_2 = provider_2.uuid
 
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
             manager = RateManager()
@@ -166,7 +166,7 @@ class RateManagerTest(IamTestCase):
     def test_update_provider_uuids(self):
         """Test creating a rate then update with a provider uuid."""
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         rate_obj = None
         with tenant_context(self.tenant):
@@ -226,7 +226,7 @@ class RateManagerTest(IamTestCase):
         # Get Provider UUID
         provider_uuid = provider.uuid
         metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
-        rates = [{'unit': 'USD', 'value': 0.22}]
+        rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
             manager = RateManager()
@@ -243,7 +243,7 @@ class RateManagerTest(IamTestCase):
             self.assertEqual(RateManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
 
         # Create another rate with same metric
-        rates_2 = [{'unit': 'USD', 'value': 0.52}]
+        rates_2 = {'tiered_rate': [{'unit': 'USD', 'value': 0.52}]}
 
         with tenant_context(self.tenant):
             manager_2 = RateManager()

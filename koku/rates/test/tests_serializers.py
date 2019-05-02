@@ -213,17 +213,23 @@ class RateSerializerTest(IamTestCase):
     def test_create_cpu_core_per_hour_tiered_rate(self):
         """Test creating a cpu_core_per_hour rate."""
         rate = {'provider_uuid': self.provider.uuid,
-                'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                'metric': {
+                    'name': Rate.METRIC_CPU_CORE_USAGE_HOUR
+                },
                 'tiered_rate': [{
                     'unit': 'USD',
                     'value': 0.22,
-                    'usage_start': None,
-                    'usage_end': 10.0
+                    'usage': {
+                        'usage_start': None,
+                        'usage_end': 10.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 10.0,
-                    'usage_end': None
+                    'usage': {
+                        'usage_start': 10.0,
+                        'usage_end': None
+                    }
                 }]
                 }
 
@@ -243,13 +249,17 @@ class RateSerializerTest(IamTestCase):
                 'tiered_rate': [{
                     'unit': 'USD',
                     'value': 0.22,
-                    'usage_start': 0.0,
-                    'usage_end': 7.0
+                    'usage': {
+                        'usage_start': 0.0,
+                        'usage_end': 7.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
+                    'usage': {
+                        'usage_start': 10.0,
+                        'usage_end': 20.0
+                    }
                 }]
                 }
 
@@ -266,8 +276,10 @@ class RateSerializerTest(IamTestCase):
                 'tiered_rate': [{
                     'unit': 'USD',
                     'value': 0.22,
-                    'usage_start': None,
-                    'usage_end': 7.0
+                    'usage': {
+                        'usage_start': None,
+                        'usage_end': 7.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
@@ -288,17 +300,23 @@ class RateSerializerTest(IamTestCase):
                          Rate.METRIC_STORAGE_GB_USAGE_MONTH)
         for storage_rate in storage_rates:
             rate = {'provider_uuid': self.provider.uuid,
-                    'metric': storage_rate,
+                    'metric': {
+                        'name': storage_rate
+                    },
                     'tiered_rate': [{
                         'unit': 'USD',
                         'value': 0.22,
-                        'usage_start': None,
-                        'usage_end': 10.0
+                        'usage': {
+                            'usage_start': None,
+                            'usage_end': 10.0
+                        }
                     }, {
                         'unit': 'USD',
                         'value': 0.26,
-                        'usage_start': 10.0,
-                        'usage_end': None
+                        'usage': {
+                            'usage_start': 10.0,
+                            'usage_end': None
+                        }
                     }]
                     }
 
@@ -317,7 +335,9 @@ class RateSerializerTest(IamTestCase):
                          Rate.METRIC_STORAGE_GB_USAGE_MONTH)
         for storage_rate in storage_rates:
             rate = {'provider_uuid': self.provider.uuid,
-                    'metric': storage_rate,
+                    'metric': {
+                        'name': storage_rate
+                    },
                     'tiered_rate': [{
                         'unit': 'USD',
                         'value': 0.22
@@ -340,18 +360,24 @@ class RateSerializerTest(IamTestCase):
                 'tiered_rate': [{
                     'unit': 'USD',
                     'value': 0.22,
-                    'usage_start': None,
-                    'usage_end': 10.0
+                    'usage': {
+                        'usage_start': None,
+                        'usage_end': 10.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 5.0,
-                    'usage_end': 20.0
+                    'usage': {
+                        'usage_start': 5.0,
+                        'usage_end': 20.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 20.0,
-                    'usage_end': None
+                    'usage': {
+                        'usage_start': 20.0,
+                        'usage_end': None
+                    }
                 }]
                 }
 
@@ -368,23 +394,31 @@ class RateSerializerTest(IamTestCase):
                 'tiered_rate': [{
                     'unit': 'USD',
                     'value': 0.22,
-                    'usage_start': None,
-                    'usage_end': 10.0
+                    'usage': {
+                        'usage_start': None,
+                        'usage_end': 10.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
+                    'usage': {
+                        'usage_start': 10.0,
+                        'usage_end': 20.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
+                    'usage': {
+                        'usage_start': 10.0,
+                        'usage_end': 20.0
+                    }
                 }, {
                     'unit': 'USD',
                     'value': 0.26,
-                    'usage_start': 20.0,
-                    'usage_end': None
+                    'usage': {
+                        'usage_start': 20.0,
+                        'usage_end': None
+                    }
                 }]
                 }
 

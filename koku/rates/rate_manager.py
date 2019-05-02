@@ -72,11 +72,12 @@ class RateManager:
         self._check_for_duplicate_metrics(metric, provider_uuids)
 
         for rate in rates.get('tiered_rate'):
-            rate['usage_start'] = rate.get('usage').get('usage_start')
-            rate['usage_end'] = rate.get('usage').get('usage_end')
-            del rate['usage']
+            if rate.get('usage'):
+                rate['usage_start'] = rate.get('usage', {}).get('usage_start')
+                rate['usage_end'] = rate.get('usage', {}).get('usage_end')
+                del rate['usage']
 
-        rate_obj = Rate.objects.create(metric=metric.get('name'), rates=rates)
+        rate_obj = Rate.objects.create(metric=metric, rates=rates)
         for uuid in provider_uuids:
             RateMap.objects.create(rate=rate_obj, provider_uuid=uuid)
         return rate_obj

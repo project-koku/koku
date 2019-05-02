@@ -66,7 +66,6 @@ class TieredRateSerializer(serializers.Serializer):
         usage_start = data.get('usage_start')
         usage_end = data.get('usage_end')
 
-
         if usage_start and usage_start < 0:
             raise serializers.ValidationError('A tiered rate usage_start must be positive.')
 
@@ -112,8 +111,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers has no gaps."""
         next_tier = None
         for tier in sorted_tiers:
-            usage_start = tier.get('usage').get('usage_start')
-            usage_end = tier.get('usage').get('usage_end')
+            usage_start = tier.get('usage', {}).get('usage_start')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (next_tier is not None and usage_start is not None
                     and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
@@ -128,8 +127,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers have no overlaps."""
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
-            next_bucket_usage_start = next_bucket.get('usage').get('usage_start')
-            usage_end = tier.get('usage').get('usage_end')
+            next_bucket_usage_start = next_bucket.get('usage', {}).get('usage_start')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (usage_end != next_bucket_usage_start):
                 error_msg = 'tiered_rate must not have overlapping tiers.' \
@@ -220,9 +219,10 @@ class RateSerializer(serializers.ModelSerializer):
                 for rate_item in rate_type:
                     RateSerializer._convert_to_decimal(rate_item)
                     if not rate_item.get('usage'):
-                        rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
-                                              'usage_end': rate_item.pop('usage_end'),
-                                              'unit': display_data.get('unit')}
+                        if rate_item.get('usage_start') or rate_item.get('usage_end'):
+                            rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
+                                                  'usage_end': rate_item.pop('usage_end'),
+                                                  'unit': display_data.get('unit')}
             else:
                 RateSerializer._convert_to_decimal(rate_type)
 
@@ -234,7 +234,7 @@ class RateSerializer(serializers.ModelSerializer):
         provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
         try:
-            rate_obj = RateManager().create(metric=metric,
+            rate_obj = RateManager().create(metric=metric.get('name'),
                                             rates=validated_data,
                                             provider_uuids=provider_uuids)
         except RateManagerError as create_error:
