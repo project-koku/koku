@@ -71,7 +71,11 @@ class RateManager:
         """Create rate and optionally associate to providers."""
         self._check_for_duplicate_metrics(metric, provider_uuids)
 
-        rate_obj = Rate.objects.create(metric=metric, rates=rates)
+        for rate in rates.get('tiered_rate'):
+            rate.update(rate.get('usage'))
+            del rate['usage']
+
+        rate_obj = Rate.objects.create(metric=metric.get('name'), rates=rates)
         for uuid in provider_uuids:
             RateMap.objects.create(rate=rate_obj, provider_uuid=uuid)
         return rate_obj
@@ -104,7 +108,6 @@ class RateManager:
 
     def update_rates(self, rates):
         """Update rate with new tiered rate structure."""
-        import pdb; pdb.set_trace()
         self._model.rates = rates
         self._model.save()
 

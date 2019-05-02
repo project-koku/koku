@@ -52,14 +52,7 @@ class TieredRateSerializer(serializers.Serializer):
     """Serializer for Tiered Rate."""
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    usage_start = serializers.DecimalField(required=False,
-                                           max_digits=19,
-                                           decimal_places=10,
-                                           allow_null=True)
-    usage_end = serializers.DecimalField(required=False,
-                                         max_digits=19,
-                                         decimal_places=10,
-                                         allow_null=True)
+    usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
 
     def validate_value(self, value):
@@ -68,14 +61,18 @@ class TieredRateSerializer(serializers.Serializer):
             raise serializers.ValidationError('A tiered rate value must be positive.')
         return str(value)
 
-    def validate_usage_start(self, usage_start):
+    def validate_usage(self, data):
         """Check that usage_start is a positive value."""
-        import pdb; pdb.set_trace()
-        if usage_start is None:
-            return usage_start
-        elif usage_start < 0:
+        usage_start = data.get('usage_start')
+        usage_end = data.get('usage_end')
+
+
+        if usage_start and usage_start < 0:
             raise serializers.ValidationError('A tiered rate usage_start must be positive.')
-        return str(usage_start)
+
+        if usage_end and usage_end <= 0:
+            raise serializers.ValidationError('A tiered rate usage_end must be positive.')
+        return data
 
     def validate_usage_end(self, usage_end):
         """Check that usage_end is a positive value."""
@@ -89,7 +86,6 @@ class TieredRateSerializer(serializers.Serializer):
         """Validate that usage_end is greater than usage_start."""
         usage_start = data.get('usage_start')
         usage_end = data.get('usage_end')
-
         if usage_start is not None and usage_end is not None:
             if Decimal(usage_start) >= Decimal(usage_end):
                 raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
@@ -106,8 +102,7 @@ class RateSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(read_only=True)
     provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
                                            required=False)
-    metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
-                                     required=True)
+    metric = serializers.DictField(required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
 
     @staticmethod
@@ -186,11 +181,9 @@ class RateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
-
         if data.get('metric').get('name') not in [metric for metric, metric2 in Rate.METRIC_CHOICES]:
             error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
             raise serializers.ValidationError(error_msg)
-        import pdb; pdb.set_trace()
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -222,7 +215,6 @@ class RateSerializer(serializers.ModelSerializer):
         rates = rate.rates
 
         provider_uuids = RateManager(rate_uuid=rate.uuid).get_provider_uuids()
-
         display_data = self._get_metric_display_data(rate.metric)
         out = {
             'uuid': rate.uuid,
@@ -236,7 +228,6 @@ class RateSerializer(serializers.ModelSerializer):
                 for rate_item in rate_type:
                     RateSerializer._convert_to_decimal(rate_item)
                     if not rate_item.get('usage'):
-                        import pdb; pdb.set_trace()
                         rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
                                               'usage_end': rate_item.pop('usage_end'),
                                               'unit': display_data.get('unit')}
@@ -262,7 +253,6 @@ class RateSerializer(serializers.ModelSerializer):
         """Update the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
-        import pdb; pdb.set_trace()
 
         new_providers_for_instance = []
         for uuid in provider_uuids:
