@@ -62,19 +62,6 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     Raises:
         (ValidationError): if field inputs are invalid
     """
-    LOG.critical('--------------------------------------------------')
-    LOG.critical('%s', this)
-    LOG.critical('%s ; %s = %s', serializer_cls, field, value)
-    LOG.critical('%s', kwargs)
-    LOG.critical('--------------------------------------------------')
-    stack = inspect.stack()
-    for line in stack:
-        if 'site-packages' not in line.filename:
-            LOG.critical('%s (%s) - %s', line.filename, line.lineno, line.function)
-            for el in line.code_context:
-                LOG.critical(el)
-    LOG.critical('--------------------------------------------------')
-
     field_param = this.initial_data.get(field)
 
     # extract tag_keys from field_params and recreate the tag_keys param
@@ -89,23 +76,20 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     # Handle validation of multi-inherited classes.
     #
     # The serializer classes call super(). So, validation happens bottom-up from
-    # the BaseSerializer. This handles the case where a a child class has two
+    # the BaseSerializer. This handles the case where a child class has two
     # parents with differing sets of fields.
     subclasses = serializer_cls.__subclasses__()
     if subclasses and not serializer.is_valid():
-        error = None
+        error = serializers.ValidationError({field: _('Unsupported parameter')})
         for subcls in subclasses:
             for parent in subcls.__bases__:
-                LOG.critical('XXX: %s <-> %s', parent, subcls)
                 # when using multiple inheritance, the data is valid as long as one
                 # parent class validates the data.
                 serializer = parent(data=field_param, **kwargs)
                 try:
                     serializer.is_valid(raise_exception=True)
-                    LOG.critical('XXX: valid')
                     return value
                 except serializers.ValidationError as exc:
-                    LOG.critical('YYY: %s', exc)
                     error = exc
         raise error
 
