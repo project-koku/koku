@@ -104,6 +104,7 @@ class RateManager:
 
     def update_rates(self, rates):
         """Update rate with new tiered rate structure."""
+        import pdb; pdb.set_trace()
         self._model.rates = rates
         self._model.save()
 

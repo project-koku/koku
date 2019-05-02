@@ -70,6 +70,7 @@ class TieredRateSerializer(serializers.Serializer):
 
     def validate_usage_start(self, usage_start):
         """Check that usage_start is a positive value."""
+        import pdb; pdb.set_trace()
         if usage_start is None:
             return usage_start
         elif usage_start < 0:
@@ -186,6 +187,10 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
 
+        if data.get('metric').get('name') not in [metric for metric, metric2 in Rate.METRIC_CHOICES]:
+            error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
+            raise serializers.ValidationError(error_msg)
+        import pdb; pdb.set_trace()
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -231,6 +236,7 @@ class RateSerializer(serializers.ModelSerializer):
                 for rate_item in rate_type:
                     RateSerializer._convert_to_decimal(rate_item)
                     if not rate_item.get('usage'):
+                        import pdb; pdb.set_trace()
                         rate_item['usage'] = {'usage_start': rate_item.pop('usage_start'),
                                               'usage_end': rate_item.pop('usage_end'),
                                               'unit': display_data.get('unit')}
@@ -256,15 +262,15 @@ class RateSerializer(serializers.ModelSerializer):
         """Update the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
+        import pdb; pdb.set_trace()
 
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
-
         manager = RateManager(rate_uuid=instance.uuid)
         try:
             manager.update_provider_uuids(new_providers_for_instance)
-            manager.update_metric(metric)
+            manager.update_metric(metric.get('name'))
 
         except RateManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
