@@ -286,6 +286,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'account_alias': None,
                     'availability_zone': az,
                     'region': region,
+                    'tags': self.tags,
                     'unit': unit,
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,

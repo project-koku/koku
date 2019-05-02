@@ -209,7 +209,7 @@ class OCPReportViewTest(IamTestCase):
         """Test OCP cpu generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
         params = {
-            'group_by[account]': '*',
+            'group_by[node]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'
@@ -237,7 +237,7 @@ class OCPReportViewTest(IamTestCase):
         """Test OCP memory generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
         params = {
-            'group_by[account]': '*',
+            'group_by[node]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'

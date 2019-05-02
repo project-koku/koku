@@ -130,7 +130,7 @@ class OCPAWSQueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {'group_by': {'project': ['account1']},
-                        'order_by': {'cluster': 'asc'},
+                        'order_by': {'project': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',

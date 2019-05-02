@@ -18,10 +18,6 @@
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-import logging
-logging.disable(0)
-LOG = logging.getLogger(__name__)
-
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.
@@ -37,13 +33,10 @@ def handle_invalid_fields(this, data):
     Raises:
         (ValidationError): if field inputs are invalid
     """
-    LOG.critical('XXX: %s', this)
-    LOG.critical('YYY: %s', data)
     unknown_keys = None
     if hasattr(this, 'initial_data'):
         unknown_keys = set(this.initial_data.keys()) - set(this.fields.keys())
 
-    LOG.critical('ZZZ: %s', unknown_keys)
     if unknown_keys:
         error = {}
         for unknown_key in unknown_keys:
@@ -288,7 +281,6 @@ class ParamSerializer(BaseSerializer):
             kwargs (dict) {field_name: FieldObject}
 
         """
-        LOG.critical('GGG: %s', self)
         for key, val in kwargs.items():
             data = {}
             if issubclass(val, FilterSerializer):
@@ -312,24 +304,19 @@ class ParamSerializer(BaseSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
-        LOG.critical('AAA: %s', self)
-        LOG.critical('BBB: %s', value)
         error = {}
 
         for key, val in value.items():
             if key in self.order_by_whitelist:
-                LOG.critical('CCC: whitelisted - %s', value)
                 continue    # fields that do not require a group-by
 
             if 'group_by' in self.initial_data:
                 group_keys = self.initial_data.get('group_by').keys()
                 if key in group_keys:
-                    LOG.critical('CCC: matched group_by - %s', value)
                     continue    # found matching group-by
 
                 # special case: we order by account_alias, but we group by account.
                 if key == 'account_alias' and 'account' in group_keys:
-                    LOG.critical('CCC: matched account<->alias - %s', value)
                     continue
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
