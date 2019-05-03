@@ -33,6 +33,7 @@ class GroupBySerializer(GroupSerializer):
     _opfields = ('account', 'az', 'instance_type', 'region',
                  'service', 'storage_type', 'product_family')
 
+    # account field will accept both account number and account alias.
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
     az = StringOrListField(child=serializers.CharField(),
@@ -56,6 +57,8 @@ class OrderBySerializer(OrderSerializer):
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                     required=False)
+    # ordering by alias is supported, but ordering by account is not due to the
+    # probability that a human-recognizable alias is more useful than account number.
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                             required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,

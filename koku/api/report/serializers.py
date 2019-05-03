@@ -40,7 +40,7 @@ def handle_invalid_fields(this, data):
     if unknown_keys:
         error = {}
         for unknown_key in unknown_keys:
-            error[unknown_key] = _('Unsupported parameter')
+            error[unknown_key] = _('Unsupported parameter or invalid value')
         raise serializers.ValidationError(error)
     return data
 
@@ -75,7 +75,8 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
     # parents with differing sets of fields.
     subclasses = serializer_cls.__subclasses__()
     if subclasses and not serializer.is_valid():
-        error = serializers.ValidationError({field: _('Unsupported parameter')})
+        message = 'Unsupported parameter or invalid value'
+        error = serializers.ValidationError({field: _(message)})
         for subcls in subclasses:
             for parent in subcls.__bases__:
                 # when using multiple inheritance, the data is valid as long as one
