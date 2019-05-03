@@ -52,7 +52,7 @@ class GroupBySerializer(GroupSerializer):
 class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ('usage', 'accout_alias', 'region', 'service', 'product_family')
+    _opfields = ('usage', 'account_alias', 'region', 'service', 'product_family')
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                     required=False)
