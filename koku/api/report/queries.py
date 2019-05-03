@@ -618,7 +618,7 @@ class ProviderMap(object):
                         'derived_cost': Sum(Value(0, output_field=DecimalField())),
                         'cost': Sum('pod_cost'),
                         'cost_units': Coalesce(Max('currency_code'), Value('USD')),
-                        'usage': Sum('suage_amount'),
+                        'usage': Sum('usage_amount'),
                         'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                     },
                     'annotations': {
