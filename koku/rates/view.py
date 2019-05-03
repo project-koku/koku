@@ -17,29 +17,38 @@
 
 """View for Rates."""
 import logging
+from uuid import UUID
 
 from django.core.exceptions import ValidationError
 from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
-from rest_framework.permissions import AllowAny
 
+from api.common.permissions.rates_access import RatesAccessPermission
 from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
-
 LOG = logging.getLogger(__name__)
+
+
+class RateProviderPermissionDenied(APIException):
+    """Rate query custom internal error exception."""
+
+    default_detail = 'You do not have permission to perform this action.'
+
+    def __init__(self):
+        """Initialize with status code 500."""
+        self.status_code = status.HTTP_403_FORBIDDEN
+        self.detail = {'detail': force_text(self.default_detail)}
 
 
 class RateProviderQueryException(APIException):
     """Rate query custom internal error exception."""
 
-    default_detail = 'Invalid provider uuid'
-
-    def __init__(self):
+    def __init__(self, message):
         """Initialize with status code 500."""
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        self.detail = {'detail': force_text(self.default_detail)}
+        self.detail = {'detail': force_text(message)}
 
 
 class RateProviderMethodException(APIException):
@@ -66,7 +75,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
     queryset = Rate.objects.all()
     serializer_class = RateSerializer
-    permission_classes = (AllowAny,)
+    permission_classes = (RatesAccessPermission,)
     lookup_field = 'uuid'
 
     def get_queryset(self):
@@ -81,6 +90,19 @@ class RateViewSet(mixins.CreateModelMixin,
             for e in RateMap.objects.filter(provider_uuid=provider_uuid):
                 rate_ids.append(e.rate_id)
             queryset = Rate.objects.filter(id__in=rate_ids)
+        if not self.request.user.admin:
+            read_access_list = self.request.user.access.get('rate').get('read')
+            if '*' not in read_access_list:
+                for access_item in read_access_list:
+                    try:
+                        UUID(access_item)
+                    except ValueError:
+                        err_msg = 'Unexpected rbac access item.  {} is not a uuid.'.format(access_item)
+                        raise RateProviderQueryException(err_msg)
+                try:
+                    queryset = self.queryset.filter(uuid__in=read_access_list)
+                except ValidationError as queryset_error:
+                    LOG.error(queryset_error)
         return queryset
 
     def create(self, request, *args, **kwargs):
@@ -203,7 +225,7 @@ class RateViewSet(mixins.CreateModelMixin,
         try:
             response = super().list(request=request, args=args, kwargs=kwargs)
         except ValidationError:
-            raise RateProviderQueryException
+            raise RateProviderQueryException('Invalid provider uuid')
 
         return response
 

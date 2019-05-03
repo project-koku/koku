@@ -15,20 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Rate views."""
-
+import copy
 import random
 from decimal import Decimal
+from unittest.mock import patch
 from uuid import uuid4
 
+from django.core.cache import caches
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
+from koku.rbac import RbacService
 from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
@@ -36,11 +40,16 @@ from rates.serializers import RateSerializer
 class RateViewTests(IamTestCase):
     """Test the Rate view."""
 
-    def setUp(self):
-        """Set up the rate view tests."""
-        super().setUp()
-        request = self.request_context['request']
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
+    def initialize_request(self, context=None):
+        """Initialize model data."""
+        if context:
+            request_context = context.get('request_context')
+            request = request_context['request']
+            serializer = UserSerializer(data=context.get('user_data'), context=request_context)
+        else:
+            request_context = self.request_context
+            request = request_context['request']
+            serializer = UserSerializer(data=self.user_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
             request.user = user
@@ -50,7 +59,7 @@ class RateViewTests(IamTestCase):
                          'authentication': {
                              'provider_resource_name': self.fake.word()
                          }}
-        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
+        serializer = ProviderSerializer(data=provider_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
@@ -64,9 +73,21 @@ class RateViewTests(IamTestCase):
                           }]
                           }
         with tenant_context(self.tenant):
-            serializer = RateSerializer(data=self.fake_data, context=self.request_context)
+            serializer = RateSerializer(data=self.fake_data, context=request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
+
+    def setUp(self):
+        """Set up the rate view tests."""
+        super().setUp()
+        caches['rbac'].clear()
+
+        with tenant_context(self.tenant):
+            Rate.objects.all().delete()
+            RateMap.objects.all().delete()
+            Provider.objects.all().delete()
+            User.objects.all().delete()
+        self.initialize_request()
 
     def tearDown(self):
         """Tear down rate view tests."""
@@ -74,6 +95,7 @@ class RateViewTests(IamTestCase):
             Rate.objects.all().delete()
             RateMap.objects.all().delete()
             Provider.objects.all().delete()
+            User.objects.all().delete()
 
     def test_create_rate_success(self):
         """Test that we can create a rate."""
@@ -257,13 +279,13 @@ class RateViewTests(IamTestCase):
         """Test that PATCH throws exception."""
         test_data = self.fake_data
         test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+        with tenant_context(self.tenant):
+            rate = Rate.objects.first()
+            url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+            client = APIClient()
 
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
-        client = APIClient()
-
-        response = client.patch(url, test_data, format='json', **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+            response = client.patch(url, test_data, format='json', **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_update_rate_invalid(self):
         """Test that updating an invalid rate returns an error."""
@@ -339,3 +361,179 @@ class RateViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data.get('errors'))
+
+    def test_list_rates_rbac_access(self):
+        """Test GET /rates with an rbac user."""
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                       is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': []}},
+                        'expected_response': status.HTTP_200_OK},
+                       {'access': {'rate': {'read': ['not-a-uuid'], 'write': []}},
+                        'expected_response': status.HTTP_500_INTERNAL_SERVER_ERROR}]
+        client = APIClient()
+
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                caches['rbac'].clear()
+                response = client.get(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    def test_get_rate_rbac_access(self):
+        """Test GET /rates/{uuid} with an rbac user."""
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+
+        admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                             is_admin=True)
+
+        url = reverse('rates-list')
+        client = APIClient()
+        response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
+        rate_uuid = response.data.get('uuid')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user_data = self._create_user_data()
+
+        request_context = self._create_request_context(customer, user_data, create_customer=False,
+                                                       is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': []}},
+                        'expected_response': status.HTTP_200_OK},
+                       {'access': {'rate': {'read': [str(rate_uuid)], 'write': []}},
+                        'expected_response': status.HTTP_200_OK}]
+        client = APIClient()
+
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                caches['rbac'].clear()
+                response = client.get(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    def test_write_rate_rbac_access(self):
+        """Test POST, PUT, and DELETE for rates with an rbac user."""
+        test_data = {'provider_uuids': [self.provider.uuid],
+                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'tiered_rate': [{
+                         'value': round(Decimal(random.random()), 6),
+                         'unit': 'USD',
+                         'usage_start': None,
+                         'usage_end': None
+                     }]
+                     }
+
+        # create a rate as admin
+        user_data = self._create_user_data()
+        customer = self._create_customer_data()
+
+        admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
+                                                             is_admin=True)
+        with patch.object(RbacService, 'get_access_for_user', return_value=None):
+            url = reverse('rates-list')
+            client = APIClient()
+
+            response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
+            rate_uuid = response.data.get('uuid')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user_data = self._create_user_data()
+
+        request_context = self._create_request_context(customer, user_data, create_customer=False,
+                                                       is_admin=False)
+
+        self.initialize_request(context={'request_context': request_context, 'user_data': user_data})
+
+        # POST tests
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_201_CREATED,
+                        'metric': Rate.METRIC_CPU_CORE_REQUEST_HOUR},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_201_CREATED,
+                        'metric': Rate.METRIC_MEM_GB_REQUEST_HOUR}]
+        client = APIClient()
+        other_rates = []
+
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                rate_data = copy.deepcopy(test_data)
+                rate_data['metric'] = test_case.get('metric')
+                caches['rbac'].clear()
+                response = client.post(url, data=rate_data, format='json', **request_context['request'].META)
+
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+                if response.data.get('uuid'):
+                    other_rates.append(response.data.get('uuid'))
+
+        # PUT tests
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'expected_response': status.HTTP_403_FORBIDDEN},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_200_OK,
+                        'value': round(Decimal(random.random()), 6)},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(rate_uuid)]}},
+                        'expected_response': status.HTTP_200_OK,
+                        'value': round(Decimal(random.random()), 6)}]
+        client = APIClient()
+
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                url = reverse('rates-list')
+                rate_data = copy.deepcopy(test_data)
+                rate_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+
+                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                caches['rbac'].clear()
+                response = client.put(url, data=rate_data, format='json', **request_context['request'].META)
+
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+        # DELETE tests
+        test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'expected_response': status.HTTP_403_FORBIDDEN,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': ['*']}},
+                        'expected_response': status.HTTP_204_NO_CONTENT,
+                        'rate_uuid': rate_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'expected_response': status.HTTP_204_NO_CONTENT,
+                        'rate_uuid': other_rates[0]}]
+        client = APIClient()
+        for test_case in test_matrix:
+            with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
+                test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+                url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
+                caches['rbac'].clear()
+                response = client.delete(url, **request_context['request'].META)
+                self.assertEqual(response.status_code, test_case.get('expected_response'))
