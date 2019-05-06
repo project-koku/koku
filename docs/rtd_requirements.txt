@@ -11,7 +11,7 @@ django-redis==4.10.0
 django-tenant-schemas==1.9.0
 django==2.2.1
 djangorestframework-csv==2.1.0
-djangorestframework==3.9.2
+djangorestframework==3.9.3
 docutils==0.14
 drf-nested-routers==0.91
 gunicorn==19.9.0
