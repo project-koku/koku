@@ -47,9 +47,12 @@ class OCPAWSFilterSerializer(awsser.FilterSerializer,
 class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
     """Serializer for handling query parameters."""
 
-    group_by = OCPAWSGroupBySerializer(required=False)
-    order_by = OCPAWSOrderBySerializer(required=False)
-    filter = OCPAWSFilterSerializer(required=False)
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCP query param serializer."""
+        super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=OCPAWSFilterSerializer,
+                                 group_by=OCPAWSGroupBySerializer,
+                                 order_by=OCPAWSOrderBySerializer)
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
@@ -75,6 +78,7 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        super().validate_order_by(value)
         validate_field(self, 'order_by', OCPAWSOrderBySerializer, value)
         return value
 

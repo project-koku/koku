@@ -44,7 +44,6 @@ from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
                                            OCPStorageVolumeLabelSummary,
                                            OCPUsagePodLabelSummary)
 
-
 LOG = logging.getLogger(__name__)
 
 
