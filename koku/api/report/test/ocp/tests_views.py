@@ -16,6 +16,7 @@
 #
 """Test the Report views."""
 import datetime
+import random
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
@@ -208,7 +209,7 @@ class OCPReportViewTest(IamTestCase):
         """Test OCP cpu generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
         params = {
-            'group_by[account]': '*',
+            'group_by[node]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'
@@ -218,6 +219,9 @@ class OCPReportViewTest(IamTestCase):
         )
 
         django_request = HttpRequest()
+        if not django_request.META.get('HTTP_HOST'):
+            django_request.META['HTTP_HOST'] = 'testhost'
+
         qd = QueryDict(mutable=True)
         qd.update(params)
         django_request.GET = qd
@@ -226,15 +230,14 @@ class OCPReportViewTest(IamTestCase):
 
         response = _generic_report(request, report='cpu', provider='ocp')
         self.assertIsInstance(response, Response)
-        # FIXME
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_mem_success(self, mock_handler):
         """Test OCP memory generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
         params = {
-            'group_by[account]': '*',
+            'group_by[node]': '*',
             'filter[resolution]': 'monthly',
             'filter[time_scope_value]': '-1',
             'filter[time_scope_units]': 'month'
@@ -244,6 +247,9 @@ class OCPReportViewTest(IamTestCase):
         )
 
         django_request = HttpRequest()
+        if not django_request.META.get('HTTP_HOST'):
+            django_request.META['HTTP_HOST'] = 'testhost'
+
         qd = QueryDict(mutable=True)
         qd.update(params)
         django_request.GET = qd
@@ -252,8 +258,7 @@ class OCPReportViewTest(IamTestCase):
 
         response = _generic_report(request, report='memory', provider='ocp')
         self.assertIsInstance(response, Response)
-        # FIXME
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_execute_query_ocp_cpu(self):
         """Test that OCP CPU endpoint works."""
@@ -1010,7 +1015,7 @@ class OCPReportViewTest(IamTestCase):
             labels = CostSummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(pod_labels__has_key=filter_key)\
-                .values(*['pod_labels'])\
+                .values('pod_labels')\
                 .all()
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
@@ -1018,16 +1023,10 @@ class OCPReportViewTest(IamTestCase):
             totals = CostSummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
-                .aggregate(
-                    **{
-                        'cost': Sum(
-                            F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                            F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                            F('infra_cost')
-                        )
-                    }
-                )
+                .aggregate(cost=Sum(F('pod_charge_cpu_core_hours')                 # noqa: W503
+                                    + F('pod_charge_memory_gigabyte_hours')        # noqa: W503
+                                    + F('persistentvolumeclaim_charge_gb_month')   # noqa: W503
+                                    + F('infra_cost')))                            # noqa: W503
 
         url = reverse('reports-openshift-costs')
         client = APIClient()
@@ -1535,3 +1534,63 @@ class OCPReportViewTest(IamTestCase):
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_order_by_tag_wo_group(self):
+        """Test that order by tags without a group-by fails."""
+        baseurl = reverse('reports-openshift-cpu')
+        client = APIClient()
+
+        _, labels = self.data_generator.labels[0]
+        for key, val in labels.items():
+            order_by_dict_key = 'order_by[tag:{}]'.format(key)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: random.choice(['asc', 'desc']),
+            }
+
+            url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_order_by_tag_w_wrong_group(self):
+        """Test that order by tags with a non-matching group-by fails."""
+        baseurl = reverse('reports-openshift-cpu')
+        client = APIClient()
+
+        _, labels = self.data_generator.labels[0]
+        for key, val in labels.items():
+            order_by_dict_key = 'order_by[tag:{}]'.format(key)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: random.choice(['asc', 'desc']),
+                'group_by[usage]': random.choice(['asc', 'desc']),
+            }
+
+            url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_order_by_tag_w_tag_group(self):
+        """Test that order by tags with a matching group-by tag works."""
+        baseurl = reverse('reports-openshift-cpu')
+        client = APIClient()
+
+        _, labels = self.data_generator.labels[0]
+        for key, val in labels.items():
+            order_by_dict_key = 'order_by[tag:{}]'.format(key)
+            group_by_dict_key = 'group_by[tag:{}]'.format(key)
+            params = {
+                'filter[resolution]': 'monthly',
+                'filter[time_scope_value]': '-1',
+                'filter[time_scope_units]': 'month',
+                order_by_dict_key: random.choice(['asc', 'desc']),
+                group_by_dict_key: '*',
+            }
+
+            url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
+            response = client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)

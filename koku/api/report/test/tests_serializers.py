@@ -329,8 +329,7 @@ class OrderBySerializerTest(TestCase):
     def test_order_by_params_invalid_fields(self):
         """Test parse of order_by params for invalid fields."""
         order_params = {'cost': 'asc',
-                        'invalid': 'param'
-                        }
+                        'invalid': 'param'}
         serializer = OrderBySerializer(data=order_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -399,19 +398,3 @@ class QueryParamSerializerTest(TestCase):
         serializer = QueryParamSerializer(data=query_params, context={'request': req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
-
-        query_params = {'delta': 'usage'}
-        req = Mock(path='/api/cost-management/v1/reports/aws/storage/')
-        serializer = QueryParamSerializer(data=query_params, context={'request': req})
-        try:
-            serializer.is_valid(raise_exception=True)
-        except serializers.ValidationError:
-            self.fail('Serizalizer raised error for valid delta')
-
-        query_params = {'delta': 'cost'}
-        req = Mock(path='/api/cost-management/v1/reports/aws/costs/')
-        serializer = QueryParamSerializer(data=query_params, context={'request': req})
-        try:
-            serializer.is_valid(raise_exception=True)
-        except serializers.ValidationError:
-            self.fail('Serizalizer raised error for valid delta')
