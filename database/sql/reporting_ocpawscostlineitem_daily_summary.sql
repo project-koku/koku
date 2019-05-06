@@ -1,3 +1,6 @@
+-- We use a LATERAL JOIN here to get the JSON tags split out into key, value
+-- columns. We reference this split multiple times so we put it in a
+-- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_aws_tags AS (
     SELECT aws.*,
         LOWER(key) as key,
@@ -9,6 +12,9 @@ CREATE TEMPORARY TABLE reporting_aws_tags AS (
 )
 ;
 
+-- We use a LATERAL JOIN here to get the JSON tags split out into key, value
+-- columns. We reference this split multiple times so we put it in a
+-- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
     SELECT ocp.*,
         LOWER(key) as key,
@@ -30,6 +36,9 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
 )
 ;
 
+-- We use a LATERAL JOIN here to get the JSON tags split out into key, value
+-- columns. We reference this split multiple times so we put it in a
+-- TEMPORARY TABLE for re-use
 CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
     SELECT ocp.*,
         LOWER(key) as key,
@@ -41,6 +50,8 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
 )
 ;
 
+-- First we match OCP pod data to AWS data using a direct
+-- resource id match. This usually means OCP node -> AWS EC2 instance ID.
 CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
     WITH cte_resource_id_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -118,6 +129,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
 )
 ;
 
+-- Next we match where the pod label key and value
+-- and AWS tag key and value match directly
 CREATE TEMPORARY TABLE reporting_ocp_aws_direct_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -198,6 +211,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_direct_tag_matched AS (
 )
 ;
 
+-- Next we match where the AWS tag is the special openshift_project key
+-- and the value matches an OpenShift project name
 CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -281,6 +296,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched AS (
 )
 ;
 
+-- Next we match where the AWS tag is the special openshift_node key
+-- and the value matches an OpenShift node name
 CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -367,6 +384,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched AS (
 )
 ;
 
+-- Next we match where the AWS tag is the special openshift_cluster key
+-- and the value matches an OpenShift cluster name
 CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -457,6 +476,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched AS (
 )
 ;
 
+-- We UNION the various matches into a table holding all of the
+-- OpenShift pod data matches for easier use.
 CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{uuid} AS (
     SELECT *
     FROM reporting_ocp_aws_resource_id_matched
@@ -482,6 +503,8 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{uuid} AS (
     FROM reporting_ocp_aws_openshift_cluster_tag_matched
 );
 
+-- Then we match for OpenShift volume data where the volume label key and value
+-- and AWS tag key and value match directly
 CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -556,6 +579,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched AS (
 )
 ;
 
+-- Then we match where the AWS tag is the special openshift_project key
+-- and the value matches an OpenShift project name
 CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_project_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -633,6 +658,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_project_tag_matched A
 )
 ;
 
+-- Next we match where the AWS tag is the special openshift_node key
+-- and the value matches an OpenShift node name
 CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_node_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -713,6 +740,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_node_tag_matched AS (
 )
 ;
 
+-- Next we match where the AWS tag is the special openshift_cluster key
+-- and the value matches an OpenShift cluster name
 CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched AS (
     WITH cte_tag_matched AS (
         SELECT ocp.id AS ocp_id,
@@ -797,6 +826,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched A
 )
 ;
 
+-- We UNION the various matches into a table holding all of the
+-- OpenShift volume data matches for easier use.
 CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{uuid} AS (
     SELECT *
     FROM reporting_ocp_aws_storage_direct_tag_matched
@@ -818,6 +849,11 @@ CREATE TEMPORARY TABLE reporting_ocpawsstoragelineitem_daily_{uuid} AS (
     FROM reporting_ocp_aws_storage_openshift_cluster_tag_matched
 );
 
+-- The full summary data for Openshift pod<->AWS and
+-- Openshift volume<->AWS matches are UNIONed together
+-- with a GROUP BY using the AWS ID to deduplicate
+-- the AWS data. This should ensure that we never double count
+-- AWS cost or usage.
 CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
     WITH cte_pod_project_cost AS (
         SELECT pc.aws_id,
@@ -921,6 +957,14 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
 )
 ;
 
+-- The full summary data for Openshift pod<->AWS and
+-- Openshift volume<->AWS matches are UNIONed together
+-- with a GROUP BY using the OCP ID to deduplicate
+-- based on OpenShift data. This is effectively the same table
+-- as reporting_ocpawscostlineitem_daily_summary but from the OpenShift
+-- point of view. Here usage and cost are divided by the
+-- number of pods sharing the cost so the values turn out the
+-- same when reported.
 CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid} AS (
     SELECT li.cluster_id,
         li.cluster_alias,
@@ -954,7 +998,14 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
     WHERE date(li.usage_start) >= '{start_date}'
         AND date(li.usage_start) <= '{end_date}'
     -- Grouping by OCP this time for the by project view
-    GROUP BY li.cluster_id, li.cluster_alias, li.namespace, li.pod, li.node, li.pod_labels, li.pod_cost
+    GROUP BY li.ocp_id,
+        li.cluster_id,
+        li.cluster_alias,
+        li.namespace,
+        li.pod,
+        li.node,
+        li.pod_labels,
+        li.pod_cost
 
     UNION
 
@@ -992,7 +1043,15 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
     WHERE date(li.usage_start) >= '{start_date}'
         AND date(li.usage_start) <= '{end_date}'
         AND ulid.aws_id IS NULL
-    GROUP BY li.cluster_id, li.cluster_alias, li.namespace, li.pod, li.node, li.persistentvolume_labels, li.persistentvolumeclaim_labels, li.pod_cost
+    GROUP BY li.ocp_id,
+        li.cluster_id,
+        li.cluster_alias,
+        li.namespace,
+        li.pod,
+        li.node,
+        li.persistentvolume_labels,
+        li.persistentvolumeclaim_labels,
+        li.pod_cost
 )
 ;
 
