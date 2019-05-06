@@ -110,18 +110,14 @@ class OCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    group_by = GroupBySerializer(required=False)
     units = serializers.CharField(required=False)
-    filter = FilterSerializer(required=False)
-
-    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
-        # Grab tag keys to pass to filter serializer
-        self.tag_keys = kwargs.pop('tag_keys', None)
-
         super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=OrderBySerializer)
 
     def validate(self, data):
         """Validate incoming data.
@@ -205,12 +201,14 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         'capacity'
     )
 
-    # fields that can be ordered without a corresponding group-by
-    order_by_whitelist = ('cost', 'derived_cost', 'infrastructure_cost',
-                          'delta', 'usage', 'request', 'limit', 'capacity')
-
     delta = serializers.CharField(required=False)
-    order_by = InventoryOrderBySerializer(required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCP query param serializer."""
+        super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=InventoryOrderBySerializer)
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.
@@ -222,19 +220,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
-        error = {}
-
-        for key, val in value.items():
-            if key in self.order_by_whitelist:
-                continue    # fields that do not require a group-by
-
-            if 'group_by' in self.initial_data:
-                if key in self.initial_data.get('group_by').keys():
-                    continue    # found matching group-by
-
-            error[key] = _(f'Order-by "{key}" requires matching Group-by.')
-            raise serializers.ValidationError(error)
-
+        super().validate_order_by(value)
         validate_field(self, 'order_by', InventoryOrderBySerializer, value)
         return value
 
@@ -263,7 +249,6 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     DELTA_CHOICES = (('cost', 'cost'))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    order_by = OrderBySerializer(required=False)
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.
@@ -275,5 +260,6 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        super().validate_order_by(value)
         validate_field(self, 'order_by', OrderBySerializer, value)
         return value

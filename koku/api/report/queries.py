@@ -1267,6 +1267,10 @@ class ReportQueryHandler(QueryHandler):
             if field in numeric_ordering:
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[field] is None, entry[field]),
                                      reverse=reverse)
+            elif 'tag:' in field:
+                tag = field[4:]
+                sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]),
+                                     reverse=reverse)
             else:
                 sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
                                      reverse=reverse)
@@ -1274,6 +1278,9 @@ class ReportQueryHandler(QueryHandler):
 
     def get_tag_order_by(self, tag):
         """Generate an OrderBy clause forcing JSON column->key to be used.
+
+        This is only for helping to create a Window() for purposes of grouping
+        by tag.
 
         Args:
             tag (str): The Django formatted tag string
