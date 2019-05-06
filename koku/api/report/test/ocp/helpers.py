@@ -49,6 +49,8 @@ class OCPReportDataGenerator:
         self.tenant = tenant
         self.fake = Faker()
         self.dh = DateHelper()
+        self.labels = []
+
         self.dated_tags = True if dated_tags is None or dated_tags is True else False
 
         self.today = self.dh.today
@@ -250,6 +252,7 @@ class OCPReportDataGenerator:
             else:
                 labels['{}_label'.format(label_key)] = label_value
 
+        self.labels.append((report, labels))
         return labels
 
     def create_line_items(self, report_period, report, resource_id):

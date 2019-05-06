@@ -33,6 +33,7 @@ class GroupBySerializer(GroupSerializer):
     _opfields = ('account', 'az', 'instance_type', 'region',
                  'service', 'storage_type', 'product_family')
 
+    # account field will accept both account number and account alias.
     account = StringOrListField(child=serializers.CharField(),
                                 required=False)
     az = StringOrListField(child=serializers.CharField(),
@@ -52,10 +53,12 @@ class GroupBySerializer(GroupSerializer):
 class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ('usage', 'accout_alias', 'region', 'service', 'product_family')
+    _opfields = ('usage', 'account_alias', 'region', 'service', 'product_family')
 
     usage = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                     required=False)
+    # ordering by alias is supported, but ordering by account is not due to the
+    # probability that a human-recognizable alias is more useful than account number.
     account_alias = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                             required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
@@ -93,19 +96,14 @@ class QueryParamSerializer(ParamSerializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-
-    group_by = GroupBySerializer(required=False)
-    order_by = OrderBySerializer(required=False)
-    filter = FilterSerializer(required=False)
     units = serializers.CharField(required=False)
-
-    tag_fields = {'filter': FilterSerializer, 'group_by': GroupBySerializer}
 
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""
-        # Grab tag keys to pass to filter serializer
-        self.tag_keys = kwargs.pop('tag_keys', None)
         super().__init__(*args, **kwargs)
+        self._init_tagged_fields(filter=FilterSerializer,
+                                 group_by=GroupBySerializer,
+                                 order_by=OrderBySerializer)
 
     def validate_group_by(self, value):
         """Validate incoming group_by data.
@@ -131,6 +129,7 @@ class QueryParamSerializer(ParamSerializer):
         Raises:
             (ValidationError): if order_by field inputs are invalid
         """
+        super().validate_order_by(value)
         validate_field(self, 'order_by', OrderBySerializer, value)
         return value
 
