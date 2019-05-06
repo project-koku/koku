@@ -1015,7 +1015,7 @@ class OCPReportViewTest(IamTestCase):
             labels = CostSummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(pod_labels__has_key=filter_key)\
-                .values(*['pod_labels'])\
+                .values('pod_labels')\
                 .all()
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
@@ -1023,16 +1023,10 @@ class OCPReportViewTest(IamTestCase):
             totals = CostSummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
-                .aggregate(
-                    **{
-                        'cost': Sum(
-                            F('pod_charge_cpu_core_hours') +  # noqa: W504
-                            F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                            F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                            F('infra_cost')
-                        )
-                    }
-                )
+                .aggregate(cost=Sum(F('pod_charge_cpu_core_hours')                 # noqa: W503
+                                    + F('pod_charge_memory_gigabyte_hours')        # noqa: W503
+                                    + F('persistentvolumeclaim_charge_gb_month')   # noqa: W503
+                                    + F('infra_cost')))                            # noqa: W503
 
         url = reverse('reports-openshift-costs')
         client = APIClient()
@@ -1594,7 +1588,7 @@ class OCPReportViewTest(IamTestCase):
                 'filter[time_scope_value]': '-1',
                 'filter[time_scope_units]': 'month',
                 order_by_dict_key: random.choice(['asc', 'desc']),
-                group_by_dict_key: random.choice(['asc', 'desc']),
+                group_by_dict_key: '*',
             }
 
             url = baseurl + '?' + urlencode(params, quote_via=quote_plus)

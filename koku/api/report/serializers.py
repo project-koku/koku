@@ -143,11 +143,8 @@ class BaseSerializer(serializers.Serializer):
         super().__init__(*args, **kwargs)
 
         if self.tag_keys is not None:
-            tag_fields = {key: StringOrListField(child=serializers.CharField(),
-                                                 required=False)
-                          for key in self.tag_keys}
-            # Add tag keys to allowable fields
-            self.fields.update(tag_fields)
+            fkwargs = {'child': serializers.CharField(), 'required': False}
+            self._init_tag_keys(StringOrListField, fkwargs=fkwargs)
 
         if self._opfields:
             add_operator_specified_fields(self.fields, self._opfields)
@@ -164,6 +161,29 @@ class BaseSerializer(serializers.Serializer):
         """
         handle_invalid_fields(self, data)
         return data
+
+    def _init_tag_keys(self, field, fargs=None, fkwargs=None):
+        """Initialize tag-based fields.
+
+        Args:
+            field (Serializer)
+            fargs (list) Serializer's positional args
+            fkwargs (dict) Serializer's keyword args
+
+        """
+        if fargs is None:
+            fargs = []
+
+        if fkwargs is None:
+            fkwargs = {}
+
+        tag_fields = {key: field(*fargs, **fkwargs)
+                      for key in self.tag_keys}
+
+        # Add tag keys to allowable fields
+        for key, val in tag_fields.items():
+            setattr(self, key, val)
+            self.fields.update({key: val})
 
 
 class FilterSerializer(BaseSerializer):
@@ -255,6 +275,15 @@ class OrderSerializer(BaseSerializer):
                                            required=False)
     delta = serializers.ChoiceField(choices=ORDER_CHOICES,
                                     required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OrderSerializer."""
+        super().__init__(*args, **kwargs)
+
+        if self.tag_keys is not None:
+            fkwargs = {'choices': OrderSerializer.ORDER_CHOICES,
+                       'required': False}
+            self._init_tag_keys(serializers.ChoiceField, fkwargs=fkwargs)
 
 
 class ParamSerializer(BaseSerializer):
