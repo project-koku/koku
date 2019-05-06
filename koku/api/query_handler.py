@@ -171,11 +171,7 @@ class QueryHandler(object):
 
         """
         order_by = self.query_parameters.get('order_by', self.default_ordering)
-        order = list(order_by.values()).pop()
-        # FIXME: tag ordering uses StringOrListField, which always returns a list.
-        if isinstance(order, list):
-            return order.pop()
-        return order
+        return list(order_by.values()).pop()
 
     @property
     def max_rank(self):
