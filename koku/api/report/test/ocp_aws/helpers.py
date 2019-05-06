@@ -55,6 +55,14 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
         self.aws_info = FakeAWSCostData(usage_start=aws_usage_start,
                                         usage_end=aws_usage_end,
                                         resource_id=self.resource_id)
+        self._tags = self._generate_tags()
+
+    @property
+    def tags(self):
+        """Tags property."""
+        if not self._tags:
+            self._tags = self._generate_tags()
+        return self._tags
 
     def create_ocp_provider(self, cluster_id, cluster_alias):
         """Create OCP test provider."""
@@ -212,7 +220,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                           Provider):
                 table.objects.all().delete()
 
-    def _get_tags(self):
+    def _generate_tags(self):
         """Create tags for output data."""
         apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
                 self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
@@ -278,8 +286,8 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'account_alias': None,
                     'availability_zone': az,
                     'region': region,
+                    'tags': self.tags,
                     'unit': unit,
-                    'tags': self._get_tags(),
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
                     'unblended_cost': unblended_cost,
@@ -311,7 +319,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'namespace': row.get('namespace'),
                     'node': row.get('node'),
                     'pod': row.get('pod'),
-                    'pod_labels': self._get_tags(),
+                    'pod_labels': self.tags,
                     'resource_id': resource_prefix + row.get('resource_id'),
                     'usage_start': report_date,
                     'usage_end': report_date,
