@@ -2066,25 +2066,30 @@
             },
             "Rate": {
                 "required": [
-                    "provider_uuid",
                     "metric"
                 ],
                 "properties": {
-                    "provider_uuid": {
-                        "type": "string",
-                        "example": "da065ad8-7e68-4a12-b2b4-74f18d4d9fa0"
+                    "provider_uuids": {
+                        "type": "list",
+                        "example": ["da065ad8-7e68-4a12-b2b4-74f18d4d9fa0"]
                     },
                     "metric": {
-                        "type": "string",
-                        "example": "cpu_core_per_hour"
+                        "type": "object",
+                        "example": {
+                            "name": "cpu_core_per_hour",
+                            "unit": "core-hours",
+                            "display_name": "Compute usage Rate"
+                        }
                     },
                     "tiered_rate": {
                         "type": "object",
                         "example": [{
                             "value": 0.22,
                             "unit": "USD",
-                            "usage_start": 0,
-                            "usage_end": 10
+                            "usage": {
+                                "usage_start": 0,
+                                "usage_end": 10
+                            }
                         }]
                     }
                 }
@@ -2094,7 +2099,6 @@
                     "$ref": "#/components/schemas/Rate"
                 }],
                 "required": [
-                    "provider_uuid",
                     "metric"
                 ]
             },
@@ -2120,7 +2124,7 @@
                 }],
                 "required": [
                     "uuid",
-                    "provider_uuid",
+                    "provider_uuids",
                     "metric"
                 ],
                 "properties": {
