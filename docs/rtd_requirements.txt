@@ -30,5 +30,5 @@ s3transfer==0.2.0
 six==1.12.0
 sqlparse==0.3.0
 unicodecsv==0.14.1
-urllib3==1.24.2 ; python_version >= '3.4'
+urllib3==1.25.2; python_version >= '3.4'
 whitenoise==4.1.2
