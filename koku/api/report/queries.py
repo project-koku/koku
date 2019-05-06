@@ -1269,7 +1269,7 @@ class ReportQueryHandler(QueryHandler):
                                      reverse=reverse)
             elif 'tag:' in field:
                 tag = field[4:]
-                sorted_data = sorted(sorted_data, key=lambda entry: entry[tag].lower(),
+                sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]),
                                      reverse=reverse)
             else:
                 sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
