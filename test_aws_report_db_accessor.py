@@ -760,6 +760,9 @@ class ReportDBAccessorTest(MasuTestCase):
                 reservation
             )
 
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(1)
+        bill_ids = [str(bill.id) for bill in bills.all()]
+
         start_date, end_date = self.accessor._session.query(
             func.min(ce_table.interval_start),
             func.max(ce_table.interval_start)
@@ -773,7 +776,7 @@ class ReportDBAccessorTest(MasuTestCase):
         query = self.accessor._get_db_obj_query(daily_table_name)
         initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
 
 
         self.assertNotEqual(query.count(), initial_count)
@@ -825,6 +828,9 @@ class ReportDBAccessorTest(MasuTestCase):
                 reservation
             )
 
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(1)
+        bill_ids = [str(bill.id) for bill in bills.all()]
+
         table_name = AWS_CUR_TABLE_MAP['line_item']
         tag_query = self.accessor._get_db_obj_query(table_name)
         possible_keys = []
@@ -845,10 +851,10 @@ class ReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
         initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date,
-                                                              end_date)
+                                                              end_date,
+                                                              bill_ids)
 
         self.assertNotEqual(query.count(), initial_count)
 
@@ -885,6 +891,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
     def test_populate_awstags_summary_table(self):
         """Test that the AWS tags summary table is populated."""
+        bill_ids = []
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
         tags_summary_name = AWS_CUR_TABLE_MAP['tags_summary']
 
@@ -895,6 +902,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
         for cost_entry_date in (today, last_month):
             bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            bill_ids.append(str(bill.id))
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
             for family in ['Storage', 'Compute Instance', 'Database Storage',
                            'Database Instance']:
@@ -917,9 +925,10 @@ class ReportDBAccessorTest(MasuTestCase):
         query = self.accessor._get_db_obj_query(tags_summary_name)
         initial_count = query.count()
 
-        self.accessor.populate_line_item_daily_table(start_date, end_date)
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
         self.accessor.populate_line_item_daily_summary_table(start_date,
-                                                              end_date)
+                                                              end_date,
+                                                              bill_ids)
         self.accessor.populate_tags_summary_table()
 
         self.assertNotEqual(query.count(), initial_count)
@@ -940,6 +949,7 @@ class ReportDBAccessorTest(MasuTestCase):
         """Test that the OCP on AWS cost summary table is populated."""
         summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         project_summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+        bill_ids = []
 
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
         project_table = getattr(self.accessor.report_schema, project_summary_table_name)
@@ -949,6 +959,7 @@ class ReportDBAccessorTest(MasuTestCase):
         resource_id = 'i-12345'
         for cost_entry_date in (today, last_month):
             bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            bill_ids.append(str(bill.id))
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
             product = self.creator.create_cost_entry_product('Compute Instance')
             pricing = self.creator.create_cost_entry_pricing()
@@ -962,7 +973,7 @@ class ReportDBAccessorTest(MasuTestCase):
                 resource_id=resource_id
             )
 
-        self.accessor.populate_line_item_daily_table(last_month, today)
+        self.accessor.populate_line_item_daily_table(last_month, today, bill_ids)
 
         li_table_name = AWS_CUR_TABLE_MAP['line_item']
         li_table = getattr(self.accessor.report_schema, li_table_name)
