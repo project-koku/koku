@@ -17,6 +17,7 @@
 
 """Models for shared reporting tables."""
 
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.utils import timezone
 
@@ -51,6 +52,7 @@ class CostUsageReportStatus(models.Model):
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
+    history = JSONField(null=True)
 
 
 class ReportColumnMap(models.Model):
