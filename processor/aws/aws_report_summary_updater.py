@@ -24,6 +24,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.aws.common import get_bill_ids_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -63,6 +64,7 @@ class AWSReportSummaryUpdater:
             bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
                 .replace(day=1).date()
             bills = accessor.get_cost_entry_bills_by_date(bill_date)
+            bill_ids = []
 
             if manifest_id is not None:
                 with ReportManifestDBAccessor() as manifest_accessor:
@@ -81,6 +83,7 @@ class AWSReportSummaryUpdater:
                     provider_id
                 )
                 bills = bills.filter_by(billing_period_start=bill_date).all()
+                bill_ids = [str(bill.id) for bill in bills]
 
                 do_month_update = self._determine_if_full_summary_update_needed(
                     bills[0]
@@ -99,8 +102,16 @@ class AWSReportSummaryUpdater:
                      'and provider: %s from %s to %s',
                      self._schema_name, provider_uuid, start_date, end_date)
 
-            accessor.populate_line_item_daily_table(start_date, end_date)
-            accessor.populate_line_item_daily_summary_table(start_date, end_date)
+            if not bill_ids:
+                bill_ids = get_bill_ids_from_provider(
+                    provider_uuid,
+                    self._schema_name,
+                    start_date,
+                    end_date
+                )
+
+            accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+            accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
             accessor.populate_tags_summary_table()
 
             for bill in bills:

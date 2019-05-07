@@ -1,3 +1,8 @@
+-- The Python string variable subsitutions {aws_where_clause} and
+-- {ocp_where_clause} optionally filter AWS and OCP data by provider/source
+-- Ex aws_where_clause: 'AND cost_entry_bill_id IN (1, 2, 3)'
+-- Ex ocp_where_clause: "AND cluster_id = 'abcd-1234`"
+
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
 -- TEMPORARY TABLE for re-use
@@ -9,6 +14,7 @@ CREATE TEMPORARY TABLE reporting_aws_tags AS (
             jsonb_each_text(aws.tags) labels
         WHERE date(aws.usage_start) >= '{start_date}'
             AND date(aws.usage_start) <= '{end_date}'
+            {aws_where_clause}
 )
 ;
 
@@ -23,6 +29,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
         jsonb_each_text(ocp.persistentvolume_labels) labels
     WHERE date(ocp.usage_start) >= '{start_date}'
         AND date(ocp.usage_start) <= '{end_date}'
+        {ocp_where_clause}
 
     UNION ALL
 
@@ -33,6 +40,7 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
         jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
     WHERE date(ocp.usage_start) >= '{start_date}'
         AND date(ocp.usage_start) <= '{end_date}'
+        {ocp_where_clause}
 )
 ;
 
@@ -47,6 +55,7 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
         jsonb_each_text(ocp.pod_labels) labels
     WHERE date(ocp.usage_start) >= '{start_date}'
         AND date(ocp.usage_start) <= '{end_date}'
+        {ocp_where_clause}
 )
 ;
 
@@ -73,6 +82,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
             ocp.cluster_capacity_cpu_core_seconds,
             ocp.cluster_capacity_memory_byte_seconds,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -152,6 +162,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_direct_tag_matched AS (
             ocp.cluster_capacity_cpu_core_seconds,
             ocp.cluster_capacity_memory_byte_seconds,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -234,6 +245,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_project_tag_matched AS (
             ocp.cluster_capacity_cpu_core_seconds,
             ocp.cluster_capacity_memory_byte_seconds,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -319,6 +331,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_node_tag_matched AS (
             ocp.cluster_capacity_cpu_core_seconds,
             ocp.cluster_capacity_memory_byte_seconds,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -407,6 +420,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_openshift_cluster_tag_matched AS (
             ocp.cluster_capacity_cpu_core_seconds,
             ocp.cluster_capacity_memory_byte_seconds,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -523,6 +537,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_direct_tag_matched AS (
             ocp.persistentvolume_labels,
             ocp.persistentvolumeclaim_labels,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -599,6 +614,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_project_tag_matched A
             ocp.persistentvolume_labels,
             ocp.persistentvolumeclaim_labels,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -678,6 +694,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_node_tag_matched AS (
             ocp.persistentvolume_labels,
             ocp.persistentvolumeclaim_labels,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -760,6 +777,7 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_storage_openshift_cluster_tag_matched A
             ocp.persistentvolume_labels,
             ocp.persistentvolumeclaim_labels,
             aws.id AS aws_id,
+            aws.cost_entry_bill_id,
             aws.cost_entry_product_id,
             aws.cost_entry_pricing_id,
             aws.cost_entry_reservation_id,
@@ -890,6 +908,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
         max(li.product_code) as product_code,
         max(p.product_family) as product_family,
         max(p.instance_type) as instance_type,
+        max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
@@ -928,6 +947,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
         max(li.product_code) as product_code,
         max(p.product_family) as product_family,
         max(p.instance_type) as instance_type,
+        max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
@@ -978,6 +998,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
         max(li.product_code) as product_code,
         max(p.product_family) as product_family,
         max(p.instance_type) as instance_type,
+        max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
@@ -1021,6 +1042,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
         max(li.product_code) as product_code,
         max(p.product_family) as product_family,
         max(p.instance_type) as instance_type,
+        max(li.cost_entry_bill_id) as cost_entry_bill_id,
         max(li.usage_account_id) as usage_account_id,
         max(aa.id) as account_alias_id,
         max(li.availability_zone) as availability_zone,
@@ -1059,6 +1081,8 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
 DELETE FROM reporting_ocpawscostlineitem_daily_summary
 WHERE date(usage_start) >= '{start_date}'
     AND date(usage_start) <= '{end_date}'
+    {aws_where_clause}
+    {ocp_where_clause}
 ;
 
 -- Populate the daily aggregate line item data
@@ -1074,6 +1098,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
     product_code,
     product_family,
     instance_type,
+    cost_entry_bill_id,
     usage_account_id,
     account_alias_id,
     availability_zone,
@@ -1097,6 +1122,7 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
         product_code,
         product_family,
         instance_type,
+        cost_entry_bill_id,
         usage_account_id,
         account_alias_id,
         availability_zone,
@@ -1114,6 +1140,8 @@ INSERT INTO reporting_ocpawscostlineitem_daily_summary (
 DELETE FROM reporting_ocpawscostlineitem_project_daily_summary
 WHERE date(usage_start) >= '{start_date}'
     AND date(usage_start) <= '{end_date}'
+    {aws_where_clause}
+    {ocp_where_clause}
 ;
 
 INSERT INTO reporting_ocpawscostlineitem_project_daily_summary (
@@ -1129,6 +1157,7 @@ INSERT INTO reporting_ocpawscostlineitem_project_daily_summary (
     product_code,
     product_family,
     instance_type,
+    cost_entry_bill_id,
     usage_account_id,
     account_alias_id,
     availability_zone,
@@ -1151,6 +1180,7 @@ INSERT INTO reporting_ocpawscostlineitem_project_daily_summary (
         product_code,
         product_family,
         instance_type,
+        cost_entry_bill_id,
         usage_account_id,
         account_alias_id,
         availability_zone,
