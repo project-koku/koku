@@ -1,6 +1,7 @@
 -- Aggregate tags by summary grouping
 CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
-    SELECT t.usage_start,
+    SELECT t.cost_entry_bill_id,
+        t.usage_start,
         t.product_code,
         t.product_family,
         t.usage_account_id,
@@ -10,7 +11,8 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
         t.unit,
         jsonb_object_agg(key, value) as tags
     FROM (
-        SELECT li.usage_start,
+        SELECT li.cost_entry_bill_id,
+            li.usage_start,
             li.usage_end,
             li.product_code,
             p.product_family,
@@ -22,7 +24,8 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
             key,
             value
         FROM (
-            SELECT usage_start,
+            SELECT cost_entry_bill_id,
+                usage_start,
                 usage_end,
                 product_code,
                 usage_account_id,
@@ -40,7 +43,9 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
             ON li.cost_entry_pricing_id = pr.id
         WHERE date(li.usage_start) >= '{start_date}'
             AND date(li.usage_start) <= '{end_date}'
-        GROUP BY li.usage_start,
+            AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
+        GROUP BY li.cost_entry_bill_id,
+            li.usage_start,
             li.usage_end,
             li.product_code,
             p.product_family,
@@ -52,7 +57,8 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
             key,
             value
     ) t
-    GROUP BY t.usage_start,
+    GROUP BY t.cost_entry_bill_id,
+        t.usage_start,
         t.product_code,
         t.product_family,
         t.usage_account_id,
@@ -71,7 +77,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
             ELSE '{{}}'::jsonb
             END as tags
     FROM (
-        SELECT li.usage_start,
+        SELECT li.cost_entry_bill_id,
+            li.usage_start,
             li.usage_end,
             li.product_code,
             p.product_family,
@@ -102,7 +109,9 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
             ON li.usage_account_id = aa.account_id
         WHERE date(li.usage_start) >= '{start_date}'
             AND date(li.usage_start) <= '{end_date}'
-        GROUP BY li.usage_start,
+            AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
+        GROUP BY li.cost_entry_bill_id,
+            li.usage_start,
             li.usage_end,
             li.product_code,
             p.product_family,
@@ -114,6 +123,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
     ) AS li
     LEFT JOIN aws_tag_summary_{uuid} as ats
         ON li.usage_start = ats.usage_start
+            AND (
+                li.cost_entry_bill_id = ats.cost_entry_bill_id
+                OR (li.cost_entry_bill_id IS NULL AND ats.cost_entry_bill_id IS NULL)
+            )
             AND (
                 li.product_code = ats.product_code
                 OR (li.product_code IS NULL AND ats.product_code IS NULL)
@@ -148,10 +161,13 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
 -- -- Clear out old entries first
 DELETE FROM reporting_awscostentrylineitem_daily_summary
 WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}';
+    AND usage_start <= '{end_date}'
+    AND cost_entry_bill_id IN ({cost_entry_bill_ids})
+;
 
 -- Populate the daily aggregate line item data
 INSERT INTO reporting_awscostentrylineitem_daily_summary (
+    cost_entry_bill_id,
     usage_start,
     usage_end,
     product_code,
@@ -176,7 +192,8 @@ INSERT INTO reporting_awscostentrylineitem_daily_summary (
     resource_ids,
     resource_count
 )
-    SELECT usage_start,
+SELECT cost_entry_bill_id,
+        usage_start,
         usage_end,
         product_code,
         product_family,

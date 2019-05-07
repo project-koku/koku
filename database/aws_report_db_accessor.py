@@ -137,7 +137,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         return {res.reservation_arn: res.id for res in reservs}
 
-    def populate_line_item_daily_table(self, start_date, end_date):
+    def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregate of line items table.
 
         Args:
@@ -156,12 +156,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cost_entry_bill_ids=','.join(bill_ids)
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
     # pylint: disable=invalid-name
-    def populate_line_item_daily_summary_table(self, start_date, end_date):
+    def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -180,7 +181,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            cost_entry_bill_ids=','.join(bill_ids)
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -206,7 +208,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, agg_sql)
 
-    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date):
+    def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
+                                               cluster_id=None, bill_ids=None):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:
@@ -217,6 +220,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        aws_where_clause = ''
+        ocp_where_clause = ''
+        if bill_ids:
+            ids = ','.join(bill_ids)
+            aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
+        if cluster_id:
+            ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
+
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         summary_sql = pkgutil.get_data(
             'masu.database',
@@ -225,6 +236,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            aws_where_clause=aws_where_clause,
+            ocp_where_clause=ocp_where_clause
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
