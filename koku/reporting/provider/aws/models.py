@@ -185,6 +185,9 @@ class AWSCostEntryLineItemDaily(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
+                                        on_delete=models.PROTECT,
+                                        null=True)
     cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
                                            on_delete=models.PROTECT, null=True)
     cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
@@ -270,6 +273,11 @@ class AWSCostEntryLineItemDailySummary(models.Model):
         ]
 
     id = models.BigAutoField(primary_key=True)
+
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
+                                        on_delete=models.PROTECT,
+                                        null=True)
+
     # The following fields are used for grouping
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=True)
