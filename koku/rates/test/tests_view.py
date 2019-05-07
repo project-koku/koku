@@ -64,12 +64,11 @@ class RateViewTests(IamTestCase):
             self.provider = serializer.save()
 
         self.fake_data = {'provider_uuids': [self.provider.uuid],
-                          'metric': Rate.METRIC_MEM_GB_USAGE_HOUR,
+                          'metric': {'name': Rate.METRIC_MEM_GB_USAGE_HOUR},
                           'tiered_rate': [{
                               'value': round(Decimal(random.random()), 6),
                               'unit': 'USD',
-                              'usage_start': None,
-                              'usage_end': None
+                              'usage': {'usage_start': None, 'usage_end': None}
                           }]
                           }
         with tenant_context(self.tenant):
@@ -100,12 +99,11 @@ class RateViewTests(IamTestCase):
     def test_create_rate_success(self):
         """Test that we can create a rate."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -122,7 +120,7 @@ class RateViewTests(IamTestCase):
 
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuids'))
-        self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
+        self.assertEqual(test_data['metric']['name'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
     def test_create_rate_invalid(self):
@@ -149,7 +147,7 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric'], response.data.get('metric').get('name'))
+        self.assertEqual(self.fake_data['metric']['name'], response.data.get('metric').get('name'))
         self.assertIsNotNone(response.data.get('tiered_rate'))
 
     def test_read_rate_invalid(self):
@@ -173,17 +171,16 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertEqual(test_data['tiered_rate'][0]['value'],
                          response.data.get('tiered_rate')[0].get('value'))
-        self.assertEqual(test_data['metric'], response.data.get('metric').get('name'))
+        self.assertEqual(test_data['metric']['name'], response.data.get('metric').get('name'))
 
     def test_update_rate_failure(self):
         """Test that we update fails with metric type duplication."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -195,12 +192,11 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         test_data = {'provider_uuids': [],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -214,12 +210,11 @@ class RateViewTests(IamTestCase):
         # Update rate_2_uuid rate (no provider) with the provider that is associated with rate_1
         url = reverse('rates-detail', kwargs={'uuid': rate_2_uuid})
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -228,12 +223,11 @@ class RateViewTests(IamTestCase):
 
         # Create another rate of a different type that's associated with the same provider
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_REQUEST_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_REQUEST_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -247,12 +241,11 @@ class RateViewTests(IamTestCase):
 
         # Attempt to update this new rate to be the same type as the other rate with provider association
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -262,12 +255,11 @@ class RateViewTests(IamTestCase):
 
         # Attempt to update again but now remove the provider and it should be successful
         test_data = {'provider_uuids': [],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -332,7 +324,7 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
+        self.assertEqual(self.fake_data['metric']['name'], rate.get('metric').get('name'))
 
     def test_read_rate_list_success_provider_query(self):
         """Test that we can read a list of rates for a specific provider uuid."""
@@ -350,7 +342,7 @@ class RateViewTests(IamTestCase):
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('uuid'))
         self.assertIsNotNone(rate.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric'], rate.get('metric').get('name'))
+        self.assertEqual(self.fake_data['metric']['name'], rate.get('metric').get('name'))
 
     def test_read_rate_list_failure_provider_query(self):
         """Test that we throw proper error for invalid provider_uuid query."""
@@ -389,12 +381,11 @@ class RateViewTests(IamTestCase):
     def test_get_rate_rbac_access(self):
         """Test GET /rates/{uuid} with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -436,12 +427,11 @@ class RateViewTests(IamTestCase):
     def test_write_rate_rbac_access(self):
         """Test POST, PUT, and DELETE for rates with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR,
+                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
-                         'usage_start': None,
-                         'usage_end': None
+                         'usage': {'usage_start': None, 'usage_end': None}
                      }]
                      }
 
@@ -469,13 +459,13 @@ class RateViewTests(IamTestCase):
         # POST tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN,
-                        'metric': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                        'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR}},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_201_CREATED,
-                        'metric': Rate.METRIC_CPU_CORE_REQUEST_HOUR},
+                        'metric': {'name': Rate.METRIC_CPU_CORE_REQUEST_HOUR}},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_201_CREATED,
-                        'metric': Rate.METRIC_MEM_GB_REQUEST_HOUR}]
+                        'metric': {'name': Rate.METRIC_MEM_GB_REQUEST_HOUR}}]
         client = APIClient()
         other_rates = []
 

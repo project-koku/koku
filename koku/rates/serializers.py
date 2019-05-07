@@ -52,14 +52,7 @@ class TieredRateSerializer(serializers.Serializer):
     """Serializer for Tiered Rate."""
 
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    usage_start = serializers.DecimalField(required=False,
-                                           max_digits=19,
-                                           decimal_places=10,
-                                           allow_null=True)
-    usage_end = serializers.DecimalField(required=False,
-                                         max_digits=19,
-                                         decimal_places=10,
-                                         allow_null=True)
+    usage = serializers.DictField(required=False)
     unit = serializers.ChoiceField(choices=CURRENCY_CHOICES)
 
     def validate_value(self, value):
@@ -68,27 +61,22 @@ class TieredRateSerializer(serializers.Serializer):
             raise serializers.ValidationError('A tiered rate value must be positive.')
         return str(value)
 
-    def validate_usage_start(self, usage_start):
+    def validate_usage(self, data):
         """Check that usage_start is a positive value."""
-        if usage_start is None:
-            return usage_start
-        elif usage_start < 0:
-            raise serializers.ValidationError('A tiered rate usage_start must be positive.')
-        return str(usage_start)
-
-    def validate_usage_end(self, usage_end):
-        """Check that usage_end is a positive value."""
-        if usage_end is None:
-            return usage_end
-        elif usage_end <= 0:
-            raise serializers.ValidationError('A tiered rate usage_end must be positive.')
-        return str(usage_end)
-
-    def validate(self, data):
-        """Validate that usage_end is greater than usage_start."""
         usage_start = data.get('usage_start')
         usage_end = data.get('usage_end')
 
+        if usage_start and usage_start < 0:
+            raise serializers.ValidationError('A tiered rate usage_start must be positive.')
+
+        if usage_end and usage_end <= 0:
+            raise serializers.ValidationError('A tiered rate usage_end must be positive.')
+        return data
+
+    def validate(self, data):
+        """Validate that usage_end is greater than usage_start."""
+        usage_start = data.get('usage', {}).get('usage_start')
+        usage_end = data.get('usage', {}).get('usage_end')
         if usage_start is not None and usage_end is not None:
             if Decimal(usage_start) >= Decimal(usage_end):
                 raise serializers.ValidationError('A tiered rate usage_start must be less than usage_end.')
@@ -105,8 +93,7 @@ class RateSerializer(serializers.ModelSerializer):
     uuid = serializers.UUIDField(read_only=True)
     provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
                                            required=False)
-    metric = serializers.ChoiceField(choices=Rate.METRIC_CHOICES,
-                                     required=True)
+    metric = serializers.DictField(required=True)
     tiered_rate = TieredRateSerializer(required=False, many=True)
 
     @staticmethod
@@ -124,8 +111,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers has no gaps."""
         next_tier = None
         for tier in sorted_tiers:
-            usage_start = tier.get('usage_start')
-            usage_end = tier.get('usage_end')
+            usage_start = tier.get('usage', {}).get('usage_start')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (next_tier is not None and usage_start is not None
                     and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
@@ -140,8 +127,8 @@ class RateSerializer(serializers.ModelSerializer):
         """Validate that the tiers have no overlaps."""
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
-            next_bucket_usage_start = next_bucket.get('usage_start')
-            usage_end = tier.get('usage_end')
+            next_bucket_usage_start = next_bucket.get('usage', {}).get('usage_start')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (usage_end != next_bucket_usage_start):
                 error_msg = 'tiered_rate must not have overlapping tiers.' \
@@ -158,8 +145,9 @@ class RateSerializer(serializers.ModelSerializer):
 
         sorted_tiers = sorted(tiers,
                               key=lambda tier: Decimal('-Infinity') if tier.get('usage_start') is None else Decimal(tier.get('usage_start')))  # noqa: E501
-        start = sorted_tiers[0].get('usage_start')
-        end = sorted_tiers[-1].get('usage_end')
+        start = sorted_tiers[0].get('usage', {}).get('usage_start')
+        end = sorted_tiers[-1].get('usage', {}).get('usage_end')
+
         if start is not None or end is not None:
             error_msg = 'tiered_rate must have a tier with usage_start as null' \
                 ' and a tier with usage_end as null.'
@@ -185,7 +173,9 @@ class RateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
-
+        if data.get('metric').get('name') not in [metric for metric, metric2 in Rate.METRIC_CHOICES]:
+            error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
+            raise serializers.ValidationError(error_msg)
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
             tiered_rate = data.get('tiered_rate')
             if tiered_rate is not None:
@@ -217,7 +207,6 @@ class RateSerializer(serializers.ModelSerializer):
         rates = rate.rates
 
         provider_uuids = RateManager(rate_uuid=rate.uuid).get_provider_uuids()
-
         display_data = self._get_metric_display_data(rate.metric)
         out = {
             'uuid': rate.uuid,
@@ -240,13 +229,25 @@ class RateSerializer(serializers.ModelSerializer):
         out.update(rates)
         return out
 
+    def _transform_rate_for_db(self, rates):
+        """Convert rate from API response to format proper for database."""
+        for rate in rates.get('tiered_rate'):
+            if rate.get('usage'):
+                rate['usage_start'] = rate.get('usage', {}).get('usage_start')
+                rate['usage_end'] = rate.get('usage', {}).get('usage_end')
+                del rate['usage']
+            else:
+                rate['usage_start'] = None
+                rate['usage_end'] = None
+        return rates
+
     def create(self, validated_data):
         """Create the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids', [])
         metric = validated_data.pop('metric')
         try:
-            rate_obj = RateManager().create(metric=metric,
-                                            rates=validated_data,
+            rate_obj = RateManager().create(metric=metric.get('name'),
+                                            rates=self._transform_rate_for_db(validated_data),
                                             provider_uuids=provider_uuids)
         except RateManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
@@ -260,16 +261,15 @@ class RateSerializer(serializers.ModelSerializer):
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
-
         manager = RateManager(rate_uuid=instance.uuid)
         try:
             manager.update_provider_uuids(new_providers_for_instance)
-            manager.update_metric(metric)
+            manager.update_metric(metric.get('name'))
 
         except RateManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
 
-        manager.update_rates(validated_data)
+        manager.update_rates(self._transform_rate_for_db(validated_data))
         return manager.instance
 
     class Meta:
