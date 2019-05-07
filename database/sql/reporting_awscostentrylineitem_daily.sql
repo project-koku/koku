@@ -1,6 +1,7 @@
 -- Aggregate tags from hourly to daily level
 CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
     SELECT date(t.interval_start) as usage_start,
+        cost_entry_bill_id,
         cost_entry_product_id,
         cost_entry_pricing_id,
         cost_entry_reservation_id,
@@ -21,6 +22,7 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
             row_number() OVER (
                 PARTITION BY key,
                     date(interval_start),
+                    cost_entry_bill_id,
                     cost_entry_product_id,
                     cost_entry_pricing_id,
                     cost_entry_reservation_id,
@@ -42,11 +44,13 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
                 ON li.cost_entry_id = ce.id
             WHERE date(ce.interval_start) >= '{start_date}'
                 AND date(ce.interval_start) <= '{end_date}'
+                AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
         ) li,
         jsonb_each_text(li.tags) tags
     ) t
     WHERE t.row_number = 1
     GROUP BY date(t.interval_start),
+        t.cost_entry_bill_id,
         t.cost_entry_product_id,
         t.cost_entry_pricing_id,
         t.cost_entry_reservation_id,
@@ -71,6 +75,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
     FROM (
         SELECT date(ce.interval_start) as usage_start,
             date(ce.interval_start) as usage_end,
+            li.cost_entry_bill_id,
             li.cost_entry_product_id,
             li.cost_entry_pricing_id,
             li.cost_entry_reservation_id,
@@ -97,7 +102,9 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
             ON li.cost_entry_id = ce.id
         WHERE date(ce.interval_start) >= '{start_date}'
             AND date(ce.interval_start) <= '{end_date}'
+            AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
         GROUP BY date(ce.interval_start),
+            li.cost_entry_bill_id,
             li.cost_entry_product_id,
             li.cost_entry_pricing_id,
             li.cost_entry_reservation_id,
@@ -112,6 +119,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
     ) AS li
     LEFT JOIN aws_tag_summary_{uuid} AS ats
         ON  li.usage_start = ats.usage_start
+                AND (
+                    li.cost_entry_bill_id = ats.cost_entry_bill_id
+                    OR (li.cost_entry_bill_id IS NULL AND ats.cost_entry_bill_id IS NULL)
+                )
                 AND (
                     li.cost_entry_product_id = ats.cost_entry_product_id
                     OR (li.cost_entry_product_id IS NULL AND ats.cost_entry_product_id IS NULL)
@@ -163,12 +174,14 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
 DELETE FROM reporting_awscostentrylineitem_daily
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
+    AND cost_entry_bill_id IN ({cost_entry_bill_ids})
 ;
 
 -- Populate the daily aggregate line item data
 INSERT INTO reporting_awscostentrylineitem_daily (
     usage_start,
     usage_end,
+    cost_entry_bill_id,
     cost_entry_product_id,
     cost_entry_pricing_id,
     cost_entry_reservation_id,
@@ -194,6 +207,7 @@ INSERT INTO reporting_awscostentrylineitem_daily (
 )
     SELECT usage_start,
         usage_end,
+        cost_entry_bill_id,
         cost_entry_product_id,
         cost_entry_pricing_id,
         cost_entry_reservation_id,

@@ -16,6 +16,7 @@
 #
 """AWS utility functions."""
 
+import datetime
 import logging
 import re
 
@@ -23,7 +24,13 @@ import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
 
+from masu.database import AWS_CUR_TABLE_MAP
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER
 from masu.util import common as utils
+
 
 LOG = logging.getLogger(__name__)
 
@@ -180,6 +187,54 @@ def get_account_alias_from_role_arn(role_arn, session=None):
         LOG.info('Unable to list account aliases.  Reason: %s', str(err))
 
     return (account_id, alias)
+
+
+def get_bill_ids_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+    """
+    Return the AWS bill IDs given a provider UUID.
+
+    Args:
+        provider_uuid (str): Provider UUID.
+        schema (str): Tenant schema
+        start_date (datetime, str): Start date for bill IDs.
+        end_date (datetime, str) End date for bill IDs.
+
+    Returns:
+        (list): AWS cost entry bill IDs.
+
+    """
+    if isinstance(start_date, datetime.datetime):
+        start_date = start_date.replace(day=1)
+        start_date = start_date.strftime('%Y-%m-%d')
+    if isinstance(end_date, datetime.datetime):
+        end_date = end_date.strftime('%Y-%m-%d')
+
+    bill_ids = []
+    with ReportingCommonDBAccessor() as reporting_common:
+        column_map = reporting_common.column_map
+
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        provider = provider_accessor.get_provider()
+
+    if provider.type not in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+        err_msg = 'Provider UUID is not an AWS type.  It is {}'.\
+            format(provider.type)
+        LOG.warning(err_msg)
+        return bill_ids
+
+    with AWSReportDBAccessor(schema, column_map) as report_accessor:
+        bill_table_name = AWS_CUR_TABLE_MAP['bill']
+        bill_obj = getattr(report_accessor.report_schema, bill_table_name)
+        bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+        if start_date:
+            bills = bills.filter(bill_obj.billing_period_start >= start_date)
+        if end_date:
+            bills = bills.filter(bill_obj.billing_period_start <= end_date)
+        bills = bills.all()
+
+        bill_ids = [str(bill.id) for bill in bills]
+
+    return bill_ids
 
 
 # pylint: disable=too-few-public-methods
