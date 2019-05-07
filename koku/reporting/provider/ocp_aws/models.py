@@ -80,6 +80,10 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # AWS Fields
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
+                                        on_delete=models.PROTECT,
+                                        null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
@@ -184,6 +188,10 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     usage_end = models.DateTimeField(null=False)
 
     # AWS Fields
+    cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
+                                        on_delete=models.PROTECT,
+                                        null=True)
+
     product_code = models.CharField(max_length=50, null=False)
 
     product_family = models.CharField(max_length=150, null=True)
