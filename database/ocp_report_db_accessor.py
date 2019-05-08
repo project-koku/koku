@@ -136,6 +136,28 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         line_item_query = base_query.filter(query_report_id == report_id)
         return line_item_query
 
+    def get_daily_usage_query_for_clusterid(self, cluster_identifier):
+        """Get the usage report daily item for a cluster id query."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        daily_usage_query = base_query.filter(cluster_id == cluster_identifier)
+        return daily_usage_query
+
+    def get_summary_usage_query_for_clusterid(self, cluster_identifier):
+        """Get the usage report summary for a cluster id query."""
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_usage_query = base_query.filter(cluster_id == cluster_identifier)
+        return summary_usage_query
+
     def get_item_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -157,6 +179,28 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         base_query = self._get_db_obj_query(table_name)
         line_item_query = base_query.filter(report_period_id == period_id)
         return line_item_query
+
+    def get_daily_storage_item_query_cluster_id(self, cluster_identifier):
+        """Get the daily storage report line item for a cluster id query."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        daily_item_query = base_query.filter(cluster_id == cluster_identifier)
+        return daily_item_query
+
+    def get_storage_summary_query_cluster_id(self, cluster_identifier):
+        """Get the storage report summary for a cluster id query."""
+        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        daily_item_query = base_query.filter(cluster_id == cluster_identifier)
+        return daily_item_query
 
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
@@ -424,6 +468,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 cluster_id=cluster_id
             )
             self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+
+    def get_cost_summary_for_clusterid(self, cluster_identifier):
+        """Get the cost summary for a cluster id query."""
+        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        cost_summary_query = base_query.filter(cluster_id == cluster_identifier)
+        return cost_summary_query
 
     # pylint: disable=invalid-name
     def populate_pod_label_summary_table(self):
