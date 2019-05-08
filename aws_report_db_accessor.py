@@ -16,6 +16,8 @@
 #
 """Database accessor for report data."""
 
+# pylint: skip-file
+
 import logging
 import pkgutil
 import uuid
@@ -91,6 +93,50 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         base_query = self._get_db_obj_query(table_name)
         line_item_query = base_query.filter(cost_entry_bill_id == bill_id)
         return line_item_query
+
+    def get_daily_query_for_billid(self, bill_id):
+        """Get the AWS cost daily item for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cost_entry_bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        daily_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return daily_item_query
+
+    def get_summary_query_for_billid(self, bill_id):
+        """Get the AWS cost summary item for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cost_entry_bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return summary_item_query
+
+    def get_ocp_aws_summary_query_for_billid(self, bill_id):
+        """Get the OCP-on-AWS report summary item for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cost_entry_bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return summary_item_query
+
+    def get_ocp_aws_project_summary_query_for_billid(self, bill_id):
+        """Get the OCP-on-AWS report project summary item for a given bill query."""
+        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+        cost_entry_bill_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cost_entry_bill_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_item_query = base_query.filter(cost_entry_bill_id == bill_id)
+        return summary_item_query
 
     def get_cost_entry_query_for_billid(self, bill_id):
         """Get the AWS cost entry data for a given bill query."""
