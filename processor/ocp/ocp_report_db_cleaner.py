@@ -40,6 +40,7 @@ class OCPReportDBCleaner():
         """
         self._schema = schema
 
+    # pylint: disable=too-many-locals
     def purge_expired_report_data(self, expired_date=None, provider_id=None,
                                   simulate=False):
         """Remove usage data with a report period before specified date.
@@ -69,6 +70,7 @@ class OCPReportDBCleaner():
                 usage_period_objs = accessor.get_usage_period_query_by_provider(provider_id)
             for usage_period in usage_period_objs.all():
                 report_period_id = usage_period.id
+                cluster_id = usage_period.cluster_id
                 removed_usage_start_period = usage_period.report_period_start
 
                 if not simulate:
@@ -76,10 +78,32 @@ class OCPReportDBCleaner():
                     LOG.info('Removing %s usage period line items for usage period id %s',
                              qty, report_period_id)
 
+                    qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
+                    LOG.info('Removing %s usage daily items for cluster id %s',
+                             qty, cluster_id)
+
+                    qty = accessor.get_summary_usage_query_for_clusterid(cluster_id).delete()
+                    LOG.info('Removing %s usage summary items for cluster id %s',
+                             qty, cluster_id)
+
+                    qty = accessor.get_cost_summary_for_clusterid(cluster_id).delete()
+                    LOG.info('Removing %s cost summary items for cluster id %s',
+                             qty, cluster_id)
+
                     qty = accessor.get_storage_item_query_report_period_id(report_period_id).\
                         delete()
                     LOG.info('Removing %s storage line items for usage period id %s',
                              qty, report_period_id)
+
+                    qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).\
+                        delete()
+                    LOG.info('Removing %s storage dailyitems for cluster id %s',
+                             qty, cluster_id)
+
+                    qty = accessor.get_storage_summary_query_cluster_id(cluster_id).\
+                        delete()
+                    LOG.info('Removing %s storage summary for cluster id %s',
+                             qty, cluster_id)
 
                     qty = accessor.get_report_query_report_period_id(report_period_id).delete()
                     LOG.info('Removing %s usage period items for usage period id %s',
