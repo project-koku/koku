@@ -656,11 +656,10 @@
         },
         "tox": {
             "hashes": [
-                "sha256:1b166b93d2ce66bb7b253ba944d2be89e0c9d432d49eeb9da2988b4902a4684e",
-                "sha256:665cbdd99f5c196dd80d1d8db8c8cf5d48b1ae1f778bccd1bdf14d5aaf4ca0fc"
+                "sha256:5d6b9e7ad99a93b00ecd509e13552600d38eedd2b035ba24709f850b23f51254",
+                "sha256:fee5b4fa2fb1638b57879a1fcaefbfd16201d8d7ecb9956406855a85d518ac4c"
             ],
-            "index": "pypi",
-            "version": "==3.9.0"
+            "version": "==3.10.0"
         },
         "typed-ast": {
             "hashes": [
