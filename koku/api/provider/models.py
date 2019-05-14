@@ -16,9 +16,11 @@
 #
 """Models for provider management."""
 
+from datetime import datetime
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -84,3 +86,28 @@ class Provider(models.Model):
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
+
+class ProviderStatus(models.Model):
+    """Koku provider status.
+
+    Used for tracking provider status.
+    """
+    # Provider states used to signal whether the Provider is suitable for
+    # attempting to download and process reports.
+    #
+    # These states are duplicated in masu.database.provider_db_accessor
+    #
+    STATES = ((0, 'New'),
+              (1, 'Ready'),
+              (33, 'Warning'),
+              (98, 'Disabled: Error'),
+              (99, 'Disabled: Admin'),)
+
+    provider = models.ForeignKey('Provider', null=False,
+                                 on_delete=models.CASCADE, blank=False)
+    status = models.IntegerField(null=False,
+                                 choices=STATES,
+                                 default=0)
+    last_message = models.CharField(max_length=256, null=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    retries  = models.IntegerField(null=False, default=0)
