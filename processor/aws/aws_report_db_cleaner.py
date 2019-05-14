@@ -73,6 +73,15 @@ class AWSReportDBCleaner():
                 removed_billing_period_start = bill.billing_period_start
 
                 if not simulate:
+                    del_count = accessor.get_ocp_aws_summary_query_for_billid(bill_id).delete()
+                    LOG.info('Removing %s OCP-on-AWS summary items for bill id %s',
+                             del_count, bill_id)
+
+                    del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).\
+                        delete()
+                    LOG.info('Removing %s OCP-on-AWS project summary items for bill id %s',
+                             del_count, bill_id)
+
                     del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
                     LOG.info('Removing %s cost entry line items for bill id %s', del_count, bill_id)
 
@@ -82,15 +91,6 @@ class AWSReportDBCleaner():
 
                     del_count = accessor.get_summary_query_for_billid(bill_id).delete()
                     LOG.info('Removing %s cost entry summary items for bill id %s',
-                             del_count, bill_id)
-
-                    del_count = accessor.get_ocp_aws_summary_query_for_billid(bill_id).delete()
-                    LOG.info('Removing %s OCP-on-AWS summary items for bill id %s',
-                             del_count, bill_id)
-
-                    del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).\
-                        delete()
-                    LOG.info('Removing %s OCP-on-AWS project summary items for bill id %s',
                              del_count, bill_id)
 
                     del_count = accessor.get_cost_entry_query_for_billid(bill_id).delete()

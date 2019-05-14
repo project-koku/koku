@@ -109,6 +109,15 @@ class OCPReportDBCleaner():
                     LOG.info('Removing %s usage period items for usage period id %s',
                              qty, report_period_id)
 
+                    qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
+                    LOG.info('Removing %s OCP-on-AWS summary items for cluster id %s',
+                             qty, cluster_id)
+
+                    qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).\
+                        delete()
+                    LOG.info('Removing %s OCP-on-AWS project summary items for cluster id %s',
+                             qty, cluster_id)
+
                 LOG.info('Report data removed for usage period ID: %s with interval start: %s',
                          report_period_id, removed_usage_start_period)
                 removed_items.append({'usage_period_id': report_period_id,

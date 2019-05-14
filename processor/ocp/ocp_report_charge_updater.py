@@ -261,7 +261,7 @@ class OCPReportChargeUpdater:
         self._update_storage_charge()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            LOG.info('Updating OpenShift on OCP cost summary table for schema: %s and provider: %s',
+            LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
                      self._schema, self._provider_uuid)
             accessor.populate_cost_summary_table(self._cluster_id)
             accessor.commit()

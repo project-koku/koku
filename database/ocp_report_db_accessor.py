@@ -21,7 +21,7 @@ import pkgutil
 import uuid
 
 from masu.config import Config
-from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 LOG = logging.getLogger(__name__)
@@ -201,6 +201,28 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         base_query = self._get_db_obj_query(table_name)
         daily_item_query = base_query.filter(cluster_id == cluster_identifier)
         return daily_item_query
+
+    def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
+        """Get the OCP-on-AWS report summary item for a given cluster id query."""
+        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_item_query = base_query.filter(cluster_id == cluster_identifier)
+        return summary_item_query
+
+    def get_ocp_aws_project_summary_query_for_cluster_id(self, cluster_identifier):
+        """Get the OCP-on-AWS report project summary item for a given cluster id query."""
+        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+        cluster_id = getattr(
+            getattr(self.report_schema, table_name),
+            'cluster_id'
+        )
+        base_query = self._get_db_obj_query(table_name)
+        summary_item_query = base_query.filter(cluster_id == cluster_identifier)
+        return summary_item_query
 
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
