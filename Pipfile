@@ -1,12 +1,9 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [packages]
-
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
@@ -26,10 +23,9 @@ pytz = "==2019.1"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.6.0"
 django-redis = "==4.10.0"
-
+flake8 = "===3.7.7"
 
 [dev-packages]
-
 astroid = "==2.2.5"
 pylint = "==2.3.1"
 sphinx-rtd-theme = ">=0.3.0"
@@ -40,7 +36,5 @@ codecov = ">=2.0.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.9"
 
-
 [requires]
-
 python_version = "3.6"

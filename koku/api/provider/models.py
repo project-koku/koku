@@ -16,11 +16,9 @@
 #
 """Models for provider management."""
 
-from datetime import datetime
 from uuid import uuid4
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
@@ -87,11 +85,14 @@ class Provider(models.Model):
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
 
+
 class ProviderStatus(models.Model):
     """Koku provider status.
 
     Used for tracking provider status.
+
     """
+
     # Provider states used to signal whether the Provider is suitable for
     # attempting to download and process reports.
     #
@@ -110,4 +111,4 @@ class ProviderStatus(models.Model):
                                  default=0)
     last_message = models.CharField(max_length=256, null=False)
     timestamp = models.DateTimeField(auto_now_add=True)
-    retries  = models.IntegerField(null=False, default=0)
+    retries = models.IntegerField(null=False, default=0)
