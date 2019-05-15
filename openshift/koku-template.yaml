@@ -487,6 +487,26 @@ objects:
                   key: cw-log-group
                   name: cloudwatch
                   optional: true
+            - name: POD_CPU_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.cpu
+            - name: POD_CPU_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.cpu
+            - name: POD_MEMORY_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.memory
+            - name: POD_MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.memory
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -512,8 +532,10 @@ objects:
             timeoutSeconds: 3
           resources:
             requests:
+              cpu: ${CPU_REQUEST}
               memory: ${MEMORY_REQUEST}
             limits:
+              cpu: ${CPU_LIMIT}
               memory: ${MEMORY_LIMIT}
     triggers:
     - type: ConfigChange
@@ -756,7 +778,7 @@ objects:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
       name: koku
-    targetCPUUtilizationPercentage: 90
+    targetCPUUtilizationPercentage: 60
 
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
@@ -794,6 +816,16 @@ parameters:
   name: MEMORY_LIMIT
   required: true
   value: 1Gi
+- description: Initial amount of cpu the Django container will request.
+  displayName: CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: 200m
+- description: Maximum amount of cpu the Django container can use.
+  displayName: CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: 300m
 - description: Initial amount of memory the PostgreSQL container will request.
   displayName: Memory Request (PostgreSQL)
   name: POSTGRESQL_MEMORY_REQUEST
