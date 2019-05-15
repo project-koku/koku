@@ -26,6 +26,7 @@ pytz = "==2019.1"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.6.0"
 django-redis = "==4.10.0"
+watchtower = "==0.5.5"
 
 
 [dev-packages]
