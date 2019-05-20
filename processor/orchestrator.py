@@ -21,6 +21,7 @@ import logging
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.processor.tasks import (get_report_files, remove_expired_data)
+from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
 
@@ -87,12 +88,27 @@ class Orchestrator():
         """
         async_result = None
         for account in self._accounts:
-            LOG.info('Calling get_report_files with account: %s', account)
-            async_result = get_report_files.delay(**account)
-            LOG.info('Download queued - customer: %s, Task ID: %s',
-                     account.get('customer_name'),
-                     str(async_result))
-        self.update_account_labels()
+            provider_status = ProviderStatus(account.get('provider_uuid'))
+            if provider_status.is_valid() and not provider_status.is_backing_off():
+                LOG.info('Getting report files for account: %s', account)
+                async_result = get_report_files.delay(**account)
+
+                LOG.info('Download queued - customer: %s, Task ID: %s',
+                         account.get('customer_name'),
+                         str(async_result))
+
+                # update labels
+                labeler = AccountLabel(auth=account.get('authentication'),
+                                       schema=account.get('schema_name'),
+                                       provider_type=account.get('provider_type'))
+                account, label = labeler.get_label_details()
+                if account:
+                    LOG.info('Account: %s Label: %s updated.', account, label)
+            else:
+                LOG.info('Provider skipped: %s Valid: %s Backing off: %s',
+                         account.get('provider_uuid'),
+                         provider_status.is_valid(),
+                         provider_status.is_backing_off())
         return async_result
 
     def remove_expired_report_data(self, simulate=False):
@@ -118,22 +134,3 @@ class Orchestrator():
             async_results.append({'customer': account.get('customer_name'),
                                   'async_id': str(async_result)})
         return async_results
-
-    def update_account_labels(self):
-        """
-        Update account labels.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        """
-        for account in self._accounts:
-            labeler = AccountLabel(auth=account.get('authentication'),
-                                   schema=account.get('schema_name'),
-                                   provider_type=account.get('provider_type'))
-            account, label = labeler.get_label_details()
-            if account:
-                LOG.info('Account: %s Label: %s updated.', account, label)
