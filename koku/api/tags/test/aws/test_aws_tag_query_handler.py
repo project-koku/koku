@@ -16,7 +16,7 @@
 #
 """Test the AWS Report Queries."""
 from api.iam.test.iam_test_case import IamTestCase
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
+from api.tags.aws.queries import AWSTagQueryHandler
 from api.utils import DateHelper
 
 

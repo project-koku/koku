@@ -36,7 +36,7 @@ from api.report.aws.aws_query_handler import AWSReportQueryHandler
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.queries import strip_tag_prefix
 from api.report.test.ocp.helpers import OCPReportDataGenerator
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
+from api.tags.aws.queries import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
                               AWSCostEntry,

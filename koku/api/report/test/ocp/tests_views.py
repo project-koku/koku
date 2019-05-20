@@ -36,7 +36,7 @@ from api.models import User
 from api.query_handler import TruncDayString
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.view import _generic_report
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
