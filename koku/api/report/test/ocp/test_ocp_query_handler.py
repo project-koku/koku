@@ -29,7 +29,7 @@ from api.query_filter import QueryFilterCollection
 from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 

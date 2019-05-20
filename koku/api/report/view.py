@@ -35,8 +35,8 @@ from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
 from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
-from api.tags.aws.aws_tag_query_handler import AWSTagQueryHandler
-from api.tags.ocp.ocp_tag_query_handler import OCPTagQueryHandler
+from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.serializers import AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer
 from api.utils import UnitConverter
 from reporting.provider.aws.models import AWSTagsSummary
