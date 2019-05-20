@@ -17,7 +17,6 @@
 """Database source impelmentation to provide all CUR accounts for CURAccounts access."""
 
 from masu.database.provider_collector import ProviderCollector
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 
 
@@ -38,19 +37,19 @@ class CURAccountsDB(CURAccountsInterface):
             ([{}]) : A list of dicts
 
         """
+        accounts = []
         with ProviderCollector() as collector:
             all_providers = collector.get_providers()
-
-        accounts = []
-        for provider in all_providers:
-            with ProviderDBAccessor(provider.uuid) as provider_accessor:
-                accounts.append({
-                    'authentication': provider_accessor.get_authentication(),
-                    'billing_source': provider_accessor.get_billing_source(),
-                    'customer_name': provider_accessor.get_customer_name(),
-                    'provider_type': provider_accessor.get_type(),
-                    'schema_name': provider_accessor.get_schema(),
-                    'provider_uuid': provider_accessor.get_uuid()
-                })
-
+            for provider in all_providers:
+                account = {
+                    'authentication': provider.api_providerauthentication.provider_resource_name,
+                    'customer_name': provider.api_customer.schema_name,
+                    'billing_source': None,
+                    'provider_type': provider.type,
+                    'schema_name': provider.api_customer.schema_name,
+                    'provider_uuid': provider.uuid
+                }
+                if provider.api_providerbillingsource:
+                    account['billing_source'] = provider.api_providerbillingsource.bucket
+                accounts.append(account)
         return accounts
