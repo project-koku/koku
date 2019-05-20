@@ -22,8 +22,10 @@ from celery.utils.log import get_task_logger
 import masu.prometheus_stats as worker_stats
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.exceptions import MasuProcessingError, MasuProviderError
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
+from masu.providers.status import ProviderStatus
 
 LOG = get_task_logger(__name__)
 
@@ -80,11 +82,12 @@ def _get_report_files(customer_name,
     LOG.info(log_statement)
     try:
         disk = psutil.disk_usage(Config.TMP_DIR)
-        disk_msg = 'Avaiable disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
+        disk_msg = 'Available disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
     except OSError:
-        disk_msg = 'Unable to find avaiable disk space. {} does not exist'.format(Config.TMP_DIR)
+        disk_msg = 'Unable to find available disk space. {} does not exist'.format(Config.TMP_DIR)
     LOG.info(disk_msg)
 
+    reports = None
     try:
         downloader = ReportDownloader(customer_name=customer_name,
                                       access_credential=authentication,
@@ -92,8 +95,14 @@ def _get_report_files(customer_name,
                                       provider_type=provider_type,
                                       provider_id=provider_id,
                                       report_name=report_name)
-        return downloader.get_reports(number_of_months)
+        reports = downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(err))
+        with ProviderStatus(provider_uuid) as status:
+            status.set_error(error=err)
         raise err
+
+    with ProviderStatus(provider_uuid) as status:
+        status.set_status(ProviderStatusCode.READY)
+    return reports
