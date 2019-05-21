@@ -134,7 +134,7 @@ def extract_payload(url):
     shutil.rmtree(temp_dir)
 
 
-async def send_confirmation(file_hash, status):  # pragma: no cover
+async def send_confirmation(request_id, status):  # pragma: no cover
     """
     Send kafka validation message to Insights Upload service.
 
@@ -143,7 +143,7 @@ async def send_confirmation(file_hash, status):  # pragma: no cover
     apps listening on the 'platform.upload.available' topic.
 
     Args:
-        file_hash (String): Hash for file being confirmed.
+        request_id (String): Request ID for file being confirmed.
         status (String): Either 'success' or 'failure'
 
     Returns:
@@ -161,10 +161,11 @@ async def send_confirmation(file_hash, status):  # pragma: no cover
 
     try:
         validation = {
-            'hash': file_hash,
+            'request_id': request_id,
             'validation': status
         }
         msg = bytes(json.dumps(validation), 'utf-8')
+        LOG.info('Validating message: %s', str(msg))
         await producer.send_and_wait(VALIDATION_TOPIC, msg)
     finally:
         await producer.stop()
@@ -228,7 +229,7 @@ async def process_messages():  # pragma: no cover
         status = handle_message(msg)
         if status:
             value = json.loads(msg.value.decode('utf-8'))
-            await send_confirmation(value['hash'], status)
+            await send_confirmation(value['request_id'], status)
 
 
 async def listen_for_messages(consumer):  # pragma: no cover
