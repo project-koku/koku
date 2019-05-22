@@ -15,15 +15,31 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Celery module."""
+import logging
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import after_setup_logger
 
 from masu.config import Config
+from masu.util import setup_cloudwatch_logging
 
 
 # pylint: disable=invalid-name, redefined-outer-name
 celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
+
+# The signal decorator is associated with the
+# following method signature, but args and kwargs are not currently utilized.
+# Learn more about celery signals here:
+# http://docs.celeryproject.org/en/v4.2.0/userguide/signals.html#logging-signals
+@after_setup_logger.connect
+def setup_loggers(logger, *args, **kwargs):  # pylint: disable=unused-argument
+    """Add logging for celery with optional cloud watch."""
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setLevel(logging.INFO)
+    logger.addHandler(consoleHandler)
+
+    setup_cloudwatch_logging(logger)
 
 
 def update_celery_config(celery, app):

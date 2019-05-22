@@ -28,6 +28,7 @@ from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 from masu.api.blueprint import api_v1
 from masu.api.status import ApplicationStatus
 from masu.celery import celery as celery_app, update_celery_config
+from masu.util import setup_cloudwatch_logging
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 logger.addHandler(default_handler)
@@ -58,6 +59,7 @@ def create_app(test_config=None):
         app.config.from_object('masu.config.Config')
 
     # Logging
+    setup_cloudwatch_logging(logger)
     logger.setLevel(app.config.get('LOG_LEVEL', 'WARNING'))
 
     if not test_config and (sys.argv and 'celery' not in sys.argv[0]):
