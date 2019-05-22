@@ -33,7 +33,7 @@ def update_celery_config(celery, app):
     # Define queues used for report processing
     celery.conf.task_routes = {
         'masu.processor.tasks.get_report_files': {'queue': 'download'},
-        'masu.processor.tasks.process_report_file': {'queue': 'process'},
+        'masu.processor.tasks.summarize_reports': {'queue': 'process'},
         'masu.processor.tasks.remove_expired_data': {'queue': 'remove_expired'},
         'masu.processor.tasks.update_report_tables': {'queue': 'reporting'},
         'masu.celery.tasks.remove_expired_data': {'queue': 'remove_expired'},

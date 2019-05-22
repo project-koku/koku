@@ -20,7 +20,7 @@ import logging
 
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
-from masu.processor.tasks import (get_report_files, remove_expired_data)
+from masu.processor.tasks import (get_report_files, remove_expired_data, summarize_reports)
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class Orchestrator():
             provider_status = ProviderStatus(account.get('provider_uuid'))
             if provider_status.is_valid() and not provider_status.is_backing_off():
                 LOG.info('Getting report files for account: %s', account)
-                async_result = get_report_files.delay(**account)
+                async_result = (get_report_files.s(**account) | summarize_reports.s()).apply_async()
 
                 LOG.info('Download queued - customer: %s, Task ID: %s',
                          account.get('customer_name'),

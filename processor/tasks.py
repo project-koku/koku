@@ -23,6 +23,7 @@ import datetime
 import os
 
 from celery.utils.log import get_task_logger
+from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
 from masu.celery import celery
@@ -39,6 +40,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 LOG = get_task_logger(__name__)
 
 
+# pylint: disable=too-many-locals
 @celery.task(name='masu.processor.tasks.get_report_files', queue_name='download')
 def get_report_files(customer_name,
                      authentication,
@@ -73,72 +75,51 @@ def get_report_files(customer_name,
                                 provider_type,
                                 provider_uuid)
 
-    # initiate chained async task
-    LOG.info('Reports to be processed: %s', str(reports))
-    for report_dict in reports:
-        manifest_id = report_dict.get('manifest_id')
-        file_name = os.path.basename(report_dict.get('file'))
-        with ReportStatsDBAccessor(file_name, manifest_id) as stats:
-            started_date = stats.get_last_started_datetime()
-            completed_date = stats.get_last_completed_datetime()
+    try:
+        LOG.info('Reports to be processed: %s', str(reports))
+        reports_to_summarize = []
+        for report_dict in reports:
+            manifest_id = report_dict.get('manifest_id')
+            file_name = os.path.basename(report_dict.get('file'))
+            with ReportStatsDBAccessor(file_name, manifest_id) as stats:
+                started_date = stats.get_last_started_datetime()
+                completed_date = stats.get_last_completed_datetime()
 
-        # Skip processing if already in progress.
-        if started_date and not completed_date:
-            expired_start_date = started_date + datetime.timedelta(hours=2)
-            if DateAccessor().today_with_timezone('UTC') < expired_start_date:
-                LOG.info('Skipping processing task for %s since it was started at: %s.',
-                         file_name, str(started_date))
+            # Skip processing if already in progress.
+            if started_date and not completed_date:
+                expired_start_date = started_date + datetime.timedelta(hours=2)
+                if DateAccessor().today_with_timezone('UTC') < expired_start_date:
+                    LOG.info('Skipping processing task for %s since it was started at: %s.',
+                             file_name, str(started_date))
+                    continue
+
+            # Skip processing if complete.
+            if started_date and completed_date:
+                LOG.info('Skipping processing task for %s. Started on: %s and completed on: %s.',
+                         file_name, str(started_date), str(completed_date))
                 continue
 
-        # Skip processing if complete.
-        if started_date and completed_date:
-            LOG.info('Skipping processing task for %s. Started on: %s and completed on: %s.',
-                     file_name, str(started_date), str(completed_date))
-            continue
-
-        process_report_file(schema_name,
-                            provider_type,
-                            provider_uuid,
-                            report_dict)
-
-
-def process_report_file(schema_name, provider, provider_uuid, report_dict):
-    """
-    Process a Report and trigger summarization task.
-
-    Args:
-        schema_name (String) db schema name
-        provider    (String) provider type
-        provider_uuid (String) provider_uuid
-        report_dict (dict) The report data dict from previous task
-
-    Returns:
-        None
-
-    """
-    worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
-
-    try:
-        LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
-                 schema_name, provider_uuid, report_dict.get('file'))
-        _process_report_file(schema_name, provider, provider_uuid, report_dict)
-        LOG.info('Queueing update_summary_tables task for %s', schema_name)
-        # Provide a buffer to catch unprocessed data
-        start_date = DateAccessor().today() - datetime.timedelta(days=2)
-        start_date = start_date.strftime('%Y-%m-%d')
-        end_date = DateAccessor().today().strftime('%Y-%m-%d')
-
-        update_summary_tables.delay(
-            schema_name,
-            provider,
-            provider_uuid,
-            start_date,
-            end_date=end_date,
-            manifest_id=report_dict.get('manifest_id')
-        )
+            LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
+                     schema_name, provider_uuid, report_dict.get('file'))
+            worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
+            _process_report_file(schema_name,
+                                 provider_type,
+                                 provider_uuid,
+                                 report_dict)
+            report_meta = {}
+            known_manifest_ids = [report.get('manifest_id') for report in reports_to_summarize]
+            if report_dict.get('manifest_id') not in known_manifest_ids:
+                report_meta['start_date'] = report_dict.get('start_date')
+                report_meta['schema_name'] = schema_name
+                report_meta['provider_type'] = provider_type
+                report_meta['provider_uuid'] = provider_uuid
+                report_meta['manifest_id'] = report_dict.get('manifest_id')
+                reports_to_summarize.append(report_meta)
     except ReportProcessorError as processing_error:
-        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider).inc()
+        worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
+
+    return reports_to_summarize
 
 
 @celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
@@ -167,6 +148,33 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
+
+@celery.task(name='masu.processor.tasks.summarize_reports',
+             queue_name='process')
+def summarize_reports(reports_to_summarize):
+    """
+    Summarize reports returned from line summary task.
+
+    Args:
+        reports_to_summarize (list) list of reports to process
+
+    Returns:
+        None
+
+    """
+    for report in reports_to_summarize:
+        start_date = parser.parse(report.get('start_date'))
+        start_date = start_date.strftime('%Y-%m-%d')
+        end_date = DateAccessor().today().strftime('%Y-%m-%d')
+        LOG.error('report to summarize: %s', str(report))
+        update_summary_tables.delay(
+            report.get('schema_name'),
+            report.get('provider_type'),
+            report.get('provider_uuid'),
+            start_date,
+            end_date=end_date,
+            manifest_id=report.get('manifest_id')
+        )
 
 @celery.task(name='masu.processor.tasks.update_summary_tables',
              queue_name='reporting')
