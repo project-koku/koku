@@ -76,6 +76,18 @@ class Config:
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 
+    # Cloud Watch logging variables.
+    # These AWS credential are related to the platform account
+    # not cost management account to display all platform logging in
+    # a common tooling location for operations.
+    CW_AWS_ACCESS_KEY_ID = os.getenv('CW_AWS_ACCESS_KEY_ID')
+    CW_AWS_SECRET_ACCESS_KEY = os.getenv('CW_AWS_SECRET_ACCESS_KEY')
+    CW_AWS_REGION = os.getenv('CW_AWS_REGION', default='us-east-1')
+    CW_LOG_GROUP = os.getenv('CW_LOG_GROUP', default='platform-dev')
+
+    # OpenShift Namespace
+    NAMESPACE = os.getenv('NAMESPACE', default='unknown')
+
     # Data directory for processing incoming data
     TMP_DIR = '/var/tmp/masu'
 
