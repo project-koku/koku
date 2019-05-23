@@ -64,11 +64,13 @@ class ReportObjectCreator:
 
         return row
 
-    def create_cost_entry_bill(self, bill_date=None):
+    def create_cost_entry_bill(self, bill_date=None, provider_id=None):
         """Create a cost entry bill database object for test."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         data = self.create_columns_for_table(table_name)
         data['provider_id'] = 1
+        if provider_id:
+            data['provider_id'] = provider_id
         if bill_date:
             bill_start = bill_date.replace(day=1).date()
             bill_end = bill_start + relativedelta.relativedelta(months=1)
