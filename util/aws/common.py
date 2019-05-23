@@ -189,7 +189,7 @@ def get_account_alias_from_role_arn(role_arn, session=None):
     return (account_id, alias)
 
 
-def get_bill_ids_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
     Return the AWS bill IDs given a provider UUID.
 
@@ -200,16 +200,19 @@ def get_bill_ids_from_provider(provider_uuid, schema, start_date=None, end_date=
         end_date (datetime, str) End date for bill IDs.
 
     Returns:
-        (list): AWS cost entry bill IDs.
+        (list): AWS cost entry bill objects.
 
     """
     if isinstance(start_date, datetime.datetime):
         start_date = start_date.replace(day=1)
         start_date = start_date.strftime('%Y-%m-%d')
+    elif isinstance(start_date, str):
+        start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+        start_date = start_date.replace(day=1)
+        start_date = start_date.strftime('%Y-%m-%d')
     if isinstance(end_date, datetime.datetime):
         end_date = end_date.strftime('%Y-%m-%d')
 
-    bill_ids = []
     with ReportingCommonDBAccessor() as reporting_common:
         column_map = reporting_common.column_map
 
@@ -220,7 +223,7 @@ def get_bill_ids_from_provider(provider_uuid, schema, start_date=None, end_date=
         err_msg = 'Provider UUID is not an AWS type.  It is {}'.\
             format(provider.type)
         LOG.warning(err_msg)
-        return bill_ids
+        return []
 
     with AWSReportDBAccessor(schema, column_map) as report_accessor:
         bill_table_name = AWS_CUR_TABLE_MAP['bill']
@@ -232,9 +235,7 @@ def get_bill_ids_from_provider(provider_uuid, schema, start_date=None, end_date=
             bills = bills.filter(bill_obj.billing_period_start <= end_date)
         bills = bills.all()
 
-        bill_ids = [str(bill.id) for bill in bills]
-
-    return bill_ids
+    return bills
 
 
 # pylint: disable=too-few-public-methods
