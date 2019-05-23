@@ -21,6 +21,7 @@ import datetime
 import logging
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            OCP_LOCAL_SERVICE_PROVIDER,
@@ -43,7 +44,7 @@ class ReportSummaryUpdaterError(Exception):
 class ReportSummaryUpdater:
     """Update reporting summary tables."""
 
-    def __init__(self, customer_schema, provider_uuid):
+    def __init__(self, customer_schema, provider_uuid, manifest_id=None):
         """
         Initializer.
 
@@ -53,9 +54,13 @@ class ReportSummaryUpdater:
         """
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
+        self._manifest = None
+        if manifest_id is not None:
+            with ReportManifestDBAccessor() as manifest_accessor:
+                self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
         self._date_accessor = DateAccessor()
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
-            self._provider = provider_accessor.get_type()
+            self._provider = provider_accessor.get_provider()
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
         except Exception as err:
@@ -63,6 +68,8 @@ class ReportSummaryUpdater:
 
         if not self._updater:
             raise ReportSummaryUpdaterError('Invalid provider type specified.')
+        LOG.info('Starting report data summarization for provider uuid: %s.',
+                 self._provider.uuid)
 
     def _set_updater(self):
         """
@@ -77,27 +84,18 @@ class ReportSummaryUpdater:
             (Object) : Provider-specific report summary updater
 
         """
-        if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-            return (AWSReportSummaryUpdater(self._schema),
-                    OCPCloudReportSummaryUpdater(self._schema))
-        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
-                              OCP_LOCAL_SERVICE_PROVIDER):
-            return (OCPReportSummaryUpdater(self._schema),
-                    OCPCloudReportSummaryUpdater(self._schema))
+        if self._provider.type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+            return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
+        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM,
+                                   OCP_LOCAL_SERVICE_PROVIDER):
+            return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
+                    OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
 
         return None
 
-    def update_summary_tables(self, start_date, end_date, manifest_id=None):
-        """
-        Update provider report summary tables.
-
-        Args:
-            None
-
-        Returns:
-            None
-
-        """
+    def _format_dates(self, start_date, end_date):
+        """Convert dates to strings for use in the updater."""
         if isinstance(start_date, datetime.date):
             start_date = start_date.strftime('%Y-%m-%d')
         if isinstance(end_date, datetime.date):
@@ -106,19 +104,62 @@ class ReportSummaryUpdater:
             # Run up to the current date
             end_date = self._date_accessor.today_with_timezone('UTC')
             end_date = end_date.strftime('%Y-%m-%d')
+        return start_date, end_date
+
+    def manifest_is_ready(self):
+        """Check if processing should continue."""
+        if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
+            # Bail if all manifest files have not been processed
+            LOG.info('Not all manifest files have completed processing.'
+                     'Summary defered')
+            return False
+        return True
+
+    def update_daily_tables(self, start_date, end_date):
+        """
+        Update report daily rollup tables.
+
+        Args:
+            start_date (str, datetime): When to start.
+            end_date (str, datetime): When to end.
+            manifest_id (str): The particular manifest to use.
+
+        Returns:
+            (str, str): The start and end date strings used in the daily SQL.
+
+        """
+        start_date, end_date = self._format_dates(start_date, end_date)
+
+        start_date, end_date = self._updater.update_daily_tables(
+            start_date,
+            end_date
+        )
+
+        return start_date, end_date
+
+    def update_summary_tables(self, start_date, end_date):
+        """
+        Update report summary tables.
+
+        Args:
+            start_date (str, datetime): When to start.
+            end_date (str, datetime): When to end.
+            manifest_id (str): The particular manifest to use.
+
+        Returns:
+            None
+
+        """
+        start_date, end_date = self._format_dates(start_date, end_date)
         LOG.info('Using start date: %s', start_date)
         LOG.info('Using end date: %s', end_date)
 
         start_date, end_date = self._updater.update_summary_tables(
             start_date,
-            end_date,
-            self._provider_uuid,
-            manifest_id
+            end_date
         )
 
         self._ocp_cloud_updater.update_summary_tables(
             start_date,
-            end_date,
-            self._provider_uuid,
-            manifest_id
+            end_date
         )
