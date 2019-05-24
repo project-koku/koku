@@ -171,9 +171,9 @@ class TagQueryHandler(QueryHandler):
     @staticmethod
     def _get_dictionary_for_key(dictionary_list, key):
         """Get dictionary matching key from list of dictionaries."""
-        for di in dictionary_list:
-            if key in di.get('key'):
-                return di
+        for dikt in dictionary_list:
+            if key in dikt.get('key'):
+                return dikt
         return None
 
     def get_tags(self):

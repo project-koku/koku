@@ -47,7 +47,7 @@ from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
 LOG = logging.getLogger(__name__)
 
 
-class ClassMapper(object):
+class ClassMapper:
     """Data structure object to organize class references."""
 
     # main mapping data structure
@@ -126,6 +126,7 @@ class ClassMapper(object):
         for item in self.CLASS_MAP:
             if provider == item.get('provider'):
                 return item.get('reports')
+        return []
 
     def report_types(self, provider):
         """Return list of report names."""
@@ -214,7 +215,7 @@ def process_tag_query_params(query_params, tag_keys):
     tag_key_set = set(tag_keys)
     param_tag_keys = set()
     for key, value in query_params.items():
-        if isinstance(value, dict) or isinstance(value, list):
+        if isinstance(value, (dict, list)):
             for inner_param_key in value:
                 if inner_param_key in tag_key_set:
                     param_tag_keys.add(inner_param_key)

@@ -35,12 +35,12 @@ from api.iam.serializers import UserSerializer, create_schema_name, extract_head
 from koku.rbac import RbacService
 
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-unique_account_counter = Counter('hccm_unique_account',  # pylint: disable=invalid-name
-                                 'Unique Account Counter')
-unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-name
-                              'Unique User Counter',
-                              ['account', 'user'])
+LOG = logging.getLogger(__name__)
+UNIQUE_ACCOUNTS = Counter('hccm_unique_account',
+                          'Unique Account Counter')
+UNIQUE_USERS = Counter('hccm_unique_user',
+                       'Unique User Counter',
+                       ['account', 'user'])
 
 
 def is_no_auth(request):
@@ -123,8 +123,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 customer.save()
                 tenant = Tenant(schema_name=schema_name)
                 tenant.save()
-                unique_account_counter.inc()
-                logger.info('Created new customer from account_id %s.', account)
+                UNIQUE_ACCOUNTS.inc()
+                LOG.info('Created new customer from account_id %s.', account)
         except IntegrityError:
             customer = Customer.objects.filter(account_id=account).get()
 
@@ -153,8 +153,8 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
                 if serializer.is_valid(raise_exception=True):
                     new_user = serializer.save()
 
-                unique_user_counter.labels(account=customer.account_id, user=username).inc()
-                logger.info('Created new user %s for customer(account_id %s).',
+                UNIQUE_USERS.labels(account=customer.account_id, user=username).inc()
+                LOG.info('Created new user %s for customer(account_id %s).',
                             username, customer.account_id)
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
@@ -185,14 +185,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             account = json_rh_auth.get('identity', {}).get('account_number')
             is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
         except (KeyError, JSONDecodeError):
-            logger.warning('Could not obtain identity on request.')
+            LOG.warning('Could not obtain identity on request.')
             return
         if (username and email and account):
             # Check for customer creation & user creation
             query_string = ''
             if request.META['QUERY_STRING']:
                 query_string = '?{}'.format(request.META['QUERY_STRING'])
-            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
+            LOG.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
                         f' -- ACCOUNT: {account} USER: {username}')
             try:
                 customer = Customer.objects.filter(account_id=account).get()
