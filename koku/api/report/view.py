@@ -37,7 +37,10 @@ from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
-from api.tags.serializers import AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer
+from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
+from api.tags.serializers import (AWSTagsQueryParamSerializer,
+                                  OCPAWSTagsQueryParamSerializer,
+                                  OCPTagsQueryParamSerializer)
 from api.utils import UnitConverter
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
@@ -116,7 +119,13 @@ class ClassMapper(object):
                     'serializer': OCPAWSQueryParamSerializer,
                     'query_handler': OCPAWSReportQueryHandler,
                     'tag_handler': [AWSTagsSummary]
-                }
+                },
+                {
+                    'report': 'tags',
+                    'serializer': OCPAWSTagsQueryParamSerializer,
+                    'query_handler': OCPAWSTagQueryHandler,
+                    'tag_handler': [AWSTagsSummary, OCPUsagePodLabelSummary]
+                },
             ]
         }
     ]

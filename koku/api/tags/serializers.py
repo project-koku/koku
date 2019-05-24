@@ -175,3 +175,8 @@ class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
         """
         validate_field(self, 'filter', AWSFilterSerializer, value)
         return value
+
+
+class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer,
+                                     OCPTagsQueryParamSerializer):
+    """Serializer for handling OCP-on-AWS tag query parameters."""
