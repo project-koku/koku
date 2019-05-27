@@ -326,11 +326,10 @@
         },
         "watchtower": {
             "hashes": [
-                "sha256:d7cc8e74f4451ae5b16525851a74a5aa8ab7fb2c65a8e3be63bd475e6e49c71f",
-                "sha256:f53a1a386934638a2a1f4f57d72e3cb17e255906d86d98684dc539ee252eb9f0"
+                "sha256:71959c065026c5da93adb0a9043872165fa6be487a76fecbb67a3670a5c11aa5",
+                "sha256:e205f1752a925994c53895e06150c44235abab4a623412b5e5372b07a3d38b9a"
             ],
-            "index": "pypi",
-            "version": "==0.5.5"
+            "version": "==0.6.0"
         },
         "whitenoise": {
             "hashes": [
