@@ -18,7 +18,6 @@
 import copy
 import logging
 
-from django.core.exceptions import FieldError
 from django.db.models import Q
 from tenant_schemas.utils import tenant_context
 
@@ -192,17 +191,11 @@ class TagQueryHandler(QueryHandler):
                 if type_filter and type_filter != source.get('type'):
                     continue
 
-                try:
-                    tag_keys = source.get('db_table').objects\
-                        .filter(self.query_filter)\
-                        .values(source.get('db_column'))\
-                        .all()
-                except FieldError:
-                    # this field isn't on this table. skip it.
-                    #
-                    # this should only be an issue for OCP+AWS and other
-                    # blended data sources where we use multiple inheritance.
-                    continue
+                tag_keys = source.get('db_table').objects\
+                    .filter(self.query_filter)\
+                    .values(source.get('db_column'))\
+                    .distinct()\
+                    .all()
                 tag_keys = [tag.get(source.get('db_column')) for tag in tag_keys]
 
                 for item in tag_keys:
