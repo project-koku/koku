@@ -32,7 +32,7 @@ class AWSTagQueryHandler(TagQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
+        super().__init__(query_parameters, url_data, tenant, **kwargs)
         self.data_sources.append({'db_table': AWSCostEntryLineItemDailySummary,
                                   'db_column': 'tags',
                                   'provider': 'AWS'})
-        super().__init__(query_parameters, url_data, tenant, **kwargs)

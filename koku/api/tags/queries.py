@@ -42,7 +42,6 @@ class TagQueryHandler(QueryHandler):
     """Handles tag queries and responses."""
 
     _DEFAULT_ORDERING = {'tags': 'asc'}
-    data_sources = []
 
     def __init__(self, query_parameters, url_data,
                  tenant, default_ordering=None, **kwargs):
@@ -61,8 +60,11 @@ class TagQueryHandler(QueryHandler):
 
         super().__init__(query_parameters, url_data,
                          tenant, default_ordering, **kwargs)
+
         self.query_filter = self._get_filter()
         self.parameter_filter = {}
+        self.data_sources = []
+
         if query_parameters:
             self.parameter_filter = query_parameters.get('filter', {})
 
