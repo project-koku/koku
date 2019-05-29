@@ -34,5 +34,4 @@ class AWSTagQueryHandler(TagQueryHandler):
         """
         super().__init__(query_parameters, url_data, tenant, **kwargs)
         self.data_sources.append({'db_table': AWSCostEntryLineItemDailySummary,
-                                  'db_column': 'tags',
-                                  'provider': 'AWS'})
+                                  'db_column': 'tags'})

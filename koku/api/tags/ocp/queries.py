@@ -36,9 +36,7 @@ class OCPTagQueryHandler(TagQueryHandler):
         super().__init__(query_parameters, url_data, tenant, **kwargs)
         self.data_sources.append({'db_table': OCPUsageLineItemDailySummary,
                                   'db_column': 'pod_labels',
-                                  'type': 'pod',
-                                  'provider': 'OCP'})
+                                  'type': 'pod'})
         self.data_sources.append({'db_table': OCPStorageLineItemDailySummary,
                                   'db_column': 'volume_labels',
-                                  'type': 'storage',
-                                  'provider': 'OCP'})
+                                  'type': 'storage'})
