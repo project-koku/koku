@@ -40,6 +40,7 @@ from reporting.models import (OCPAWSCostLineItemDailySummary,
                               OCPAWSCostLineItemProjectDailySummary)
 
 
+# pylint: disable=no-member, too-many-locals
 class OCPAWSReportDataGenerator(OCPReportDataGenerator):
     """Populate the database with OCP on AWS report data."""
 
@@ -56,6 +57,12 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                                         usage_end=aws_usage_end,
                                         resource_id=self.resource_id)
         self._tags = self._generate_tags()
+        self.usage_account_id = self.fake.word()
+        self.account_alias = self.fake.word()
+
+        self.ocp_aws_summary_line_items = None
+        self.cluster_alias = None
+        self.provider_uuid = None
 
     @property
     def tags(self):
@@ -100,9 +107,6 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
     def add_data_to_tenant(self, **kwargs):
         """Populate tenant with data."""
         super().add_data_to_tenant(**kwargs)
-        self.usage_account_id = self.fake.word()
-        self.account_alias = self.fake.word()
-
         self.ocp_aws_summary_line_items = [
             {
                 'namespace': random.choice(self.namespaces),
@@ -113,7 +117,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             for node in self.nodes
         ]
         with tenant_context(self.tenant):
-            for i, period in enumerate(self.period_ranges):
+            for i, _ in enumerate(self.period_ranges):
                 for report_date in self.report_ranges[i]:
                     self._populate_ocp_aws_cost_line_item_daily_summary(report_date)
                     self._populate_ocp_aws_cost_line_item_project_daily_summary(report_date)
@@ -163,10 +167,11 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                 model_instances = {'cost_entry': cost_entry,
                                    'cost_entry_bill': bill,
                                    'cost_entry_product': ce_product,
-                                   'cost_entry_pricing': ce_pricing}
+                                   'cost_entry_pricing': ce_pricing,
+                                   'tags': self._select_tags()}
                 line_item_data.update(model_instances)
 
-                line_item, _ = AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
+                AWSCostEntryLineItem.objects.get_or_create(**line_item_data)
 
                 current = end_hour
 
@@ -222,36 +227,17 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     def _generate_tags(self):
         """Create tags for output data."""
-        apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                         self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        markets = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                   self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        versions = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                    self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-
-        seeded_labels = {'environment': ['dev', 'ci', 'qa', 'stage', 'prod'],
-                         'app': apps,
-                         'organization': organizations,
-                         'market': markets,
-                         'version': versions
-                         }
-        gen_label_keys = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                          self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        all_label_keys = list(seeded_labels.keys()) + gen_label_keys
-        num_labels = random.randint(2, len(all_label_keys))
-        chosen_label_keys = random.choices(all_label_keys, k=num_labels)
-
-        labels = {}
-        for label_key in chosen_label_keys:
-            label_value = self.fake.word()  # pylint: disable=no-member
-            if label_key in seeded_labels:
-                label_value = random.choice(seeded_labels[label_key])
-
-            labels['{}_label'.format(label_key)] = label_value
-
+        labels = {'environment': ['dev', 'ci', 'qa', 'stage', 'prod']}
+        for _ in range(0, random.randint(4, 8)):
+            key = self.fake.word()
+            vals = [self.fake.word() for _ in range(0, random.randint(1, 8))]
+            labels[key] = vals
         return labels
+
+    def _select_tags(self):
+        """Randomly select a few tags from the full list."""
+        return {key: val for key, val in random.choices(
+            list(self.tags.items()), k=random.randint(1, len(self.tags.keys())))}
 
     def _populate_ocp_aws_cost_line_item_daily_summary(self, report_date):
         """Create OCP hourly usage line items."""
@@ -286,7 +272,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'account_alias': None,
                     'availability_zone': az,
                     'region': region,
-                    'tags': self.tags,
+                    'tags': self._select_tags(),
                     'unit': unit,
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
@@ -319,7 +305,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'namespace': row.get('namespace'),
                     'node': row.get('node'),
                     'pod': row.get('pod'),
-                    'pod_labels': self.tags,
+                    'pod_labels': self._select_tags(),
                     'resource_id': resource_prefix + row.get('resource_id'),
                     'usage_start': report_date,
                     'usage_end': report_date,
