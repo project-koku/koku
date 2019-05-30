@@ -125,8 +125,8 @@ class OCPAWSFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the AWSFilterSerializer."""
         super().__init__(*args, **kwargs)
-        add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS +
-                                                   OCP_FILTER_OP_FIELDS)
+        add_operator_specified_fields(self.fields,
+                                      AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
 class TagsQueryParamSerializer(serializers.Serializer):
