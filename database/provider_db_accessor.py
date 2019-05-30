@@ -26,16 +26,17 @@ from masu.database.provider_billing_source_db_accessor import ProviderBillingSou
 class ProviderDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for Provider Data."""
 
-    def __init__(self, provider_uuid, schema='public'):
+    def __init__(self, provider_uuid=None, auth_id=None):
         """
         Establish Provider database connection.
 
         Args:
             provider_uuid  (String) the uuid of the provider
-            schema         (String) database schema (i.e. public or customer tenant value)
+            auth_id        (String) provider authentication database id
         """
-        super().__init__(schema)
+        super().__init__('public')
         self._uuid = provider_uuid
+        self._auth_id = auth_id
         self._table = self.get_base().classes.api_provider
 
     # pylint: disable=arguments-differ
@@ -48,7 +49,17 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        return super()._get_db_obj_query(uuid=self._uuid)
+        query = None
+        if self._auth_id and not self._uuid:
+            query = super()._get_db_obj_query(authentication_id=self._auth_id)
+        elif self._uuid and not self._auth_id:
+            query = super()._get_db_obj_query(uuid=self._uuid)
+        elif self._uuid and self._auth_id:
+            query = super()._get_db_obj_query(uuid=self._uuid, authentication_id=self._auth_id)
+        else:
+            query = super()._get_db_obj_query()
+
+        return query
 
     def get_provider(self):
         """Return the provider."""

@@ -24,7 +24,7 @@ class CURAccountsInterface(ABC):
     """Masu interface definition to access Cost of Usage Report accounts."""
 
     @abstractmethod
-    def get_accounts_from_source(self):
+    def get_accounts_from_source(self, provider_uuid=None):
         """
         Return a list of all CUR accounts setup in Koku.
 
@@ -32,7 +32,7 @@ class CURAccountsInterface(ABC):
         CostUsageReportAccount objects
 
         Args:
-            None
+            provider_uuid (String) - Optional, return specific account
 
         Returns:
             None

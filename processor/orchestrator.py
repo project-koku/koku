@@ -15,12 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report Processing Orchestrator."""
-
 import logging
 
 from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
-from masu.processor.tasks import (get_report_files, remove_expired_data, summarize_reports)
+from masu.processor.tasks import (get_report_files,
+                                  remove_expired_data,
+                                  summarize_reports)
 from masu.providers.status import ProviderStatus
 
 LOG = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class Orchestrator():
         Args:
             billing_source (String): Individual account to retrieve.
         """
-        self._accounts = self.get_accounts(billing_source)
+        self._accounts, self._polling_accounts = self.get_accounts(billing_source)
 
     @staticmethod
     def get_accounts(billing_source=None):
@@ -60,10 +61,11 @@ class Orchestrator():
             billing_source (String): Individual account to retrieve.
 
         Returns:
-            [CostUsageReportAccount]
+            [CostUsageReportAccount] (all), [CostUsageReportAccount] (polling only)
 
         """
         all_accounts = []
+        polling_accounts = []
         try:
             all_accounts = AccountsAccessor().get_accounts()
         except AccountsAccessorError as error:
@@ -72,8 +74,13 @@ class Orchestrator():
         if billing_source:
             for account in all_accounts:
                 if billing_source == account.get('billing_source'):
-                    return [account]
-        return all_accounts
+                    all_accounts = [account]
+
+        for account in all_accounts:
+            if AccountsAccessor().is_polling_account(account):
+                polling_accounts.append(account)
+
+        return all_accounts, polling_accounts
 
     def prepare(self):
         """
@@ -87,11 +94,12 @@ class Orchestrator():
 
         """
         async_result = None
-        for account in self._accounts:
+        for account in self._polling_accounts:
             provider_status = ProviderStatus(account.get('provider_uuid'))
             if provider_status.is_valid() and not provider_status.is_backing_off():
                 LOG.info('Getting report files for account: %s', account)
-                async_result = (get_report_files.s(**account) | summarize_reports.s()).apply_async()
+                async_result = (get_report_files.s(**account) | summarize_reports.s()).\
+                    apply_async()
 
                 LOG.info('Download queued - customer: %s, Task ID: %s',
                          account.get('customer_name'),

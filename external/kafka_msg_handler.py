@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Kafka message handler."""
-
 import asyncio
+import concurrent.futures
 import json
 import logging
 import os
@@ -32,11 +32,15 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from kafka.errors import ConnectionError as KafkaConnectionError
 
 from masu.config import Config
+from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
+from masu.processor.tasks import get_report_files, summarize_reports
 from masu.util.ocp import common as utils
 
 LOG = logging.getLogger(__name__)
+
 EVENT_LOOP = asyncio.get_event_loop()
 MSG_PENDING_QUEUE = asyncio.Queue()
+
 HCCM_TOPIC = 'platform.upload.hccm'
 VALIDATION_TOPIC = 'platform.upload.validation'
 SUCCESS_CONFIRM_STATUS = 'success'
@@ -72,7 +76,13 @@ def extract_payload(url):
         url (String): URL path to payload in the Insights upload service..
 
     Returns:
-        None
+        (Dict): keys: value
+            "file: String,
+             cluster_id: String,
+             payload_date: DateTime,
+             manifest_path: String,
+             uuid: String,
+             manifest_path: String"
 
     """
     # Create temporary directory for initial file staging and verification
@@ -132,6 +142,7 @@ def extract_payload(url):
     LOG.info('Successfully extracted OCP for %s/%s', report_meta.get('cluster_id'), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
+    return report_meta
 
 
 async def send_confirmation(request_id, status):  # pragma: no cover
@@ -194,23 +205,86 @@ def handle_message(msg):
 
 
     Args:
-        None
+        msg - Upload Service message containing usage payload information.
 
     Returns:
-        None
+        (String, dict) - String: Upload Service confirmation status
+                         dict: keys: value
+                               file: String,
+                               cluster_id: String,
+                               payload_date: DateTime,
+                               manifest_path: String,
+                               uuid: String,
+                               manifest_path: String
 
     """
     if msg.topic == HCCM_TOPIC:
         value = json.loads(msg.value.decode('utf-8'))
         try:
-            extract_payload(value['url'])
-            return SUCCESS_CONFIRM_STATUS
+            report_meta = extract_payload(value['url'])
+            return SUCCESS_CONFIRM_STATUS, report_meta
         except KafkaMsgHandlerError as error:
             LOG.error('Unable to extract payload. Error: %s', str(error))
-            return FAILURE_CONFIRM_STATUS
+            return FAILURE_CONFIRM_STATUS, None
     else:
         LOG.error('Unexpected Message')
-    return None
+    return None, None
+
+
+def get_account(provider_uuid):
+    """
+    Retrieve a provider's account configuration needed for processing.
+
+    Args:
+        provider_uuid (String): Provider unique identifier.
+
+    Returns:
+        (dict) - keys: value
+                 authentication: String,
+                 customer_name: String,
+                 billing_source: String,
+                 provider_type: String,
+                 schema_name: String,
+                 provider_uuid: String
+
+    """
+    all_accounts = []
+    try:
+        all_accounts = AccountsAccessor().get_accounts(provider_uuid)
+    except AccountsAccessorError as error:
+        LOG.info('Unable to get accounts. Error: %s', str(error))
+        return None
+
+    return all_accounts.pop()
+
+
+def process_report(report):
+    """
+    Process line item report and kick off summarization celery task.
+
+    Args:
+        report (Dict) - keys: value
+                        file: String,
+                        cluster_id: String,
+                        payload_date: DateTime,
+                        manifest_path: String,
+                        uuid: String,
+                        manifest_path: String
+    Returns:
+        None
+
+    """
+    cluster_id = report.get('cluster_id')
+    provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
+    if provider_uuid:
+        account = get_account(provider_uuid)
+        LOG.info('Processing report for account %s', account)
+
+        reports_to_summarize = get_report_files(**account)
+        LOG.info('Processing complete for account %s', account)
+
+        async_id = summarize_reports.delay(reports_to_summarize)
+        LOG.info('Summarization celery uuid: %s', str(async_id))
 
 
 async def process_messages():  # pragma: no cover
@@ -226,10 +300,13 @@ async def process_messages():  # pragma: no cover
     """
     while True:
         msg = await MSG_PENDING_QUEUE.get()
-        status = handle_message(msg)
+        status, report_meta = handle_message(msg)
         if status:
             value = json.loads(msg.value.decode('utf-8'))
             await send_confirmation(value['request_id'], status)
+        if report_meta:
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
 
 
 async def listen_for_messages(consumer):  # pragma: no cover
@@ -318,3 +395,4 @@ def initialize_kafka_handler():  # pragma: no cover
         event_loop_thread = threading.Thread(target=asyncio_worker_thread, args=(EVENT_LOOP,))
         event_loop_thread.daemon = True
         event_loop_thread.start()
+        event_loop_thread.join()
