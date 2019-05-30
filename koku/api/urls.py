@@ -36,7 +36,7 @@ from api.views import (CostModelMetricsMapViewSet,
                        volume)
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'metrics', CostModelMetricsMapViewSet)
+ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 
