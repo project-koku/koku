@@ -180,3 +180,20 @@ class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
 class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer,
                                      OCPTagsQueryParamSerializer):
     """Serializer for handling OCP-on-AWS tag query parameters."""
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+        """
+        try:
+            validate_field(self, 'filter', AWSFilterSerializer, value)
+        except serializers.ValidationError:
+            validate_field(self, 'filter', OCPFilterSerializer, value)
+
+        return value

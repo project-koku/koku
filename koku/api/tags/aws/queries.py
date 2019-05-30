@@ -22,16 +22,5 @@ from reporting.models import AWSCostEntryLineItemDailySummary
 class AWSTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for AWS."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
-        """Establish AWS report query handler.
-
-        Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
-        """
-        super().__init__(query_parameters, url_data, tenant, **kwargs)
-        self.data_sources.append({'db_table': AWSCostEntryLineItemDailySummary,
-                                  'db_column': 'tags'})
+    data_sources = [{'db_table': AWSCostEntryLineItemDailySummary,
+                     'db_column': 'tags'}]

@@ -124,7 +124,7 @@ class ClassMapper(object):
                     'report': 'tags',
                     'serializer': OCPAWSTagsQueryParamSerializer,
                     'query_handler': OCPAWSTagQueryHandler,
-                    'tag_handler': [AWSTagsSummary, OCPUsagePodLabelSummary]
+                    'tag_handler': [AWSTagsSummary]
                 },
             ]
         }
