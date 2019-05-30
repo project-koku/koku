@@ -24,7 +24,7 @@ from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.common.permissions.rates_access import RatesAccessPermission
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from rates.models import Rate, RateMap
 from rates.serializers import RateSerializer
 
@@ -75,7 +75,7 @@ class RateViewSet(mixins.CreateModelMixin,
 
     queryset = Rate.objects.all()
     serializer_class = RateSerializer
-    permission_classes = (RatesAccessPermission,)
+    permission_classes = (CostModelsAccessPermission,)
     lookup_field = 'uuid'
 
     def get_queryset(self):

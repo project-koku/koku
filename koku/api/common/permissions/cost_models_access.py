@@ -20,7 +20,7 @@ from uuid import UUID
 from rest_framework import permissions
 
 
-class RatesAccessPermission(permissions.BasePermission):
+class CostModelsAccessPermission(permissions.BasePermission):
     """Determines if a user has access to RATE APIs."""
 
     def get_uuid_from_url(self, request):
