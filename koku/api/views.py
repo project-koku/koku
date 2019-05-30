@@ -19,6 +19,7 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.iam.view.user_preference import UserPreferenceViewSet
+from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
 from api.report.aws.view import (costs as aws_costs,
