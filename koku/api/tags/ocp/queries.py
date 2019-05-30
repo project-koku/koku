@@ -23,17 +23,9 @@ from reporting.models import OCPUsageLineItemDailySummary
 class OCPTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for OCP."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
-        """Establish OCP report query handler.
-
-        Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
-        """
-        data_source = [{'db_table': OCPUsageLineItemDailySummary, 'db_column': 'pod_labels', 'type': 'pod'},
-                       {'db_table': OCPStorageLineItemDailySummary, 'db_column': 'volume_labels', 'type': 'storage'}]
-        super().__init__(query_parameters, url_data,
-                         tenant, data_source, **kwargs)
+    data_sources = [{'db_table': OCPUsageLineItemDailySummary,
+                     'db_column': 'pod_labels',
+                     'type': 'pod'},
+                    {'db_table': OCPStorageLineItemDailySummary,
+                     'db_column': 'volume_labels',
+                     'type': 'storage'}]
