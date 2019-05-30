@@ -56,8 +56,7 @@ class OCPCloudReportSummaryUpdater:
             None
 
         """
-        cluster_id = get_cluster_id_from_provider(self._provider.uuid,
-                                                  self._schema_name)
+        cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         aws_bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema_name,

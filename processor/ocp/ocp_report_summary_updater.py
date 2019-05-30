@@ -41,10 +41,7 @@ class OCPReportSummaryUpdater:
         self._schema_name = schema
         self._provider = provider
         self._manifest = manifest
-        self._cluster_id = get_cluster_id_from_provider(
-            self._provider.uuid,
-            self._schema_name
-        )
+        self._cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         with ReportingCommonDBAccessor() as reporting_common:
             self._column_map = reporting_common.column_map
         self._date_accessor = DateAccessor()

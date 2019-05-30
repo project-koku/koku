@@ -15,17 +15,16 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP utility functions."""
-
 import json
 import logging
+import os
 
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.config import Config
+from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.exceptions import MasuConfigurationError
 from masu.external import (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM)
 
 LOG = logging.getLogger(__name__)
@@ -106,7 +105,7 @@ def get_local_file_name(file_path):
     return local_file_name
 
 
-def get_cluster_id_from_provider(provider_uuid, schema):
+def get_cluster_id_from_provider(provider_uuid):
     """
     Return the cluster ID given a provider UUID.
 
@@ -118,11 +117,7 @@ def get_cluster_id_from_provider(provider_uuid, schema):
 
     """
     cluster_id = None
-    with ReportingCommonDBAccessor() as reporting_common:
-        column_map = reporting_common.column_map
-
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
-        provider_obj = provider_accessor.get_provider()
         provider_type = provider_accessor.get_type()
 
     if provider_type not in (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM):
@@ -131,14 +126,50 @@ def get_cluster_id_from_provider(provider_uuid, schema):
         LOG.warning(err_msg)
         return cluster_id
 
-    with OCPReportDBAccessor(schema, column_map) as report_accessor:
-        usage_period_qry = report_accessor.get_usage_period_query_by_provider(provider_obj.id)
-        clusters = []
-        for obj in usage_period_qry.all():
-            clusters.append(obj.cluster_id)
-        if len(set(clusters)) > 1:
-            err_msg = 'Provider {} is associated with too many clusters. Clusters: {}'.\
-                format(provider_uuid, str(set(clusters)))
-            raise MasuConfigurationError(err_msg)
-        cluster_id = clusters.pop() if clusters else None
+    with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+        cluster_id = provider_accessor.get_authentication()
+
     return cluster_id
+
+
+def get_provider_uuid_from_cluster_id(cluster_id):
+    """
+    Return the provider UUID given the cluster ID.
+
+    Args:
+        cluster_id (String): OpenShift Cluster ID
+
+    Returns:
+        (String): provider UUID
+
+    """
+    provider_uuid = None
+    auth_id = None
+    with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
+        auth_id = auth_accessor.get_auth_id()
+        if auth_id:
+            with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
+                provider_uuid = provider_accessor.get_uuid()
+    return provider_uuid
+
+
+def poll_ingest_override_for_provider(provider_uuid):
+    """
+    Return whether or not the OpenShift provider should be treated like a POLLING provider.
+
+    The purpose of this is to continue to support back-door (no upload service) OpenShift
+    report ingest.  Used for development and local test automation.
+
+    On the masu-worker if the insights local directory exists for the given provider then
+    the masu orchestrator will treat it as a polling provider rather than listening.
+
+    Args:
+        provider_uuid (String): Provider UUID.
+
+    Returns:
+        (Boolean): True: OCP provider should be treated like a polling provider.
+
+    """
+    cluster_id = get_cluster_id_from_provider(provider_uuid)
+    local_ingest_path = '{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR, str(cluster_id))
+    return os.path.exists(local_ingest_path)
