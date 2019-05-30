@@ -253,7 +253,7 @@ class OCPReportChargeUpdater:
             None
 
         """
-        self._cluster_id = get_cluster_id_from_provider(self._provider_uuid, self._schema)
+        self._cluster_id = get_cluster_id_from_provider(self._provider_uuid)
 
         LOG.info('Starting charge calculation updates for provider: %s. Cluster ID: %s.',
                  self._provider_uuid, self._cluster_id)

@@ -24,14 +24,14 @@ from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 class CURAccountsDB(CURAccountsInterface):
     """Provider interface defnition."""
 
-    def get_accounts_from_source(self):
+    def get_accounts_from_source(self, provider_uuid=None):
         """
         Retrieve all accounts from the Koku database.
 
         This will return a list of dicts for the Orchestrator to use to access reports.
 
         Args:
-            None
+            provider_uuid (String) - Optional, return specific account
 
         Returns:
             ([{}]) : A list of dicts
@@ -41,6 +41,8 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_providers()
             for provider in all_providers:
+                if provider_uuid and provider.uuid != provider_uuid:
+                    continue
                 account = {
                     'authentication': provider.api_providerauthentication.provider_resource_name,
                     'customer_name': provider.api_customer.schema_name,

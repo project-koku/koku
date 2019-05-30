@@ -23,16 +23,17 @@ from masu.database.koku_database_access import KokuDBAccess
 class ProviderAuthDBAccessor(KokuDBAccess):
     """Class to interact with the koku database for Provider Authentication Data."""
 
-    def __init__(self, auth_id, schema='public'):
+    def __init__(self, auth_id=None, provider_resource_name=None):
         """
         Establish Provider Authentication database connection.
 
         Args:
-            auth_id      (String) the provider authentication unique database id
-            schema       (String) database schema (i.e. public or customer tenant value)
+            auth_id                      (String) the provider authentication unique database id
+            provider_resource_name       (String) the provider resource name
         """
-        super().__init__(schema)
+        super().__init__('public')
         self._auth_id = auth_id
+        self._provider_resource_name = provider_resource_name
         self._table = self.get_base().classes.api_providerauthentication
 
     # pylint: disable=arguments-differ
@@ -45,7 +46,29 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        return super()._get_db_obj_query(id=self._auth_id)
+        query = None
+        if self._auth_id and not self._provider_resource_name:
+            query = super()._get_db_obj_query(id=self._auth_id)
+        elif self._provider_resource_name and not self._auth_id:
+            query = super()._get_db_obj_query(provider_resource_name=self._provider_resource_name)
+        elif self._auth_id and self._provider_resource_name:
+            query = super()._get_db_obj_query(id=self._auth_id,
+                                              provider_resource_name=self._provider_resource_name)
+        else:
+            query = super()._get_db_obj_query()
+        return query
+
+    def get_auth_id(self):
+        """
+        Return the database id.
+
+        Args:
+            None
+        Returns:
+            (Integer): "1",
+        """
+        auth_obj = self._get_db_obj_query().first()
+        return auth_obj.id if auth_obj else None
 
     def get_uuid(self):
         """

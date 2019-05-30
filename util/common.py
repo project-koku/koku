@@ -16,8 +16,14 @@
 #
 
 """Common util functions."""
-
 import re
+
+from masu.external import (AMAZON_WEB_SERVICES,
+                           AWS_LOCAL_SERVICE_PROVIDER,
+                           LISTEN_INGEST,
+                           OCP_LOCAL_SERVICE_PROVIDER,
+                           OPENSHIFT_CONTAINER_PLATFORM,
+                           POLL_INGEST)
 
 
 def extract_uuids_from_string(source_string):
@@ -48,3 +54,14 @@ def stringify_json_data(data):
         return str(data)
 
     return data
+
+
+def ingest_method_for_provider(provider):
+    """Return the ingest method for provider."""
+    ingest_map = {
+        AMAZON_WEB_SERVICES: POLL_INGEST,
+        AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        OCP_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
+    }
+    return ingest_map.get(provider)

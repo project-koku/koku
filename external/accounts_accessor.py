@@ -15,11 +15,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider external interface for koku to consume."""
+import logging
 
 from masu.config import Config
 from masu.exceptions import CURAccountsInterfaceError
+from masu.external import POLL_INGEST
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from masu.external.accounts.network.cur_accounts_network import CURAccountsNetwork
+from masu.util import common as utils
+from masu.util.ocp import common as ocp_utils
+
+LOG = logging.getLogger(__name__)
 
 
 class AccountsAccessorError(Exception):
@@ -58,7 +64,41 @@ class AccountsAccessor:
 
         return None
 
-    def get_accounts(self):
+    @staticmethod
+    def is_polling_account(account):
+        """
+        Determine if account should be polled to initiate the processing pipeline.
+
+        Account report information can be ingested by either POLLING (hourly beat schedule)
+        or by LISTENING (kafka event-driven).
+
+        There is a development-only use case to be able to force an account to follow the
+        polling ingest path.  For Example: OpenShift is a LISTENING provider type but we
+        can still side-load data by placing it in the temporary file storage directory on
+        the worker.  On the next poll the Orchestrator will look for report updates in this
+        directory and proceed with the download/processing steps.
+
+        Args:
+            account (dict) - Account dictionary that is retruned by
+                             AccountsAccessor().get_accounts()
+
+        Returns:
+            (Boolean) : True if provider should be polled for updates.
+
+        """
+        poll = False
+        if utils.ingest_method_for_provider(account.get('provider_type')) == POLL_INGEST:
+            LOG.info('Polling for account type: %s, uuid: %s',
+                     account.get('provider_type'), account.get('provider_uuid'))
+            poll = True
+        else:
+            if ocp_utils.poll_ingest_override_for_provider(account.get('provider_uuid')):
+                LOG.info('Polling override for account type: %s, uuid: %s',
+                         account.get('provider_type'), account.get('provider_uuid'))
+                poll = True
+        return poll
+
+    def get_accounts(self, provider_uuid=None):
         """
         Return all of the CUR accounts setup in Koku.
 
@@ -72,7 +112,7 @@ class AccountsAccessor:
 
         """
         try:
-            accounts = self.source.get_accounts_from_source()
+            accounts = self.source.get_accounts_from_source(provider_uuid)
         except CURAccountsInterfaceError as error:
             raise AccountsAccessorError(str(error))
 

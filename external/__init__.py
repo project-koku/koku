@@ -22,6 +22,10 @@ OPENSHIFT_CONTAINER_PLATFORM = 'OCP'
 AWS_LOCAL_SERVICE_PROVIDER = 'AWS-local'
 OCP_LOCAL_SERVICE_PROVIDER = 'OCP-local'
 
+# Ingest Methods
+POLL_INGEST = 'poll-ingest'
+LISTEN_INGEST = 'listen-ingest'
+
 # Compression formats
 UNCOMPRESSED = 'PLAIN'
 GZIP_COMPRESSED = 'GZIP'

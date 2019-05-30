@@ -107,14 +107,14 @@ class CURAccountsNetwork(CURAccountsInterface):
         header = {'Authorization': token_value}
         return header
 
-    def get_accounts_from_source(self):
+    def get_accounts_from_source(self, provider_uuid=None):
         """
         Retrieve all accounts from the Koku database.
 
         This will return a list of dicts for the Orchestrator to use to access reports.
 
         Args:
-            None
+            provider_uuid (String) - Optional, return specific account
 
         Returns:
             ([{}]) : A list of dicts
