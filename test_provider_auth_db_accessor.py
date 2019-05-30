@@ -25,22 +25,48 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
 
     def test_initializer(self):
         """Test Initializer"""
-        auth_id = '1'
+        auth_id = self.aws_db_auth_id
         accessor = ProviderAuthDBAccessor(auth_id)
+        self.assertIsNotNone(accessor._session)
+        self.assertTrue(accessor.does_db_entry_exist())
+        self.assertEqual(int(auth_id), accessor.get_auth_id())
+        accessor.close_session()
+
+    def test_initializer_provider_resource_name(self):
+        """Test Initializer with provider resource name."""
+        provider_resource_name = self.ocp_provider_resource_name
+        accessor = ProviderAuthDBAccessor(provider_resource_name=provider_resource_name)
+        self.assertIsNotNone(accessor._session)
+        self.assertTrue(accessor.does_db_entry_exist())
+        accessor.close_session()
+
+    def test_initializer_auth_id_and_provider_resource_name(self):
+        """Test Initializer with auth_id and provider resource name."""
+        auth_id = self.ocp_db_auth_id
+        provider_resource_name = self.ocp_provider_resource_name
+        accessor = ProviderAuthDBAccessor(auth_id=auth_id, provider_resource_name=provider_resource_name)
+        self.assertIsNotNone(accessor._session)
+        self.assertTrue(accessor.does_db_entry_exist())
+        self.assertEqual(int(auth_id), accessor.get_auth_id())
+        accessor.close_session()
+
+    def test_initializer_no_args(self):
+        """Test Initializer with no arguments."""
+        accessor = ProviderAuthDBAccessor()
         self.assertIsNotNone(accessor._session)
         self.assertTrue(accessor.does_db_entry_exist())
         accessor.close_session()
 
     def test_get_uuid(self):
         """Test uuid getter."""
-        auth_id = '1'
+        auth_id = self.aws_db_auth_id
         accessor = ProviderAuthDBAccessor(auth_id)
         self.assertEqual('7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6', accessor.get_uuid())
         accessor.close_session()
 
     def test_get_get_provider_resource_name(self):
         """Test provider name getter."""
-        auth_id = '1'
+        auth_id = self.aws_db_auth_id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual('arn:aws:iam::111111111111:role/CostManagement', accessor.get_provider_resource_name())
+        self.assertEqual(self.aws_provider_resource_name, accessor.get_provider_resource_name())
         accessor.close_session()

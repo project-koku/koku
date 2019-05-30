@@ -35,7 +35,6 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.ocp.common import get_cluster_id_from_provider
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 

@@ -982,14 +982,8 @@ class ReportDBAccessorTest(MasuTestCase):
             func.sum(li_table.unblended_cost)
         ).first()
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as ocp_accessor:
-            ocp_creator = ReportObjectCreator(
-                ocp_accessor,
-                self.column_map,
-                ocp_accessor.report_schema.column_types
-            )
-
-            cluster_id = 'testcluster'
+        with OCPReportDBAccessor(self.test_schema, self.column_map) as ocp_accessor:
+            cluster_id = self.ocp_provider_resource_name
             with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
                 provider_id = provider_access.get_provider().id
 
@@ -1001,7 +995,7 @@ class ReportDBAccessorTest(MasuTestCase):
                     report,
                     resource_id=resource_id
                 )
-            cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid, self.test_schema)
+            cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
             ocp_accessor.populate_line_item_daily_table(last_month, today, cluster_id)
 
         query = self.accessor._get_db_obj_query(summary_table_name)
