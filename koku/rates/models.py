@@ -21,6 +21,8 @@ from uuid import uuid4
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from api.metrics.models import CostModelMetricsMap
+
 
 class Rate(models.Model):
     """A rate for calculating charge.
@@ -28,25 +30,12 @@ class Rate(models.Model):
     Support various types of rates (flat, fixed, tiered, discount).
     """
 
-    METRIC_CPU_CORE_USAGE_HOUR = 'cpu_core_usage_per_hour'
-    METRIC_CPU_CORE_REQUEST_HOUR = 'cpu_core_request_per_hour'
-    METRIC_MEM_GB_USAGE_HOUR = 'memory_gb_usage_per_hour'
-    METRIC_MEM_GB_REQUEST_HOUR = 'memory_gb_request_per_hour'
-    METRIC_STORAGE_GB_USAGE_MONTH = 'storage_gb_usage_per_month'
-    METRIC_STORAGE_GB_REQUEST_MONTH = 'storage_gb_request_per_month'
-
-    METRIC_CHOICES = ((METRIC_CPU_CORE_USAGE_HOUR, METRIC_CPU_CORE_USAGE_HOUR),
-                      (METRIC_CPU_CORE_REQUEST_HOUR, METRIC_CPU_CORE_REQUEST_HOUR),
-                      (METRIC_MEM_GB_USAGE_HOUR, METRIC_MEM_GB_USAGE_HOUR),
-                      (METRIC_MEM_GB_REQUEST_HOUR, METRIC_MEM_GB_REQUEST_HOUR),
-                      (METRIC_STORAGE_GB_USAGE_MONTH, METRIC_STORAGE_GB_USAGE_MONTH),
-                      (METRIC_STORAGE_GB_REQUEST_MONTH, METRIC_STORAGE_GB_REQUEST_MONTH),)
-
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
 
     metric = models.CharField(max_length=256, null=False,
-                              choices=METRIC_CHOICES, default=METRIC_CPU_CORE_USAGE_HOUR)
+                              choices=CostModelMetricsMap.METRIC_CHOICES,
+                              default=CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR)
     rates = JSONField(default=dict)
 
     class Meta:

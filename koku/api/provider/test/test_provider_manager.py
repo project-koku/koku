@@ -26,11 +26,12 @@ from tenant_schemas.utils import tenant_context
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from rates.models import Rate, RateMap
+from rates.models import RateMap
 from rates.rate_manager import RateManager
 
 
@@ -229,7 +230,11 @@ class ProviderManagerTest(IamTestCase):
                 'usage_end': None
             }]}
             manager = RateManager()
-            manager.create(metric=Rate.METRIC_CPU_CORE_USAGE_HOUR, rates=rates, provider_uuids=[provider.uuid])
+            manager.create(
+                metric=CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR,
+                rates=rates,
+                provider_uuids=[provider.uuid]
+            )
             manager = ProviderManager(provider_uuid)
             manager.remove(other_user)
             rates_query = RateMap.objects.all().filter(provider_uuid=provider_uuid)
