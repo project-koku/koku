@@ -119,6 +119,16 @@ class AWSFilterSerializer(FilterSerializer):
         add_operator_specified_fields(self.fields, AWS_FILTER_OP_FIELDS)
 
 
+class OCPAWSFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AWSFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields,
+                                      AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
+
+
 class TagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
@@ -175,3 +185,10 @@ class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
         """
         validate_field(self, 'filter', AWSFilterSerializer, value)
         return value
+
+
+class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer,
+                                     OCPTagsQueryParamSerializer):
+    """Serializer for handling OCP-on-AWS tag query parameters."""
+
+    filter = OCPAWSFilterSerializer(required=False)

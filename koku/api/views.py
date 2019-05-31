@@ -32,3 +32,4 @@ from api.report.ocp_aws.view import (costs as openshift_aws_costs,
 from api.status.views import status
 from api.tags.aws.view import aws_tags
 from api.tags.ocp.view import ocp_tags as openshift_tags
+from api.tags.ocp_aws.views import ocp_aws_tags as openshift_aws_tags
