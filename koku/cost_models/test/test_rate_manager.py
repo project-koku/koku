@@ -21,6 +21,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from rates.models import Rate, RateMap
 from rates.rate_manager import RateManager, RateManagerError
@@ -57,7 +58,7 @@ class RateManagerTest(IamTestCase):
 
     def test_create(self):
         """Test creating a rate."""
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
@@ -81,7 +82,7 @@ class RateManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
@@ -107,7 +108,7 @@ class RateManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
@@ -140,7 +141,7 @@ class RateManagerTest(IamTestCase):
                                              customer=self.customer)
         provider_uuid_2 = provider_2.uuid
 
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
@@ -165,7 +166,7 @@ class RateManagerTest(IamTestCase):
 
     def test_update_provider_uuids(self):
         """Test creating a rate then update with a provider uuid."""
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         rate_obj = None
@@ -225,7 +226,7 @@ class RateManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
-        metric = Rate.METRIC_CPU_CORE_USAGE_HOUR
+        metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):

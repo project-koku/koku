@@ -17,7 +17,8 @@
 from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
 
-from api.views import (ProviderViewSet,
+from api.views import (CostModelMetricsMapViewSet,
+                       ProviderViewSet,
                        UserPreferenceViewSet,
                        aws_costs,
                        aws_instance_type,
@@ -29,12 +30,14 @@ from api.views import (ProviderViewSet,
                        openshift_aws_costs,
                        openshift_aws_instance_type,
                        openshift_aws_storage,
+                       openshift_aws_tags,
                        openshift_costs,
                        openshift_tags,
                        status,
                        volume)
 
 ROUTER = DefaultRouter()
+ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 
@@ -44,6 +47,8 @@ urlpatterns = [
     url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', aws_tags, name='aws-tags'),
     url(r'^tags/openshift/$', openshift_tags, name='openshift-tags'),
+    url(r'^tags/openshift/infrastructures/aws/$', openshift_aws_tags,
+        name='openshift-aws-tags'),
     url(r'^reports/aws/costs/$', aws_costs, name='reports-aws-costs'),
     url(r'^reports/aws/instance-types/$', aws_instance_type, name='reports-aws-instance-type'),
     url(r'^reports/aws/storage/$', aws_storage, name='reports-aws-storage'),

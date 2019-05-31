@@ -19,6 +19,7 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from api.iam.view.user_preference import UserPreferenceViewSet
+from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
 from api.report.aws.view import (costs as aws_costs,
@@ -31,3 +32,4 @@ from api.report.ocp_aws.view import (costs as openshift_aws_costs,
 from api.status.views import status
 from api.tags.aws.view import aws_tags
 from api.tags.ocp.view import ocp_tags as openshift_tags
+from api.tags.ocp_aws.views import ocp_aws_tags as openshift_aws_tags

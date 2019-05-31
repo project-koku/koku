@@ -39,10 +39,43 @@ FILTER_MAP = {
 
 
 class TagQueryHandler(QueryHandler):
-    """Handles tag queries and responses."""
+    """Handles tag queries and responses.
+
+    Subclasses need to define a `data_sources` class attribute that defines the
+    model objects and fields where the tagging information is stored.
+
+    Definition:
+
+        # a list of dicts
+        data_sources = [{}, {}]
+
+        # each dict has this structure
+        dict = { 'db_table': Object,
+                 'db_column': str,
+                 'type': str
+               }
+
+        db_table = (Object) the model object containing tags
+        db_column = (str) the field on the model containing tags
+        type = (str) [optional] the type of tagging information, used for filtering
+
+    Example:
+
+        MyCoolTagHandler(TagQueryHandler):
+            data_sources = [{'db_table': MyFirstTagModel,
+                             'db_column': 'awesome_tags',
+                             'type': 'awesome'},
+                            {'db_table': MySecondTagModel,
+                             'db_column': 'schwifty_tags',
+                             'type': 'neato'}]
+
+    """
+
+    _DEFAULT_ORDERING = {'tags': 'asc'}
+    data_sources = []
 
     def __init__(self, query_parameters, url_data,
-                 tenant, data_sources, **kwargs):
+                 tenant, default_ordering=None, **kwargs):
         """Establish tag query handler.
 
         Args:
@@ -53,12 +86,15 @@ class TagQueryHandler(QueryHandler):
             db_table  (String): Database table name containing tags
             db_column (String): Database column name containing tags
         """
-        default_ordering = {'tags': 'asc'}
+        if default_ordering is None:
+            default_ordering = self._DEFAULT_ORDERING
+
         super().__init__(query_parameters, url_data,
                          tenant, default_ordering, **kwargs)
+
         self.query_filter = self._get_filter()
-        self.data_sources = data_sources
         self.parameter_filter = {}
+
         if query_parameters:
             self.parameter_filter = query_parameters.get('filter', {})
 
@@ -190,6 +226,7 @@ class TagQueryHandler(QueryHandler):
                 tag_keys = source.get('db_table').objects\
                     .filter(self.query_filter)\
                     .values(source.get('db_column'))\
+                    .distinct()\
                     .all()
                 tag_keys = [tag.get(source.get('db_column')) for tag in tag_keys]
 
