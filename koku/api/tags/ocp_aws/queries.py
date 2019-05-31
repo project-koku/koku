@@ -14,13 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""AWS Tag Query Handling."""
-from api.tags.queries import TagQueryHandler
-from reporting.models import AWSCostEntryLineItemDailySummary
+
+"""OCP-on-AWS Tag Query Handling."""
+from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.ocp.queries import OCPTagQueryHandler
+from reporting.models import OCPAWSCostLineItemDailySummary
 
 
-class AWSTagQueryHandler(TagQueryHandler):
-    """Handles tag queries and responses for AWS."""
+class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
+    """Handles tag queries and responses for OCP-on-AWS."""
 
-    data_sources = [{'db_table': AWSCostEntryLineItemDailySummary,
+    data_sources = [{'db_table': OCPAWSCostLineItemDailySummary,
                      'db_column': 'tags'}]
