@@ -30,6 +30,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.models import User
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from koku.rbac import RbacService
@@ -64,7 +65,7 @@ class RateViewTests(IamTestCase):
             self.provider = serializer.save()
 
         self.fake_data = {'provider_uuids': [self.provider.uuid],
-                          'metric': {'name': Rate.METRIC_MEM_GB_USAGE_HOUR},
+                          'metric': {'name': CostModelMetricsMap.OCP_METRIC_MEM_GB_USAGE_HOUR},
                           'tiered_rate': [{
                               'value': round(Decimal(random.random()), 6),
                               'unit': 'USD',
@@ -99,7 +100,7 @@ class RateViewTests(IamTestCase):
     def test_create_rate_success(self):
         """Test that we can create a rate."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -176,7 +177,7 @@ class RateViewTests(IamTestCase):
     def test_update_rate_failure(self):
         """Test that we update fails with metric type duplication."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -192,7 +193,7 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         test_data = {'provider_uuids': [],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -210,7 +211,7 @@ class RateViewTests(IamTestCase):
         # Update rate_2_uuid rate (no provider) with the provider that is associated with rate_1
         url = reverse('rates-detail', kwargs={'uuid': rate_2_uuid})
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -223,7 +224,7 @@ class RateViewTests(IamTestCase):
 
         # Create another rate of a different type that's associated with the same provider
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_REQUEST_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -241,7 +242,7 @@ class RateViewTests(IamTestCase):
 
         # Attempt to update this new rate to be the same type as the other rate with provider association
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -255,7 +256,7 @@ class RateViewTests(IamTestCase):
 
         # Attempt to update again but now remove the provider and it should be successful
         test_data = {'provider_uuids': [],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -381,7 +382,7 @@ class RateViewTests(IamTestCase):
     def test_get_rate_rbac_access(self):
         """Test GET /rates/{uuid} with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -427,7 +428,7 @@ class RateViewTests(IamTestCase):
     def test_write_rate_rbac_access(self):
         """Test POST, PUT, and DELETE for rates with an rbac user."""
         test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR},
+                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
                      'tiered_rate': [{
                          'value': round(Decimal(random.random()), 6),
                          'unit': 'USD',
@@ -459,13 +460,13 @@ class RateViewTests(IamTestCase):
         # POST tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN,
-                        'metric': {'name': Rate.METRIC_CPU_CORE_USAGE_HOUR}},
+                        'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR}},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_201_CREATED,
-                        'metric': {'name': Rate.METRIC_CPU_CORE_REQUEST_HOUR}},
+                        'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR}},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_201_CREATED,
-                        'metric': {'name': Rate.METRIC_MEM_GB_REQUEST_HOUR}}]
+                        'metric': {'name': CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR}}]
         client = APIClient()
         other_rates = []
 

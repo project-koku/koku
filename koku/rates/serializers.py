@@ -19,6 +19,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from api.metrics.models import CostModelMetricsMap
 from api.provider.models import (Provider)
 from rates.models import Rate
 from rates.rate_manager import RateManager, RateManagerError
@@ -173,7 +174,7 @@ class RateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that a rate must be defined."""
         rate_keys = ('tiered_rate',)
-        if data.get('metric').get('name') not in [metric for metric, metric2 in Rate.METRIC_CHOICES]:
+        if data.get('metric').get('name') not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
             error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
             raise serializers.ValidationError(error_msg)
         if any(data.get(rate_key) is not None for rate_key in rate_keys):
@@ -188,18 +189,32 @@ class RateSerializer(serializers.ModelSerializer):
 
     def _get_metric_display_data(self, metric):
         """Return API display metadata."""
-        metric_map = {Rate.METRIC_CPU_CORE_USAGE_HOUR: {'unit': 'core-hours',
-                                                        'display_name': 'Compute usage rate'},
-                      Rate.METRIC_CPU_CORE_REQUEST_HOUR: {'unit': 'core-hours',
-                                                          'display_name': 'Compute request rate'},
-                      Rate.METRIC_MEM_GB_USAGE_HOUR: {'unit': 'GB-hours',
-                                                      'display_name': 'Memory usage rate'},
-                      Rate.METRIC_MEM_GB_REQUEST_HOUR: {'unit': 'GB-hours',
-                                                        'display_name': 'Memory request rate'},
-                      Rate.METRIC_STORAGE_GB_USAGE_MONTH: {'unit': 'GB-months',
-                                                           'display_name': 'Volume usage rate'},
-                      Rate.METRIC_STORAGE_GB_REQUEST_MONTH: {'unit': 'GB-months',
-                                                             'display_name': 'Volume request rate'}}
+        metric_map = {
+            CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR: {
+                'unit': 'core-hours',
+                'display_name': 'Compute usage rate'
+            },
+            CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR: {
+                'unit': 'core-hours',
+                'display_name': 'Compute request rate'
+            },
+            CostModelMetricsMap.OCP_METRIC_MEM_GB_USAGE_HOUR: {
+                'unit': 'GB-hours',
+                'display_name': 'Memory usage rate'
+            },
+            CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR: {
+                'unit': 'GB-hours',
+                'display_name': 'Memory request rate'
+            },
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH: {
+                'unit': 'GB-months',
+                'display_name': 'Volume usage rate'
+            },
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH: {
+                'unit': 'GB-months',
+                'display_name': 'Volume request rate'
+            }
+        }
         return metric_map[metric]
 
     def to_representation(self, rate):
