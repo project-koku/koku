@@ -567,7 +567,13 @@ objects:
       limits:
         memory: ${MEMORY_LIMIT}
     strategy:
-      type: Recreate
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 20
+        intervalSeconds: 120
+        timeoutSeconds: 600
+        maxSurge: 25%
+        maxUnavailable: 25%
     template:
       metadata:
         labels:
