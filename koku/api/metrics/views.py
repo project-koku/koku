@@ -18,10 +18,7 @@
 """Views for CostModelMetricsMap."""
 import logging
 
-from django.core.exceptions import ValidationError
-from django.utils.encoding import force_text
-from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import APIException
+from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
 from api.metrics.models import CostModelMetricsMap

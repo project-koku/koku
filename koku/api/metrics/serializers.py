@@ -30,6 +30,7 @@ SOURCE_TYPE_MAP = {
     'AWS': 'Amazon Web Services'
 }
 
+
 def error_obj(key, message):
     """Create an error object."""
     error = {

@@ -14,25 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the Provider views."""
-from unittest.mock import patch
-from uuid import uuid4
+"""Test the Metrics views."""
 from urllib.parse import quote_plus, urlencode
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.metrics.models import CostModelMetricsMap
-from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.iam.test.iam_test_case import IamTestCase
+from api.metrics.serializers import SOURCE_TYPE_MAP
 
 
 class CostModelMetricsMapViewTest(IamTestCase):
-    """Tests the provider view."""
+    """Tests for the metrics view."""
 
     def test_list_cost_model_metrics_maps(self):
-        """Test that a List GET call works for the Metrics Map."""
+        """Test that a list GET call works for the Metrics Map."""
         url = reverse('metrics-list')
         client = APIClient()
 
@@ -46,9 +43,8 @@ class CostModelMetricsMapViewTest(IamTestCase):
             self.assertNotIn(entry.get('source_type'), db_source_types)
             self.assertIn(entry.get('source_type'), ui_source_types)
 
-
     def test_list_cost_model_metrics_maps_source_filter(self):
-        """Test that a List GET call works for the Metrics Map."""
+        """Test that a list GET call works with a source_type filter."""
         url = reverse('metrics-list')
         client = APIClient()
 
@@ -58,7 +54,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_post_cost_model_metrics_maps_source_filter(self):
-        """Test that a List GET call works for the Metrics Map."""
+        """Test that a POST call does not work for the Metrics Map."""
         url = reverse('metrics-list')
         client = APIClient()
 
@@ -68,7 +64,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_delete_cost_model_metrics_maps_source_filter(self):
-        """Test that a List GET call works for the Metrics Map."""
+        """Test that DELETE call does not work for the Metrics Map."""
         url = reverse('metrics-list')
         client = APIClient()
 
