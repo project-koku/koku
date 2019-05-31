@@ -59,17 +59,17 @@ class CostModelMetricsMap(models.Model):
         choices=METRIC_CHOICES
     )
 
-    ui_metric = models.CharField(
+    label_metric = models.CharField(
         max_length=256,
         null=False
     )
 
-    ui_measurement = models.CharField(
+    label_measurement = models.CharField(
         max_length=256,
         null=False
     )
 
-    ui_measurement_unit = models.CharField(
+    label_measurement_unit = models.CharField(
         max_length=64,
         null=False
     )
