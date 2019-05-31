@@ -10,7 +10,7 @@ name = "pypi"
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
-boto3 = "==1.9.146"
+boto3 = "==1.9.156"
 whitenoise = ">=3.3.0"
 Django = "==2.2.1"
 psycopg2-binary = ">=2.7.0"
@@ -27,7 +27,7 @@ django-prometheus = "==1.0.15"
 prometheus-client = "==0.6.0"
 django-redis = "==4.10.0"
 flake8 = "==3.7.7"
-watchtower = "==0.5.5"
+watchtower = "==0.6.0"
 
 
 [dev-packages]
