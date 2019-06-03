@@ -3,7 +3,7 @@ boto3==1.9.159
 botocore==1.12.159
 certifi==2019.3.9
 chardet==3.0.4
-django-cors-headers==3.0.1
+django-cors-headers==3.0.2
 django-environ==0.4.5
 django-filter==2.1.0
 django-prometheus==1.0.15
