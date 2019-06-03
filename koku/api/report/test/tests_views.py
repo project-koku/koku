@@ -407,3 +407,15 @@ class ReportViewTest(IamTestCase):
         paginator = get_paginator(params, 0)
 
         self.assertIsInstance(paginator, ReportRankedPagination)
+
+    def test_process_multiple_tag_query_params(self):
+        """Test that grouping by multiple tag keys returns a valid response."""
+        qs = f'group_by[tag:app]=*&group_by[tag:environment]=*&filter[limit]=2'
+        url = reverse('reports-aws-costs') + '?' + qs
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        import logging
+        logging.disable(0)
+        log = logging.getLogger(__name__)
+        log.critical('XXX: %s', response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
