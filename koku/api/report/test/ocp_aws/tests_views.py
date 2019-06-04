@@ -947,3 +947,29 @@ class OCPAWSReportViewTest(IamTestCase):
             url = baseurl + '?' + urlencode(params, quote_via=quote_plus)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_process_multiple_tag_query_params(self):
+        """Test that grouping by multiple tag keys returns a valid response."""
+        with tenant_context(self.tenant):
+            labels = OCPAWSCostLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.ten_days_ago)\
+                .filter(product_family__contains='Storage')\
+                .values(*['tags'])\
+                .first()
+
+            tags = labels.get('tags')
+
+        qstr = f'filter[limit]=2'
+
+        # pick a random subset of tags
+        kval = len(tags.keys())
+        if kval > 2:
+            kval = random.randint(2, len(tags.keys()))
+        selected_tags = random.choices(list(tags.keys()), k=kval)
+        for tag in selected_tags:
+            qstr += f'&group_by[tag:{tag}]=*'
+
+        url = reverse('reports-openshift-aws-costs') + '?' + qstr
+        client = APIClient()
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
