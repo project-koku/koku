@@ -1961,6 +1961,64 @@ class ReportQueryTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
+    def test_order_by_null_values(self):
+        """Test that order_by returns properly sorted data with null data."""
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month'
+            }
+        }
+        handler = OCPReportQueryHandler(
+            query_params,
+            '',
+            self.tenant,
+            **{'report_type': 'costs'}
+        )
+
+        unordered_data = [
+            {
+                'node': None,
+                'cluster': 'cluster-1'
+            },
+            {
+                'node': 'alpha',
+                'cluster': 'cluster-2'
+            },
+            {
+                'node': 'bravo',
+                'cluster': 'cluster-3'
+            },
+            {
+                'node': 'oscar',
+                'cluster': 'cluster-4'
+            },
+        ]
+
+        order_fields = ['node']
+        expected = [
+            {
+                'node': 'alpha',
+                'cluster': 'cluster-2'
+            },
+            {
+                'node': 'bravo',
+                'cluster': 'cluster-3'
+            },
+            {
+                'node': 'no-node',
+                'cluster': 'cluster-1'
+            },
+            {
+                'node': 'oscar',
+                'cluster': 'cluster-4'
+            },
+
+        ]
+        ordered_data = handler.order_by(unordered_data, order_fields)
+        self.assertEqual(ordered_data, expected)
+
     def test_strip_tag_prefix(self):
         """Verify that our tag prefix is stripped from a string."""
         tag_str = 'tag:project'
