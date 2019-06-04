@@ -1272,6 +1272,9 @@ class ReportQueryHandler(QueryHandler):
                 sorted_data = sorted(sorted_data, key=lambda entry: (entry[tag] is None, entry[tag]),
                                      reverse=reverse)
             else:
+                for line_data in sorted_data:
+                    if not line_data.get(field):
+                        line_data[field] = 'no-{}'.format(field)
                 sorted_data = sorted(sorted_data, key=lambda entry: entry[field].lower(),
                                      reverse=reverse)
         return sorted_data
