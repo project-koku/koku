@@ -217,7 +217,9 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     if provider_uuid:
         update_charge_info.delay(
             schema_name,
-            provider_uuid
+            provider_uuid,
+            start_date,
+            end_date
         )
 
 
@@ -251,12 +253,14 @@ def update_all_summary_tables(start_date, end_date=None):
 
 @celery.task(name='masu.processor.tasks.update_charge_info',
              queue_name='reporting')
-def update_charge_info(schema_name, provider_uuid):
+def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=None):
     """Update usage charge information.
 
     Args:
         schema_name (str) The DB schema name.
         provider_uuid    (str) The provider uuid.
+        start_date (str, Optional) - Start date of range to update derived cost.
+        end_date (str, Optional) - End date of range to update derived cost.
 
     Returns
         None
@@ -272,4 +276,4 @@ def update_charge_info(schema_name, provider_uuid):
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
-    updater.update_charge_info()
+    updater.update_charge_info(start_date, end_date)

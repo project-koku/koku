@@ -15,7 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
-
+import datetime
 import logging
 import pkgutil
 import uuid
@@ -124,6 +124,19 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP['report_period']
         return self._get_db_obj_query(table_name)\
             .filter_by(provider_id=provider_id)
+
+    def report_periods_for_provider_id(self, provider_id, start_date=None):
+        """Return all report periods for provider_id on date."""
+        report_periods = self.get_usage_period_query_by_provider(provider_id)
+
+        if start_date:
+            report_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
+                .replace(day=1).date()
+            report_periods = report_periods.filter_by(
+                report_period_start=report_date
+            ).all()
+
+        return report_periods
 
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
