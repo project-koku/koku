@@ -19,8 +19,11 @@
 import logging
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import (OCP_LOCAL_SERVICE_PROVIDER,
+from masu.external import (AMAZON_WEB_SERVICES,
+                           AWS_LOCAL_SERVICE_PROVIDER,
+                           OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
+from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
 from masu.processor.ocp.ocp_report_charge_updater import OCPReportChargeUpdater
 
 LOG = logging.getLogger(__name__)
@@ -48,6 +51,7 @@ class ReportChargeUpdater:
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
             provider_type = provider_accessor.get_type()
         self._provider = provider_type
+        self._provider_id = provider_accessor.get_provider().id
 
         try:
             self._updater = self._set_updater()
@@ -67,22 +71,25 @@ class ReportChargeUpdater:
             (Object) : Provider-specific report summary updater
 
         """
+        if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
+            return AWSReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
         if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
                               OCP_LOCAL_SERVICE_PROVIDER):
-            return OCPReportChargeUpdater(self._schema, self._provider_uuid)
+            return OCPReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
 
         return None
 
-    def update_charge_info(self):
+    def update_charge_info(self, start_date=None, end_date=None):
         """
         Update usage charge information.
 
         Args:
-            None
+            start_date (String) - Start date of range to update derived cost.
+            end_date (String) - End date of range to update derived cost.
 
         Returns:
             None
 
         """
         if self._updater:
-            self._updater.update_summary_charge_info()
+            self._updater.update_summary_charge_info(start_date, end_date)

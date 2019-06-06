@@ -18,7 +18,6 @@
 # pylint: skip-file
 
 import calendar
-import datetime
 import logging
 
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -91,15 +90,7 @@ class OCPReportSummaryUpdater:
                  self._schema_name, self._provider.uuid, self._cluster_id,
                  start_date, end_date)
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            report_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
-                .replace(day=1).date()
-            report_periods = accessor.get_usage_period_query_by_provider(
-                self._provider.id
-            )
-            report_periods = report_periods.filter_by(
-                report_period_start=report_date
-            ).all()
-
+            report_periods = accessor.report_periods_for_provider_id(self._provider.id, start_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
             accessor.populate_pod_label_summary_table()
             accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
