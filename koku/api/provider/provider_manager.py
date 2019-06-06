@@ -94,6 +94,8 @@ class ProviderManager:
             stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
         if query and query.summary_data_updated_datetime:
             stats['summary_data_updated_datetime'] = query.summary_data_updated_datetime.strftime(DATE_TIME_FORMAT)
+        if query and query.derived_cost_datetime:
+            stats['derived_cost_datetime'] = query.derived_cost_datetime.strftime(DATE_TIME_FORMAT)
 
         return stats
 
@@ -136,6 +138,7 @@ class ProviderManager:
                 schema_stats = self._get_tenant_provider_stats(provider_manifest.provider, tenant, month)
                 status['summary_data_creation_datetime'] = schema_stats.get('summary_data_creation_datetime')
                 status['summary_data_updated_datetime'] = schema_stats.get('summary_data_updated_datetime')
+                status['derived_cost_datetime'] = schema_stats.get('derived_cost_datetime')
                 month_stats.append(status)
 
             provider_stats[stats_key] = month_stats
