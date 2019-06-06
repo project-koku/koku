@@ -71,14 +71,14 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.cluster_id = 'testcluster'
         with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_accessor:
             self.ocp_provider_id = provider_accessor.get_provider().id
-        reporting_period = self.creator.create_ocp_report_period(provider_id=self.ocp_provider_id, cluster_id=self.cluster_id)
-        report = self.creator.create_ocp_report(reporting_period)
+        self.reporting_period = self.creator.create_ocp_report_period(provider_id=self.ocp_provider_id, cluster_id=self.cluster_id)
+        report = self.creator.create_ocp_report(self.reporting_period)
         self.creator.create_ocp_usage_line_item(
-            reporting_period,
+            self.reporting_period,
             report
         )
         self.creator.create_ocp_storage_line_item(
-            reporting_period,
+            self.reporting_period,
             report
         )
 
@@ -94,6 +94,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def _populate_storage_summary(self):
         """Helper to generate storage summary data."""
+        self.tearDown()
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         summary_table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
 
@@ -125,6 +126,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def _populate_pod_summary(self):
         """Helper to generate pod summary data."""
+        self.tearDown()
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
@@ -234,6 +236,22 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(period.provider_id, provider_id)
 
+    def test_report_periods_for_provider_id(self):
+        """Test that periods are returned filtered by provider id and start date."""
+        provider_id = self.ocp_provider_id
+        start_date = str(self.reporting_period.report_period_start.date())
+
+        periods = self.accessor.report_periods_for_provider_id(
+            provider_id,
+            start_date
+        )
+
+        self.assertGreater(len(periods), 0)
+
+        period = periods[0]
+
+        self.assertEqual(period.provider_id, provider_id)
+
     def test_get_lineitem_query_for_reportid(self):
         """Test that the line item data is returned given a report_id."""
         current_report = self.accessor.get_current_usage_report()
@@ -311,6 +329,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_line_item_daily_summary_table(self):
         """Test that the line item daily summary table populates."""
+        self.tearDown()
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 

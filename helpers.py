@@ -155,7 +155,7 @@ class ReportObjectCreator:
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
-        period_start = self.fake.past_datetime()
+        period_start = self.fake.past_datetime().date().replace(day=1)
         period_end = period_start + relativedelta.relativedelta(days=random.randint(1, 15))
         data = {'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
                 'provider_id': provider_id if provider_id else 1,
