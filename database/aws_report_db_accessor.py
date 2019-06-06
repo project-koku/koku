@@ -17,7 +17,7 @@
 """Database accessor for report data."""
 
 # pylint: skip-file
-
+import datetime
 import logging
 import pkgutil
 import uuid
@@ -71,6 +71,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         table_name = AWS_CUR_TABLE_MAP['bill']
         return self._get_db_obj_query(table_name)\
             .filter_by(provider_id=provider_id)
+
+    def bills_for_provider_id(self, provider_id, start_date=None):
+        """Return all cost entry bills for provider_id on date."""
+        bills = self.get_cost_entry_bills_query_by_provider(provider_id)
+        if start_date:
+            bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
+                .replace(day=1).date()
+            bills = bills.filter_by(billing_period_start=bill_date).all()
+        return bills
 
     def get_bill_query_before_date(self, date):
         """Get the cost entry bill objects with billing period before provided date."""

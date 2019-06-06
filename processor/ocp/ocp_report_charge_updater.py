@@ -24,6 +24,7 @@ from decimal import Decimal
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ class OCPReportChargeUpdaterError(Exception):
 class OCPReportChargeUpdater:
     """Class to update OCP report summary data with charge information."""
 
-    def __init__(self, schema, provider_uuid):
+    def __init__(self, schema, provider_uuid, provider_id):
         """Establish the database connection.
 
         Args:
@@ -48,6 +49,7 @@ class OCPReportChargeUpdater:
             self._column_map = reporting_common.column_map
         self._provider_uuid = provider_uuid
         self._cluster_id = None
+        self._provider_id = provider_id
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -243,11 +245,12 @@ class OCPReportChargeUpdater:
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
 
-    def update_summary_charge_info(self):
+    def update_summary_charge_info(self, start_date=None, end_date=None):
         """Update the OCP summary table with the charge information.
 
         Args:
-            None
+            start_date (str, Optional) - Start date of range to update derived cost.
+            end_date (str, Optional) - End date of range to update derived cost.
 
         Returns
             None
@@ -263,5 +266,10 @@ class OCPReportChargeUpdater:
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
                      self._schema, self._provider_uuid)
-            accessor.populate_cost_summary_table(self._cluster_id)
+            accessor.populate_cost_summary_table(self._cluster_id,
+                                                 start_date=start_date,
+                                                 end_date=end_date)
+            report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
+            for period in report_periods:
+                period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
             accessor.commit()

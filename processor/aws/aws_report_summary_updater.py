@@ -15,9 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates report summary tables in the database."""
-
 import calendar
-import datetime
 import logging
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -92,16 +90,10 @@ class AWSReportSummaryUpdater:
             end_date
         )
         bill_ids = [str(bill.id) for bill in bills]
-        bill_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
-            .replace(day=1).date()
 
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             # Need these bills on the session to update dates after processing
-            bills = accessor.get_cost_entry_bills_query_by_provider(
-                self._provider.id
-            )
-            bills = bills.filter_by(billing_period_start=bill_date).all()
-
+            bills = accessor.bills_for_provider_id(self._provider.id, start_date)
             LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
                      '\n\tProvider: %s \n\tDates: %s - %s',
                      self._schema_name, self._provider.uuid, start_date, end_date)
