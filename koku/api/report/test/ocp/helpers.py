@@ -198,6 +198,7 @@ class OCPReportDataGenerator:
             'report_period_end': period[1],
             'summary_data_creation_datetime': self.dh._now,
             'summary_data_updated_datetime': self.dh._now,
+            'derived_cost_datetime': self.dh._now,
             'provider_id': provider_id
         }
         report_period = OCPUsageReportPeriod(**data)
