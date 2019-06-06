@@ -40,6 +40,8 @@ class OCPUsageReportPeriod(models.Model):
 
     summary_data_creation_datetime = models.DateTimeField(null=True)
     summary_data_updated_datetime = models.DateTimeField(null=True)
+    derived_cost_datetime = models.DateTimeField(null=True)
+
     # provider_id is intentionally not a foreign key
     # to prevent masu complication
     provider_id = models.IntegerField(null=True)
