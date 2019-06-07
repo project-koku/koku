@@ -1,0 +1,203 @@
+#
+# This template defines configmaps used to configure Koku.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: koku-configmap-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines configuration values required to run the Koku application."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku
+objects:
+# database config (shared by koku & masu)
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-db
+  data:
+    database-engine: postgresql
+    database-name: koku
+    database-service-name: POSTGRES_SQL
+    database-host: ${DATABASE_HOST}
+    database-port: ${DATABASE_PORT}
+
+# masu application config
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: masu-app
+  data:
+    # masu
+    app-config: /opt/app-root/src/masu/gunicorn.py
+    app-home: /opt/app-root/src/masu
+    app-module: masu.__init__:create_app()
+    app-namespace: ${NAMESPACE}
+
+# koku application config
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: koku-app
+  data:
+    app-config: /opt/app-root/src/koku/gunicorn.py
+    app-home: /opt/app-root/src/koku
+    app-module: koku.wsgi
+    app-namespace: ${NAMESPACE}
+    app-domain: project-koku.com
+    api-path-prefix: '/api'
+
+    # (temporary) can be removed after koku/masu merge
+    masu-host: ${MASU_HOST}
+    masu-port: ${MASU_PORT}
+
+# logging configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-logging
+  data:
+    # masu
+    masu-log-level: "INFO"
+    # koku
+    koku-log-level: "INFO"
+    django-log-level: "INFO"
+    django-log-formatter: "simple"
+    django-log-handlers: "console"
+    django-log-directory: ""
+    django-logging-file: ""
+
+# debugging configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-debug
+  data:
+    # masu
+    debug: "False"
+    # koku
+    django-debug: "False"
+    development: "False"
+
+# data processing configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-processor
+  data:
+    schedule-report-checks: "True"
+    schedule-check-interval: "60"
+    remove-expired-data-on-day: "1"
+    remove-expired-data-utc-time: "00:00"
+    date-override: ""
+    retain-num-months: "3"
+    initial-ingest-num-months: "2"
+    initial-ingest-override: "False"
+
+# message queue configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-messaging
+  data:
+    rabbitmq-host: ${RABBITMQ_HOST}
+    worker-queues: "celery,download,remove_expired,reporting,process"
+    kafka-connect: "True"
+    kafka-host: ${KAFKA_HOST}
+    kafka-port: ${KAFKA_PORT}
+    kafka-retry-interval: "30"
+
+# RBAC auth service configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-auth
+  data:
+    rbac-host: ${RBAC_HOST}
+    rbac-port: ${RBAC_PORT}
+    rbac-path: "/r/insights/platform/rbac/v1/access/"
+    rbac-cache-ttl: "30"
+    redis-host: ${REDIS_HOST}
+    redis-port: ${REDIS_PORT}
+
+# monitoring configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-monitoring
+  data:
+    prometheus-dir: '/tmp'
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Hostname for Kafka service
+  displayName: Kafka server address
+  name: KAFKA_HOST
+  required: true
+  value: localhost
+- description: Port number for Kafka service
+  displayName: Kafka server port
+  name: KAFKA_PORT
+  required: true
+  value: "29092"
+- description: Hostname for Redis service
+  displayName: Redis host
+  name: REDIS_HOST
+  required: true
+  value: localhost
+- description: Port number for Redis service
+  displayName: Redis port
+  name: REDIS_PORT
+  required: true
+  value: "6379"
+- description: Hostname for PostgreSQL service
+  displayName: PostgreSQL host
+  name: DATABASE_HOST
+  required: true
+  value: localhost
+- description: Port number for PostgreSQL service
+  displayName: PostgreSQL port
+  name: DATABASE_PORT
+  required: true
+  value: "5432"
+- description: Hostname for RabbitMQ service
+  displayName: Database host
+  name: RABBITMQ_HOST
+  required: true
+  value: localhost
+- description: Hostname for Masu service
+  displayName: Masu host
+  name: MASU_HOST
+  required: true
+  value: masu.koku.svc
+- description: Port number for Masu service
+  displayName: Masu port
+  name: MASU_PORT
+  required: true
+  value: "8080"
+- description: Hostname for RBAC Auth service
+  displayName: RBAC host
+  name: RBAC_HOST
+  required: true
+  value: localhost
+- description: Port number for RBAC Auth service
+  displayName: RBAC port
+  name: RBAC_PORT
+  required: true
+  value: "8080"

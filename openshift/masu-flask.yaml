@@ -1,0 +1,446 @@
+#
+# (deprecated) This template defines resources used to deploy the Masu Flask application.
+#
+# This file will be removed after the koku/masu merge is completed.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: masu-flask-template
+  annotations:
+    openshift.io/display-name: "Masu"
+    description: "App and API for data ingestion engine for Koku"
+    tags: "python,flask"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${NAME}-db", "kind": "Service"}]'
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: '9100'
+    name: ${NAME}-flask
+    labels:
+      app: ${NAME}-flask
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    - name: 9100-tcp
+      port: 9100
+      protocol: TCP
+      targetPort: 9100
+    selector:
+      name: ${NAME}
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: ${NAME}
+    labels:
+      app: ${NAME}
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: ${NAME}
+- kind: BuildConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Defines how to build the application
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}
+    labels:
+      app: ${NAME}
+  spec:
+    failedBuildsHistoryLimit: 1
+    successfulBuildsHistoryLimit: 2
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}:latest
+    resources:
+      requests:
+        memory: ${BUILD_MEMORY_REQUEST}
+      limits:
+        memory: ${BUILD_MEMORY_LIMIT}
+    source:
+      contextDir: ${CONTEXT_DIR}
+      git:
+        ref: ${SOURCE_REPOSITORY_REF}
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+          - name: PIP_INDEX_URL
+            value: ${PIP_INDEX_URL}
+          - name: PIPENV_PYPI_MIRROR
+            value: ${PIPENV_PYPI_MIRROR}
+          - name: ENABLE_PIPENV
+            value: "true"
+          - name: UPGRADE_PIP_TO_LATEST
+            value: ""
+          - name: APP_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: ${NAME}
+                key: app-config
+                optional: false
+          - name: APP_HOME
+            valueFrom:
+              configMapKeyRef:
+                name: ${NAME}
+                key: app-home
+          - name: APP_MODULE
+            valueFrom:
+              configMapKeyRef:
+                name: ${NAME}
+                key: app-module
+        from:
+          kind: ImageStreamTag
+          name: python-36-centos7:latest
+          namespace: ${NAMESPACE}
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+    - github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+      type: GitHub
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}
+    labels:
+      app: ${NAME}
+  spec:
+    replicas: 1
+    selector:
+      name: ${NAME}
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: ${NAME}
+        name: ${NAME}
+      spec:
+        containers:
+        - name: ${NAME}
+          image: ${NAME}
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: MASU_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: masu-secret-key
+                  name: ${NAME}-masu
+                  optional: false
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-host
+                  optional: false
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-port
+                  optional: false
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: rabbitmq-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-port
+                  optional: false
+            - name: INSIGHTS_KAFKA_CONN_RETRY_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-retry-interval
+                  optional: false
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: false
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: false
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: masu-log-level
+                  optional: true
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: true
+            - name: MASU_DATE_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: date-override
+                  optional: true
+            - name: MASU_RETAIN_NUM_MONTHS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: retain-num-months
+                  optional: true
+            - name: INITIAL_INGEST_NUM_MONTHS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: initial-ingest-num-months
+                  optional: true
+            - name: INITIAL_INGEST_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: initial-ingest-override
+                  optional: true
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: debug
+                  optional: true
+            - name: KAFKA_CONNECT
+              value: "False"
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: masu-app
+                  key: app-namespace
+                  optional: true
+            - name: CW_AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-region
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_LOG_GROUP
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-log-group
+                  name: ${NAME}-aws
+                  optional: true
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/v1/status/?liveness
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /api/v1/status/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-flask
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+      type: ImageChange
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-flask
+    annotations:
+      description: "Keeps track of changes in the application image"
+    labels:
+      app: ${NAME}
+
+- apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    name: ${NAME}-flask
+    namespace: ${NAMESPACE}
+  spec:
+    maxReplicas: 3
+    minReplicas: 1
+    scaleTargetRef:
+      apiVersion: apps.openshift.io/v1
+      kind: DeploymentConfig
+      name: ${NAME}
+    targetCPUUtilizationPercentage: 90
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Initial amount of memory the Flower container will request.
+  displayName: Masu Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the Flower container can use.
+  displayName: Masu Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the Flower container will request.
+  displayName: Masu CPU Limit
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the Flower container can use.
+  displayName: Masu CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: The custom PyPi index URL
+  displayName: Custom PyPi Index URL
+  name: PIP_INDEX_URL
+  required: false
+- description: The custom PipEnv PyPi index URL
+  displayName: Custom PipEnv PyPi Index URL
+  name: PIPENV_PYPI_MIRROR
+  required: false
+- description: Github trigger secret.  A difficult to guess string encoded as part
+    of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: GITHUB_WEBHOOK_SECRET
+  required: false
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/project-koku/masu.git
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: SOURCE_REPOSITORY_REF
+  required: false
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository.
+  displayName: Context Directory
+  name: CONTEXT_DIR
+  required: false
+- description: The exposed hostname that will route to the app service, if left
+    blank a value will be defaulted.
+  displayName: Application Hostname
+  name: APPLICATION_DOMAIN
+  required: false

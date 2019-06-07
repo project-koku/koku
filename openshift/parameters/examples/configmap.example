@@ -1,0 +1,14 @@
+# Example parameter file for configmap.yaml template.
+NAME=koku
+NAMESPACE=koku
+KAFKA_HOST=localhost
+KAFKA_PORT=29092
+REDIS_HOST=localhost
+REDIS_PORT=6379
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+RABBITMQ_HOST=localhost
+MASU_HOST=localhost
+MASU_PORT=8080
+RBAC_HOST=localhost
+RBAC_PORT=8080

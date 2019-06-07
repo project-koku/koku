@@ -1,0 +1,252 @@
+#
+# (deprecated) This template defines resources used to deploy Masu listener.
+#
+# This file will be removed after the koku/masu merge is completed.
+#
+kind: Template
+apiVersion: v1
+metadata:
+  name: masu-listener-template
+  annotations:
+    openshift.io/display-name: "Masu"
+    description: "Listener for Koku data ingestion engine"
+    tags: "python,flask"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Masu listener statistics
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: '9999'
+    name: ${NAME}-listener-stats
+  spec:
+    ports:
+    - port: 9999
+      name: stats
+    selector:
+      app: ${NAME}
+
+- kind: StatefulSet
+  apiVersion: apps/v1beta1
+  metadata:
+    annotations:
+      description: Defines how to deploy the listener
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-listener
+  spec:
+    replicas: ${REPLICAS}
+    selector:
+      matchLabels:
+        app: ${NAME}
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+        name: ${NAME}-listener
+        annotations:
+          alpha.image.policy.openshift.io/resolve-names: '*'
+      spec:
+        containers:
+        - name: ${NAME}-listener
+          image: ${NAME}-listener
+          ports:
+          - containerPort: 9999
+            name: stats
+          command:
+            - /bin/bash
+            - -c
+            - >
+              PYTHONPATH=. scl enable rh-python36 --
+              python masu/listener/run.py
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_CA_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-host
+                  optional: false
+            - name: DATABASE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-port
+                  optional: false
+            - name: MASU_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: masu-secret-key
+                  name: ${NAME}-masu
+                  optional: false
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: rabbitmq-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-host
+                  optional: false
+            - name: INSIGHTS_KAFKA_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-port
+                  optional: false
+            - name: INSIGHTS_KAFKA_CONN_RETRY_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-retry-interval
+                  optional: false
+            - name: KAFKA_CONNECT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-connect
+                  optional: true
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: masu-log-level
+                  optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
+            - name: MASU_DATE_OVERRIDE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: date-override
+                  optional: true
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: debug
+                  optional: true
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+          volumeMounts:
+          - mountPath: /var/tmp/masu/
+            name: ${NAME}-listener-data
+    volumeClaimTemplates:
+    - metadata:
+        name: ${NAME}-listener-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${VOLUME_CAPACITY}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-listener
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}-flask:latest
+      type: ImageChange
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Number of listeners to create
+  displayName: Masu Listener Replicas
+  name: REPLICAS
+  required: true
+  value: '1'
+- description: Initial amount of memory the listener container will request.
+  displayName: Masu Listener Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the listener container can use.
+  displayName: Masu Listener Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the listener container will request.
+  displayName: Masu Listener CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the listener container can use.
+  displayName: Masu Listener CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- displayName: Volume Capacity
+  description: Volume space available for shared files, e.g. 512Mi, 2Gi
+  name: VOLUME_CAPACITY
+  required: true
+  value: 1Gi

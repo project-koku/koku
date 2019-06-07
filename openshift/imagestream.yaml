@@ -1,0 +1,114 @@
+#
+# This template defines upstream image dependencies.
+#
+apiVersion: v1
+kind: Template
+metadata:
+  name: koku-imagestream-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines upstream image dependencies required to build Koku containers."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku
+objects:
+
+# Koku and Masu are built on python-36-centos7
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: python-36-centos7
+    namespace: ${NAMESPACE}
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: centos/python-36-centos7
+      name: latest
+      referencePolicy:
+        type: Source
+
+# Koku database runs on postgresql-96-centos7
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: postgresql
+    namespace: ${NAMESPACE}
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: centos/postgresql-96-centos7
+        resourceVersion: latest
+      name: "9.6"
+      referencePolicy:
+        type: Source
+
+# Koku RBAC auth caching uses Redis-5.x
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: redis
+    namespace: ${NAMESPACE}
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: redis
+        resourceVersion: latest
+      name: "5.0.4"
+      referencePolicy:
+        type: Source
+
+# RabbitMQ builds on RHEL 7, if available
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: rhel
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.access.redhat.com/rhel7/rhel
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.access.redhat.com/rhel7/rhel:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+# RabbitMQ builds on centos 7 when RHEL 7 isn't available
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: centos
+    namespace: ${NAMESPACE}
+  spec:
+    dockerImageRepository: registry.centos.org/centos/centos
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: registry.centos.org/centos/centos:latest
+      name: latest
+      referencePolicy:
+        type: Source
+
+parameters:
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku

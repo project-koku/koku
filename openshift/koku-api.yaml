@@ -1,0 +1,513 @@
+#
+# This template defines objects related to deploying the Koku API web service.
+#
+apiVersion: v1
+kind: Template
+metadata:
+  name: koku-api-template
+  annotations:
+    openshift.io/display-name: "Koku"
+    description: "Cloud Cost Management powered by Django+PostgreSQL"
+    tags: "quickstart,python,django,postgresql"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to deploy and run the Koku application."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku
+objects:
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${NAME}-pgsql", "kind": "Service"}]'
+      prometheus.io/scrape: 'true'
+      prometheus.io/path: /metrics
+      prometheus.io/port: '8080'
+    name: ${NAME}
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      name: ${NAME}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${NAME}
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    to:
+      kind: Service
+      name: ${NAME}
+
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: ${NAME}
+    annotations:
+      description: "Keeps track of changes in the application image"
+
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: Defines how to build the application
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}
+  spec:
+    failedBuildsHistoryLimit: 1
+    successfulBuildsHistoryLimit: 2
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${NAME}:latest
+    resources:
+      requests:
+        memory: ${BUILD_MEMORY_REQUEST}
+      limits:
+        memory: ${BUILD_MEMORY_LIMIT}
+    source:
+      contextDir: ${CONTEXT_DIR}
+      git:
+        ref: ${SOURCE_REPOSITORY_REF}
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      dockerStrategy:
+        env:
+          - name: PIP_INDEX_URL
+            value: ${PIP_INDEX_URL}
+          - name: PIPENV_PYPI_MIRROR
+            value: ${PIPENV_PYPI_MIRROR}
+          - name: ENABLE_PIPENV
+            value: "true"
+          - name: APP_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: koku-app
+                key: app-config
+                optional: false
+          - name: APP_HOME
+            valueFrom:
+              configMapKeyRef:
+                name: koku-app
+                key: app-home
+          - name: APP_MODULE
+            valueFrom:
+              configMapKeyRef:
+                name: koku-app
+                key: app-module
+          - name: APP_NAMESPACE
+            valueFrom:
+              configMapKeyRef:
+                name: koku-app
+                key: app-namespace
+          - name: APP_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: koku-app
+                key: app-domain
+        from:
+          kind: ImageStreamTag
+          name: python-36-centos7:latest
+          namespace: ${NAMESPACE}
+      type: Source
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+    - github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+      type: GitHub
+
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}
+  spec:
+    replicas: 1
+    selector:
+      name: ${NAME}
+    resources:
+      requests:
+        memory: ${MEMORY_REQUEST}
+      limits:
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        name: ${NAME}
+      spec:
+        containers:
+        - name: ${NAME}
+          image: ${NAME}
+          env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: ${NAME}-secret
+                  optional: false
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: false
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: false
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: MASU_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: masu-host
+                  optional: false
+            - name: MASU_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: masu-port
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: KOKU_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: koku-log-level
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
+            - name: RBAC_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: rbac-host
+                  optional: false
+            - name: RBAC_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: rbac-port
+                  optional: false
+            - name: RBAC_SERVICE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: rbac-path
+                  optional: false
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: redis-host
+                  optional: false
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: redis-port
+                  optional: false
+            - name: RBAC_CACHE_TTL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-auth
+                  key: rbac-cache-ttl
+                  optional: false
+            - name: CW_AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-region
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_LOG_GROUP
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-log-group
+                  name: ${NAME}-aws
+                  optional: true
+            - name: POD_CPU_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.cpu
+            - name: POD_CPU_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.cpu
+            - name: POD_MEMORY_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.memory
+            - name: POD_MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.memory
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: ${API_PATH_PREFIX}/v1/status/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: ${API_PATH_PREFIX}/v1/status/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 50
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+      type: ImageChange
+
+- apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+  spec:
+    maxReplicas: 10
+    minReplicas: 1
+    scaleTargetRef:
+      apiVersion: apps.openshift.io/v1
+      kind: DeploymentConfig
+      name: koku
+    targetCPUUtilizationPercentage: 80
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of memory the Django container will request.
+  displayName: Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of memory the Django container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of cpu the Django container will request.
+  displayName: CPU Request
+  name: CPU_REQUEST
+  required: true
+  value: 200m
+- description: Maximum amount of cpu the Django container can use.
+  displayName: CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: 300m
+- displayName: API path prefix
+  value: '/api'
+  name: API_PATH_PREFIX
+  required: true
+- description: The exposed hostname that will route to the Django service, if left
+    blank a value will be defaulted.
+  displayName: Application Hostname
+  name: APPLICATION_DOMAIN
+  required: false
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository.
+  displayName: Context Directory
+  name: CONTEXT_DIR
+  required: false
+- description: The custom PyPi index URL
+  displayName: Custom PyPi Index URL
+  name: PIP_INDEX_URL
+  required: false
+- description: The custom PipEnv PyPi index URL
+  displayName: Custom PipEnv PyPi Index URL
+  name: PIPENV_PYPI_MIRROR
+  required: false
+- description: Github trigger secret.  A difficult to guess string encoded as part
+    of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret
+  name: GITHUB_WEBHOOK_SECRET
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  required: true
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/project-koku/koku.git
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: SOURCE_REPOSITORY_REF
+  required: false
