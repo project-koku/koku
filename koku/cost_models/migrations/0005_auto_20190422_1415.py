@@ -8,7 +8,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rates', '0004_auto_20190301_1850'),
+        ('cost_models', '0004_auto_20190301_1850'),
     ]
 
     operations = [
@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('provider_uuid', models.UUIDField(default=uuid.uuid4, editable=False)),
-                ('rate', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='rates.Rate')),
+                ('rate', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='cost_models.Rate')),
             ],
             options={
                 'ordering': ['-id'],
@@ -26,9 +26,9 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             """
-            INSERT INTO rates_ratemap (provider_uuid, rate_id)
-            SELECT provider_uuid, id 
-            FROM rates_rate;
+            INSERT INTO cost_models_ratemap (provider_uuid, rate_id)
+            SELECT provider_uuid, id
+            FROM cost_models_rate;
             """
         ),
         migrations.AlterUniqueTogether(
