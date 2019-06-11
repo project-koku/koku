@@ -80,28 +80,33 @@ class ClassMapper(object):
                     'report': 'default',
                     'serializer': OCPInventoryQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary]
+                    'tag_handler': [OCPUsagePodLabelSummary,
+                                    OCPStorageVolumeClaimLabelSummary,
+                                    OCPStorageVolumeLabelSummary]
                 },
                 {
                     'report': 'costs',
                     'serializer': OCPCostQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary]
+                    'tag_handler': [OCPUsagePodLabelSummary,
+                                    OCPStorageVolumeClaimLabelSummary,
+                                    OCPStorageVolumeLabelSummary]
                 },
                 {
                     'report': 'tags',
                     'serializer': OCPTagsQueryParamSerializer,
                     'query_handler': OCPTagQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary]
+                    'tag_handler': [OCPUsagePodLabelSummary,
+                                    OCPStorageVolumeClaimLabelSummary,
+                                    OCPStorageVolumeLabelSummary]
                 },
                 {
                     'report': 'volume',
                     'serializer': OCPInventoryQueryParamSerializer,
                     'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [
-                        OCPStorageVolumeClaimLabelSummary,
-                        OCPStorageVolumeLabelSummary
-                    ]
+                    'tag_handler': [OCPUsagePodLabelSummary,
+                                    OCPStorageVolumeClaimLabelSummary,
+                                    OCPStorageVolumeLabelSummary]
                 }
             ]
         },

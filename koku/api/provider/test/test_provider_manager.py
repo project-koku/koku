@@ -301,6 +301,7 @@ class ProviderManagerTest(IamTestCase):
             self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('summary_data_creation_datetime')), key_date_obj)
             self.assertGreater(parser.parse(value_data.get('summary_data_updated_datetime')), key_date_obj)
+            self.assertGreater(parser.parse(value_data.get('derived_cost_datetime')), key_date_obj)
 
     def test_provider_statistics_no_report_data(self):
         """Test that the provider statistics method returns no report stats with no report data."""
@@ -354,6 +355,7 @@ class ProviderManagerTest(IamTestCase):
             self.assertGreater(parser.parse(value_data.get('last_process_complete_date')), key_date_obj)
             self.assertIsNone(value_data.get('summary_data_creation_datetime'))
             self.assertIsNone(value_data.get('summary_data_updated_datetime'))
+            self.assertIsNone(value_data.get('derived_cost_datetime'))
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""

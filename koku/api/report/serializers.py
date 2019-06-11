@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Common serializer logic."""
+import copy
+
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
@@ -177,8 +179,13 @@ class BaseSerializer(serializers.Serializer):
         if fkwargs is None:
             fkwargs = {}
 
-        tag_fields = {key: field(*fargs, **fkwargs)
-                      for key in self.tag_keys}
+        tag_fields = {}
+        for key in self.tag_keys:
+            if len(self.tag_keys) > 1 and 'child' in fkwargs.keys():
+                # when there are multiple filters, each filter needs its own
+                # instantiated copy of the child field.
+                fkwargs['child'] = copy.deepcopy(fkwargs.get('child'))
+            tag_fields[key] = field(*fargs, **fkwargs)
 
         # Add tag keys to allowable fields
         for key, val in tag_fields.items():

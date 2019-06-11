@@ -316,6 +316,13 @@ class GroupBySerializerTest(TestCase):
             serializer = GroupBySerializer(data=filter_param)
             self.assertTrue(serializer.is_valid())
 
+    def test_multiple_params(self):
+        """Test that multiple group_by parameters works."""
+        group_by_params = {'account': 'account1', 'project': 'project1'}
+        serializer = GroupBySerializer(data=group_by_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
 
 class OrderBySerializerTest(TestCase):
     """Tests for the order_by serializer."""
@@ -396,5 +403,19 @@ class QueryParamSerializerTest(TestCase):
         query_params = {'delta': 'usage'}
         req = Mock(path='/api/cost-management/v1/reports/aws/costs/')
         serializer = QueryParamSerializer(data=query_params, context={'request': req})
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_multiple_group_by(self):
+        """Test parse of query params with multiple group_bys."""
+        query_params = {'group_by': {'account': ['account1'],
+                                     'project': ['project1']},
+                        'order_by': {'cost': 'asc'},
+                        'filter': {'resolution': 'daily',
+                                   'time_scope_value': '-10',
+                                   'time_scope_units': 'day',
+                                   'resource_scope': []}
+                        }
+        serializer = QueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
