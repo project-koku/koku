@@ -46,6 +46,9 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=t
                                        'email': 'user_dev@foo.com',
                                        'is_org_admin': True
                                    }
+                               },
+                               'entitlements': {
+                                   'hybrid_cloud': {'is_entitled': True}
                                }
                                }
             json_identity = json_dumps(identity_header)
