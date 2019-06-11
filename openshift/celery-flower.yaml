@@ -16,7 +16,7 @@ metadata:
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
-  template: koku
+  template: koku-celery-flower
 objects:
 - kind: Service
   apiVersion: v1

@@ -15,7 +15,7 @@ metadata:
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
-  template: koku
+  template: koku-imagestream
 objects:
 
 # Koku and Masu are built on python-36-centos7
