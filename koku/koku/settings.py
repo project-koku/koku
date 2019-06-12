@@ -83,7 +83,7 @@ INSTALLED_APPS = [
     'api',
     'reporting',
     'reporting_common',
-    'rates',
+    'cost_models',
 ]
 
 SHARED_APPS = (
@@ -99,7 +99,7 @@ SHARED_APPS = (
 
 TENANT_APPS = (
     'reporting',
-    'rates',
+    'cost_models',
 )
 
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'

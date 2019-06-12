@@ -17,10 +17,10 @@
 from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
 
-from rates.views import RateViewSet
+from cost_models.views import CostModelViewSet
 
 ROUTER = DefaultRouter()
-ROUTER.register(r'rates', RateViewSet, base_name='rates')
+ROUTER.register(r'costmodels', CostModelViewSet, base_name='costmodels')
 
 # pylint: disable=invalid-name
 urlpatterns = [

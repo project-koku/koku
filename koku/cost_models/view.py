@@ -25,8 +25,8 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from rates.models import Rate, RateMap
-from rates.serializers import RateSerializer
+from cost_models.models import CostModel, RateMap
+from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -60,21 +60,21 @@ class RateProviderMethodException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
-class RateViewSet(mixins.CreateModelMixin,
-                  mixins.DestroyModelMixin,
-                  mixins.ListModelMixin,
-                  mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  viewsets.GenericViewSet):
-    """Rate View.
+class CostModelViewSet(mixins.CreateModelMixin,
+                       mixins.DestroyModelMixin,
+                       mixins.ListModelMixin,
+                       mixins.RetrieveModelMixin,
+                       mixins.UpdateModelMixin,
+                       viewsets.GenericViewSet):
+    """CostModel View.
 
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
     and `list()` actions.
 
     """
 
-    queryset = Rate.objects.all()
-    serializer_class = RateSerializer
+    queryset = CostModel.objects.all()
+    serializer_class = CostModelSerializer
     permission_classes = (CostModelsAccessPermission,)
     lookup_field = 'uuid'
 
@@ -83,13 +83,13 @@ class RateViewSet(mixins.CreateModelMixin,
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        queryset = Rate.objects.all()
+        queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
             rate_ids = []
             for e in RateMap.objects.filter(provider_uuid=provider_uuid):
                 rate_ids.append(e.rate_id)
-            queryset = Rate.objects.filter(id__in=rate_ids)
+            queryset = CostModel.objects.filter(id__in=rate_ids)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:

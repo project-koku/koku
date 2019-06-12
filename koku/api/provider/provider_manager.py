@@ -27,7 +27,7 @@ from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
-from rates.models import RateMap
+from cost_models.models import RateMap
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus

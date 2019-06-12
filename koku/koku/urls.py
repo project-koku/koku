@@ -35,7 +35,7 @@ if API_PATH_PREFIX != '':
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('api.urls')),
-    url(r'^{}v1/'.format(API_PATH_PREFIX), include('rates.urls')),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('cost_models.urls')),
     path('', include('django_prometheus.urls')),
 ]
 
