@@ -27,7 +27,7 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '8080'
-    name: ${NAME}
+    name: ${NAME}-api
   spec:
     ports:
     - name: 8080-tcp
@@ -35,21 +35,21 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      name: ${NAME}
+      name: ${NAME}-api
 - apiVersion: v1
   kind: Route
   metadata:
-    name: ${NAME}
+    name: ${NAME}-api
   spec:
     host: ${APPLICATION_DOMAIN}
     to:
       kind: Service
-      name: ${NAME}
+      name: ${NAME}-api
 
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: ${NAME}
+    name: ${NAME}-api
     annotations:
       description: "Keeps track of changes in the application image"
 
@@ -59,14 +59,16 @@ objects:
     annotations:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}
+    labels:
+      name: ${NAME}-api
+    name: ${NAME}-api
   spec:
     failedBuildsHistoryLimit: 1
     successfulBuildsHistoryLimit: 2
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}:latest
+        name: ${NAME}-api:latest
     resources:
       requests:
         memory: ${BUILD_MEMORY_REQUEST}
@@ -132,25 +134,34 @@ objects:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}
+    name: ${NAME}-api
   spec:
     replicas: 1
     selector:
-      name: ${NAME}
+      name: ${NAME}-api
     resources:
       requests:
         memory: ${MEMORY_REQUEST}
       limits:
         memory: ${MEMORY_LIMIT}
     strategy:
-      type: Recreate
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 20
+        intervalSeconds: 120
+        timeoutSeconds: 600
+        maxSurge: 25%
+        maxUnavailable: 25%
     template:
       metadata:
-        name: ${NAME}
+        labels:
+          app: ${NAME}
+          name: ${NAME}-api
+        name: ${NAME}-api
       spec:
         containers:
-        - name: ${NAME}
-          image: ${NAME}
+        - name: ${NAME}-api
+          image: ${NAME}-api
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -359,22 +370,22 @@ objects:
             - name: POD_CPU_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-api
                   resource: requests.cpu
             - name: POD_CPU_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-api
                   resource: limits.cpu
             - name: POD_MEMORY_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-api
                   resource: requests.memory
             - name: POD_MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-api
                   resource: limits.memory
           livenessProbe:
             failureThreshold: 3
@@ -411,16 +422,16 @@ objects:
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}
+          - ${NAME}-api
         from:
           kind: ImageStreamTag
-          name: ${NAME}:latest
+          name: ${NAME}-api:latest
       type: ImageChange
 
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
-    name: ${NAME}
+    name: ${NAME}-api
     namespace: ${NAMESPACE}
   spec:
     maxReplicas: 10
@@ -428,7 +439,7 @@ objects:
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
-      name: koku
+      name: ${NAME}-api
     targetCPUUtilizationPercentage: 80
 
 parameters:

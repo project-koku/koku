@@ -52,7 +52,7 @@ objects:
     app-module: koku.wsgi
     app-namespace: ${NAMESPACE}
     app-domain: project-koku.com
-    api-path-prefix: '/api'
+    api-path-prefix: ${API_PATH_PREFIX}
 
     # (temporary) can be removed after koku/masu merge
     masu-host: ${MASU_HOST}
@@ -160,7 +160,7 @@ parameters:
   displayName: Redis host
   name: REDIS_HOST
   required: true
-  value: localhost
+  value: koku-redis.koku.svc.cluster.local
 - description: Port number for Redis service
   displayName: Redis port
   name: REDIS_PORT
@@ -170,7 +170,7 @@ parameters:
   displayName: PostgreSQL host
   name: DATABASE_HOST
   required: true
-  value: localhost
+  value: koku-db.koku.svc.cluster.local
 - description: Port number for PostgreSQL service
   displayName: PostgreSQL port
   name: DATABASE_PORT
@@ -180,12 +180,12 @@ parameters:
   displayName: Database host
   name: RABBITMQ_HOST
   required: true
-  value: localhost
+  value: rabbitmq.koku.svc.cluster.local
 - description: Hostname for Masu service
   displayName: Masu host
   name: MASU_HOST
   required: true
-  value: masu.koku.svc
+  value: koku-masu-flask.koku.svc.cluster.local
 - description: Port number for Masu service
   displayName: Masu port
   name: MASU_PORT
@@ -201,3 +201,7 @@ parameters:
   name: RBAC_PORT
   required: true
   value: "8080"
+- displayName: API path prefix
+  value: '/api'
+  name: API_PATH_PREFIX
+  required: true

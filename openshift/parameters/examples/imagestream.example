@@ -1,1 +1,6 @@
-NAMESPACE=koku
+# This is an example parameter file used with the openshift templates.
+# 
+# Copy this file to koku.git/openshift/parameters
+# Uncomment the values you want to change.
+#
+# NAMESPACE=koku

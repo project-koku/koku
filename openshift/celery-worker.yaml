@@ -46,7 +46,7 @@ objects:
     replicas: ${REPLICAS}
     selector:
       matchLabels:
-        app: ${NAME}
+        name: ${NAME}-worker
     resources:
       requests:
         cpu: ${CPU_REQUEST}
@@ -60,13 +60,15 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          name: ${NAME}-worker
         name: ${NAME}-worker
         annotations:
           alpha.image.policy.openshift.io/resolve-names: '*'
       spec:
         containers:
         - name: ${NAME}-worker
-          image: ${NAME}-worker
+          image: ${NAME}-masu-flask
+          imagePullPolicy: Always
           ports:
           - containerPort: 9999
             name: stats
@@ -266,20 +268,9 @@ objects:
           - ${NAME}-worker
         from:
           kind: ImageStreamTag
-          name: ${NAME}-flask:latest
+          name: ${NAME}-masu-flask:latest
+          namespace: ${NAMESPACE}
       type: ImageChange
-
-- kind: ImageStream
-  apiVersion: v1
-  metadata:
-    name: ${NAME}-worker
-    annotations:
-      description: "Keeps track of changes in the application image"
-    labels:
-      app: ${NAME}
-  spec:
-    lookupPolicy:
-      local: true
 
 parameters:
 - description: The name assigned to all frontend objects defined in this template.

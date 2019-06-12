@@ -1,8 +1,13 @@
-NAME=koku
-NAMESPACE=koku
-REPLICAS=1
-CPU_REQUEST=500m
-CPU_LIMIT=1
-MEMORY_REQUEST=512Mi
-MEMORY_LIMIT=1Gi
-VOLUME_CAPACITY=5Gi
+# This is an example parameter file used with the openshift templates.
+# 
+# Copy this file to koku.git/openshift/parameters
+# Uncomment the values you want to change.
+#
+# NAME=koku
+# NAMESPACE=koku
+# REPLICAS=1
+# CPU_REQUEST=500m
+# CPU_LIMIT=1
+# MEMORY_REQUEST=512Mi
+# MEMORY_LIMIT=1Gi
+# VOLUME_CAPACITY=5Gi

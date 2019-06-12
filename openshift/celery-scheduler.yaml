@@ -40,6 +40,7 @@ objects:
     template:
       metadata:
         labels:
+          app: ${NAME}
           name: ${NAME}-scheduler
         name: ${NAME}-scheduler
       spec:
@@ -63,7 +64,7 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: database-password
-                  name: ${NAME}-masu
+                  name: ${NAME}-db
                   optional: false
             - name: MASU_SECRET_KEY
               valueFrom:
@@ -179,10 +180,10 @@ objects:
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-flask
+          - ${NAME}-scheduler
         from:
           kind: ImageStreamTag
-          name: ${NAME}-scheduler:latest
+          name: ${NAME}-masu-flask:latest
       type: ImageChange
 
 parameters:

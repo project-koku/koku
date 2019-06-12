@@ -38,6 +38,7 @@ objects:
     template:
       metadata:
         labels:
+          app: ${NAME}
           name: ${NAME}-redis
         name: ${NAME}-redis
       spec:
@@ -64,7 +65,7 @@ objects:
               claimName: ${NAME}-redis
           - name: ${NAME}-redis-config
             configMap:
-              name: redis-config
+              name: ${NAME}-redis-config
     triggers:
     - imageChangeParams:
         automatic: true

@@ -58,6 +58,7 @@ objects:
     template:
       metadata:
         labels:
+          app: ${NAME}
           name: ${NAME}-celery-exporter
         name: ${NAME}-celery-exporter
       spec:
@@ -101,7 +102,7 @@ objects:
           - ${NAME}-celery-exporter
         from:
           kind: ImageStreamTag
-          name: ${NAME}-flask:latest
+          name: ${NAME}-masu-flask:latest
       type: ImageChange
 
 parameters:

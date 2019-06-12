@@ -52,6 +52,7 @@ objects:
     name: ${NAME}-flower
     labels:
       app: ${NAME}
+      name: ${NAME}-flower
   spec:
     failedBuildsHistoryLimit: 1
     successfulBuildsHistoryLimit: 2
@@ -84,18 +85,18 @@ objects:
           - name: APP_CONFIG
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-config
                 optional: false
           - name: APP_HOME
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-home
           - name: APP_MODULE
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-module
         from:
           kind: ImageStreamTag
@@ -134,6 +135,7 @@ objects:
     template:
       metadata:
         labels:
+          app: ${NAME}
           name: ${NAME}-flower
         name: ${NAME}-flower
       spec:
@@ -159,7 +161,7 @@ objects:
               valueFrom:
                 secretKeyRef:
                   key: masu-secret-key
-                  name: ${NAME}-flower
+                  name: ${NAME}-masu
                   optional: false
             - name: FLOWER_AUTH_SCHEME
               valueFrom:

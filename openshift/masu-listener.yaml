@@ -33,7 +33,7 @@ objects:
     - port: 9999
       name: stats
     selector:
-      app: ${NAME}
+      name: ${NAME}-listener
 
 - kind: StatefulSet
   apiVersion: apps/v1beta1
@@ -46,7 +46,7 @@ objects:
     replicas: ${REPLICAS}
     selector:
       matchLabels:
-        app: ${NAME}
+        name: ${NAME}-listener
     resources:
       requests:
         cpu: ${CPU_REQUEST}
@@ -60,13 +60,15 @@ objects:
       metadata:
         labels:
           app: ${NAME}
+          name: ${NAME}-listener
         name: ${NAME}-listener
         annotations:
           alpha.image.policy.openshift.io/resolve-names: '*'
       spec:
         containers:
         - name: ${NAME}-listener
-          image: ${NAME}-listener
+          image: ${NAME}-masu-flask
+          imagePullPolicy: Always
           ports:
           - containerPort: 9999
             name: stats
@@ -206,7 +208,8 @@ objects:
           - ${NAME}-listener
         from:
           kind: ImageStreamTag
-          name: ${NAME}-flask:latest
+          name: ${NAME}-masu-flask:latest
+          namespace: ${NAMESPACE}
       type: ImageChange
 
 parameters:

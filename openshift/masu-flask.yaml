@@ -28,9 +28,7 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '9100'
-    name: ${NAME}-flask
-    labels:
-      app: ${NAME}-flask
+    name: ${NAME}-masu-flask
   spec:
     ports:
     - name: 8080-tcp
@@ -42,36 +40,34 @@ objects:
       protocol: TCP
       targetPort: 9100
     selector:
-      name: ${NAME}
+      name: ${NAME}-masu-flask
 - kind: Route
   apiVersion: v1
   metadata:
-    name: ${NAME}
-    labels:
-      app: ${NAME}
+    name: ${NAME}-masu-flask
   spec:
     host: ${APPLICATION_DOMAIN}
     port:
       targetPort: 8080-tcp
     to:
       kind: Service
-      name: ${NAME}
+      name: ${NAME}-masu-flask
 - kind: BuildConfig
   apiVersion: v1
   metadata:
     annotations:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}
     labels:
-      app: ${NAME}
+      name: ${NAME}-masu-flask
+    name: ${NAME}-masu-flask
   spec:
     failedBuildsHistoryLimit: 1
     successfulBuildsHistoryLimit: 2
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}:latest
+        name: ${NAME}-masu-flask:latest
     resources:
       requests:
         memory: ${BUILD_MEMORY_REQUEST}
@@ -97,18 +93,18 @@ objects:
           - name: APP_CONFIG
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-config
                 optional: false
           - name: APP_HOME
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-home
           - name: APP_MODULE
             valueFrom:
               configMapKeyRef:
-                name: ${NAME}
+                name: masu-app
                 key: app-module
         from:
           kind: ImageStreamTag
@@ -127,13 +123,11 @@ objects:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}
-    labels:
-      app: ${NAME}
+    name: ${NAME}-masu-flask
   spec:
     replicas: 1
     selector:
-      name: ${NAME}
+      name: ${NAME}-masu-flask
     resources:
       requests:
         cpu: ${CPU_REQUEST}
@@ -146,12 +140,13 @@ objects:
     template:
       metadata:
         labels:
-          name: ${NAME}
-        name: ${NAME}
+          app: ${NAME}
+          name: ${NAME}-masu-flask
+        name: ${NAME}-masu-flask
       spec:
         containers:
-        - name: ${NAME}
-          image: ${NAME}
+        - name: ${NAME}-masu-flask
+          image: ${NAME}-masu-flask
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -340,25 +335,26 @@ objects:
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-flask
+          - ${NAME}-masu-flask
         from:
           kind: ImageStreamTag
-          name: ${NAME}:latest
+          name: ${NAME}-masu-flask:latest
       type: ImageChange
 
 - kind: ImageStream
   apiVersion: v1
   metadata:
-    name: ${NAME}-flask
+    name: ${NAME}-masu-flask
     annotations:
       description: "Keeps track of changes in the application image"
-    labels:
-      app: ${NAME}
+  spec:
+    lookupPolicy:
+      local: true
 
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
-    name: ${NAME}-flask
+    name: ${NAME}-masu-flask
     namespace: ${NAMESPACE}
   spec:
     maxReplicas: 3
@@ -366,7 +362,7 @@ objects:
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
-      name: ${NAME}
+      name: ${NAME}-masu-flask
     targetCPUUtilizationPercentage: 90
 parameters:
 - description: The name assigned to all frontend objects defined in this template.

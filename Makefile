@@ -15,9 +15,11 @@ APIDOC  = apidoc
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 
-# OpenShift template parameters
-NAME = koku
-NAMESPACE = koku
+# required OpenShift template parameters
+# if a value is defined in a parameter file, we try to use that.
+# otherwise, we use a default value
+NAME = $(or $(shell grep -h '^[^\#]*NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
+NAMESPACE = $(or $(shell grep -h '^[^\#]*NAMESPACE=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
 
 OC_TEMPLATE_DIR = $(TOPDIR)/openshift
 OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
@@ -49,7 +51,6 @@ Please use \`make <target>' where <target> is one of:
   collect-static           collect static files to host
   gen-apidoc               create api documentation
   make-migrations          make migrations for the database
-  reinitdb                 drop and recreate the database
   requirements             generate Pipfile.lock and RTD requirements
   remove-db                remove local directory: $(TOPDIR)/pg_data
   run-migrations           run migrations against database
@@ -62,6 +63,7 @@ Please use \`make <target>' where <target> is one of:
   docker-up-db              run database only
   docker-down               shut down all containers
   docker-rabbit             run RabbitMQ container
+  docker-reinitdb           drop and recreate the database
   docker-shell              run Django and database containers with shell access to server (for pdb)
   docker-logs               connect to console logs for all services
   docker-test-all           run unittests
@@ -153,11 +155,6 @@ gen-apidoc:
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
 
-reinitdb: stop-compose remove-db start-db
-	sleep 5
-	$(MAKE) run-migrations
-	$(MAKE) create-test-db-file
-
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
@@ -191,7 +188,7 @@ superuser:
 oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
-oc-create-all: oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-database oc-create-flower oc-create-koku-api oc-create-koku-auth-cache oc-create-listener oc-create-masu oc-create-rabbitmq
+oc-create-all: oc-create-database oc-create-rabbitmq oc-create-koku-auth-cache oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-flower oc-create-koku-api oc-create-listener oc-create-masu
 
 oc-create-celery-exporter: OC_OBJECT := dc/$(NAME)-celery-exporter
 oc-create-celery-exporter: OC_PARAMETER_FILE := celery-exporter.env
@@ -250,7 +247,7 @@ oc-create-flower:
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-imagestream: OC_OBJECT := is/centos
+oc-create-imagestream: OC_OBJECT := 'is/centos is/python-36-centos7 is/postgresql'
 oc-create-imagestream: OC_PARAMETER_FILE := imagestream.env
 oc-create-imagestream: OC_TEMPLATE_FILE := imagestream.yaml
 oc-create-imagestream: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
@@ -372,7 +369,7 @@ oc-down:
 	oc cluster down
 
 oc-forward-ports: oc-stop-forwarding-ports
-	oc port-forward $$(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=koku-pgsql) 15432:5432 >/dev/null 2>&1 &
+	@oc port-forward $$(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
 
 oc-login-dev:
 	oc login -u developer --insecure-skip-tls-verify=true localhost:8443
@@ -390,7 +387,7 @@ oc-run-migrations: oc-forward-ports
 	$(MAKE) oc-stop-forwarding-ports
 
 oc-stop-forwarding-ports:
-	kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}')
+	@kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}') 2>/dev/null || true
 
 oc-up:
 	oc cluster up \
@@ -418,6 +415,11 @@ docker-logs:
 docker-rabbit:
 	docker-compose up -d rabbit
 
+docker-reinitdb: docker-down remove-db docker-up-db
+	sleep 5
+	$(MAKE) run-migrations
+	$(MAKE) create-test-db-file
+
 docker-shell:
 	docker-compose run --service-ports koku-server
 
@@ -434,9 +436,14 @@ docker-up-db:
 ### Internal targets ###
 ########################
 
+__oc-create-project:
+	@if [[ ! $$(oc get -o name project/$(NAMESPACE) 2>/dev/null) ]]; then \
+		oc new-project $(NAMESPACE) ;\
+	fi
+
 # if object doesn't already exist,
 # create it from the provided template and parameters
-__oc-create-object:
+__oc-create-object: __oc-create-project
 	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) == '' ]] || \
 	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep 'not found') ]]; then \
 		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
