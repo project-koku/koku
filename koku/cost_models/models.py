@@ -15,13 +15,42 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Models for rates."""
+"""Models for cost models."""
 from uuid import uuid4
 
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 
 from api.metrics.models import CostModelMetricsMap
+from api.provider.models import Provider
+
+class CostModel(models.Model):
+    """A collection of rates used to calculate cost against resource usage data."""
+
+    class Meta:
+        """Meta for CostModel."""
+
+        db_table = 'cost_model'
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    name = models.TextField()
+
+    description = models.TextField()
+
+    created_timestamp = models.DateTimeField(auto_now_add=True)
+
+    updated_timestamp = models.DateTimeField(auto_now=True)
+
+    source_type = models.CharField(
+        max_length=50,
+        null=False,
+        choices=Provider.PROVIDER_CHOICES
+    )
+
+    provider_uuids = ArrayField(models.UUIDField())
+
+    rates = JSONField(default=dict)
 
 
 class Rate(models.Model):
@@ -47,14 +76,14 @@ class Rate(models.Model):
 class RateMap(models.Model):
     """Map for provider and rate objects."""
 
-    provider_uuid = models.UUIDField(default=uuid4, editable=False,
+    provider_uuid = models.UUIDField(editable=False,
                                      unique=False, null=False)
 
     rate = models.ForeignKey('Rate', null=True, blank=True,
-                             on_delete=models.CASCADE)
+                                   on_delete=models.CASCADE)
 
     class Meta:
-        """Meta for Rate."""
+        """Meta for RateMap."""
 
         ordering = ['-id']
         unique_together = ('provider_uuid', 'rate')
