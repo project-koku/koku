@@ -24,7 +24,7 @@ from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import (Provider)
 from cost_models.models import CostModel
-from cost_models.rate_manager import RateManager, RateManagerError
+from cost_models.cost_model_manager import CostModelManager, CostModelManagerError
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
@@ -326,10 +326,10 @@ class CostModelSerializer(serializers.Serializer):
         # provider_uuids = validated_data.pop('provider_uuids', [])
         # metric = validated_data.pop('metric')
         # try:
-        #     rate_obj = RateManager().create(metric=metric.get('name'),
+        #     rate_obj = CostModelManager().create(metric=metric.get('name'),
         #                                     rates=self._transform_rate_for_db(validated_data),
         #                                     provider_uuids=provider_uuids)
-        # except RateManagerError as create_error:
+        # except CostModelManagerError as create_error:
         #     raise serializers.ValidationError(create_error.message)
         # return rate_obj
 
@@ -341,12 +341,12 @@ class CostModelSerializer(serializers.Serializer):
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
-        manager = RateManager(rate_uuid=instance.uuid)
+        manager = CostModelManager(rate_uuid=instance.uuid)
         try:
             manager.update_provider_uuids(new_providers_for_instance)
             manager.update_metric(metric.get('name'))
 
-        except RateManagerError as create_error:
+        except CostModelManagerError as create_error:
             raise serializers.ValidationError(create_error.message)
 
         manager.update_rates(self._transform_rate_for_db(validated_data))
@@ -361,7 +361,7 @@ class CostModelSerializer(serializers.Serializer):
 
     #     rates = rate.rates
 
-    #     provider_uuids = RateManager(rate_uuid=rate.uuid).get_provider_uuids()
+    #     provider_uuids = CostModelManager(rate_uuid=rate.uuid).get_provider_uuids()
     #     display_data = self._get_metric_display_data(rate.metric)
     #     out = {
     #         'uuid': rate.uuid,

@@ -32,7 +32,7 @@ from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from rates.models import RateMap
-from rates.rate_manager import RateManager
+from cost_models.cost_model_manager import CostModelManager
 
 
 class MockResponse:
@@ -229,7 +229,7 @@ class ProviderManagerTest(IamTestCase):
                 'usage_start': None,
                 'usage_end': None
             }]}
-            manager = RateManager()
+            manager = CostModelManager()
             manager.create(
                 metric=CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR,
                 rates=rates,

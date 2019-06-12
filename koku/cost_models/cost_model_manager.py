@@ -27,19 +27,19 @@ from cost_models.models import RateMap
 LOG = logging.getLogger(__name__)
 
 
-class RateManagerError(Exception):
-    """General Exception class for RateManager errors."""
+class CostModelManagerError(Exception):
+    """General Exception class for CostModelManager errors."""
 
     def __init__(self, message):
         """Set custom error message for ProviderManager errors."""
         self.message = message
 
 
-class RateManager:
+class CostModelManager:
     """Rate Manager to manage user defined rate operations."""
 
     def __init__(self, rate_uuid=None):
-        """Initialize properties for RateManager."""
+        """Initialize properties for CostModelManager."""
         self._model = None
         self._rate_uuid = None
 
@@ -64,7 +64,7 @@ class RateManager:
     #     if invalid_provider_metrics:
     #         duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)    # noqa: E501
     #         duplicate_metrics_err = 'Duplicate metrics found for the following providers: {}'.format(duplicate_err_msg)
-    #         raise RateManagerError(duplicate_metrics_err)
+    #         raise CostModelManagerError(duplicate_metrics_err)
 
     @transaction.atomic
     def create(self, metric, rates, provider_uuids=[]):

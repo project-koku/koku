@@ -23,8 +23,8 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
-from rates.models import Rate, RateMap
-from rates.rate_manager import RateManager, RateManagerError
+from cost_models.models import Rate, RateMap
+from cost_models.cost_model_manager import CostModelManager, CostModelManagerError
 
 
 class MockResponse:
@@ -36,7 +36,7 @@ class MockResponse:
         self.response_text = response_text
 
 
-class RateManagerTest(IamTestCase):
+class CostModelManagerTest(IamTestCase):
     """Tests for Rate Manager."""
 
     def setUp(self):
@@ -62,7 +62,7 @@ class RateManagerTest(IamTestCase):
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates)
             self.assertEqual(rate_obj.metric, metric)
@@ -71,7 +71,7 @@ class RateManagerTest(IamTestCase):
 
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
             self.assertEqual(len(rate_map), 0)
-            self.assertEqual(RateManager(rate_obj.uuid).get_provider_uuids(), [])
+            self.assertEqual(CostModelManager(rate_obj.uuid).get_provider_uuids(), [])
 
     def test_create_with_provider(self):
         """Test creating a rate with provider."""
@@ -86,7 +86,7 @@ class RateManagerTest(IamTestCase):
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates,
                                       provider_uuids=[provider_uuid])
@@ -97,7 +97,7 @@ class RateManagerTest(IamTestCase):
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
             self.assertIsNotNone(rate_map)
             self.assertEqual(rate_map.first().provider_uuid, provider_uuid)
-            self.assertEqual(RateManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
+            self.assertEqual(CostModelManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
 
     def test_create_with_provider_duplicates(self):
         """Test creating with duplicate rates for a provider."""
@@ -112,7 +112,7 @@ class RateManagerTest(IamTestCase):
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates,
                                       provider_uuids=[provider_uuid])
@@ -120,7 +120,7 @@ class RateManagerTest(IamTestCase):
             self.assertEqual(rate_obj.rates, rates)
             self.assertIsNotNone(rate_obj.uuid)
 
-            with self.assertRaises(RateManagerError):
+            with self.assertRaises(CostModelManagerError):
                 manager.create(metric=metric,
                                rates=rates,
                                provider_uuids=[provider_uuid])
@@ -145,7 +145,7 @@ class RateManagerTest(IamTestCase):
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates,
                                       provider_uuids=[provider_uuid, provider_uuid_2])
@@ -171,7 +171,7 @@ class RateManagerTest(IamTestCase):
 
         rate_obj = None
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates)
             self.assertEqual(rate_obj.metric, metric)
@@ -191,7 +191,7 @@ class RateManagerTest(IamTestCase):
 
         # Add provider to existing rate
         with tenant_context(self.tenant):
-            manager = RateManager(rate_uuid=rate_obj.uuid)
+            manager = CostModelManager(rate_uuid=rate_obj.uuid)
             manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
@@ -201,7 +201,7 @@ class RateManagerTest(IamTestCase):
 
         # Add provider provider again to existing rate.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
-            manager = RateManager(rate_uuid=rate_obj.uuid)
+            manager = CostModelManager(rate_uuid=rate_obj.uuid)
             manager.update_provider_uuids(provider_uuids=[provider_uuid])
 
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
@@ -211,7 +211,7 @@ class RateManagerTest(IamTestCase):
 
         # Remove provider from existing rate
         with tenant_context(self.tenant):
-            manager = RateManager(rate_uuid=rate_obj.uuid)
+            manager = CostModelManager(rate_uuid=rate_obj.uuid)
             manager.update_provider_uuids(provider_uuids=[])
 
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
@@ -230,7 +230,7 @@ class RateManagerTest(IamTestCase):
         rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
 
         with tenant_context(self.tenant):
-            manager = RateManager()
+            manager = CostModelManager()
             rate_obj = manager.create(metric=metric,
                                       rates=rates,
                                       provider_uuids=[provider_uuid])
@@ -241,13 +241,13 @@ class RateManagerTest(IamTestCase):
             rate_map = RateMap.objects.filter(rate=rate_obj.id)
             self.assertIsNotNone(rate_map)
             self.assertEqual(rate_map.first().provider_uuid, provider_uuid)
-            self.assertEqual(RateManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
+            self.assertEqual(CostModelManager(rate_obj.uuid).get_provider_uuids(), [provider_uuid])
 
         # Create another rate with same metric
         rates_2 = {'tiered_rate': [{'unit': 'USD', 'value': 0.52}]}
 
         with tenant_context(self.tenant):
-            manager_2 = RateManager()
+            manager_2 = CostModelManager()
             rate_obj_2 = manager_2.create(metric=metric, rates=rates_2)
             rate_map = RateMap.objects.filter(rate=rate_obj_2.id)
             self.assertIsNotNone(rate_map)
@@ -255,6 +255,6 @@ class RateManagerTest(IamTestCase):
 
         # Update rate_2 with provider uuid that is already associated with another rate of same type
         with tenant_context(self.tenant):
-            manager_3 = RateManager(rate_uuid=rate_obj_2.uuid)
-            with self.assertRaises(RateManagerError):
+            manager_3 = CostModelManager(rate_uuid=rate_obj_2.uuid)
+            with self.assertRaises(CostModelManagerError):
                 manager_3.update_provider_uuids(provider_uuids=[provider_uuid])
