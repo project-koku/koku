@@ -409,7 +409,6 @@ oc-up-db: oc-up oc-create-db
 ### Docker-compose Commands ###
 ###############################
 
-
 docker-down:
 	docker-compose down
 
@@ -431,6 +430,12 @@ docker-up:
 docker-up-db:
 	docker-compose up -d db
 
+########################
+### Internal targets ###
+########################
+
+# if object doesn't already exist,
+# create it from the provided template and parameters
 __oc-create-object:
 	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) == '' ]] || \
 	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep 'not found') ]]; then \
