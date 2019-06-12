@@ -89,7 +89,7 @@ remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
 
 make-migrations:
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common rates
+	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common cost_models
 
 run-migrations:
 	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py migrate_schemas
