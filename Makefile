@@ -191,111 +191,125 @@ superuser:
 oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
-oc-create-all: oc-create-celery-exporter oc-create-configmap oc-create-database oc-create-flower oc-create-imagestream oc-create-koku-api oc-create-koku-auth-cache oc-create-listener oc-create-masu oc-create-rabbitmq oc-create-secret oc-create-worker
+oc-create-all: oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-database oc-create-flower oc-create-koku-api oc-create-koku-auth-cache oc-create-listener oc-create-masu oc-create-rabbitmq
 
-oc-create-celery-exporter: export OC_OBJECT = dc/$(NAME)-celery-exporter
-oc-create-celery-exporter: export OC_PARAMETER_FILE = celery-exporter.env
-oc-create-celery-exporter: export OC_TEMPLATE_FILE = celery-exporter.yaml
+oc-create-celery-exporter: OC_OBJECT := dc/$(NAME)-celery-exporter
+oc-create-celery-exporter: OC_PARAMETER_FILE := celery-exporter.env
+oc-create-celery-exporter: OC_TEMPLATE_FILE := celery-exporter.yaml
+oc-create-celery-exporter: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-celery-exporter:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-celery-scheduler: export OC_OBJECT = bc/$(NAME)-scheduler dc/$(NAME)-scheduler
-oc-create-celery-scheduler: export OC_PARAMETER_FILE = celery-scheduler.env
-oc-create-celery-scheduler: export OC_TEMPLATE_FILE = celery-scheduler.yaml
+oc-create-celery-scheduler: OC_OBJECT := 'bc/$(NAME)-scheduler dc/$(NAME)-scheduler'
+oc-create-celery-scheduler: OC_PARAMETER_FILE := celery-scheduler.env
+oc-create-celery-scheduler: OC_TEMPLATE_FILE := celery-scheduler.yaml
+oc-create-celery-scheduler: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-celery-scheduler:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-celery-worker: export OC_OBJECT = bc/$(NAME)-worker dc/$(NAME)-worker
-oc-create-celery-worker: export OC_PARAMETER_FILE = celery-worker.env
-oc-create-celery-worker: export OC_TEMPLATE_FILE = celery-worker.yaml
+oc-create-celery-worker: OC_OBJECT := 'bc/$(NAME)-worker dc/$(NAME)-worker'
+oc-create-celery-worker: OC_PARAMETER_FILE := celery-worker.env
+oc-create-celery-worker: OC_TEMPLATE_FILE := celery-worker.yaml
+oc-create-celery-worker: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-celery-worker:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-configmap: export OC_OBJECT = configmap -l app=$(NAME)
-oc-create-configmap: export OC_PARAMETER_FILE = configmap.env
-oc-create-configmap: export OC_TEMPLATE_FILE = configmap.yaml
+oc-create-configmap: OC_OBJECT := 'configmap -l app=$(NAME)'
+oc-create-configmap: OC_PARAMETER_FILE := configmap.env
+oc-create-configmap: OC_TEMPLATE_FILE := configmap.yaml
+oc-create-configmap: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-configmap:
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-database: export OC_OBJECT = bc/$(NAME)-db dc/$(NAME)-db
-oc-create-database: export OC_PARAMETER_FILE = $(NAME)-database.env
-oc-create-database: export OC_TEMPLATE_FILE = $(NAME)-database.yaml
+oc-create-database: OC_OBJECT := 'bc/$(NAME)-db dc/$(NAME)-db'
+oc-create-database: OC_PARAMETER_FILE := $(NAME)-database.env
+oc-create-database: OC_TEMPLATE_FILE := $(NAME)-database.yaml
+oc-create-database: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-database:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-flower: export OC_OBJECT = bc/$(NAME)-flower dc/$(NAME)-flower
-oc-create-flower: export OC_PARAMETER_FILE = celery-flower.env
-oc-create-flower: export OC_TEMPLATE_FILE = celery-flower.yaml
+oc-create-flower: OC_OBJECT := 'bc/$(NAME)-flower dc/$(NAME)-flower'
+oc-create-flower: OC_PARAMETER_FILE := celery-flower.env
+oc-create-flower: OC_TEMPLATE_FILE := celery-flower.yaml
+oc-create-flower: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-flower:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-imagestream: export OC_OBJECT = is/centos
-oc-create-imagestream: export OC_TEMPLATE_FILE = imagestream.yaml
+oc-create-imagestream: OC_OBJECT := is/centos
+oc-create-imagestream: OC_PARAMETER_FILE := imagestream.env
+oc-create-imagestream: OC_TEMPLATE_FILE := imagestream.yaml
+oc-create-imagestream: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-imagestream:
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-koku-api: export OC_OBJECT = bc/$(NAME) dc/$(NAME)
-oc-create-koku-api: export OC_PARAMETER_FILE = $(NAME)-api.env
-oc-create-koku-api: export OC_TEMPLATE_FILE = $(NAME)-api.yaml
+oc-create-koku-api: OC_OBJECT := 'bc/$(NAME) dc/$(NAME)'
+oc-create-koku-api: OC_PARAMETER_FILE := $(NAME)-api.env
+oc-create-koku-api: OC_TEMPLATE_FILE := $(NAME)-api.yaml
+oc-create-koku-api: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-koku-api:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-koku-auth-cache: export OC_OBJECT = bc/$(NAME)-redis dc/$(NAME)-redis
-oc-create-koku-auth-cache: export OC_PARAMETER_FILE = $(NAME)-auth-cache.env
-oc-create-koku-auth-cache: export OC_TEMPLATE_FILE = $(NAME)-auth-cache.yaml
+oc-create-koku-auth-cache: OC_OBJECT := 'bc/$(NAME)-redis dc/$(NAME)-redis'
+oc-create-koku-auth-cache: OC_PARAMETER_FILE := $(NAME)-auth-cache.env
+oc-create-koku-auth-cache: OC_TEMPLATE_FILE := $(NAME)-auth-cache.yaml
+oc-create-koku-auth-cache: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-koku-auth-cache:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-listener: export OC_OBJECT = bc/$(NAME)-listener dc/$(NAME)-listener
-oc-create-listener: export OC_PARAMETER_FILE = masu-listener.env
-oc-create-listener: export OC_TEMPLATE_FILE = masu-listener.yaml
+oc-create-listener: OC_OBJECT := 'bc/$(NAME)-listener dc/$(NAME)-listener'
+oc-create-listener: OC_PARAMETER_FILE := masu-listener.env
+oc-create-listener: OC_TEMPLATE_FILE := masu-listener.yaml
+oc-create-listener: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-listener:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-masu: export OC_OBJECT = bc/$(NAME)-masu dc/$(NAME)-masu
-oc-create-masu: export OC_PARAMETER_FILE = masu-flask.env
-oc-create-masu: export OC_TEMPLATE_FILE = masu-flask.yaml
+oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu dc/$(NAME)-masu'
+oc-create-masu: OC_PARAMETER_FILE := masu-flask.env
+oc-create-masu: OC_TEMPLATE_FILE := masu-flask.yaml
+oc-create-masu: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-masu:
-	$(MAKE) oc-create-imagestream
-	$(MAKE) oc-create-configmap
-	$(MAKE) oc-create-secret
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-rabbitmq: export OC_OBJECT = statefulsets/rabbitmq
-oc-create-rabbitmq: export OC_PARAMETER_FILE = rabbitmq.env
-oc-create-rabbitmq: export OC_TEMPLATE_FILE = rabbitmq.yaml
+oc-create-rabbitmq: OC_OBJECT := statefulsets/rabbitmq
+oc-create-rabbitmq: OC_PARAMETER_FILE := rabbitmq.env
+oc-create-rabbitmq: OC_TEMPLATE_FILE := rabbitmq.yaml
+oc-create-rabbitmq: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-rabbitmq:
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-secret: export OC_OBJECT = secret -l app=$(NAME)
-oc-create-secret: export OC_PARAMETER_FILE = secret.env
-oc-create-secret: export OC_TEMPLATE_FILE = secret.yaml
+oc-create-secret: OC_OBJECT := 'secret -l app=$(NAME)'
+oc-create-secret: OC_PARAMETER_FILE := secret.env
+oc-create-secret: OC_TEMPLATE_FILE := secret.yaml
+oc-create-secret: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-secret:
-	$(MAKE) __oc-create-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-test-db-file: oc-run-migrations
 	sleep 1
@@ -311,7 +325,8 @@ oc-create-test-db-file: oc-run-migrations
 oc-delete-all:
 	oc delete all -l app=koku
 
-oc-delete-all-all:
+# it's the only way to be sure...
+oc-nuke-from-orbit:
 	oc delete all,configmap,secret,pvc -l app=koku
 
 oc-delete-celery-exporter:
@@ -417,18 +432,19 @@ docker-up-db:
 	docker-compose up -d db
 
 __oc-create-object:
-	@if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
-		echo "A" && \
-		[ "$$(oc get $(OC_OBJECT) 2>/dev/null)" == 'No resources found.' ] || \
-		oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-			--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-		| oc create -n $(NAMESPACE) -f - ;\
+	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) == '' ]] || \
+	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep 'not found') ]]; then \
+		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
+			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
+				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
+			| oc create -n $(NAMESPACE) -f - 2>&1 | grep -v "already exists" || /usr/bin/true ;\
+		else \
+			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
+				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
+			| oc create -n $(NAMESPACE) -f - 2>&1 | grep -v "already exists" || /usr/bin/true ;\
+		fi ;\
 	else \
-		echo "B" && \
-		[ "$$(oc get $(OC_OBJECT) 2>/dev/null)" == 'No resources found.' ] || \
-		oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
-			$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-		| oc create -n $(NAMESPACE) -f - ;\
+		echo "WARNING: Resources matching 'oc get $(OC_OBJECT)' exists. Skipping." ;\
 	fi
 
 #
