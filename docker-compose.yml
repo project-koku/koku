@@ -29,6 +29,8 @@ services:
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
         - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-5000}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-rabbit}
+        - RABBITMQ_PORT=5672
       privileged: true
       ports:
           - 8000:8000
@@ -36,6 +38,7 @@ services:
         - '.:/koku/'
       links:
         - db
+        - rabbit
       depends_on:
         - db
 
@@ -56,6 +59,71 @@ services:
       - "15432:5432"
     volumes:
       - ./pg_data:/var/lib/pgsql/data
+
+  rabbit:
+      container_name: koku_rabbit
+      hostname: rabbit
+      image: rabbitmq:latest
+      environment:
+          - RABBITMQ_DEFAULT_USER=guest
+          - RABBITMQ_DEFAULT_PASS=guest
+      ports:
+          - "${RABBITMQ_PORT-5673}:5672"
+
+  koku-worker:
+      container_name: koku_worker
+      hostname: koku_worker
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/koku
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info']
+      environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-rabbit}
+        - RABBITMQ_PORT=5672
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+      privileged: true
+      volumes:
+        - '.:/koku'
+      links:
+          - rabbit
+      depends_on:
+          - rabbit
+
+  koku-beat:
+    container_name: koku_beat
+    hostname: koku_beat
+    build:
+        context: .
+        dockerfile: Dockerfile-env
+    working_dir: /koku/koku
+    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
+    environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-rabbit}
+        - RABBITMQ_PORT=5672
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+    privileged: true
+    volumes:
+      - .:/koku
+    depends_on:
+      - db
+      - rabbit
 
 networks:
   default:
