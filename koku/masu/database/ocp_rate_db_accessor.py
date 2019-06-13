@@ -49,8 +49,8 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
             WHERE rates_map.provider_uuid = '{self.provider_uuid}'
                 AND rates_table.metric = '{metric_value}'
             """
-        response = self._db.execute(query_sql)
-        results = response.fetchall()
+        self._cursor.execute(query_sql)
+        results = self._cursor.fetchall()
 
         return results[0][0] if len(results) == 1 else None
 

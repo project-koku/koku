@@ -16,11 +16,10 @@
 #
 
 """Test the ProviderDBAccessor utility object."""
-
-from masu.external import AMAZON_WEB_SERVICES
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.customer_db_accessor import CustomerDBAccessor
-from tests import MasuTestCase
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external import AMAZON_WEB_SERVICES
+from masu.test import MasuTestCase
 
 
 class ProviderDBAccessorTest(MasuTestCase):
@@ -29,120 +28,109 @@ class ProviderDBAccessorTest(MasuTestCase):
     def test_initializer_provider_uuid(self):
         """Test Initializer with provider uuid."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        self.assertIsNotNone(accessor._session)
-        self.assertTrue(accessor.does_db_entry_exist())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertTrue(accessor.does_db_entry_exist())
 
     def test_initializer_auth_id(self):
         """Test Initializer with authentication database id."""
         auth_id = self.aws_db_auth_id
-        accessor = ProviderDBAccessor(auth_id=auth_id)
-        self.assertIsNotNone(accessor._session)
-        self.assertTrue(accessor.does_db_entry_exist())
-        accessor.close_session()
+        with ProviderDBAccessor(auth_id=auth_id) as accessor:
+            self.assertTrue(accessor.does_db_entry_exist())
 
     def test_initializer_provider_uuid_and_auth_id(self):
         """Test Initializer with provider uuid and authentication database id."""
         auth_id = self.aws_db_auth_id
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id)
-        self.assertIsNotNone(accessor._session)
-        self.assertTrue(accessor.does_db_entry_exist())
-        accessor.close_session()
+        with ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id) as accessor:
+            self.assertTrue(accessor.does_db_entry_exist())
 
     def test_initializer_provider_uuid_and_auth_id_mismatch(self):
         """Test Initializer with provider uuid and authentication database id mismatch."""
         auth_id = self.ocp_db_auth_id
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id)
-        self.assertIsNotNone(accessor._session)
-        self.assertFalse(accessor.does_db_entry_exist())
-        accessor.close_session()
+        with ProviderDBAccessor(provider_uuid=uuid, auth_id=auth_id) as accessor:
+            self.assertFalse(accessor.does_db_entry_exist())
 
     def test_initializer_no_args(self):
         """Test Initializer with no arguments."""
-        accessor = ProviderDBAccessor()
-        self.assertIsNotNone(accessor._session)
-        self.assertTrue(accessor.does_db_entry_exist())
-        accessor.close_session()
+        with ProviderDBAccessor() as accessor:
+            self.assertTrue(accessor.does_db_entry_exist())
 
     def test_get_uuid(self):
         """Test uuid getter."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(uuid, accessor.get_uuid())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(uuid, accessor.get_uuid())
 
     def test_get_provider_name(self):
         """Test provider name getter."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual('Test Provider', accessor.get_provider_name())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual('Test Provider', accessor.get_provider_name())
 
     def test_get_type(self):
         """Test provider type getter."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(AMAZON_WEB_SERVICES, accessor.get_type())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(AMAZON_WEB_SERVICES, accessor.get_type())
 
     def test_get_authentication(self):
         """Test provider authentication getter."""
         uuid = self.aws_test_provider_uuid
         expected_auth_string = self.aws_provider_resource_name
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_auth_string, accessor.get_authentication())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(expected_auth_string, accessor.get_authentication())
 
     def test_get_billing_source(self):
         """Test provider billing_source getter."""
         uuid = self.aws_test_provider_uuid
         expected_billing_source = 'test-bucket'
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_billing_source, accessor.get_billing_source())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(expected_billing_source, accessor.get_billing_source())
 
     def test_get_customer_uuid(self):
         """Test provider billing_source getter."""
+        expected_uuid = None
+        with CustomerDBAccessor(self.customer.id) as customer_accessor:
+            expected_uuid = customer_accessor.get_uuid()
+
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        customer = CustomerDBAccessor(1)
-        expected_uuid = customer.get_uuid()
-        self.assertEqual(expected_uuid, accessor.get_customer_uuid())
-        accessor.close_session()
-        customer.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(expected_uuid, accessor.get_customer_uuid())
 
     def test_get_customer_name(self):
         """Test provider customer getter."""
         uuid = self.aws_test_provider_uuid
-        expected_customer_name = self.test_schema
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_customer_name, accessor.get_customer_name())
-        accessor.close_session()
+        expected_customer_name = self.schema
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(expected_customer_name, accessor.get_customer_name())
 
     def test_get_schema(self):
         """Test provider schema getter."""
         uuid = self.aws_test_provider_uuid
-        expected_schema = self.test_schema
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(expected_schema, accessor.get_schema())
-        accessor.close_session()
+        expected_schema = self.schema
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(expected_schema, accessor.get_schema())
 
     def test_get_setup_complete(self):
         """Test provider setup_complete getter."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        self.assertEqual(False, accessor.get_setup_complete())
-        accessor.close_session()
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(False, accessor.get_setup_complete())
 
     def test_setup_complete(self):
         """Test provider setup_complete method."""
         uuid = self.aws_test_provider_uuid
-        accessor = ProviderDBAccessor(uuid)
-        accessor.setup_complete()
-        accessor.commit()
-        self.assertEqual(True, accessor.get_setup_complete())
+        with ProviderDBAccessor(uuid) as accessor:
+            accessor.setup_complete()
+            self.assertEqual(True, accessor.get_setup_complete())
 
-        accessor.close_session()
+    def test_setup_complete_with_exception(self):
+        """Test provider setup_complete method when an exception occurs in context manager."""
+        uuid = self.aws_test_provider_uuid
+        with self.assertRaises(Exception):
+            with ProviderDBAccessor(uuid) as accessor:
+                accessor.setup_complete()
+                raise Exception('Dont save me!')
+        with ProviderDBAccessor(uuid) as accessor:
+            self.assertEqual(False, accessor.get_setup_complete())
