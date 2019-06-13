@@ -16,7 +16,7 @@
 #
 """Collector to get all Providers from koku database."""
 
-
+from api.models import Provider
 from masu.database.koku_database_access import KokuDBAccess
 
 
@@ -31,7 +31,7 @@ class ProviderCollector(KokuDBAccess):
             schema         (String) database schema (i.e. public or customer tenant value)
         """
         super().__init__(schema)
-        self._table = self.get_base().classes.api_provider
+        self._table = Provider
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -43,7 +43,7 @@ class ProviderCollector(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        objs = self.get_session().query(self._table).all()
+        objs = self._table.objects.all()
         return objs
 
     def get_providers(self):

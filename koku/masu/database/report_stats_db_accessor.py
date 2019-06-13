@@ -18,6 +18,7 @@
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
+from reporting_common.models import CostUsageReportManifest
 
 
 class ReportStatsDBAccessor(KokuDBAccess):
@@ -35,7 +36,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         super().__init__(schema)
         self._manifest_id = manifest_id
         self._report_name = report_name
-        self._table = self.get_base().classes.reporting_common_costusagereportstatus
+        self._table = CostUsageReportManifest
 
         if self.does_db_entry_exist() is False:
             update_fields = {}
@@ -57,28 +58,15 @@ class ReportStatsDBAccessor(KokuDBAccess):
         """
         return super()._get_db_obj_query(report_name=self._report_name)
 
+    # pylint: disable=no-self-use
     def get_cursor_position(self):
-        """
-        Return current cursor position for processing CUR.
-
-        Args:
-            None
-        Returns:
-            (Integer): last byte offset for the given CUR file.
-        """
-        return self._obj.cursor_position
+        """DEPRECATED: Return current cursor position for processing CUR."""
+        return None
 
     def set_cursor_position(self, new_position):
-        """
-        Save current cursor position for processing CUR.
-
-        Args:
-            new_position (Integer): last byte offset for the given CUR file.
-        Returns:
-            None
-
-        """
-        self._obj.cursor_position = new_position
+        """DEPRECATED: Save current cursor position for processing CUR."""
+        # pylint: disable=unnecessary-pass
+        pass
 
     def get_last_completed_datetime(self):
         """
@@ -136,7 +124,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         return self._obj.etag
 
     def update(self,
-               cursor_position=None,
+               cursor_position=None,  # pylint: disable=W0613
                last_completed_datetime=None,
                last_started_datetime=None,
                etag=None):
@@ -144,7 +132,8 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Update a CUR statistics record in the database.
 
         Args:
-            cursor_position (Integer): Byte offset of the last position processed in a CUR
+            DEPRECATED: cursor_position (Integer): Byte offset of the last position processed in a
+                CUR.
             last_completed_datetime (DateTime): Timestamp for the time processing completed.
             last_started_datetime (DateTime): Timestamp for the time processing started.
             etag (String): MD5 hash of the CUR file.
@@ -154,12 +143,10 @@ class ReportStatsDBAccessor(KokuDBAccess):
 
         """
         obj_to_update = self._obj
-        if cursor_position:
-            obj_to_update.cursor_position = cursor_position
         if last_completed_datetime:
             obj_to_update.last_completed_datetime = last_completed_datetime
         if last_started_datetime:
             obj_to_update.last_started_datetime = last_started_datetime
         if etag:
             obj_to_update.etag = etag
-        self.commit()
+        obj_to_update.save()

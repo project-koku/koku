@@ -15,8 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Provider Billing Source from koku database."""
-
-
+from api.provider.models import ProviderBillingSource
 from masu.database.koku_database_access import KokuDBAccess
 
 
@@ -33,7 +32,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._billing_source_id = billing_source_id
-        self._table = self.get_base().classes.api_providerbillingsource
+        self._table = ProviderBillingSource
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -45,7 +44,8 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        return super()._get_db_obj_query(id=self._billing_source_id)
+        query = self._table.objects.filter(id=self._billing_source_id)
+        return query
 
     def get_uuid(self):
         """
@@ -58,7 +58,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
         """
         obj = self._get_db_obj_query().first()
-        return obj.uuid
+        return str(obj.uuid) if obj else None
 
     def get_bucket(self):
         """
