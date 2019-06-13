@@ -17,33 +17,25 @@
 
 """Test the ReportingCommonDBAccessor utility object."""
 import copy
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-from sqlalchemy.orm.session import Session
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportingCommonDBAccessorTest(MasuTestCase):
     """Test Cases for the ReportingCommonDBAccessor object."""
 
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         """Set up the test class with required objects."""
-        cls.accessor = ReportingCommonDBAccessor()
-        cls.report_tables = list(AWS_CUR_TABLE_MAP.values())
-
-    @classmethod
-    def tearDownClass(cls):
-        """Close the DB session."""
-        cls.accessor.close_session()
+        self.accessor = ReportingCommonDBAccessor()
+        self.report_tables = list(AWS_CUR_TABLE_MAP.values())
 
     def test_initializer(self):
         """Test initializer."""
         report_common_schema = self.accessor.report_common_schema
-        self.assertIsNotNone(self.accessor._session)
         self.assertIsInstance(self.accessor.column_map, dict)
         self.assertTrue(
             hasattr(report_common_schema, 'reporting_common_reportcolumnmap')
@@ -64,27 +56,8 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
         for table in tables:
             self.assertIn(table, keys)
 
-    def test_create_session(self):
-        """Test the session factory and scoped session."""
-        session = self.accessor._session
-        new_session = self.accessor._create_session()
-
-        self.assertIsInstance(session, Session)
-        self.assertIs(session, new_session)
-
     def test_add(self):
         """Test the add() function."""
-        mock_session = Mock(spec=Session)
         accessor = copy.copy(self.accessor)
-        accessor._session = mock_session
         accessor._test = Mock()
         accessor.add('test', {'foo': 'bar'}, use_savepoint=False)
-        mock_session.add.assert_called()
-
-    def test_commit(self):
-        """Test the commit() function."""
-        mock_session = Mock(spec=Session)
-        accessor = copy.copy(self.accessor)
-        accessor._session = mock_session
-        accessor.commit()
-        mock_session.commit.assert_called()

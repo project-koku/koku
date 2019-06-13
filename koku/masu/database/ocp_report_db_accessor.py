@@ -15,10 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
-import datetime
 import logging
 import pkgutil
 import uuid
+
+from dateutil.parser import parse
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
@@ -69,53 +70,40 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 SET {set_clause}
             """
         self._cursor.execute(upsert_sql)
-        self._pg2_conn.commit()
 
         delete_sql = f'DELETE FROM {temp_table_name}'
         self._cursor.execute(delete_sql)
-        self._pg2_conn.commit()
         self.vacuum_table(temp_table_name)
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
         table_name = OCP_REPORT_TABLE_MAP['report']
-        interval_start = getattr(
-            getattr(self.report_schema, table_name),
-            'interval_start'
-        )
 
         return self._get_db_obj_query(table_name)\
-            .order_by(interval_start.desc())\
+            .order_by('-interval_start')\
             .first()
 
     def get_current_usage_period(self):
         """Get the most recent usage report period object."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        report_period_start = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_start'
-        )
 
         return self._get_db_obj_query(table_name)\
-            .order_by(report_period_start.desc())\
+            .order_by('-report_period_start')\
             .first()
 
     def get_usage_periods_by_date(self, start_date):
         """Return all report period entries for the specified start date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
         return self._get_db_obj_query(table_name)\
-            .filter_by(report_period_start=start_date)\
+            .filter(report_period_start=start_date)\
             .all()
 
     def get_usage_period_before_date(self, date):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        report_start = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_start'
-        )
+
         base_query = self._get_db_obj_query(table_name)
-        usage_period_query = base_query.filter(report_start <= date)
+        usage_period_query = base_query.filter(report_period_start__lte=date)
         return usage_period_query
 
     # pylint: disable=invalid-name
@@ -123,16 +111,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Return all report periods for the specified provider."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
         return self._get_db_obj_query(table_name)\
-            .filter_by(provider_id=provider_id)
+            .filter(provider_id=provider_id)
 
     def report_periods_for_provider_id(self, provider_id, start_date=None):
         """Return all report periods for provider_id on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_id)
 
         if start_date:
-            report_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')\
-                .replace(day=1).date()
-            report_periods = report_periods.filter_by(
+            report_date = parse(start_date).replace(day=1)
+            report_periods = report_periods.filter(
                 report_period_start=report_date
             ).all()
 
@@ -141,111 +128,72 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
-        report_id = getattr(
-            getattr(self.report_schema, table_name),
-            'id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(query_report_id == report_id)
+        line_item_query = base_query.filter(report_id=query_report_id)
         return line_item_query
 
     def get_daily_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report daily item for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
+
         base_query = self._get_db_obj_query(table_name)
-        daily_usage_query = base_query.filter(cluster_id == cluster_identifier)
+        daily_usage_query = base_query.filter(cluster_id=cluster_identifier)
         return daily_usage_query
 
     def get_summary_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report summary for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        summary_usage_query = base_query.filter(cluster_id == cluster_identifier)
+        summary_usage_query = base_query.filter(cluster_id=cluster_identifier)
         return summary_usage_query
 
     def get_item_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
-        period_id = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(report_period_id == period_id)
+        line_item_query = base_query.filter(report_period_id=report_period_id)
         return line_item_query
 
     def get_storage_item_query_report_period_id(self, report_period_id):
         """Get the storage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
-        period_id = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(report_period_id == period_id)
+        line_item_query = base_query.filter(report_period_id=report_period_id)
         return line_item_query
 
     def get_daily_storage_item_query_cluster_id(self, cluster_identifier):
         """Get the daily storage report line item for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        daily_item_query = base_query.filter(cluster_id == cluster_identifier)
+        daily_item_query = base_query.filter(cluster_id=cluster_identifier)
         return daily_item_query
 
     def get_storage_summary_query_cluster_id(self, cluster_identifier):
         """Get the storage report summary for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        daily_item_query = base_query.filter(cluster_id == cluster_identifier)
+        daily_item_query = base_query.filter(cluster_id=cluster_identifier)
         return daily_item_query
 
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        summary_item_query = base_query.filter(cluster_id == cluster_identifier)
+        summary_item_query = base_query.filter(cluster_id=cluster_identifier)
         return summary_item_query
 
     def get_ocp_aws_project_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report project summary item for a given cluster id query."""
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        summary_item_query = base_query.filter(cluster_id == cluster_identifier)
+        summary_item_query = base_query.filter(cluster_id=cluster_identifier)
         return summary_item_query
 
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['report']
-        period_id = getattr(
-            getattr(self.report_schema, table_name),
-            'report_period_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        usage_report_query = base_query.filter(report_period_id == period_id)
+        usage_report_query = base_query.filter(report_period_id=report_period_id)
         return usage_report_query
 
     def get_report_periods(self):
@@ -254,8 +202,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         columns = ['id', 'cluster_id', 'report_period_start', 'provider_id']
         periods = self._get_db_obj_query(table_name, columns=columns).all()
-
-        return {(p.cluster_id, p.report_period_start, p.provider_id): p.id
+        return {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
                 for p in periods}
 
     def get_reports(self):
@@ -273,7 +220,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter_by(cluster_id=cluster_id)
+            reports = self._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
         else:
             reports = self._get_db_obj_query(table_name).all()
         return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
@@ -281,7 +228,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def _get_reports(self, table, cluster_id=None):
         """Return requested reports from given table."""
         if cluster_id:
-            reports = self._get_db_obj_query(table).filter_by(cluster_id=cluster_id)
+            reports = self._get_db_obj_query(table).filter(cluster_id=cluster_id)
         else:
             reports = self._get_db_obj_query(table).all()
         return reports
@@ -434,8 +381,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date,
-            cluster_id=cluster_id
+            end_date=end_date, cluster_id=cluster_id
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -458,8 +404,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
+            start_date=start_date, end_date=end_date,
             cluster_id=cluster_id
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
@@ -477,18 +422,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
         if start_date is None:
-            usage_start = getattr(
-                getattr(self.report_schema, table_name),
-                'usage_start'
-            )
-            start_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.asc()).first()
+            start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
             start_date = str(start_date_qry.usage_start) if start_date_qry else None
         if end_date is None:
-            usage_start = getattr(
-                getattr(self.report_schema, table_name),
-                'usage_start'
-            )
-            end_date_qry = self._get_db_obj_query(table_name).order_by(usage_start.desc()).first()
+            end_date_qry = self._get_db_obj_query(table_name).order_by('-usage_start').first()
             end_date = str(end_date_qry.usage_start) if end_date_qry else None
 
         summary_sql = pkgutil.get_data(
@@ -507,12 +444,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
-        cluster_id = getattr(
-            getattr(self.report_schema, table_name),
-            'cluster_id'
-        )
         base_query = self._get_db_obj_query(table_name)
-        cost_summary_query = base_query.filter(cluster_id == cluster_identifier)
+        cost_summary_query = base_query.filter(cluster_id=cluster_identifier)
         return cost_summary_query
 
     # pylint: disable=invalid-name

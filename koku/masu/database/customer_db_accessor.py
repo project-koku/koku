@@ -15,8 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Customer information from koku database."""
-
-
+from api.iam.models import Customer
 from masu.database.koku_database_access import KokuDBAccess
 
 
@@ -33,7 +32,7 @@ class CustomerDBAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._customer_id = customer_id
-        self._table = self.get_base().classes.api_customer
+        self._table = Customer
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -43,7 +42,7 @@ class CustomerDBAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ...",
+            (django.db.models.query.QuerySet): Queryset of matching models
         """
         return super()._get_db_obj_query(id=self._customer_id)
 
@@ -58,7 +57,7 @@ class CustomerDBAccessor(KokuDBAccess):
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
         """
         obj = self._get_db_obj_query().first()
-        return obj.uuid
+        return str(obj.uuid) if obj else None
 
     def get_schema_name(self):
         """
@@ -71,4 +70,4 @@ class CustomerDBAccessor(KokuDBAccess):
                     example: "acct10001"
         """
         obj = self._get_db_obj_query().first()
-        return obj.schema_name
+        return obj.schema_name if obj else None
