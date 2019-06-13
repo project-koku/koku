@@ -76,6 +76,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=256, required=True,
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
+    created_timestamp = serializers.DateTimeField(read_only=True)
     authentication = ProviderAuthenticationSerializer()
     billing_source = ProviderBillingSourceSerializer(default={'bucket': ''})
     customer = CustomerSerializer(read_only=True)
@@ -86,7 +87,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         model = Provider
         fields = ('uuid', 'name', 'type', 'authentication', 'billing_source',
-                  'customer', 'created_by')
+                  'customer', 'created_by', 'created_timestamp')
 
     @transaction.atomic
     def create(self, validated_data):
