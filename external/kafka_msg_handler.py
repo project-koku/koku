@@ -291,6 +291,7 @@ def process_report(report):
         LOG.error('Could not find provider_uuid for cluster_id: %s', str(cluster_id))
 
 
+# pylint: disable=broad-except
 async def process_messages():  # pragma: no cover
     """
     Process asyncio MSG_PENDING_QUEUE and send validation status.
@@ -310,8 +311,15 @@ async def process_messages():  # pragma: no cover
             await send_confirmation(value['request_id'], status)
         if report_meta:
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
-                LOG.info('Processing: %s complete.', str(report_meta))
+                try:
+                    await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
+                    LOG.info('Processing: %s complete.', str(report_meta))
+                except Exception as error:
+                    # The reason for catching all exceptions is to ensure that the event
+                    # loop does not block if process_report fails.
+                    # Since this is a critical path for the listener it's not worth the
+                    # risk of missing an exception in the download->process sequence.
+                    LOG.error('Line item processing exception: %s', str(error))
 
 
 async def listen_for_messages(consumer):  # pragma: no cover
