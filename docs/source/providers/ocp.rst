@@ -54,9 +54,10 @@ Once download you can unzip the tool and open the created directory::
 
 In the directory you will find the `ocp_usage.sh` script, this script will be used to run both phases of the OCP Usage Collector. In order to configure the tool you need to the following information:
 
-- OCP API endpoint (i.e. https://api.openshift-prod.mycompany.com)
+- OCP API endpoint (e.g. https://api.openshift-prod.mycompany.com)
 - OCP `reporting-operator` token file path
-- OCP Operator Metering namespace (i.e. metering)
+- OCP Operator Metering namespace (e.g. metering)
+- The URL of the route exposed for the reporting operator in the Operator Metering namespace (e.g. https://metering.metering.api.ocp.com)
 - Sudo password for installing dependencies
 
 Now you can trigger the setup of the tool providing the above data as seen in the example below::
