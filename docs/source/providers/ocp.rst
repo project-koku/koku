@@ -10,6 +10,7 @@ We require the following dependencies in order to obtain the OCP operator meteri
 
 - You must be running OCP version 3.11 or newer.
 - You must `install Operator Metering <https://github.com/operator-framework/operator-metering/blob/master/Documentation/install-metering.md>`_ on your OCP cluster.
+- The Operator Metering installation must `expose a route <https://github.com/operator-framework/operator-metering/blob/master/Documentation/configuring-reporting-operator.md#openshift-route>`_ for the reporting operator.
 - You must install and configure the `Red Hat Insights Client <https://access.redhat.com/products/red-hat-insights/#getstarted>`_ on a system with network access to you OCP cluster.
 - You must install `Ansible <https://docs.ansible.com/ansible/2.7/installation_guide/intro_installation.html>`_ and the `EPEL repository <https://fedoraproject.org/wiki/EPEL#Quickstart>`_ on the system where the Red Hat Insight Client is installed.
 - You must `install the OCP commandline, oc <https://docs.openshift.com/container-platform/3.3/cli_reference/get_started_cli.html#cli-linux>`_, on the system where the Red Hat Insighs Client is installed.
@@ -60,7 +61,7 @@ In the directory you will find the `ocp_usage.sh` script, this script will be us
 
 Now you can trigger the setup of the tool providing the above data as seen in the example below::
 
-  # ./ocp_usage.sh --setup -e OCP_API="https://api.openshift-prod.mycompany.com"  -e OCP_METERING_NAMESPACE="metering" -e OCP_TOKEN_PATH="/path/to/ocp_usage_token"
+  # ./ocp_usage.sh --setup -e OCP_API="https://api.openshift-prod.mycompany.com"  -e OCP_METERING_NAMESPACE="metering" -e OCP_TOKEN_PATH="/path/to/ocp_usage_token" -e METERING_API="https://metering.metering.api.ocp.com"
 
 You will be prompted for your sudo password and the Ansible playbook will execute to capture the configuration information and create the usage reports on your OCP cluster. When complete you will see the following message::
 
