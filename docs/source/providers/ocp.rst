@@ -1,12 +1,12 @@
 Adding an OCP Provider
 #######################
 
-This section describes how to configure your Openshift Container Platform (OCP) cluster to provide Koku operator metering usage data.  Configuring your OCP cluster involves configuring four setup steps. Obtaining a login token for your metering-operator service account. Downloading our Ansible playbook and performing the setup step to configure connectivity to the OCP cluster and generate report resources. Create a cron job that will collect the operator metering usage data on an interval and send this data to our upload service. Create an OCP provider in Koku.
+This section describes how to configure your Openshift Container Platform (OCP) cluster to provide Koku operator metering usage data.  Configuring your OCP cluster involves configuring four setup steps. Obtaining a login token for your reporting-operator service account. Downloading our Ansible playbook and performing the setup step to configure connectivity to the OCP cluster and generate report resources. Create a cron job that will collect the operator metering usage data on an interval and send this data to our upload service. Create an OCP provider in Koku.
 
 Dependencies
 ************
 
-We require the following dependencies in order to obtain the OCP operator metering usage data. 
+We require the following dependencies in order to obtain the OCP operator metering usage data.
 
 - You must be running OCP version 3.11 or newer.
 - You must `install Operator Metering <https://github.com/operator-framework/operator-metering/blob/master/Documentation/install-metering.md>`_ on your OCP cluster.
@@ -18,7 +18,7 @@ We require the following dependencies in order to obtain the OCP operator meteri
 Obtaining login credentials
 ***************************
 
-During the installation process for Operator Metering a service account, `metering-operator`, is created in the Operator Metering namespace. Login to your OCP cluster with a user that has access to the Operator Metering namespace (e.g. `metering`), like a sysadmin.
+During the installation process for Operator Metering a service account, `reporting-operator`, is created in the Operator Metering namespace. Login to your OCP cluster with a user that has access to the Operator Metering namespace (e.g. `metering`), like a sysadmin.
 
 
 ::
@@ -27,12 +27,12 @@ During the installation process for Operator Metering a service account, `meteri
 
   # oc project metering
 
-After logging into the cluster you can obtain the login token for the `metering-operator` service account with the following command which will place the token into a file, `ocp_usage_token`::
+After logging into the cluster you can obtain the login token for the `reporting-operator` service account with the following command which will place the token into a file, `ocp_usage_token`::
 
-  
-  # oc serviceaccounts get-token metering-operator > ocp_usage_token
 
-The token for the `metering-operator` service account does not expire, as such the token file should be placed on file system with limited access to maintain security This service account token will be used to obtain metering data on a scheduled basis using a cron job.
+  # oc serviceaccounts get-token reporting-operator > ocp_usage_token
+
+The token for the `reporting-operator` service account does not expire, as such the token file should be placed on file system with limited access to maintain security This service account token will be used to obtain metering data on a scheduled basis using a cron job.
 
 Download and Configure OCP Usage Collector (Korekuta)
 *****************************************************
@@ -54,7 +54,7 @@ Once download you can unzip the tool and open the created directory::
 In the directory you will find the `ocp_usage.sh` script, this script will be used to run both phases of the OCP Usage Collector. In order to configure the tool you need to the following information:
 
 - OCP API endpoint (i.e. https://api.openshift-prod.mycompany.com)
-- OCP `metering-operator` token file path 
+- OCP `reporting-operator` token file path
 - OCP Operator Metering namespace (i.e. metering)
 - Sudo password for installing dependencies
 
@@ -83,7 +83,7 @@ The command above would perform a one time extraction of usage data based on the
 
   # crontab -u <username> -e
 
-Note: The crontab user must have access to the file with `metering-operator` token.
+Note: The crontab user must have access to the file with `reporting-operator` token.
 
 Create an entry to run the OCP Usage collector every 45 minutes::
 
