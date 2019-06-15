@@ -34,8 +34,8 @@ from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from koku.rbac import RbacService
-from rates.models import Rate, RateMap
-from rates.serializers import RateSerializer
+from cost_models.models import Rate, CostModelMap
+from cost_models.serializers import RateSerializer
 
 
 class RateViewTests(IamTestCase):
@@ -84,7 +84,7 @@ class RateViewTests(IamTestCase):
 
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
-            RateMap.objects.all().delete()
+            CostModelMap.objects.all().delete()
             Provider.objects.all().delete()
             User.objects.all().delete()
         self.initialize_request()
@@ -93,7 +93,7 @@ class RateViewTests(IamTestCase):
         """Tear down rate view tests."""
         with tenant_context(self.tenant):
             Rate.objects.all().delete()
-            RateMap.objects.all().delete()
+            CostModelMap.objects.all().delete()
             Provider.objects.all().delete()
             User.objects.all().delete()
 

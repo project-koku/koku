@@ -18,7 +18,7 @@
 """Models for cost models."""
 from uuid import uuid4
 
-from django.contrib.postgres.fields import ArrayField, JSONField
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 from api.metrics.models import CostModelMetricsMap
@@ -48,42 +48,20 @@ class CostModel(models.Model):
         choices=Provider.PROVIDER_CHOICES
     )
 
-    provider_uuids = ArrayField(models.UUIDField())
-
     rates = JSONField(default=dict)
 
 
-class Rate(models.Model):
-    """A rate for calculating charge.
-
-    Support various types of rates (flat, fixed, tiered, discount).
-    """
-
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
-
-    metric = models.CharField(max_length=256, null=False,
-                              choices=CostModelMetricsMap.METRIC_CHOICES,
-                              default=CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR)
-    rates = JSONField(default=dict)
-
-    class Meta:
-        """Meta for Rate."""
-
-        ordering = ['-id']
-
-
-class RateMap(models.Model):
+class CostModelMap(models.Model):
     """Map for provider and rate objects."""
 
     provider_uuid = models.UUIDField(editable=False,
                                      unique=False, null=False)
 
-    rate = models.ForeignKey('Rate', null=True, blank=True,
+    cost_model = models.ForeignKey('CostModel', null=True, blank=True,
                                    on_delete=models.CASCADE)
 
     class Meta:
-        """Meta for RateMap."""
+        """Meta for CostModelMap."""
 
         ordering = ['-id']
-        unique_together = ('provider_uuid', 'rate')
+        unique_together = ('provider_uuid', 'cost_model')

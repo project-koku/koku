@@ -22,7 +22,6 @@ class Migration(migrations.Migration):
                 ('created_timestamp', models.DateTimeField(auto_now_add=True)),
                 ('updated_timestamp', models.DateTimeField(auto_now=True)),
                 ('source_type', models.CharField(choices=[('AWS', 'AWS'), ('OCP', 'OCP'), ('AWS-local', 'AWS-local'), ('OCP-local', 'OCP-local')], max_length=50)),
-                ('provider_uuids', django.contrib.postgres.fields.ArrayField(base_field=models.UUIDField(), size=None)),
                 ('rates', django.contrib.postgres.fields.jsonb.JSONField(default=dict)),
             ],
             options={

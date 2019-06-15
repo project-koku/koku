@@ -27,7 +27,7 @@ from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
-from cost_models.models import RateMap
+from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
@@ -151,7 +151,7 @@ class ProviderManager:
         if self.is_removable_by_user(current_user):
             authentication_model = self.model.authentication
             billing_source = self.model.billing_source
-            provider_rate_objs = RateMap.objects.filter(provider_uuid=self._uuid)
+            provider_rate_objs = CostModelMap.objects.filter(provider_uuid=self._uuid)
             auth_count = Provider.objects.exclude(uuid=self._uuid)\
                 .filter(authentication=authentication_model).count()
             billing_count = Provider.objects.exclude(uuid=self._uuid)\

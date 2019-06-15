@@ -31,7 +31,7 @@ from api.provider.models import Provider, ProviderAuthentication, ProviderBillin
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from rates.models import RateMap
+from rates.models import CostModelMap
 from cost_models.cost_model_manager import CostModelManager
 
 
@@ -237,7 +237,7 @@ class ProviderManagerTest(IamTestCase):
             )
             manager = ProviderManager(provider_uuid)
             manager.remove(other_user)
-            rates_query = RateMap.objects.all().filter(provider_uuid=provider_uuid)
+            rates_query = CostModelMap.objects.all().filter(provider_uuid=provider_uuid)
             self.assertFalse(rates_query)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
