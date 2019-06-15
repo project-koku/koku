@@ -86,10 +86,10 @@ class CostModelViewSet(mixins.CreateModelMixin,
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
-            rate_ids = []
+            cost_model_ids = []
             for e in CostModelMap.objects.filter(provider_uuid=provider_uuid):
-                rate_ids.append(e.rate_id)
-            queryset = CostModel.objects.filter(id__in=rate_ids)
+                cost_model_ids.append(e.cost_model.id)
+            queryset = CostModel.objects.filter(id__in=cost_model_ids)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:
