@@ -16,12 +16,13 @@
 #
 """Management layer for user defined rates."""
 
+import copy
 import logging
 
 from django.db import transaction
 
 from api.provider.models import Provider
-from cost_models.models import RateMap
+from cost_models.models import CostModel, CostModelMap
 
 
 LOG = logging.getLogger(__name__)
@@ -36,16 +37,16 @@ class CostModelManagerError(Exception):
 
 
 class CostModelManager:
-    """Rate Manager to manage user defined rate operations."""
+    """Cost Model Manager to manage user defined cost model operations."""
 
-    def __init__(self, rate_uuid=None):
+    def __init__(self, cost_model_uuid=None):
         """Initialize properties for CostModelManager."""
         self._model = None
-        self._rate_uuid = None
+        self._cost_model_uuid = None
 
-        if rate_uuid:
-            self._model = Rate.objects.get(uuid=rate_uuid)
-            self._rate_uuid = rate_uuid
+        if cost_model_uuid:
+            self._model = CostModel.objects.get(uuid=cost_model_uuid)
+            self._cost_model_uuid = cost_model_uuid
 
     @property
     def instance(self):
@@ -56,7 +57,7 @@ class CostModelManager:
     #     """Check for duplicate metrics for a list of provider uuids."""
     #     invalid_provider_metrics = []
     #     for uuid in provider_uuids:
-    #         map_query = RateMap.objects.filter(provider_uuid=uuid)
+    #         map_query = CostModelMap.objects.filter(provider_uuid=uuid)
     #         for map_obj in map_query:
     #             if map_obj.rate.metric == metric:
     #                 invalid_provider_metrics.append({'uuid': uuid, 'metric': metric})
@@ -67,49 +68,52 @@ class CostModelManager:
     #         raise CostModelManagerError(duplicate_metrics_err)
 
     @transaction.atomic
-    def create(self, metric, rates, provider_uuids=[]):
-        """Create rate and optionally associate to providers."""
+    def create(self, **data):
+        """Create cost model and optionally associate to providers."""
         # self._check_for_duplicate_metrics(metric, provider_uuids)
+        cost_model_data = copy.deepcopy(data)
 
-        rate_obj = Rate.objects.create(metric=metric, rates=rates)
+        provider_uuids = cost_model_data.pop('provider_uuids', [])
+
+        cost_model_obj = CostModel.objects.create(**cost_model_data)
         for uuid in provider_uuids:
-            RateMap.objects.create(rate=rate_obj, provider_uuid=uuid)
-        return rate_obj
+            # Untie this provider to other cost models before assigning
+            # it to the new model
+            CostModelMap.objects.filter(provider_uuid=uuid).delete()
+            CostModelMap.objects.create(cost_model=cost_model_obj, provider_uuid=uuid)
+        return cost_model_obj
 
     @transaction.atomic
     def update_provider_uuids(self, provider_uuids):
         """Update rate with new provider uuids."""
         current_providers_for_instance = []
-        for rate_map_instance in RateMap.objects.filter(rate=self._model):
+        for rate_map_instance in CostModelMap.objects.filter(cost_model=self._model):
             current_providers_for_instance.append(str(rate_map_instance.provider_uuid))
 
         providers_to_delete = set(current_providers_for_instance).difference(provider_uuids)
         providers_to_create = set(provider_uuids).difference(current_providers_for_instance)
 
-        for provider in providers_to_delete:
-            RateMap.objects.filter(provider_uuid=provider, rate=self._model).delete()
+        for provider_uuid in providers_to_delete:
+            CostModelMap.objects.filter(provider_uuid=provider_uuid,
+                                        cost_model=self._model).delete()
 
-        self._check_for_duplicate_metrics(self._model.metric, providers_to_create)
+        for provider_uuid in providers_to_create:
+            # Untie this provider to other cost models before assigning
+            # it to the new model
+            CostModelMap.objects.filter(provider_uuid=provider_uuid).delete()
+            CostModelMap.objects.create(cost_model=self._model,
+                                        provider_uuid=provider_uuid)
 
-        for provider in providers_to_create:
-            provider_obj = Provider.objects.filter(uuid=provider).first()
-            RateMap.objects.create(rate=self._model, provider_uuid=provider_obj.uuid)
-
-    def update_metric(self, metric):
-        """Update rate with new metric value."""
-        if self._model.metric != metric:
-            self._check_for_duplicate_metrics(metric, self.get_provider_uuids())
-            self._model.metric = metric
-            self._model.save()
-
-    def update_rates(self, rates):
-        """Update rate with new tiered rate structure."""
-        self._model.rates = rates
+    def update(self, **data):
+        """Update the cost model object."""
+        self._model.name = data.get('name', self._model.name)
+        self._model.description = data.get('description', self._model.description)
+        self._model.rates = data.get('rates', self._model.rates)
         self._model.save()
 
     def get_provider_uuids(self):
         """Get a list of provider uuids assoicated with rate."""
-        providers_query = RateMap.objects.filter(rate=self._model)
+        providers_query = CostModelMap.objects.filter(cost_model=self._model)
         provider_uuids = []
         for provider in providers_query:
             provider_uuids.append(provider.provider_uuid)
