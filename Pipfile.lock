@@ -188,10 +188,10 @@
         },
         "kombu": {
             "hashes": [
-                "sha256:056a31cc95b10ca4eb0d4ebcba714007b1db1c6c45c8e2d139fe91933481b00b",
-                "sha256:af5b0f892b081f49d95c772a241fb7687f4cc3e42c94328f118dffb1f4e161e5"
+                "sha256:55b71d3785def3470a16217fe0780f9e6f95e61bf9ad39ef8dce0177224eab77",
+                "sha256:eb365ea795cd7e629ba2f1f398e0c3ba354b91ef4de225ffdf6ab45fdfc7d581"
             ],
-            "version": "==4.6.1"
+            "version": "==4.6.3"
         },
         "mccabe": {
             "hashes": [
