@@ -85,8 +85,11 @@ def extract_payload(url):
              manifest_path: String"
 
     """
-    # Create temporary directory for initial file staging and verification
-    temp_dir = tempfile.mkdtemp()
+    # Create temporary directory for initial file staging and verification in the
+    # OpenShift PVC directory so that any failures can be triaged in the event
+    # the pod goes down.
+    os.makedirs(Config.TMP_DIR, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=Config.TMP_DIR)
 
     # Download file from quarntine bucket as tar.gz
     try:
@@ -137,8 +140,11 @@ def extract_payload(url):
         subdirectory = os.path.dirname(full_manifest_path)
         payload_source_path = '{}/{}'.format(subdirectory, report_file)
         payload_destination_path = '{}/{}'.format(destination_dir, report_file)
-        shutil.copy(payload_source_path, payload_destination_path)
-
+        try:
+            shutil.copy(payload_source_path, payload_destination_path)
+        except FileNotFoundError as error:
+            LOG.error('Unable to find file in payload. %s', str(error))
+            raise KafkaMsgHandlerError('Missing file in payload')
     LOG.info('Successfully extracted OCP for %s/%s', report_meta.get('cluster_id'), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
