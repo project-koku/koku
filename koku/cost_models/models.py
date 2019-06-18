@@ -65,3 +65,4 @@ class CostModelMap(models.Model):
 
         ordering = ['-id']
         unique_together = ('provider_uuid', 'cost_model')
+        db_table = 'cost_model_map'
