@@ -122,7 +122,7 @@ class CostModelViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # test that we can retrieve the rate
+        # test that we can retrieve the cost model
         url = reverse('costmodels-detail', kwargs={'uuid': response.data.get('uuid')})
         response = client.get(url, **self.headers)
         self.assertIsNotNone(response.data.get('uuid'))
@@ -131,6 +131,35 @@ class CostModelViewTests(IamTestCase):
             self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                              rate.get('metric', {}).get('name'))
             self.assertIsNotNone(rate.get('tiered_rates'))
+
+
+    def test_create_new_cost_model_map_association_for_provider(self):
+        """Test that the CostModelMap updates for a new cost model."""
+        url = reverse('costmodels-list')
+        client = APIClient()
+
+        with tenant_context(self.tenant):
+            original_cost_model = CostModel.objects.all()[0]
+        response = client.post(url, data=self.fake_data,
+                               format='json', **self.headers)
+        new_cost_model_uuid = response.data.get('uuid')
+
+        # Test that the previous cost model for this provider is no longer
+        # associated
+        with tenant_context(self.tenant):
+            # new_cost_model = CostModel.objects.filter(
+            #     uuid=new_cost_model_uuid
+            # ).all()[0]
+            result = CostModelMap.objects.filter(
+                cost_model_id=original_cost_model.uuid
+            ).all()
+            self.assertEqual(len(result), 0)
+            # Test that the new cost model is associated to the provider
+            result = CostModelMap.objects.filter(
+                cost_model_id=new_cost_model_uuid
+            ).all()
+            self.assertEqual(len(result), 1)
+
 
     def test_create_cost_model_invalid_rates(self):
         """Test that creating a cost model with invalid rates returns an error."""

@@ -436,3 +436,15 @@ class CostModelSerializerTest(IamTestCase):
             self.assertIsNotNone(response.label_measurement_unit)
             self.assertIsNotNone(response.label_measurement)
             self.assertIsNotNone(response.label_metric)
+
+    def test_check_for_duplicate_metrics(self):
+        """Check that duplicate rate types for a metric are rejected."""
+        rate = self.ocp_data['rates'][0]
+        # Add another tiered rate entry for the same metric
+        self.ocp_data['rates'].append(rate)
+        # Make sure we don't allow two tiered rate entries in rates
+        # for the same metric
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                serializer._check_for_duplicate_metrics(self.ocp_data['rates'])
