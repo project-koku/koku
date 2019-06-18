@@ -255,8 +255,8 @@ class RateSerializer(serializers.Serializer):
             else:
                 RateSerializer._convert_to_decimal(rates)
                 if not rates.get('usage'):
-                    rates['usage'] = {'usage_start': rates.pop('usage_start'),
-                                      'usage_end': rates.pop('usage_end'),
+                    rates['usage'] = {'usage_start': rates.pop('usage_start', None),
+                                      'usage_end': rates.pop('usage_end', None),
                                       'unit': rates.get('unit')}
 
         out.update({'tiered_rates': tiered_rates})
