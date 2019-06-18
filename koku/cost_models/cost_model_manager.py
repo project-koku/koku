@@ -18,11 +18,9 @@
 
 import copy
 import logging
-from collections import defaultdict
 
 from django.db import transaction
 
-from api.provider.models import Provider
 from cost_models.models import CostModel, CostModelMap
 
 

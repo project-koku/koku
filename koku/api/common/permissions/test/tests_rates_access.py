@@ -65,18 +65,18 @@ class CostModelsAccessPermissionTest(TestCase):
         """Test that a user with access cannot execute PUT."""
         access = {'rate': {'read': ['*'], 'write': []}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='PUT', META={'PATH_INFO': 'http://localhost/api/v1/rates/no_uuid'})
+        req = Mock(user=user, method='PUT', META={'PATH_INFO': 'http://localhost/api/v1/costmodels/no_uuid'})
         accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertFalse(result)
 
     def test_has_perm_with_access_on_put(self):
         """Test that a user with access cannot execute PUT."""
-        rate_uuid = str(uuid4())
-        access = {'rate': {'read': ['*'], 'write': [rate_uuid]}}
+        cost_model_uuid = str(uuid4())
+        access = {'rate': {'read': ['*'], 'write': [cost_model_uuid]}}
         user = Mock(spec=User, access=access, admin=False)
-        rate_url = 'http://localhost/api/v1/rates/{}'.format(rate_uuid)
-        req = Mock(user=user, method='PUT', META={'PATH_INFO': rate_url})
+        cost_model_url = 'http://localhost/api/v1/costmodels/{}'.format(cost_model_uuid)
+        req = Mock(user=user, method='PUT', META={'PATH_INFO': cost_model_url})
         accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)

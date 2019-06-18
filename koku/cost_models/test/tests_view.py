@@ -33,9 +33,9 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from koku.rbac import RbacService
 from cost_models.models import CostModel, CostModelMap
 from cost_models.serializers import CostModelSerializer
+from koku.rbac import RbacService
 
 
 class CostModelViewTests(IamTestCase):
@@ -85,7 +85,6 @@ class CostModelViewTests(IamTestCase):
                 }
             ]
         }
-
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.fake_data,
@@ -189,15 +188,6 @@ class CostModelViewTests(IamTestCase):
 
     def test_update_cost_model_failure(self):
         """Test that we update fails with metric type duplication."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
         # create a cost model
         url = reverse('costmodels-list')
         client = APIClient()
@@ -376,15 +366,6 @@ class CostModelViewTests(IamTestCase):
 
     def test_write_cost_model_rate_rbac_access(self):
         """Test POST, PUT, and DELETE for rates with an rbac user."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
         # create a rate as admin
         user_data = self._create_user_data()
         customer = self._create_customer_data()

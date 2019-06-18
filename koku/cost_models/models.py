@@ -21,8 +21,8 @@ from uuid import uuid4
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
-from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
+
 
 class CostModel(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""

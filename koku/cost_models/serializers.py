@@ -22,9 +22,9 @@ from rest_framework import serializers
 
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import SOURCE_TYPE_MAP
-from api.provider.models import (Provider)
-from cost_models.models import CostModel
+from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelManager, CostModelManagerError
+from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
 
@@ -113,8 +113,8 @@ class RateSerializer(serializers.Serializer):
         """Validate that the tiers has no gaps."""
         next_tier = None
         for tier in sorted_tiers:
-            usage_start = tier.get('usage_start')
-            usage_end = tier.get('usage_end')
+            usage_start = tier.get('usage', {}).get('usage_start')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (next_tier is not None and usage_start is not None
                     and Decimal(usage_start) > Decimal(next_tier)):  # noqa:W503
@@ -130,7 +130,7 @@ class RateSerializer(serializers.Serializer):
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
             next_bucket_usage_start = next_bucket.get('usage_start')
-            usage_end = tier.get('usage_end')
+            usage_end = tier.get('usage', {}).get('usage_end')
 
             if (usage_end != next_bucket_usage_start):
                 error_msg = 'tiered_rate must not have overlapping tiers.' \
@@ -144,8 +144,14 @@ class RateSerializer(serializers.Serializer):
         """Validate tiers have no gaps."""
         if len(tiers) < 1:
             raise serializers.ValidationError('tiered_rate must have at least one tier.')
-        sorted_tiers = sorted(tiers,
-                              key=lambda tier: Decimal('-Infinity') if tier.get('usage_start') is None else Decimal(tier.get('usage_start')))  # noqa: E501
+        sorted_tiers = sorted(
+            tiers,
+            key=lambda tier: (
+                Decimal('-Infinity')
+                if tier.get('usage', {}).get('usage_start') is None
+                else Decimal(tier.get('usage', {}).get('usage_start'))
+            )
+        )
         start = sorted_tiers[0].get('usage', {}).get('usage_start')
         end = sorted_tiers[-1].get('usage', {}).get('usage_end')
 
@@ -159,7 +165,7 @@ class RateSerializer(serializers.Serializer):
 
     @property
     def metric_map(self):
-        """A mapping of metrics and display names."""
+        """Map metrics and display names."""
         metric_map_by_source = defaultdict(dict)
         metric_map = CostModelMetricsMap.objects.all()
 
@@ -169,7 +175,7 @@ class RateSerializer(serializers.Serializer):
 
     @property
     def source_type_internal_value_map(self):
-        """A mapping from display name to internal source type."""
+        """Map display name to internal source type."""
         internal_map = {}
         for key, value in SOURCE_TYPE_MAP.items():
             internal_map[value] = key
@@ -249,11 +255,11 @@ class RateSerializer(serializers.Serializer):
             else:
                 RateSerializer._convert_to_decimal(rates)
                 if not rates.get('usage'):
-                        rates['usage'] = {'usage_start': rates.pop('usage_start'),
-                                          'usage_end': rates.pop('usage_end'),
-                                          'unit': rates.get('unit')}
+                    rates['usage'] = {'usage_start': rates.pop('usage_start'),
+                                      'usage_end': rates.pop('usage_end'),
+                                      'unit': rates.get('unit')}
 
-        out.update({"tiered_rates": tiered_rates})
+        out.update({'tiered_rates': tiered_rates})
         return out
 
     def to_internal_value(self, data):

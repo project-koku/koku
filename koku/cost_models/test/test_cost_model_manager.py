@@ -23,8 +23,8 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
+from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel, CostModelMap
-from cost_models.cost_model_manager import CostModelManager, CostModelManagerError
 
 
 class MockResponse:
@@ -279,45 +279,3 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
-
-    # def test_update_provider_uuids_duplicate_metric(self):
-    #     """Test updating a rate with a metric colision for a provider."""
-    #     provider_name = 'sample_provider'
-    #     provider = Provider.objects.create(name=provider_name,
-    #                                        created_by=self.user,
-    #                                        customer=self.customer)
-
-    #     # Get Provider UUID
-    #     provider_uuid = provider.uuid
-    #     metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
-    #     rates = {'tiered_rate': [{'unit': 'USD', 'value': 0.22}]}
-
-    #     with tenant_context(self.tenant):
-    #         manager = CostModelManager()
-    #         cost_model_obj = manager.create(metric=metric,
-    #                                   rates=rates,
-    #                                   provider_uuids=[provider_uuid])
-    #         self.assertEqual(cost_model_obj.metric, metric)
-    #         self.assertEqual(cost_model_obj.rates, rates)
-    #         self.assertIsNotNone(cost_model_obj.uuid)
-
-    #         cost_model_map = CostModelMap.objects.filter(rate=cost_model_obj.id)
-    #         self.assertIsNotNone(cost_model_map)
-    #         self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
-    #         self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_uuids(), [provider_uuid])
-
-    #     # Create another rate with same metric
-    #     rates_2 = {'tiered_rate': [{'unit': 'USD', 'value': 0.52}]}
-
-    #     with tenant_context(self.tenant):
-    #         manager_2 = CostModelManager()
-    #         cost_model_obj_2 = manager_2.create(metric=metric, rates=rates_2)
-    #         cost_model_map = CostModelMap.objects.filter(rate=cost_model_obj_2.id)
-    #         self.assertIsNotNone(cost_model_map)
-    #         self.assertEqual(len(cost_model_map), 0)
-
-    #     # Update rate_2 with provider uuid that is already associated with another rate of same type
-    #     with tenant_context(self.tenant):
-    #         manager_3 = CostModelManager(cost_model_uuid=cost_model_obj_2.uuid)
-    #         with self.assertRaises(CostModelManagerError):
-    #             manager_3.update_provider_uuids(provider_uuids=[provider_uuid])

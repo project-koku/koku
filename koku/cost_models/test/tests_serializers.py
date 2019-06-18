@@ -162,25 +162,6 @@ class CostModelSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
-    # def test_error_neg_tier_value(self):
-    #     """Test error when trying to create a negative tiered value."""
-    #     rate = {'provider_uuids': [self.provider.uuid],
-    #             'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-    #             'tiered_rate': [{
-    #                 'unit': 'USD',
-    #                 'value': (round(Decimal(random.random()), 6) * -1),
-    #                 'usage': {
-    #                     'usage_start': 10.0,
-    #                     'usage_end': 20.0
-    #                 }
-    #             }]
-    #             }
-    #     with tenant_context(self.tenant):
-    #         serializer = CostModelSerializer(data=self.ocp_data)
-    #         with self.assertRaises(serializers.ValidationError):
-    #             if serializer.is_valid(raise_exception=True):
-    #                 serializer.save()
-
     def test_error_neg_tier_usage_start(self):
         """Test error when trying to create a negative tiered usage_start."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
@@ -314,21 +295,24 @@ class CostModelSerializerTest(IamTestCase):
                     {
                         'metric': {'name': storage_rate},
                         'source_type': 'OCP',
-                        'tiered_rates': [{
-                        'unit': 'USD',
-                        'value': 0.22,
-                        'usage': {
-                            'usage_start': None,
-                            'usage_end': 10.0
-                        }
-                    }, {
-                        'unit': 'USD',
-                        'value': 0.26,
-                        'usage': {
-                            'usage_start': 10.0,
-                            'usage_end': None
-                        }
-                    }]
+                        'tiered_rates': [
+                            {
+                                'unit': 'USD',
+                                'value': 0.22,
+                                'usage': {
+                                    'usage_start': None,
+                                    'usage_end': 10.0
+                                }
+                            },
+                            {
+                                'unit': 'USD',
+                                'value': 0.26,
+                                'usage': {
+                                    'usage_start': 10.0,
+                                    'usage_end': None
+                                }
+                            }
+                        ]
                     }
                 ]
             }
@@ -372,28 +356,30 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_tiered_rate_with_overlaps(self):
         """Test creating a tiered rate with a overlaps between the tiers."""
-        self.ocp_data['rates'][0]['tiered_rates'] = [{
-                    'unit': 'USD',
-                    'value': 0.22,
-                    'usage': {
-                        'usage_start': None,
-                        'usage_end': 10.0
-                    }
-                }, {
-                    'unit': 'USD',
-                    'value': 0.26,
-                    'usage': {
-                        'usage_start': 5.0,
-                        'usage_end': 20.0
-                    }
-                }, {
-                    'unit': 'USD',
-                    'value': 0.26,
-                    'usage': {
-                        'usage_start': 20.0,
-                        'usage_end': None
-                    }
-                }]
+        self.ocp_data['rates'][0]['tiered_rates'] = [
+            {
+                'unit': 'USD',
+                'value': 0.22,
+                'usage': {
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }
+            }, {
+                'unit': 'USD',
+                'value': 0.26,
+                'usage': {
+                    'usage_start': 5.0,
+                    'usage_end': 20.0
+                }
+            }, {
+                'unit': 'USD',
+                'value': 0.26,
+                'usage': {
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }
+            }
+        ]
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
@@ -403,35 +389,37 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_tiered_rate_with_duplicate(self):
         """Test creating a tiered rate with duplicate tiers."""
-        self.ocp_data['rates'][0]['tiered_rates'] = [{
-                    'unit': 'USD',
-                    'value': 0.22,
-                    'usage': {
-                        'usage_start': None,
-                        'usage_end': 10.0
-                    }
-                }, {
-                    'unit': 'USD',
-                    'value': 0.26,
-                    'usage': {
-                        'usage_start': 10.0,
-                        'usage_end': 20.0
-                    }
-                }, {
-                    'unit': 'USD',
-                    'value': 0.26,
-                    'usage': {
-                        'usage_start': 10.0,
-                        'usage_end': 20.0
-                    }
-                }, {
-                    'unit': 'USD',
-                    'value': 0.26,
-                    'usage': {
-                        'usage_start': 20.0,
-                        'usage_end': None
-                    }
-                }]
+        self.ocp_data['rates'][0]['tiered_rates'] = [
+            {
+                'unit': 'USD',
+                'value': 0.22,
+                'usage': {
+                    'usage_start': None,
+                    'usage_end': 10.0
+                }
+            }, {
+                'unit': 'USD',
+                'value': 0.26,
+                'usage': {
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }
+            }, {
+                'unit': 'USD',
+                'value': 0.26,
+                'usage': {
+                    'usage_start': 10.0,
+                    'usage_end': 20.0
+                }
+            }, {
+                'unit': 'USD',
+                'value': 0.26,
+                'usage': {
+                    'usage_start': 20.0,
+                    'usage_end': None
+                }
+            }
+        ]
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)

@@ -31,8 +31,8 @@ from api.provider.models import Provider, ProviderAuthentication, ProviderBillin
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
-from rates.models import CostModelMap
 from cost_models.cost_model_manager import CostModelManager
+from cost_models.models import CostModelMap
 
 
 class MockResponse:
@@ -223,22 +223,28 @@ class ProviderManagerTest(IamTestCase):
             other_user = user_serializer.save()
 
         with tenant_context(self.tenant):
-            rates = {'tiered_rate': [{
-                'unit': 'USD',
-                'value': 1.0,
-                'usage_start': None,
-                'usage_end': None
-            }]}
+            ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+            ocp_source_type = 'OCP'
+            tiered_rates = [{'unit': 'USD', 'value': 0.22}]
+            ocp_data = {
+                'name': 'Test Cost Model',
+                'description': 'Test',
+                'provider_uuids': [],
+                'rates': [
+                    {
+                        'metric': {'name': ocp_metric},
+                        'source_type': ocp_source_type,
+                        'tiered_rates': tiered_rates
+                    }
+                ]
+            }
             manager = CostModelManager()
-            manager.create(
-                metric=CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR,
-                rates=rates,
-                provider_uuids=[provider.uuid]
-            )
+            manager.create(**ocp_data)
+
             manager = ProviderManager(provider_uuid)
             manager.remove(other_user)
-            rates_query = CostModelMap.objects.all().filter(provider_uuid=provider_uuid)
-            self.assertFalse(rates_query)
+            cost_model_query = CostModelMap.objects.all().filter(provider_uuid=provider_uuid)
+            self.assertFalse(cost_model_query)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
 
