@@ -42,7 +42,7 @@ class RateProviderPermissionDenied(APIException):
         self.detail = {'detail': force_text(self.default_detail)}
 
 
-class RateProviderQueryException(APIException):
+class CostModelProviderQueryException(APIException):
     """Rate query custom internal error exception."""
 
     def __init__(self, message):
@@ -51,7 +51,7 @@ class RateProviderQueryException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
-class RateProviderMethodException(APIException):
+class CostModelProviderMethodException(APIException):
     """General Exception class for ProviderManager errors."""
 
     def __init__(self, message):
@@ -86,10 +86,10 @@ class CostModelViewSet(mixins.CreateModelMixin,
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
-            cost_model_ids = []
+            cost_model_uuids = []
             for e in CostModelMap.objects.filter(provider_uuid=provider_uuid):
-                cost_model_ids.append(e.cost_model.id)
-            queryset = CostModel.objects.filter(id__in=cost_model_ids)
+                cost_model_uuids.append(e.cost_model.uuid)
+            queryset = CostModel.objects.filter(uuid__in=cost_model_uuids)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:
@@ -98,7 +98,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
                         UUID(access_item)
                     except ValueError:
                         err_msg = 'Unexpected rbac access item.  {} is not a uuid.'.format(access_item)
-                        raise RateProviderQueryException(err_msg)
+                        raise CostModelProviderQueryException(err_msg)
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
                 except ValidationError as queryset_error:
@@ -225,7 +225,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
         try:
             response = super().list(request=request, args=args, kwargs=kwargs)
         except ValidationError:
-            raise RateProviderQueryException('Invalid provider uuid')
+            raise CostModelProviderQueryException('Invalid provider uuid')
 
         return response
 
@@ -320,5 +320,5 @@ class CostModelViewSet(mixins.CreateModelMixin,
             }
         """
         if request.method == 'PATCH':
-            raise RateProviderMethodException('PATCH not supported')
+            raise CostModelProviderMethodException('PATCH not supported')
         return super().update(request=request, args=args, kwargs=kwargs)
