@@ -132,7 +132,6 @@ class CostModelViewTests(IamTestCase):
                              rate.get('metric', {}).get('name'))
             self.assertIsNotNone(rate.get('tiered_rates'))
 
-
     def test_create_new_cost_model_map_association_for_provider(self):
         """Test that the CostModelMap updates for a new cost model."""
         url = reverse('costmodels-list')
@@ -159,7 +158,6 @@ class CostModelViewTests(IamTestCase):
                 cost_model_id=new_cost_model_uuid
             ).all()
             self.assertEqual(len(result), 1)
-
 
     def test_create_cost_model_invalid_rates(self):
         """Test that creating a cost model with invalid rates returns an error."""
