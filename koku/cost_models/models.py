@@ -42,12 +42,6 @@ class CostModel(models.Model):
 
     updated_timestamp = models.DateTimeField(auto_now=True)
 
-    source_type = models.CharField(
-        max_length=50,
-        null=False,
-        choices=Provider.PROVIDER_CHOICES
-    )
-
     rates = JSONField(default=dict)
 
 
