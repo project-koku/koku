@@ -129,7 +129,7 @@ class RateSerializer(serializers.Serializer):
         """Validate that the tiers have no overlaps."""
         for i, tier in enumerate(sorted_tiers):
             next_bucket = sorted_tiers[(i + 1) % len(sorted_tiers)]
-            next_bucket_usage_start = next_bucket.get('usage_start')
+            next_bucket_usage_start = next_bucket.get('usage', {}).get('usage_start')
             usage_end = tier.get('usage', {}).get('usage_end')
 
             if (usage_end != next_bucket_usage_start):
