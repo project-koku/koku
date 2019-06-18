@@ -18,6 +18,7 @@
 
 import copy
 import logging
+from collections import defaultdict
 
 from django.db import transaction
 
@@ -53,24 +54,9 @@ class CostModelManager:
         """Return the rate model instance."""
         return self._model
 
-    # def _check_for_duplicate_metrics(self, metric, provider_uuids):
-    #     """Check for duplicate metrics for a list of provider uuids."""
-    #     invalid_provider_metrics = []
-    #     for uuid in provider_uuids:
-    #         map_query = CostModelMap.objects.filter(provider_uuid=uuid)
-    #         for map_obj in map_query:
-    #             if map_obj.rate.metric == metric:
-    #                 invalid_provider_metrics.append({'uuid': uuid, 'metric': metric})
-
-    #     if invalid_provider_metrics:
-    #         duplicate_err_msg = ', '.join('uuid: {}, metric: {}'.format(err_obj.get('uuid'), err_obj.get('metric')) for err_obj in invalid_provider_metrics)    # noqa: E501
-    #         duplicate_metrics_err = 'Duplicate metrics found for the following providers: {}'.format(duplicate_err_msg)
-    #         raise CostModelManagerError(duplicate_metrics_err)
-
     @transaction.atomic
     def create(self, **data):
         """Create cost model and optionally associate to providers."""
-        # self._check_for_duplicate_metrics(metric, provider_uuids)
         cost_model_data = copy.deepcopy(data)
 
         provider_uuids = cost_model_data.pop('provider_uuids', [])

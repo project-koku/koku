@@ -92,6 +92,7 @@ class RateSerializer(serializers.Serializer):
     """Rate Serializer."""
 
     DECIMALS = ('value', 'usage_start', 'usage_end')
+    RATE_TYPES = ('tiered_rates',)
 
     metric = serializers.DictField(required=True)
     source_type = serializers.CharField(required=True)
@@ -193,12 +194,12 @@ class RateSerializer(serializers.Serializer):
         """Validate that a rate must be defined."""
         data['source_type'] = self.validate_source_type(data.get('source_type'))
         data['tiered_rates'] = self.validate_tiered_rates(data.get('tiered_rates', []))
-        rate_keys = ('tiered_rates',)
-        rate_keys_str = ', '.join(str(rate_key) for rate_key in rate_keys)
+
+        rate_keys_str = ', '.join(str(rate_key) for rate_key in self.RATE_TYPES)
         if data.get('metric').get('name') not in [metric for metric, metric2 in CostModelMetricsMap.METRIC_CHOICES]:
             error_msg = '{} is an invalid metric'.format(data.get('metric').get('name'))
             raise serializers.ValidationError(error_msg)
-        if any(data.get(rate_key) is not None for rate_key in rate_keys):
+        if any(data.get(rate_key) is not None for rate_key in self.RATE_TYPES):
             tiered_rates = data.get('tiered_rates')
             if tiered_rates == []:
                 error_msg = 'A rate must be provided (e.g. {}).'.format(rate_keys_str)
@@ -294,6 +295,26 @@ class CostModelSerializer(serializers.Serializer):
 
     rates = RateSerializer(required=False, many=True)
 
+    def _check_for_duplicate_metrics(self, rates):
+        """Check for duplicate metric/rate combinations within a cost model."""
+        rate_type_by_metric = defaultdict(dict)
+        for rate in rates:
+            metric = rate.get('metric', {}).get('name')
+            for key in rate:
+                if key in RateSerializer.RATE_TYPES:
+                    if key in rate_type_by_metric[metric]:
+                        rate_type_by_metric[metric][key] += 1
+                    else:
+                        rate_type_by_metric[metric][key] = 1
+        for metric in rate_type_by_metric:
+            for rate_type, count in rate_type_by_metric[metric].items():
+                if count > 1:
+                    err_msg = 'Duplicate {} entry found for {}'.format(
+                        rate_type,
+                        metric
+                    )
+                    raise serializers.ValidationError(err_msg)
+
     def validate_provider_uuids(self, provider_uuids):
         """Check that uuids in provider_uuids are valid identifiers."""
         valid_uuids = []
@@ -308,11 +329,18 @@ class CostModelSerializer(serializers.Serializer):
             raise serializers.ValidationError(err_msg)
         return valid_uuids
 
+    def validate_rates(self, rates):
+        """Run validation for rates."""
+        self._check_for_duplicate_metrics(rates)
+        validated_rates = []
+        for rate in rates:
+            serializer = RateSerializer(data=rate)
+            serializer.is_valid(raise_exception=True)
+            validated_rates.append(serializer.validated_data)
+        return validated_rates
+
     def create(self, validated_data):
         """Create the cost model object in the database."""
-        # return CostModel.objects.create(**validated_data)
-        # provider_uuids = validated_data.pop('provider_uuids', [])
-        # metric = validated_data.pop('metric')
         try:
             rate_obj = CostModelManager().create(**validated_data)
         except CostModelManagerError as create_error:
@@ -322,7 +350,6 @@ class CostModelSerializer(serializers.Serializer):
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids', [])
-        # metric = validated_data.pop('metric')
 
         new_providers_for_instance = []
         for uuid in provider_uuids:
