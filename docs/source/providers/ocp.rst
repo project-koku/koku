@@ -79,7 +79,7 @@ Uploading data with OCP Usage Collector (Korekuta)
 **************************************************
 As mentioned earlier during the `collect` phase of the OCP Usage Collector usage data is retrieved from the Operator Metering endpoint and compressed into a package that is uploaded for processing by Koku via the Red Hat Insights Client. Collection of data is performed via the `ocp_usage.sh` script as follows::
 
-  ./ocp_usage.sh --collect
+  ./ocp_usage.sh --collect --e OCP_CLUSTER_ID=<YOUR_OCP_IDENTIFIER>
 
 The command above would perform a one time extraction of usage data based on the defined report created during the setup step above. In order to get on-going usage data this command must be run on a regular interval. Uploading the data on a regular basis will be achieved utilizing a cron job. Use the following command to edit the crontab for the user that will execute this scheduled upload::
 
@@ -90,7 +90,7 @@ Note: The crontab user must have access to the file with `reporting-operator` to
 Create an entry to run the OCP Usage collector every 45 minutes::
 
   */45 * * * * /path/to/ocp_usage.sh
- --collect
+ --collect --e OCP_CLUSTER_ID=<YOUR_OCP_IDENTIFIER>
 
 Note: The cron user will also need sudo authority to interact with the Red Hat Insights Client. Below is an example of the addition need to the `/etc/sudoers` file to provide password-less sudo for an example user `ocpcollector`::
 
