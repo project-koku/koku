@@ -27,14 +27,6 @@ from cost_models.models import CostModel, CostModelMap
 LOG = logging.getLogger(__name__)
 
 
-class CostModelManagerError(Exception):
-    """General Exception class for CostModelManager errors."""
-
-    def __init__(self, message):
-        """Set custom error message for ProviderManager errors."""
-        self.message = message
-
-
 class CostModelManager:
     """Cost Model Manager to manage user defined cost model operations."""
 

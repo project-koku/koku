@@ -23,7 +23,7 @@ from rest_framework import serializers
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import Provider
-from cost_models.cost_model_manager import CostModelManager, CostModelManagerError
+from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
@@ -347,25 +347,17 @@ class CostModelSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
-        try:
-            rate_obj = CostModelManager().create(**validated_data)
-        except CostModelManagerError as create_error:
-            raise serializers.ValidationError(create_error.message)
-        return rate_obj
+        return CostModelManager().create(**validated_data)
 
     def update(self, instance, validated_data, *args, **kwargs):
         """Update the rate object in the database."""
         provider_uuids = validated_data.pop('provider_uuids', [])
-
         new_providers_for_instance = []
         for uuid in provider_uuids:
             new_providers_for_instance.append(str(Provider.objects.filter(uuid=uuid).first().uuid))
         manager = CostModelManager(cost_model_uuid=instance.uuid)
-        try:
-            manager.update_provider_uuids(new_providers_for_instance)
-            manager.update(**validated_data)
-        except CostModelManagerError as create_error:
-            raise serializers.ValidationError(create_error.message)
+        manager.update_provider_uuids(new_providers_for_instance)
+        manager.update(**validated_data)
 
         return manager.instance
 
