@@ -12,7 +12,7 @@ django-filter==2.1.0
 django-prometheus==1.0.15
 django-redis==4.10.0
 django-tenant-schemas==1.9.0
-django==2.2.1
+django==2.2.2
 djangorestframework-csv==2.1.0
 djangorestframework==3.9.4
 docutils==0.14
