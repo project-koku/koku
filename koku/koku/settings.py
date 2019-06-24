@@ -230,7 +230,8 @@ USE_TZ = True
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', '/')
+API_PATH_PREFIX = os.getenv('API_PATH_PREFIX',
+                            ENVIRONMENT.get_value('API_PATH_PREFIX', default='/api'))
 STATIC_API_PATH_PREFIX = API_PATH_PREFIX
 if STATIC_API_PATH_PREFIX != '' and (not STATIC_API_PATH_PREFIX.endswith('/')):
     STATIC_API_PATH_PREFIX = STATIC_API_PATH_PREFIX + '/'
