@@ -9,14 +9,15 @@ LABEL io.k8s.description="Lightweight open source message broker" \
     io.openshift.expose-services="4369:epmd, 5671:amqp, 5672:amqp, 25672:http" \
     io.openshift.tags="rabbitmq"
 
-ENV GPG_KEY="0A9AF2115F4687BD29803A206B73A36E6026DFCA" \
-    HOME=/var/lib/rabbitmq \
+ENV HOME=/var/lib/rabbitmq \
     RABBITMQ_HOME=/opt/rabbitmq \
     RABBITMQ_LOGS=- \
     RABBITMQ_SASL_LOGS=-
 
 RUN yum update -y && \
     yum clean all
+
+COPY rabbitmq.asc /etc/gnupg
 
 RUN set -xe && \
     curl -LO https://github.com/rabbitmq/erlang-rpm/releases/download/v${ERLANG_VERSION}/erlang-${ERLANG_VERSION}-1.el7.centos.x86_64.rpm && \
@@ -29,7 +30,7 @@ RUN set -xe && \
     curl -Lo rabbitmq_aws.ez https://github.com/rabbitmq/rabbitmq-autocluster/releases/download/${RABBITMQ_AUTOCLUSTER_VERSION}/rabbitmq_aws-${RABBITMQ_AUTOCLUSTER_VERSION}.ez && \
     export GNUPGHOME="$(mktemp -d)" && \
     env | grep GNUPG && \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$GPG_KEY" && \
+    gpg --import /etc/gnupg/rabbitmq.asc && \
     gpg --batch --verify rabbitmq-server.tar.xz.asc rabbitmq-server.tar.xz && \
     rm -rf "$GNUPGHOME" && \
     mkdir -p "$RABBITMQ_HOME" && \
