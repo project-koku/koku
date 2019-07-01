@@ -188,7 +188,7 @@ superuser:
 oc-clean: oc-down
 	$(PREFIX) rm -rf $(OC_DATA_DIR)
 
-oc-create-all: oc-create-database oc-create-rabbitmq oc-create-koku-auth-cache oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-flower oc-create-koku-api oc-create-listener oc-create-masu
+oc-create-all: oc-create-database oc-create-rabbitmq oc-create-koku-auth-cache oc-create-koku-api oc-create-masu oc-create-celery-exporter oc-create-celery-scheduler oc-create-celery-worker oc-create-flower oc-create-listener
 
 oc-create-celery-exporter: OC_OBJECT := dc/$(NAME)-celery-exporter
 oc-create-celery-exporter: OC_PARAMETER_FILE := celery-exporter.env
