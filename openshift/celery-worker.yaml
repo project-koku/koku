@@ -25,15 +25,13 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '9999'
-    name: masu-stats
-    labels:
-      app: ${NAME}-worker
+    name: ${NAME}-worker-stats
   spec:
     ports:
     - port: 9999
       name: stats
     selector:
-      template: ${NAME}-worker-template
+      name: ${NAME}-worker
 
 - kind: StatefulSet
   apiVersion: apps/v1beta1
