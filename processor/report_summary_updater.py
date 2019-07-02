@@ -110,9 +110,9 @@ class ReportSummaryUpdater:
         """Check if processing should continue."""
         if self._manifest and self._manifest.num_processed_files != self._manifest.num_total_files:
             # Bail if all manifest files have not been processed
-            LOG.info('Not all manifest files have completed processing.'
-                     'Summary defered')
-            return False
+            LOG.error('Not all manifest files have completed processing.'
+                      'Summary deferred. Processed Files: %s, Total Files: %s',
+                      str(self._manifest.num_processed_files), str(self._manifest.num_total_files))
         return True
 
     def update_daily_tables(self, start_date, end_date):
