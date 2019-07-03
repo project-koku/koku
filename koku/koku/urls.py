@@ -19,13 +19,13 @@
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.0/topics/http/urls/
 """
-import os
 
+from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 
-API_PATH_PREFIX = os.getenv('API_PATH_PREFIX', 'api')
+API_PATH_PREFIX = settings.API_PATH_PREFIX
 if API_PATH_PREFIX != '':
     if API_PATH_PREFIX.startswith('/'):
         API_PATH_PREFIX = API_PATH_PREFIX[1:]
