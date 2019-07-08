@@ -26,24 +26,24 @@ objects:
       description: Masu listener statistics
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
-      prometheus.io/port: '9999'
+      prometheus.io/port: ${LISTENER_PORT}
     name: ${NAME}-listener-stats
   spec:
     ports:
-    - port: 9999
+    - port: ${{LISTENER_PORT}}
       name: stats
     selector:
       name: ${NAME}-listener
 
 - kind: StatefulSet
-  apiVersion: apps/v1beta1
+  apiVersion: apps/v1
   metadata:
     annotations:
       description: Defines how to deploy the listener
       template.alpha.openshift.io/wait-for-ready: "true"
     name: ${NAME}-listener
   spec:
-    replicas: ${REPLICAS}
+    replicas: ${{REPLICAS}}
     selector:
       matchLabels:
         name: ${NAME}-listener
@@ -70,7 +70,7 @@ objects:
           image: ${NAME}-masu-flask
           imagePullPolicy: Always
           ports:
-          - containerPort: 9999
+          - containerPort: ${{LISTENER_PORT}}
             name: stats
           command:
             - /bin/bash
@@ -227,7 +227,7 @@ parameters:
   displayName: Masu Listener Replicas
   name: REPLICAS
   required: true
-  value: '1'
+  value: "1"
 - description: Initial amount of memory the listener container will request.
   displayName: Masu Listener Memory Request
   name: MEMORY_REQUEST
@@ -253,3 +253,8 @@ parameters:
   name: VOLUME_CAPACITY
   required: true
   value: 1Gi
+- description: Listener Port Number
+  displayName: Listener Port Number
+  name: LISTENER_PORT
+  required: true
+  value: "9999"

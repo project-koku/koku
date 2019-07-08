@@ -80,8 +80,9 @@ objects:
             timeoutSeconds: 10
           name: ${NAME}-db
           ports:
-          - containerPort: "5432"
+          - containerPort: ${{PORT_NUMBER}}
             protocol: TCP
+            name: ${NAME}-db
           readinessProbe:
             exec:
               command:
@@ -135,9 +136,9 @@ objects:
   spec:
     ports:
     - name: ${NAME}-db
-      port: 5432
+      port: ${{PORT_NUMBER}}
       protocol: TCP
-      targetPort: 5432
+      targetPort: ${NAME}-db
     selector:
       name: ${NAME}-db
 
@@ -171,3 +172,8 @@ parameters:
   name: VOLUME_CAPACITY
   required: true
   value: 1Gi
+- description: Database Port Number
+  displayName: Database Port Number
+  name: PORT_NUMBER
+  required: true
+  value: "5432"

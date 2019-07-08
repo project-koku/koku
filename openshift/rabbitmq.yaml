@@ -34,22 +34,22 @@ objects:
   spec:
     clusterIP: None
     ports:
-    - name: 4369-tcp
-      port: 4369
+    - name: ${RABBITMQ_EPMD_PORT}-tcp
+      port: ${{RABBITMQ_EPMD_PORT}}
       protocol: TCP
-      targetPort: 4369
-    - name: 5671-tcp
-      port: 5671
+      targetPort: ${{RABBITMQ_EPMD_PORT}}
+    - name: ${RABBITMQ_AMQPS_PORT}-tcp
+      port: ${{RABBITMQ_AMQPS_PORT}}
       protocol: TCP
-      targetPort: 5671
-    - name: 5672-tcp
-      port: 5672
+      targetPort: ${{RABBITMQ_AMQPS_PORT}}
+    - name: ${RABBITMQ_AMQP_PORT}-tcp
+      port: ${{RABBITMQ_AMQP_PORT}}
       protocol: TCP
-      targetPort: 5672
-    - name: 25672-tcp
-      port: 25672
+      targetPort: ${{RABBITMQ_AMQP_PORT}}
+    - name: ${RABBITMQ_INTERNODE_PORT}-tcp
+      port: ${{RABBITMQ_INTERNODE_PORT}}
       protocol: TCP
-      targetPort: 25672
+      targetPort: ${{RABBITMQ_INTERNODE_PORT}}
     selector:
       application: ${APPLICATION_NAME}
     sessionAffinity: None
@@ -61,7 +61,7 @@ objects:
       application: ${APPLICATION_NAME}
     name: ${APPLICATION_NAME}
   spec:
-    replicas: ${REPLICAS}
+    replicas: ${{REPLICAS}}
     selector:
       matchLabels:
         application: ${APPLICATION_NAME}
@@ -93,13 +93,13 @@ objects:
           imagePullPolicy: Always
           name: ${APPLICATION_NAME}
           ports:
-          - containerPort: 25672
+          - containerPort: ${{RABBITMQ_INTERNODE_PORT}}
             protocol: TCP
-          - containerPort: 4369
+          - containerPort: ${{RABBITMQ_EPMD_PORT}}
             protocol: TCP
-          - containerPort: 5671
+          - containerPort: ${{RABBITMQ_AMQPS_PORT}}
             protocol: TCP
-          - containerPort: 5672
+          - containerPort: ${{RABBITMQ_AMQP_PORT}}
             protocol: TCP
           resources:
             requests:
@@ -248,3 +248,23 @@ parameters:
   name: VOLUME_CAPACITY
   required: true
   value: 1Gi
+- description: RabbitMQ Inter-Node Communications Port Number
+  displayName: RabbitMQ Inter-Node Port
+  name: RABBITMQ_INTERNODE_PORT
+  required: true
+  value: "25672"
+- description: RabbitMQ EPMD Port Number
+  displayName: RabbitMQ EPMD Port
+  name: RABBITMQ_EPMD_PORT
+  required: true
+  value: "4369"
+- description: RabbitMQ AMQP Port Number
+  displayName: RabbitMQ AMQP Port
+  name: RABBITMQ_AMQP_PORT
+  required: true
+  value: "5672"
+- description: RabbitMQ AMQP (TLS) Port Number
+  displayName: RabbitMQ AMQPS Port
+  name: RABBITMQ_AMQPS_PORT
+  required: true
+  value: "5671"

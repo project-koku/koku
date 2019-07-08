@@ -25,7 +25,7 @@ objects:
       template.alpha.openshift.io/wait-for-ready: "true"
     name: ${NAME}-scheduler
   spec:
-    replicas: 1
+    replicas: ${{REPLICAS}}
     selector:
       name: ${NAME}-scheduler
     resources:
@@ -217,3 +217,8 @@ parameters:
   name: MEMORY_LIMIT
   required: true
   value: 512Mi
+- description: Number of Celery scheduler replicas
+  displayName: Celery scheduler replica count
+  name: REPLICAS
+  required: true
+  value: '1'

@@ -24,14 +24,14 @@ objects:
       description: Exposes and load balances the application pods
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
-      prometheus.io/port: '8888'
+      prometheus.io/port: ${EXPORTER_PORT}
     name: ${NAME}-celery-exporter
   spec:
     ports:
-    - name: 8888-tcp
-      port: 8888
+    - name: ${EXPORTER_PORT}-tcp
+      port: ${{EXPORTER_PORT}}
       protocol: TCP
-      targetPort: 8888
+      targetPort: ${{EXPORTER_PORT}}
     selector:
       name: ${NAME}-celery-exporter
 
@@ -66,7 +66,7 @@ objects:
         - name: ${NAME}-celery-exporter
           image: ${NAME}-celery-exporter
           ports:
-            - containerPort: 8888
+            - containerPort: ${{EXPORTER_PORT}}
               protocol: TCP
           command:
             - /bin/bash
@@ -136,3 +136,8 @@ parameters:
   name: MEMORY_LIMIT
   required: true
   value: 512Mi
+- description: Celery Exporter Port Number
+  displayName: Celery Exporter Port Number
+  name: EXPORTER_PORT
+  required: true
+  value: "8888"

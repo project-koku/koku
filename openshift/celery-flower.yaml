@@ -26,10 +26,10 @@ objects:
     name: ${NAME}-flower
   spec:
     ports:
-    - name: 5555-tcp
-      port: 5555
+    - name: ${FLOWER_PORT}-tcp
+      port: ${{FLOWER_PORT}}
       protocol: TCP
-      targetPort: 5555
+      targetPort: ${{FLOWER_PORT}}
     selector:
       name: ${NAME}-flower
 
@@ -120,7 +120,7 @@ objects:
     labels:
       app: ${NAME}
   spec:
-    replicas: ${REPLICAS}
+    replicas: ${{REPLICAS}}
     selector:
       name: ${NAME}-flower
     resources:
@@ -232,14 +232,14 @@ objects:
           livenessProbe:
             failureThreshold: 3
             tcpSocket:
-              port: 5555
+              port: ${{FLOWER_PORT}}
             initialDelaySeconds: 5
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 3
           readinessProbe:
             tcpSocket:
-              port: 5555
+              port: ${{FLOWER_PORT}}
             initialDelaySeconds: 30
             periodSeconds: 60
             successThreshold: 1
@@ -353,3 +353,8 @@ parameters:
   displayName: Application Hostname
   name: APPLICATION_DOMAIN
   required: false
+- description: Celery Flower Port Number
+  displayName: Celery Flower Port Number
+  name: FLOWER_PORT
+  required: true
+  value: "5555"

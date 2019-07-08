@@ -24,24 +24,24 @@ objects:
       description: Masu worker statistics
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
-      prometheus.io/port: '9999'
+      prometheus.io/port: ${WORKER_PORT}
     name: ${NAME}-worker-stats
   spec:
     ports:
-    - port: 9999
+    - port: ${{WORKER_PORT}}
       name: stats
     selector:
       name: ${NAME}-worker
 
 - kind: StatefulSet
-  apiVersion: apps/v1beta1
+  apiVersion: apps/v1
   metadata:
     annotations:
       description: Defines how to deploy the celery workers
       template.alpha.openshift.io/wait-for-ready: "true"
     name: ${NAME}-worker
   spec:
-    replicas: ${REPLICAS}
+    replicas: ${{REPLICAS}}
     selector:
       matchLabels:
         name: ${NAME}-worker
@@ -68,7 +68,7 @@ objects:
           image: ${NAME}-masu-flask
           imagePullPolicy: Always
           ports:
-          - containerPort: 9999
+          - containerPort: ${{WORKER_PORT}}
             name: stats
           command:
             - /bin/bash
@@ -311,3 +311,8 @@ parameters:
   name: VOLUME_CAPACITY
   required: true
   value: 1Gi
+- description: Celery Worker Port Number
+  displayName: Celery Worker Port Number
+  name: WORKER_PORT
+  required: true
+  value: "9999"
