@@ -1,15 +1,27 @@
-~~~~~~~~~~~~~~~~~~~~~~
-Working with OpenShift
-~~~~~~~~~~~~~~~~~~~~~~
+.. _`OpenShift`: https://docs.okd.io/
+.. _`minishift`: https://github.com/minishift/minishift
+.. _`Kubernetes`: https://kubernetes.io/docs/home/
+.. _`Docker`: https://docs.docker.com/
 
-When developing using OpenShift, there are different setup requirements for Mac OS and Linux. Linux instructions are provided for Fedora/RHEL/CentOS.
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Developing using OpenShift
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Run `oc cluster up` once before running the make commands to generate the referenced config file.
+The recommend development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment. Developing using OpenShift will align not only the software architecture, but also ensures the developer builds familiarity with the toolchain.
+
+Prerequistes
+============
+
+Developing Koku using OpenShift requires prerequisite knowledge and workstation configuration. Please ensure that you are familiar with the following software and have configured your workstation accordingly.
+
+- `OpenShift`_
+- `Kubernetes`_
+- `Docker`_
+
+When ready, your workstation should be able to run containers and deploy `OpenShift`_, either using `minishift`_ or an alternative installer.
 
 Local Development
 =================
-
-The recommend development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment.
 
 Minishift
 ---------
@@ -17,8 +29,6 @@ Minishift
 The recommended way to deploy a local OpenShift 3.x installation on Linux for Koku development is to use `minishift`_. This runs an OpenShift cluster inside of a VM.
 
 Installing and configuring `minishift`_ is outside the scope of this document.  Please refer to the `minishift`_ documentation for details.
-
-.. _`minishift`: https://github.com/minishift/minishift
 
 Deploying Services
 ------------------
@@ -50,6 +60,8 @@ The ``Makefile`` scripting applies parameter values only to matching templates b
 
 General Platform information
 ============================
+
+When developing using OpenShift, there are different setup requirements for Linux and Mac OS. Linux instructions are provided for Fedora/RHEL/CentOS.
 
 CLI Tab Completion
 ------------------
