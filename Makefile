@@ -464,11 +464,11 @@ __oc-apply-object: __oc-create-object
 		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
 			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-			| oc apply -v=5 -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
+			| oc apply -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
 		else \
 			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-			| oc apply -v=5 -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
+			| oc apply -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
 		fi ;\
 	fi
 
