@@ -199,6 +199,7 @@ oc-create-celery-exporter:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-celery-scheduler: OC_OBJECT := 'bc/$(NAME)-scheduler dc/$(NAME)-scheduler'
 oc-create-celery-scheduler: OC_PARAMETER_FILE := celery-scheduler.env
@@ -209,6 +210,7 @@ oc-create-celery-scheduler:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-celery-worker: OC_OBJECT := 'bc/$(NAME)-worker dc/$(NAME)-worker'
 oc-create-celery-worker: OC_PARAMETER_FILE := celery-worker.env
@@ -219,6 +221,7 @@ oc-create-celery-worker:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-configmap: OC_OBJECT := 'configmap -l app=$(NAME)'
 oc-create-configmap: OC_PARAMETER_FILE := configmap.env
@@ -236,6 +239,7 @@ oc-create-database:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-flower: OC_OBJECT := 'bc/$(NAME)-flower dc/$(NAME)-flower'
 oc-create-flower: OC_PARAMETER_FILE := celery-flower.env
@@ -246,6 +250,7 @@ oc-create-flower:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-imagestream: OC_OBJECT := 'is/centos is/python-36-centos7 is/postgresql'
 oc-create-imagestream: OC_PARAMETER_FILE := imagestream.env
@@ -253,6 +258,7 @@ oc-create-imagestream: OC_TEMPLATE_FILE := imagestream.yaml
 oc-create-imagestream: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-imagestream:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-koku-api: OC_OBJECT := 'bc/$(NAME) dc/$(NAME)'
 oc-create-koku-api: OC_PARAMETER_FILE := $(NAME)-api.env
@@ -263,6 +269,7 @@ oc-create-koku-api:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-koku-auth-cache: OC_OBJECT := 'bc/$(NAME)-redis dc/$(NAME)-redis'
 oc-create-koku-auth-cache: OC_PARAMETER_FILE := $(NAME)-auth-cache.env
@@ -273,6 +280,7 @@ oc-create-koku-auth-cache:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-listener: OC_OBJECT := 'bc/$(NAME)-listener dc/$(NAME)-listener'
 oc-create-listener: OC_PARAMETER_FILE := masu-listener.env
@@ -283,6 +291,7 @@ oc-create-listener:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu dc/$(NAME)-masu'
 oc-create-masu: OC_PARAMETER_FILE := masu-flask.env
@@ -293,6 +302,7 @@ oc-create-masu:
 	$(OC_PARAMS) $(MAKE) oc-create-configmap
 	$(OC_PARAMS) $(MAKE) oc-create-secret
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-rabbitmq: OC_OBJECT := statefulsets/rabbitmq
 oc-create-rabbitmq: OC_PARAMETER_FILE := rabbitmq.env
@@ -300,6 +310,7 @@ oc-create-rabbitmq: OC_TEMPLATE_FILE := rabbitmq.yaml
 oc-create-rabbitmq: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-rabbitmq:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-secret: OC_OBJECT := 'secret -l app=$(NAME)'
 oc-create-secret: OC_PARAMETER_FILE := secret.env
@@ -457,7 +468,7 @@ __oc-create-object: __oc-create-project
 		fi ;\
 	fi
 
-__oc-apply-object: __oc-create-object
+__oc-apply-object: __oc-create-project
 	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) != '' ]] || \
 	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep -v 'not found') ]]; then \
 		echo "WARNING: Resources matching 'oc get $(OC_OBJECT)' exists. Updating template. Skipping object creation." ;\
