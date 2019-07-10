@@ -4,7 +4,7 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: koku-api-template
+  name: koku-template
   annotations:
     openshift.io/display-name: "Koku"
     description: "Cloud Cost Management powered by Django+PostgreSQL"
@@ -15,7 +15,7 @@ metadata:
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
-  template: koku-api
+  template: koku
 objects:
 
 - apiVersion: v1
@@ -27,7 +27,7 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '8080'
-    name: ${NAME}-api
+    name: ${NAME}
   spec:
     ports:
     - name: 8080-tcp
@@ -35,21 +35,21 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      name: ${NAME}-api
+      name: ${NAME}
 - apiVersion: v1
   kind: Route
   metadata:
-    name: ${NAME}-api
+    name: ${NAME}
   spec:
     host: ${APPLICATION_DOMAIN}
     to:
       kind: Service
-      name: ${NAME}-api
+      name: ${NAME}
 
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: ${NAME}-api
+    name: ${NAME}
     annotations:
       description: "Keeps track of changes in the application image"
 
@@ -60,15 +60,15 @@ objects:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
     labels:
-      name: ${NAME}-api
-    name: ${NAME}-api
+      name: ${NAME}
+    name: ${NAME}
   spec:
     failedBuildsHistoryLimit: 1
     successfulBuildsHistoryLimit: 2
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}-api:latest
+        name: ${NAME}:latest
     resources:
       requests:
         memory: ${BUILD_MEMORY_REQUEST}
@@ -134,11 +134,11 @@ objects:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}-api
+    name: ${NAME}
   spec:
     replicas: 1
     selector:
-      name: ${NAME}-api
+      name: ${NAME}
     resources:
       requests:
         memory: ${MEMORY_REQUEST}
@@ -156,12 +156,12 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          name: ${NAME}-api
-        name: ${NAME}-api
+          name: ${NAME}
+        name: ${NAME}
       spec:
         containers:
-        - name: ${NAME}-api
-          image: ${NAME}-api
+        - name: ${NAME}
+          image: ${NAME}
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -370,22 +370,22 @@ objects:
             - name: POD_CPU_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-api
+                  containerName: ${NAME}
                   resource: requests.cpu
             - name: POD_CPU_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-api
+                  containerName: ${NAME}
                   resource: limits.cpu
             - name: POD_MEMORY_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-api
+                  containerName: ${NAME}
                   resource: requests.memory
             - name: POD_MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-api
+                  containerName: ${NAME}
                   resource: limits.memory
           livenessProbe:
             failureThreshold: 3
@@ -422,16 +422,16 @@ objects:
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-api
+          - ${NAME}
         from:
           kind: ImageStreamTag
-          name: ${NAME}-api:latest
+          name: ${NAME}:latest
       type: ImageChange
 
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
-    name: ${NAME}-api
+    name: ${NAME}
     namespace: ${NAMESPACE}
   spec:
     maxReplicas: 10
@@ -439,7 +439,7 @@ objects:
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
-      name: ${NAME}-api
+      name: ${NAME}
     targetCPUUtilizationPercentage: 80
 
 parameters:
