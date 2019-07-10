@@ -122,7 +122,7 @@ objects:
   data:
     rbac-host: ${RBAC_HOST}
     rbac-port: ${RBAC_PORT}
-    rbac-path: "/r/insights/platform/rbac/v1/access/"
+    rbac-path: ${RBAC_PATH}
     rbac-cache-ttl: "30"
     redis-host: ${REDIS_HOST}
     redis-port: ${REDIS_PORT}
@@ -201,6 +201,10 @@ parameters:
   name: RBAC_PORT
   required: true
   value: "8080"
+- displayName: RBAC API path
+  value: '/r/insights/platform/rbac/v1/access/'
+  name: RBAC_PATH
+  required: true
 - displayName: API path prefix
   value: '/api'
   name: API_PATH_PREFIX
