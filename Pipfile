@@ -37,6 +37,9 @@ coverage = ">=4.5.0"
 codecov = ">=2.0.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.9"
+tblib = "*"
+pydocstyle = "~=3.0.0"
+flake8-docstrings = "*"
 
 [requires]
 python_version = "3.6"
