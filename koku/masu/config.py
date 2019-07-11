@@ -38,7 +38,7 @@ class Config:
     DB_USER = os.getenv('DATABASE_USER', 'postgres')
     DB_PASSWORD = os.getenv('DATABASE_PASSWORD', 'postgres')
     DB_HOST = os.getenv('DATABASE_HOST', 'localhost')
-    DB_PORT = os.getenv('DATABASE_PORT', '5432')
+    DB_PORT = os.getenv('DATABASE_PORT', '15432')
     DB_CA_CERT = os.getenv('DATABASE_CA_CERT')
 
     SQLALCHEMY_DATABASE_URI = \
@@ -68,6 +68,10 @@ class Config:
     # AMQP Message Broker
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
     RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
+
+    SECRET_KEY = os.getenv('MASU_SECRET_KEY')
+    if SECRET_KEY is None:
+        raise ValueError('No secret key set for Masu application')
 
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
