@@ -67,17 +67,17 @@ class OCPRateDBAccessorTest(MasuTestCase):
         )
         rates = [
             {'metric': {'name': 'cpu_core_usage_per_hour'},
-                        'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]},
+             'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]},
             {'metric': {'name': 'memory_gb_usage_per_hour'},
-                        'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]},
+             'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]},
             {'metric': {'name': 'cpu_core_request_per_hour'},
-                        'tiered_rates': [{'value': 3.5, 'unit': 'USD'}]},
+             'tiered_rates': [{'value': 3.5, 'unit': 'USD'}]},
             {'metric': {'name': 'memory_gb_request_per_hour'},
-                        'tiered_rates': [{'value': 4.5, 'unit': 'USD'}]},
+             'tiered_rates': [{'value': 4.5, 'unit': 'USD'}]},
             {'metric': {'name': 'storage_gb_usage_per_month'},
-                        'tiered_rates': [{'value': 5.5, 'unit': 'USD'}]},
+             'tiered_rates': [{'value': 5.5, 'unit': 'USD'}]},
             {'metric': {'name': 'storage_gb_request_per_month'},
-                        'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]}
+             'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]}
         ]
 
         self.creator.create_cost_model(self.provider_uuid, 'OCP', rates)

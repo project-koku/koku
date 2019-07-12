@@ -27,7 +27,6 @@ from dateutil import relativedelta
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
-from koku.api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.account_alias_accessor import AccountAliasAccessor
@@ -276,11 +275,10 @@ class ReportObjectCreator:
     def create_cost_model(self, provider_uuid, source_type, rates):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['cost_model']
-        dh = DateHelper()
         data = {
             'uuid': str(uuid.uuid4()),
-            'created_timestamp': dh._now,
-            'updated_timestamp': dh._now,
+            'created_timestamp': self.fake.past_datetime(),
+            'updated_timestamp': self.fake.past_datetime(),
             'name': self.fake.pystr()[:8],
             'description': self.fake.pystr(),
             'source_type': source_type,
