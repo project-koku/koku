@@ -76,11 +76,11 @@ class CostModelViewTests(IamTestCase):
         self.fake_data = {
             'name': 'Test Cost Model',
             'description': 'Test',
+            'source_type': self.ocp_source_type,
             'provider_uuids': [self.provider.uuid],
             'rates': [
                 {
                     'metric': {'name': self.ocp_metric},
-                    'source_type': self.ocp_source_type,
                     'tiered_rates': tiered_rates
                 }
             ]
@@ -169,8 +169,13 @@ class CostModelViewTests(IamTestCase):
         response = client.post(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_create_cost_model_invalid_source_type(self):
+        """Test that an invalid source type is not allowed."""
+        url = reverse('costmodels-list')
+        client = APIClient()
+
         test_data = copy.deepcopy(self.fake_data)
-        test_data['rates'][0]['source_type'] = 'Bad Source'
+        test_data['source_type'] = 'Bad Source'
         response = client.post(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 

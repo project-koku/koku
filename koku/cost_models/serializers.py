@@ -95,7 +95,6 @@ class RateSerializer(serializers.Serializer):
     RATE_TYPES = ('tiered_rates',)
 
     metric = serializers.DictField(required=True)
-    source_type = serializers.CharField(required=True)
     tiered_rates = serializers.ListField(required=False)
 
     @staticmethod
@@ -163,30 +162,6 @@ class RateSerializer(serializers.Serializer):
             RateSerializer._validate_no_tier_gaps(sorted_tiers)
             RateSerializer._validate_no_tier_overlaps(sorted_tiers)
 
-    @property
-    def metric_map(self):
-        """Map metrics and display names."""
-        metric_map_by_source = defaultdict(dict)
-        metric_map = CostModelMetricsMap.objects.all()
-
-        for metric in metric_map:
-            metric_map_by_source[metric.source_type][metric.metric] = metric
-        return metric_map_by_source
-
-    @property
-    def source_type_internal_value_map(self):
-        """Map display name to internal source type."""
-        internal_map = {}
-        for key, value in SOURCE_TYPE_MAP.items():
-            internal_map[value] = key
-        return internal_map
-
-    def validate_source_type(self, value):
-        """Validate that the source type is acceptable."""
-        if value not in self.metric_map.keys():
-            raise serializers.ValidationError('{} is not a valide source.'.format(value))
-        return value
-
     def validate_tiered_rates(self, tiered_rates):
         """Force validation of tiered rates."""
         validated_rates = []
@@ -198,7 +173,6 @@ class RateSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that a rate must be defined."""
-        data['source_type'] = self.validate_source_type(data.get('source_type'))
         data['tiered_rates'] = self.validate_tiered_rates(data.get('tiered_rates', []))
 
         rate_keys_str = ', '.join(str(rate_key) for rate_key in self.RATE_TYPES)
@@ -217,26 +191,12 @@ class RateSerializer(serializers.Serializer):
             error_msg = 'A rate must be provided (e.g. {}).'.format(rate_keys_str)
             raise serializers.ValidationError(error_msg)
 
-    def _get_metric_display_data(self, source_type, metric):
-        """Return API display metadata."""
-        return self.metric_map[source_type][metric]
-
     def to_representation(self, rate_obj):
         """Create external representation of a rate."""
-        source_type = rate_obj.get('source_type')
-        metric_name = rate_obj.get('metric', {}).get('name')
-        display_data = self._get_metric_display_data(source_type, metric_name)
-        if source_type in SOURCE_TYPE_MAP:
-            source_type = SOURCE_TYPE_MAP[source_type]
-
         out = {
             'metric': {
-                'name': metric_name,
-                'label_metric': display_data.label_metric,
-                'label_measurement': display_data.label_measurement,
-                'label_measurement_unit': display_data.label_measurement_unit,
-            },
-            'source_type': source_type,
+                'name': rate_obj.get('metric', {}).get('name'),
+            }
         }
 
         # Specifically handling only tiered rates now
@@ -269,11 +229,6 @@ class RateSerializer(serializers.Serializer):
             'name': metric.get('name')
         }
         data['metric'] = new_metric
-
-        source_type = data.get('source_type')
-        if source_type in SOURCE_TYPE_MAP.values():
-            data['source_type'] = self.source_type_internal_value_map[source_type]
-
         return data
 
 
@@ -284,13 +239,14 @@ class CostModelSerializer(serializers.Serializer):
         """Metadata for the serializer."""
 
         model = CostModel
-        # fields = ('uuid', 'name', 'description', 'created_timestamp', 'updated_timestamp')
 
     uuid = serializers.UUIDField(read_only=True)
 
     name = serializers.CharField(allow_blank=True)
 
     description = serializers.CharField(allow_blank=True)
+
+    source_type = serializers.CharField(required=True)
 
     provider_uuids = serializers.ListField(child=UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid'),
                                            required=False)
@@ -300,6 +256,34 @@ class CostModelSerializer(serializers.Serializer):
     updated_timestamp = serializers.DateTimeField(read_only=True)
 
     rates = RateSerializer(required=False, many=True)
+
+    @property
+    def metric_map(self):
+        """Map metrics and display names."""
+        metric_map_by_source = defaultdict(dict)
+        metric_map = CostModelMetricsMap.objects.all()
+
+        for metric in metric_map:
+            metric_map_by_source[metric.source_type][metric.metric] = metric
+        return metric_map_by_source
+
+    @property
+    def source_type_internal_value_map(self):
+        """Map display name to internal source type."""
+        internal_map = {}
+        for key, value in SOURCE_TYPE_MAP.items():
+            internal_map[value] = key
+        return internal_map
+
+    def validate_source_type(self, value):
+        """Validate that the source type is acceptable."""
+        if value not in self.metric_map.keys():
+            raise serializers.ValidationError('{} is not a valide source.'.format(value))
+        return value
+
+    def _get_metric_display_data(self, source_type, metric):
+        """Return API display metadata."""
+        return self.metric_map.get(source_type, {}).get(metric)
 
     def _check_for_duplicate_metrics(self, rates):
         """Check for duplicate metric/rate combinations within a cost model."""
@@ -364,6 +348,27 @@ class CostModelSerializer(serializers.Serializer):
     def to_representation(self, cost_model_obj):
         """Add provider UUIDs to the returned model."""
         rep = super().to_representation(cost_model_obj)
+        rates = rep['rates']
+        for rate in rates:
+            metric = rate.get('metric', {})
+            display_data = self._get_metric_display_data(
+                cost_model_obj.source_type,
+                metric.get('name')
+            )
+            metric.update(
+                {
+                    'label_metric': display_data.label_metric,
+                    'label_measurement': display_data.label_measurement,
+                    'label_measurement_unit': display_data.label_measurement_unit,
+                }
+            )
+        rep['rates'] = rates
+
+        source_type = rep.get('source_type')
+        if source_type in SOURCE_TYPE_MAP:
+            source_type = SOURCE_TYPE_MAP[source_type]
+        rep['source_type'] = source_type
+
         cm_uuid = cost_model_obj.uuid
         provider_uuids = CostModelManager(cm_uuid).get_provider_uuids()
         rep.update({'provider_uuids': provider_uuids})

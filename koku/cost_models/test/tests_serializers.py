@@ -61,11 +61,11 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data = {
             'name': 'Test Cost Model',
             'description': 'Test',
+            'source_type': ocp_source_type,
             'provider_uuids': [self.provider.uuid],
             'rates': [
                 {
                     'metric': {'name': ocp_metric},
-                    'source_type': ocp_source_type,
                     'tiered_rates': tiered_rates
                 }
             ]
@@ -290,11 +290,11 @@ class CostModelSerializerTest(IamTestCase):
             ocp_data = {
                 'name': 'Test Cost Model',
                 'description': 'Test',
+                'source_type': 'OCP',
                 'provider_uuids': [self.provider.uuid],
                 'rates': [
                     {
                         'metric': {'name': storage_rate},
-                        'source_type': 'OCP',
                         'tiered_rates': [
                             {
                                 'unit': 'USD',
@@ -333,11 +333,11 @@ class CostModelSerializerTest(IamTestCase):
             ocp_data = {
                 'name': 'Test Cost Model',
                 'description': 'Test',
+                'source_type': 'OCP',
                 'provider_uuids': [self.provider.uuid],
                 'rates': [
                     {
                         'metric': {'name': storage_rate},
-                        'source_type': 'OCP',
                         'tiered_rates': [{
                             'unit': 'USD',
                             'value': 0.22
@@ -429,7 +429,7 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_get_metric_display_data_openshift(self):
         """Test the display data helper function for OpenShift metrics."""
-        serializer = RateSerializer(data=None)
+        serializer = CostModelSerializer(data=None)
 
         for metric_choice in CostModelMetricsMap.METRIC_CHOICES:
             response = serializer._get_metric_display_data('OCP', metric_choice[0])
