@@ -21,6 +21,7 @@ from uuid import uuid4
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from api.provider.models import Provider
 
 class CostModel(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -35,6 +36,12 @@ class CostModel(models.Model):
     name = models.TextField()
 
     description = models.TextField()
+
+    source_type = models.CharField(
+        max_length=50,
+        null=False,
+        choices=Provider.PROVIDER_CHOICES
+    )
 
     created_timestamp = models.DateTimeField(auto_now_add=True)
 
