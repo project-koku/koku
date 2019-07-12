@@ -29,7 +29,7 @@ from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel, CostModelMap
-from cost_models.serializers import CostModelSerializer, RateSerializer, UUIDKeyRelatedField
+from cost_models.serializers import CostModelSerializer, UUIDKeyRelatedField
 
 
 class CostModelSerializerTest(IamTestCase):
