@@ -32,11 +32,12 @@ class OCPRateDBAccessorTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        cls.provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = OCPRateDBAccessor(
             schema='acct10001',
-            provider_uuid='3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            provider_uuid=cls.provider_uuid,
             column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema
@@ -63,31 +64,24 @@ class OCPRateDBAccessorTest(MasuTestCase):
             reporting_period,
             report
         )
-        self.cpu_usage_rate = {'metric': 'cpu_core_usage_per_hour',
-                               'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': [{'value': 1.5, 'unit': 'USD'}]}}
-        self.mem_usage_rate = {'metric': 'memory_gb_usage_per_hour',
-                               'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': [{'value': 2.5, 'unit': 'USD'}]}}
-        self.cpu_request_rate = {'metric': 'cpu_core_request_per_hour',
-                                 'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': [{'value': 3.5, 'unit': 'USD'}]}}
-        self.mem_request_rate = {'metric': 'memory_gb_request_per_hour',
-                                 'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': [{'value': 4.5, 'unit': 'USD'}]}}
-        self.storage_usage_rate = {'metric': 'storage_gb_usage_per_month',
-                                   'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                   'rates': {'tiered_rate': [{'value': 5.5, 'unit': 'USD'}]}}
-        self.storage_request_rate = {'metric': 'storage_gb_request_per_month',
-                                     'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                     'rates': {'tiered_rate': [{'value': 6.5, 'unit': 'USD'}]}}
+        rates = [
+            {'metric': {'name': 'cpu_core_usage_per_hour'},
+                        'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'memory_gb_usage_per_hour'},
+                        'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'cpu_core_request_per_hour'},
+                        'tiered_rates': [{'value': 3.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'memory_gb_request_per_hour'},
+                        'tiered_rates': [{'value': 4.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'storage_gb_usage_per_month'},
+                        'tiered_rates': [{'value': 5.5, 'unit': 'USD'}]},
+            {'metric': {'name': 'storage_gb_request_per_month'},
+                        'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]}
+        ]
 
-        self.creator.create_rate(**self.cpu_usage_rate)
-        self.creator.create_rate(**self.mem_usage_rate)
-        self.creator.create_rate(**self.cpu_request_rate)
-        self.creator.create_rate(**self.mem_request_rate)
-        self.creator.create_rate(**self.storage_usage_rate)
-        self.creator.create_rate(**self.storage_request_rate)
+        self.creator.create_cost_model(self.provider_uuid, 'OCP', rates)
+        # Reset the rate map in the accessor
+        self.accessor.rates = self.accessor._make_rate_by_metric_map()
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -133,34 +127,47 @@ class OCPRateDBAccessorTest(MasuTestCase):
         """Test get cpu usage rates."""
         cpu_rates = self.accessor.get_cpu_core_usage_per_hour_rates()
         self.assertEqual(type(cpu_rates), dict)
-        self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 1.5)
+        self.assertEqual(cpu_rates.get('tiered_rates')[0].get('value'), 1.5)
 
     def test_get_memory_gb_usage_per_hour_rates(self):
         """Test get memory usage rates."""
         mem_rates = self.accessor.get_memory_gb_usage_per_hour_rates()
         self.assertEqual(type(mem_rates), dict)
-        self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 2.5)
+        self.assertEqual(mem_rates.get('tiered_rates')[0].get('value'), 2.5)
 
     def test_get_cpu_core_request_per_hour_rates(self):
         """Test get cpu request rates."""
         cpu_rates = self.accessor.get_cpu_core_request_per_hour_rates()
         self.assertEqual(type(cpu_rates), dict)
-        self.assertEqual(cpu_rates.get('tiered_rate')[0].get('value'), 3.5)
+        self.assertEqual(cpu_rates.get('tiered_rates')[0].get('value'), 3.5)
 
     def test_get_memory_gb_request_per_hour_rates(self):
         """Test get memory request rates."""
         mem_rates = self.accessor.get_memory_gb_request_per_hour_rates()
         self.assertEqual(type(mem_rates), dict)
-        self.assertEqual(mem_rates.get('tiered_rate')[0].get('value'), 4.5)
+        self.assertEqual(mem_rates.get('tiered_rates')[0].get('value'), 4.5)
 
     def test_get_storage_gb_usage_per_month_rates(self):
         """Test get memory request rates."""
         storage_rates = self.accessor.get_storage_gb_usage_per_month_rates()
         self.assertEqual(type(storage_rates), dict)
-        self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 5.5)
+        self.assertEqual(storage_rates.get('tiered_rates')[0].get('value'), 5.5)
 
     def test_get_storage_gb_request_per_month_rates(self):
         """Test get memory request rates."""
         storage_rates = self.accessor.get_storage_gb_request_per_month_rates()
         self.assertEqual(type(storage_rates), dict)
-        self.assertEqual(storage_rates.get('tiered_rate')[0].get('value'), 6.5)
+        self.assertEqual(storage_rates.get('tiered_rates')[0].get('value'), 6.5)
+
+    def test_make_rate_by_metric_map(self):
+        """Test to make sure a dictionary of metric to rates is returned."""
+        rates = self.accessor._get_base_entry()
+        expected_map = {}
+        for rate in rates:
+            expected_map[rate.get('metric', {}).get('name')] = rate
+
+        result_rate_map = self.accessor._make_rate_by_metric_map()
+        for metric, rate in result_rate_map.items():
+            self.assertIn(rate, rates)
+            self.assertIn(rate, expected_map.values())
+            self.assertIn(metric, expected_map)

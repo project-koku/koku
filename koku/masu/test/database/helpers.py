@@ -27,6 +27,7 @@ from decimal import Decimal
 from dateutil import relativedelta
 from faker import Faker
 
+from koku.api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -290,25 +291,31 @@ class ReportObjectCreator:
         """Convert datetime string to datetime with AWS formatting."""
         return datetime.datetime.strptime(value, Config.AWS_DATETIME_STR_FORMAT)
 
-    def create_rate(self, metric, provider_uuid, rates):
+    def create_cost_model(self, provider_uuid, source_type, rates):
         """Create an OCP rate database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP['rate']
+        table_name = OCP_REPORT_TABLE_MAP['cost_model']
+        dh = DateHelper()
+        data = {
+            'uuid': str(uuid.uuid4()),
+            'created_timestamp': dh._now,
+            'updated_timestamp': dh._now,
+            'name': self.fake.pystr()[:8],
+            'description': self.fake.pystr(),
+            'source_type': source_type,
+            'rates': rates
+        }
 
-        data = {'metric': metric,
-                'rates': rates,
-                'uuid': str(uuid.uuid4())}
+        cost_model_obj = self.db_accessor.create_db_object(table_name, data)
 
-        rate_obj = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(rate_obj)
+        self.db_accessor._session.add(cost_model_obj)
         self.db_accessor._session.commit()
 
-        rate_map_table = OCP_REPORT_TABLE_MAP['rate_map']
+        cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
-        data = {'provider_uuid': provider_obj.uuid, 'rate_id': rate_obj.id}
-        rate_map_obj = self.db_accessor.create_db_object(rate_map_table, data)
+        data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
+        cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
 
-        self.db_accessor._session.add(rate_map_obj)
+        self.db_accessor._session.add(cost_model_map_obj)
         self.db_accessor._session.commit()
 
-        return rate_obj
+        return cost_model_obj
