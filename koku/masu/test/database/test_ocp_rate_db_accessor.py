@@ -16,22 +16,28 @@
 #
 
 """Test the OCPRateDBAccessor utility object."""
-import psycopg2
-import uuid
+from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tests import MasuTestCase
-from tests.database.helpers import ReportObjectCreator
+from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class OCPRateDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPRateDBAccessor object."""
 
+    def run(self, result=None):
+        """Run the tests with the correct schema context."""
+        with schema_context(self.schema):
+            super().run(result)
+
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
+
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = OCPRateDBAccessor(
@@ -48,12 +54,8 @@ class OCPRateDBAccessorTest(MasuTestCase):
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def setUp(self):
-        """"Set up a test with database objects."""
+        """Set up a test with database objects."""
         super().setUp()
-        if self.accessor._conn.closed:
-            self.accessor._conn = self.accessor._db.connect()
-        if self.accessor._pg2_conn.closed:
-            self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
         if self.accessor._cursor.closed:
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
@@ -89,21 +91,9 @@ class OCPRateDBAccessorTest(MasuTestCase):
         self.creator.create_rate(**self.storage_usage_rate)
         self.creator.create_rate(**self.storage_request_rate)
 
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        self.accessor._session.rollback()
-
-        for table_name in self.all_tables:
-            tables = self.accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.accessor._session.delete(table)
-        self.accessor.commit()
-
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
-        self.assertIsNotNone(self.accessor._session)
-        self.assertIsNotNone(self.accessor._conn)
         self.assertIsNotNone(self.accessor._cursor)
 
     def test_get_rates(self):

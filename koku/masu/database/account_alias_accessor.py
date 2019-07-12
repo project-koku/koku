@@ -15,9 +15,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Accessor for Account alias information from koku database."""
-
+from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
+from reporting.models import AWSAccountAlias
 
 
 class AccountAliasAccessor(KokuDBAccess):
@@ -33,22 +34,23 @@ class AccountAliasAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._account_id = account_id
-        self._table = self.get_base().classes.reporting_awsaccountalias
+        self._table = AWSAccountAlias
 
         if self.does_db_entry_exist() is False:
             self.add(self._account_id)
 
-        self._obj = self._get_db_obj_query().first()
+        with schema_context(self.schema):
+            self._obj = self._get_db_obj_query().first()
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
         """
-        Return the sqlachemy query for the customer object.
+        Return the django Queryset for the customer object.
 
         Args:
             None
         Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ...",
+            (django.db.query.QuerySet): QuerySet of objects matching the given filters
         """
         return super()._get_db_obj_query(account_id=self._account_id)
 
@@ -75,4 +77,6 @@ class AccountAliasAccessor(KokuDBAccess):
             None
 
         """
-        self._obj.account_alias = alias
+        with schema_context(self.schema):
+            self._obj.account_alias = alias
+            self._obj.save()

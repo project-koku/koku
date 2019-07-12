@@ -18,11 +18,8 @@
 
 import logging
 
-import sqlalchemy
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import scoped_session, sessionmaker
-
-from masu.database.engine import DB_ENGINE
+from django.db import IntegrityError, transaction
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -39,126 +36,73 @@ class KokuDBAccess:
             schema       (String) database schema (i.e. public or customer tenant value)
         """
         self.schema = schema
-        self._db = DB_ENGINE
-        self._meta = self._create_metadata()
-        self._session_factory = sessionmaker(bind=self._db)
-        self._session_registry = scoped_session(self._session_factory)
-        self._session = self._create_session()
-        self._base = self._prepare_base()
+        self._savepoint = None
 
     def __enter__(self):
         """Context manager entry."""
-        self._session.begin_nested()
+        self._savepoint = transaction.savepoint()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close session."""
-        if exception_type:
-            self._session.rollback()
-        else:
-            self._session.commit()
-        self.close_session()
+        with schema_context(self.schema):
+            if exception_type:
+                transaction.savepoint_rollback(self._savepoint)
+            else:
+                transaction.savepoint_commit(self._savepoint)
 
-    def _create_metadata(self):
-        """Create database metadata to for a specific schema.
-
-        Args:
-            None
-        Returns:
-            (sqlalchemy.sql.schema.MetaData): "SQLAlchemy engine metadata"
-
-        """
-        return sqlalchemy.MetaData(bind=self._db, schema=self.schema)
-
-    def _create_session(self):
-        """Use a sessionmaker factory to create a scoped session."""
-        return self._session_registry()
-
+    # pylint: disable=no-self-use
     def close_session(self):
-        """Close the database session."""
-        self._session.close()
+        """Close the database session (DEPRECATED)."""
+        # pylint: disable=unnecessary-pass
+        pass
 
-    def _prepare_base(self):
-        """
-        Prepare base classes.
-
-        Args:
-            None
-        Returns:
-            (sqlalchemy.ext.declarative.api.DeclarativeMeta): "Declaritive metadata object",
-        """
-        base = automap_base(metadata=self.get_meta())
-        base.prepare(self.get_engine(), reflect=True)
-        return base
-
+    # pylint: disable=no-self-use
     def get_base(self):
-        """
-        Return the base classes.
+        """Return the base classes (DEPRECATED)."""
+        return None
 
-        Args:
-            None
-        Returns:
-            (sqlalchemy.ext.declarative.api.DeclarativeMeta): "Declaritive metadata object",
-        """
-        return self._base
-
+    # pylint: disable=no-self-use
     def get_session(self):
-        """
-        Return Koku database connection session.
+        """Return Koku database connection session (DEPRECATED)."""
+        return None
 
-        Args:
-            None
-        Returns:
-            (sqlalchemy.orm.session.Session): "SQLAlchemy Session object",
-        """
-        return self._session
-
+    # pylint: disable=no-self-use
     def get_engine(self):
-        """
-        Return Koku database connection engine.
+        """Return Koku database connection engine (DEPRECATED)."""
+        return None
 
-        Args:
-            None
-        Returns:
-            (sqlalchemy.engine.base.Engine): "SQLAlchemy engine object",
-        """
-        return self._db
-
+    # pylint: disable=no-self-use
     def get_meta(self):
-        """
-        Return Koku database metadata connection.
-
-        Args:
-            None
-        Returns:
-            (sqlalchemy.engine.base.MetaData): "SQLAlchemy metadata object",
-        """
-        return self._meta
+        """Return Koku database metadata connection (DEPRECATED)."""
+        return None
 
     def _get_db_obj_query(self, **filter_args):
         """
-        Return the sqlachemy query for this table .
+        Return the django queryset for this table .
 
         Args:
             None
         Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+            (django.db.query.QuerySet): QuerySet of objects matching the given filters
         """
-        obj = self._session.query(self._table)
-        if filter_args:
-            return obj.filter_by(**filter_args)
-        return obj
+        with schema_context(self.schema):
+            queryset = self._table.objects.all()
+            if filter_args:
+                queryset = queryset.filter(**filter_args)
+            return queryset
 
     def does_db_entry_exist(self):
         """
-        Return status for the existance of an object in the database.
+        Return status for the existence of an object in the database.
 
         Args:
             None
         Returns:
             (Boolean): "True/False",
         """
-        return bool(self._get_db_obj_query().first())
+        with schema_context(self.schema):
+            return self._get_db_obj_query().exists()
 
     def add(self, use_savepoint=True, **kwargs):
         """
@@ -172,12 +116,25 @@ class KokuDBAccess:
             (Object): new model object
 
         """
-        new_entry = self._table(**kwargs)
-        if use_savepoint:
-            self.savepoint(self._session.add, new_entry)
-        else:
-            self._session.add(new_entry)
-        return new_entry
+        with schema_context(self.schema):
+            new_entry = self._table.objects.create(**kwargs)
+            if use_savepoint:
+                self.savepoint(new_entry.save)
+            else:
+                new_entry.save()
+            return new_entry
+
+    def commit(self):
+        """
+        Commit pending database changes.
+
+        Args:
+            None
+        Returns:
+            None
+        """
+        with schema_context(self.schema):
+            transaction.commit()
 
     def delete(self, obj=None, use_savepoint=True):
         """
@@ -193,28 +150,14 @@ class KokuDBAccess:
             deleteme = obj
         else:
             deleteme = self._obj
-
-        if use_savepoint:
-            self.savepoint(self._session.delete, deleteme)
-        else:
-            self._session.delete(deleteme)
-
-    def commit(self):
-        """
-        Commit pending database changes.
-
-        Args:
-            None
-        Returns:
-            None
-        """
-        self._session.commit()
+        with schema_context(self.schema):
+            if use_savepoint:
+                self.savepoint(deleteme.delete)
+            else:
+                deleteme.delete()
 
     def savepoint(self, func, *args, **kwargs):
         """Wrap a db access function in a savepoint block.
-
-        For more info, see:
-            https://docs.sqlalchemy.org/en/latest/orm/session_transaction.html#using-savepoint
 
         Args:
             func (bound method) a function reference.
@@ -224,10 +167,12 @@ class KokuDBAccess:
             None
 
         """
-        try:
-            with self._session.begin_nested():
+        with schema_context(self.schema):
+            try:
+                savepoint = transaction.savepoint()
                 func(*args, **kwargs)
-            self._session.commit()
-        except sqlalchemy.exc.IntegrityError as exc:
-            LOG.warning('query transaction failed: %s', exc)
-            self._session.rollback()
+                transaction.savepoint_commit(savepoint)
+
+            except IntegrityError as exc:
+                LOG.warning('query transaction failed: %s', exc)
+                transaction.savepoint_rollback(savepoint)

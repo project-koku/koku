@@ -19,6 +19,7 @@
 import enum
 import logging
 
+from api.provider.models import ProviderStatus
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.exceptions import MasuProviderError
@@ -57,7 +58,7 @@ class ProviderStatusAccessor(KokuDBAccess):
         """
         super().__init__(schema)
         self._provider_uuid = provider_uuid
-        self._table = self.get_base().classes.api_providerstatus
+        self._table = ProviderStatus
 
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
@@ -65,7 +66,7 @@ class ProviderStatusAccessor(KokuDBAccess):
                 raise MasuProviderError(f'Unknown provider: {self._provider_uuid}')
             self.provider_id = provider.id
 
-        self._obj = self._get_db_obj_query().first()
+        self._obj = self._get_db_obj_query().order_by('-id').first()
 
         # default to READY if there is no previous status.
         if self._obj is None:
@@ -78,7 +79,6 @@ class ProviderStatusAccessor(KokuDBAccess):
                             'timestamp': DateAccessor().today(),
                             'retries': 0}
             self.add(**ready_status)
-            self.commit()
             self._obj = self._get_db_obj_query().first()
 
     # pylint: disable=arguments-differ
@@ -89,7 +89,7 @@ class ProviderStatusAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+            (django.db.query.QuerySet): QuerySet of objects matching the given filters
 
         """
         return super()._get_db_obj_query(provider_id=self.provider_id)
