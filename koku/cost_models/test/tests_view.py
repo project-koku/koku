@@ -96,12 +96,6 @@ class CostModelViewTests(IamTestCase):
         """Set up the rate view tests."""
         super().setUp()
         caches['rbac'].clear()
-
-        # with tenant_context(self.tenant):
-        #     CostModel.objects.all().delete()
-        #     CostModelMap.objects.all().delete()
-        #     Provider.objects.all().delete()
-        #     User.objects.all().delete()
         self.initialize_request()
 
     def tearDown(self):
@@ -146,9 +140,6 @@ class CostModelViewTests(IamTestCase):
         # Test that the previous cost model for this provider is no longer
         # associated
         with tenant_context(self.tenant):
-            # new_cost_model = CostModel.objects.filter(
-            #     uuid=new_cost_model_uuid
-            # ).all()[0]
             result = CostModelMap.objects.filter(
                 cost_model_id=original_cost_model.uuid
             ).all()
@@ -352,15 +343,6 @@ class CostModelViewTests(IamTestCase):
 
     def test_get_cost_model_rate_rbac_access(self):
         """Test GET /costmodels/{uuid} with an rbac user."""
-        # test_data = {'provider_uuids': [self.provider.uuid],
-        #              'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-        #              'tiered_rate': [{
-        #                  'value': round(Decimal(random.random()), 6),
-        #                  'unit': 'USD',
-        #                  'usage': {'usage_start': None, 'usage_end': None}
-        #              }]
-        #              }
-
         # create a cost model
         user_data = self._create_user_data()
         customer = self._create_customer_data()

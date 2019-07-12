@@ -286,17 +286,13 @@ class ReportObjectCreator:
         }
 
         cost_model_obj = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(cost_model_obj)
-        self.db_accessor._session.commit()
+        cost_model_obj.save()
 
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
         data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
         cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
-
-        self.db_accessor._session.add(cost_model_map_obj)
-        self.db_accessor._session.commit()
+        cost_model_map_obj.save()
 
         return cost_model_obj
 
