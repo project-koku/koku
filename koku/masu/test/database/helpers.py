@@ -19,26 +19,28 @@
 import csv
 import datetime
 import io
-from math import pow
-import uuid
 import random
+import uuid
 from decimal import Decimal
 
 from dateutil import relativedelta
 from faker import Faker
+from tenant_schemas.utils import schema_context
 
 from koku.api.utils import DateHelper
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = ['Storage', 'Compute Instance',
                       'Database Storage', 'Database Instance']
 
+
 class ReportObjectCreator:
     """Populate report tables with data for testing."""
+
     fake = Faker()
 
     def __init__(self, db_accessor, column_map, column_types):
@@ -54,14 +56,12 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date='-60d')
+            start_datetime = self.fake.past_datetime(start_date='-60d')  # pylint: ignore=no-member
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         row.interval_start = self.stringify_datetime(start_datetime)
         row.interval_end = self.stringify_datetime(end_datetime)
         row.bill_id = bill.id
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -80,9 +80,7 @@ class ReportObjectCreator:
             data['billing_period_end'] = bill_end
 
         row = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -91,10 +89,7 @@ class ReportObjectCreator:
         table_name = AWS_CUR_TABLE_MAP['pricing']
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
-
+        row.save()
         return row
 
     def create_cost_entry_product(self, product_family=None):
@@ -106,8 +101,7 @@ class ReportObjectCreator:
             row.product_family = product_family
         else:
             row.product_family = random.choice(AWS_PRODUCT_FAMILY)
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -116,9 +110,7 @@ class ReportObjectCreator:
         table_name = AWS_CUR_TABLE_MAP['reservation']
         data = self.create_columns_for_table(table_name)
         row = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -147,8 +139,7 @@ class ReportObjectCreator:
         }
         if resource_id:
             row.resource_id = resource_id
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -171,9 +162,7 @@ class ReportObjectCreator:
             data['report_period_end'] = period_end
 
         row = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
@@ -189,10 +178,7 @@ class ReportObjectCreator:
         data['interval_start'] = start_datetime
         data['interval_end'] = start_datetime + relativedelta.relativedelta(hours=+1)
         row = self.db_accessor.create_db_object(table_name, data)
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
-
+        row.save()
         return row
 
     def create_ocp_usage_line_item(self,
@@ -214,15 +200,11 @@ class ReportObjectCreator:
 
         row.report_period_id = report_period.id
         row.report_id = report.id
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
+        row.save()
 
         return row
 
-    def create_ocp_storage_line_item(self,
-                                   report_period,
-                                   report):
+    def create_ocp_storage_line_item(self, report_period, report):
         """Create an OCP storage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
         data = self.create_columns_for_table(table_name)
@@ -235,10 +217,7 @@ class ReportObjectCreator:
 
         row.report_period_id = report_period.id
         row.report_id = report.id
-
-        self.db_accessor._session.add(row)
-        self.db_accessor._session.commit()
-
+        row.save()
         return row
 
     def create_columns_for_table(self, table):
@@ -249,21 +228,24 @@ class ReportObjectCreator:
 
         for column in columns:
             col_type = column_types[column]
-            if col_type == int:
+
+            # This catches serveral different types of IntegerFields such as:
+            # PositiveIntegerField, BigIntegerField,
+            if 'IntegerField' in col_type:
                 data[column] = self.fake.pyint()
-            elif col_type == float:
+            elif col_type == 'FloatField':
                 data[column] = self.fake.pyfloat()
-            elif col_type == dict:
+            elif col_type == 'JSONField':
                 data[column] = {
                     'label_one': self.fake.pystr()[:8],
                     'label_two': self.fake.pystr()[:8]
                 }
-            elif col_type == datetime.datetime:
+            elif col_type == 'DateTimeField':
                 data[column] = self.stringify_datetime(
                     self.fake.past_datetime()
                 )
-            elif col_type == Decimal:
-                data[column] = self.fake.pydecimal(0,7)
+            elif col_type == 'DecimalField':
+                data[column] = self.fake.pydecimal(0, 7, positive=True)
             else:
                 data[column] = self.fake.pystr()[:8]
 
@@ -319,3 +301,73 @@ class ReportObjectCreator:
         self.db_accessor._session.commit()
 
         return cost_model_obj
+
+    def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
+        """Create an ocpawscostlineitem_project_daily_summary object for test."""
+        table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
+        data = self.create_columns_for_table(table_name)
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        accessor = AccountAliasAccessor(account_id, schema)
+        with schema_context(schema):
+            account_alias = accessor._get_db_obj_query().first()
+
+            row.account_alias = account_alias
+            row.cost_entry_bill = self.create_cost_entry_bill()
+            row.namespace = self.fake.pystr()[:8]
+            row.pod = self.fake.pystr()[:8]
+            row.node = self.fake.pystr()[:8]
+            row.usage_start = self.stringify_datetime(
+                self.fake.past_datetime()
+            )
+            row.usage_end = self.stringify_datetime(
+                self.fake.past_datetime()
+            )
+            row.product_code = self.fake.pystr()[:8]
+            row.usage_account_id = self.fake.pystr()[:8]
+
+            row.save()
+
+        return row
+
+    def create_awscostentrylineitem_daily_summary(self, account_id, schema):
+        """Create an ocpawscostlineitem_project_daily_summary( object for test."""
+        table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
+        data = self.create_columns_for_table(table_name)
+
+        row = self.db_accessor.create_db_object(table_name, data)
+
+        accessor = AccountAliasAccessor(account_id, schema)
+        with schema_context(schema):
+            account_alias = accessor._get_db_obj_query().first()
+
+            row.account_alias = account_alias
+            row.cost_entry_bill = self.create_cost_entry_bill()
+            row.usage_start = self.stringify_datetime(
+                self.fake.past_datetime()
+            )
+            row.product_code = self.fake.pystr()[:8]
+            row.usage_account_id = self.fake.pystr()[:8]
+
+            row.save()
+
+        return row
+
+
+def map_django_field_type_to_python_type(field):
+    """Map a Django field to its corresponding python type."""
+    # This catches serveral different types of IntegerFields such as:
+    # PositiveIntegerField, BigIntegerField,
+    if 'IntegerField' in field:
+        field_type = int
+    elif field == 'FloatField':
+        field_type = float
+    elif field == 'JSONField':
+        field_type = dict
+    elif field == 'DateTimeField':
+        field_type = datetime.datetime
+    elif field == 'DecimalField':
+        field_type = Decimal
+    else:
+        field_type = str
+    return field_type

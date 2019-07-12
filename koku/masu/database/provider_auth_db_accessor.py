@@ -16,7 +16,7 @@
 #
 """Accessor for Provider Authentication from koku database."""
 
-
+from api.provider.models import ProviderAuthentication
 from masu.database.koku_database_access import KokuDBAccess
 
 
@@ -34,7 +34,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         super().__init__('public')
         self._auth_id = auth_id
         self._provider_resource_name = provider_resource_name
-        self._table = self.get_base().classes.api_providerauthentication
+        self._table = ProviderAuthentication
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -44,18 +44,17 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Args:
             None
         Returns:
-            (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+            (django.db.query.QuerySet): QuerySet of objects matching the given filters
         """
-        query = None
         if self._auth_id and not self._provider_resource_name:
-            query = super()._get_db_obj_query(id=self._auth_id)
+            query = self._table.objects.filter(id=self._auth_id)
         elif self._provider_resource_name and not self._auth_id:
-            query = super()._get_db_obj_query(provider_resource_name=self._provider_resource_name)
+            query = self._table.objects.filter(provider_resource_name=self._provider_resource_name)
         elif self._auth_id and self._provider_resource_name:
-            query = super()._get_db_obj_query(id=self._auth_id,
-                                              provider_resource_name=self._provider_resource_name)
+            query = self._table.objects.filter(id=self._auth_id,
+                                               provider_resource_name=self._provider_resource_name)
         else:
-            query = super()._get_db_obj_query()
+            query = self._table.objects.all()
         return query
 
     def get_auth_id(self):

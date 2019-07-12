@@ -14,19 +14,24 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Deprecated. Code that was previously used to create a db engine."""
+"""Masu Processor Exceptions."""
 
 
-def create_engine():
-    """DEPRECATED, Create a database engine to manage DB connections.
-
-    Args:
-        None
-    Returns:
-        (sqlalchemy.engine.base.Engine): "SQLAlchemy engine object",
-        (sqlalchemy.sql.schema.MetaData): "SQLAlchemy engine metadata"
-    """
-    return None  # noqa
+class MasuProcessingError(Exception):
+    """Masu Processing Error."""
 
 
-DB_ENGINE = None
+class MasuProviderError(Exception):
+    """Masu Provider Error."""
+
+
+class MasuConfigurationError(Exception):
+    """Masu Configuration Error."""
+
+
+class CURAccountsInterfaceError(Exception):
+    """CURAccountsInterface error."""
+
+
+class HasherError(Exception):
+    """Hasher Utility class error."""

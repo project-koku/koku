@@ -16,55 +16,50 @@
 #
 
 """Test the ReportManifestDBAccessor."""
+from tenant_schemas.utils import schema_context
 
+from api.iam.test.iam_test_case import IamTestCase
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
-from tests import MasuTestCase
 
-class ReportManifestDBAccessorTest(MasuTestCase):
+
+class ReportManifestDBAccessorTest(IamTestCase):
     """Test cases for the ReportManifestDBAccessor."""
 
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         """Set up the test class."""
+        super().setUp()
+        self.schema = self.schema_name
+
         billing_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
-        cls.manifest_dict = {
+        self.manifest_dict = {
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'provider_id': 1
         }
-        cls.manifest_accessor = ReportManifestDBAccessor()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down the test class."""
-        manifests = cls.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            cls.manifest_accessor.delete(manifest)
-        cls.manifest_accessor.commit()
-        cls.manifest_accessor.close_session()
+        self.manifest_accessor = ReportManifestDBAccessor()
 
     def tearDown(self):
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
+        """Tear down the test class."""
+        with schema_context(self.schema):
+            manifests = self.manifest_accessor._get_db_obj_query().all()
+            for manifest in manifests:
+                self.manifest_accessor.delete(manifest)
 
     def test_initializer(self):
         """Test the initializer."""
         accessor = ReportManifestDBAccessor()
-        self.assertIsNotNone(accessor._session)
+        self.assertIsNotNone(accessor._table)
 
     def test_get_manifest(self):
         """Test that the right manifest is returned."""
-        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
+        with schema_context(self.schema):
+            added_manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-        assembly_id = self.manifest_dict.get('assembly_id')
-        provider_id = self.manifest_dict.get('provider_id')
-        manifest = self.manifest_accessor.get_manifest(assembly_id, provider_id)
+            assembly_id = self.manifest_dict.get('assembly_id')
+            provider_id = self.manifest_dict.get('provider_id')
+            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_id)
 
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
@@ -77,17 +72,17 @@ class ReportManifestDBAccessorTest(MasuTestCase):
 
     def test_get_manifest_by_id(self):
         """Test that the right manifest is returned by id."""
-        added_manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
-        manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
+        with schema_context(self.schema):
+
+            added_manifest = self.manifest_accessor.add(**self.manifest_dict)
+            manifest = self.manifest_accessor.get_manifest_by_id(added_manifest.id)
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
 
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
-        manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
-        now = DateAccessor().today_with_timezone('UTC')
-        self.manifest_accessor.mark_manifest_as_updated(manifest)
-        self.assertGreater(manifest.manifest_updated_datetime, now)
-        self.manifest_accessor.commit()
+        with schema_context(self.schema):
+            manifest = self.manifest_accessor.add(**self.manifest_dict)
+            now = DateAccessor().today_with_timezone('UTC')
+            self.manifest_accessor.mark_manifest_as_updated(manifest)
+            self.assertGreater(manifest.manifest_updated_datetime, now)
