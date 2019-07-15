@@ -41,10 +41,10 @@ RUN INSTALL_PKGS="${NODEJS_SCL} \
     yum -y clean all --enablerepo='*'
 
 # Copy the S2I scripts from the specific language image to $STI_SCRIPTS_PATH.
-COPY openshift/s2i/bin $STI_SCRIPTS_PATH
+COPY openshift/buildenv/koku/s2i/bin $STI_SCRIPTS_PATH
 
 # Copy extra files to the image.
-COPY openshift/root /
+COPY openshift/buildenv/koku/root /
 
 # Copy application files to the image.
 COPY . ${APP_ROOT}/src
