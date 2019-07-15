@@ -17,7 +17,7 @@
 
 """Test the CURAccountsDB utility object."""
 
-from masu.external import (AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM)
+from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from tests import MasuTestCase
 
@@ -36,7 +36,10 @@ class CURAccountsDBTest(MasuTestCase):
 
         for account in accounts:
             if account.get('provider_type') == AMAZON_WEB_SERVICES:
-                self.assertEqual(account.get('authentication'), 'arn:aws:iam::111111111111:role/CostManagement')
+                self.assertEqual(
+                    account.get('authentication'),
+                    'arn:aws:iam::111111111111:role/CostManagement',
+                )
                 self.assertEqual(account.get('billing_source'), 'test-bucket')
                 self.assertEqual(account.get('customer_name'), 'acct10001')
             elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:

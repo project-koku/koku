@@ -19,16 +19,12 @@
 
 import json
 import logging
-from collections import UserDict
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from sqlalchemy.exc import IntegrityError
 
 import masu.util.aws.region_map as rmap
-from masu.database import AWS_CUR_TABLE_MAP
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 TEST_HTML = './tests/data/test_region_page.html'
 LOG = logging.getLogger(__name__)
@@ -36,6 +32,7 @@ LOG = logging.getLogger(__name__)
 
 class MockResponse:
     """A fake requests.Response object."""
+
     status_code = None
     text = None
 
@@ -91,19 +88,26 @@ class RegionMapTests(MasuTestCase):
 
     def test_get_region_map(self):
         """test get_region_map()."""
-        sample = {'Alexa for Business': [{
+        sample = {
+            'Alexa for Business': [
+                {
                     'Region Name': 'US East (N. Virginia)',
                     'Region': 'us-east-1',
                     'Endpoint': 'a4b.us-east-1.amazonaws.com',
-                    'Protocol': 'HTTPS' }]}
+                    'Protocol': 'HTTPS',
+                }
+            ]
+        }
 
         expected = {'us-east-1': 'US East (N. Virginia)'}
 
         result = rmap.get_region_map(sample)
         self.assertEqual(result, expected)
 
-    @patch('masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
-           autospec=True)
+    @patch(
+        'masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
+        autospec=True,
+    )
     @patch('masu.util.aws.region_map.requests.get')
     def test_update_region_mapping_success(self, mock_response, mock_accessor):
         """test sucessful update_region_mapping()"""
@@ -113,8 +117,10 @@ class RegionMapTests(MasuTestCase):
         self.assertEqual(str(response), 'True')
         mock_common_accessor.add.assert_called()
 
-    @patch('masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
-           autospec=True)
+    @patch(
+        'masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
+        autospec=True,
+    )
     @patch('masu.util.aws.region_map.requests.get')
     def test_update_region_mapping_fail(self, mock_response, mock_accessor):
         """test sucessful update_region_mapping()"""

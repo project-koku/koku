@@ -23,8 +23,10 @@ import uuid
 from faker import Faker
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.database.provider_status_accessor import (ProviderStatusAccessor,
-                                                    ProviderStatusCode)
+from masu.database.provider_status_accessor import (
+    ProviderStatusAccessor,
+    ProviderStatusCode,
+)
 from masu.exceptions import MasuProviderError
 from masu.test import MasuTestCase
 
@@ -48,10 +50,12 @@ class ProviderStatusAccessorTest(MasuTestCase):
         This is being done in a separate function instead of in setUp() to
         facilitate testing the case where there is no status in the DB.
         """
-        self.test_status = {'provider_id': self.provider_id,
-                            'status': random.choice(list(ProviderStatusCode)),
-                            'last_message': self.FAKE.word(),
-                            'retries': random.randint(0, 10)}
+        self.test_status = {
+            'provider_id': self.provider_id,
+            'status': random.choice(list(ProviderStatusCode)),
+            'last_message': self.FAKE.word(),
+            'retries': random.randint(0, 10),
+        }
 
         with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
             status = accessor.add(**self.test_status)

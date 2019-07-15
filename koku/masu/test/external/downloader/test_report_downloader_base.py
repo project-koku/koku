@@ -25,6 +25,7 @@ from pyfakefs.fake_filesystem_unittest import TestCaseMixin
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from tests import MasuTestCase
 
+
 class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
     """Test Cases for ReportDownloaderBase."""
 
@@ -41,8 +42,8 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
         self.assertTrue(os.path.exists(downloader.download_path))
 
     def test_report_downloader_base(self):
-        dl_path = '/{}/{}/{}'.format(self.fake.word().lower(),
-                                     self.fake.word().lower(),
-                                     self.fake.word().lower())
+        dl_path = '/{}/{}/{}'.format(
+            self.fake.word().lower(), self.fake.word().lower(), self.fake.word().lower()
+        )
         downloader = ReportDownloaderBase(download_path=dl_path)
         self.assertEqual(downloader.download_path, dl_path)

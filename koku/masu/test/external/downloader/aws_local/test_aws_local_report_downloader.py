@@ -31,7 +31,9 @@ from unittest.mock import patch
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
+from masu.external.downloader.aws_local.aws_local_report_downloader import (
+    AWSLocalReportDownloader,
+)
 from masu.external.report_downloader import ReportDownloader
 from masu.external import AWS_REGIONS
 from tests import MasuTestCase
@@ -74,17 +76,21 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar = TarFile.open('./tests/data/test_local_bucket.tar.gz')
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
-        self.report_downloader = ReportDownloader(self.fake_customer_name,
-                                                  self.fake_auth_credential,
-                                                  self.fake_bucket_name,
-                                                  'AWS-local',
-                                                  1)
+        self.report_downloader = ReportDownloader(
+            self.fake_customer_name,
+            self.fake_auth_credential,
+            self.fake_bucket_name,
+            'AWS-local',
+            1,
+        )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
-            **{'customer_name': self.fake_customer_name,
-               'auth_credential': self.fake_auth_credential,
-               'bucket': self.fake_bucket_name,
-               'provider_id': 1}
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': self.fake_bucket_name,
+                'provider_id': 1,
+            }
         )
 
     def tearDown(self):
@@ -101,22 +107,32 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             self.report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
+        expected_path = '{}/{}/{}'.format(
+            DATA_DIR, self.fake_customer_name, 'aws-local'
+        )
         self.assertTrue(os.path.isdir(expected_path))
 
     def test_report_name_provided(self):
         """Test initializer when report_name is  provided."""
-        report_downloader = AWSLocalReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                     'auth_credential': self.fake_auth_credential,
-                                                     'bucket': self.fake_bucket_name,
-                                                     'report_name': 'awesome-report'})
+        report_downloader = AWSLocalReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': self.fake_bucket_name,
+                'report_name': 'awesome-report',
+            }
+        )
         self.assertEqual(report_downloader.report_name, 'awesome-report')
 
     def test_extract_names_no_prefix(self):
         """Test to extract the report and prefix names from a bucket with no prefix."""
-        report_downloader = AWSLocalReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                     'auth_credential': self.fake_auth_credential,
-                                                     'bucket': self.fake_bucket_name})
+        report_downloader = AWSLocalReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': self.fake_bucket_name,
+            }
+        )
         self.assertEqual(report_downloader.report_name, self.fake_report_name)
         self.assertIsNone(report_downloader.report_prefix)
 
@@ -127,14 +143,18 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
-            report_downloader = ReportDownloader(self.fake_customer_name,
-                                                  self.fake_auth_credential,
-                                                  fake_bucket,
-                                                  'AWS-local',
-                                                  1)
+            report_downloader = ReportDownloader(
+                self.fake_customer_name,
+                self.fake_auth_credential,
+                fake_bucket,
+                'AWS-local',
+                1,
+            )
             # Names from test report .gz file
             report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
+        expected_path = '{}/{}/{}'.format(
+            DATA_DIR, self.fake_customer_name, 'aws-local'
+        )
         self.assertTrue(os.path.isdir(expected_path))
 
         shutil.rmtree(fake_bucket)
@@ -144,11 +164,17 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_name = 'report-name'
         prefix_name = 'prefix-name'
-        full_path = '{}/{}/{}/20180801-20180901/'.format(bucket, prefix_name, report_name)
+        full_path = '{}/{}/{}/20180801-20180901/'.format(
+            bucket, prefix_name, report_name
+        )
         os.makedirs(full_path)
-        report_downloader = AWSLocalReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                     'auth_credential': self.fake_auth_credential,
-                                                     'bucket': bucket})
+        report_downloader = AWSLocalReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': bucket,
+            }
+        )
         self.assertEqual(report_downloader.report_name, report_name)
         self.assertEqual(report_downloader.report_prefix, prefix_name)
         shutil.rmtree(full_path)
@@ -158,12 +184,18 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         bucket = tempfile.mkdtemp()
         report_name = 'report-name'
         prefix_name = 'prefix-name'
-        full_path = '{}/{}/{}/20180801-aaaaaaa/'.format(bucket, prefix_name, report_name)
+        full_path = '{}/{}/{}/20180801-aaaaaaa/'.format(
+            bucket, prefix_name, report_name
+        )
         os.makedirs(full_path)
 
-        report_downloader = AWSLocalReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                     'auth_credential': self.fake_auth_credential,
-                                                     'bucket': bucket})
+        report_downloader = AWSLocalReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': bucket,
+            }
+        )
         self.assertIsNone(report_downloader.report_name)
         self.assertIsNone(report_downloader.report_prefix)
 
@@ -172,9 +204,13 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def test_extract_names_with_incomplete_path(self):
         """Test to extract the report and prefix from a path where a CUR hasn't been generated yet."""
         bucket = tempfile.mkdtemp()
-        report_downloader = AWSLocalReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                     'auth_credential': self.fake_auth_credential,
-                                                     'bucket': bucket})
+        report_downloader = AWSLocalReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.fake_auth_credential,
+                'bucket': bucket,
+            }
+        )
         self.assertIsNone(report_downloader.report_name)
         self.assertIsNone(report_downloader.report_prefix)
 
@@ -187,12 +223,16 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=7, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
-            report_downloader = ReportDownloader(self.fake_customer_name,
-                                                  self.fake_auth_credential,
-                                                  fake_bucket,
-                                                  'AWS-local',
-                                                  1)
+            report_downloader = ReportDownloader(
+                self.fake_customer_name,
+                self.fake_auth_credential,
+                fake_bucket,
+                'AWS-local',
+                1,
+            )
             # Names from test report .gz file
             report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(DATA_DIR, self.fake_customer_name, 'aws-local')
+        expected_path = '{}/{}/{}'.format(
+            DATA_DIR, self.fake_customer_name, 'aws-local'
+        )
         self.assertFalse(os.path.isdir(expected_path))

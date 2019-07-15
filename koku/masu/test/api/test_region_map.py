@@ -14,23 +14,27 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 """Test the region map endpoint."""
 
 from unittest.mock import patch
-from tests import MasuTestCase
-from tests.util.aws.test_region_map import MockResponse, TEST_HTML
+
+from masu.test import MasuTestCase
+from masu.test.util.aws.test_region_map import MockResponse, TEST_HTML
+
 
 class RegionMapAPIViewTest(MasuTestCase):
     """Test Cases for the Region Map API."""
 
     @classmethod
     def setUpClass(cls):
+        """Set up test class with shared objects."""
         with open(TEST_HTML) as page:
             cls.test_data = page.read()
 
-    @patch('masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
-           autospec=True)
+    @patch(
+        'masu.database.reporting_common_db_accessor.ReportingCommonDBAccessor',
+        autospec=True,
+    )
     @patch('masu.util.aws.region_map.requests.get')
     def test_update_region_map(self, mock_response, mock_accessor):
         """Test the region map endpoint."""

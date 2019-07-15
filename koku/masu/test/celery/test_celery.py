@@ -45,7 +45,7 @@ class CeleryTest(MasuTestCase):
                 'SQLALCHEMY_DATABASE_URI': 'sqlite:///test.db',
                 'SCHEDULE_REPORT_CHECKS': True,
                 'REMOVE_EXPIRED_REPORT_DATA_ON_DAY': '1',
-                'REMOVE_EXPIRED_REPORT_UTC_TIME': '00:00'
+                'REMOVE_EXPIRED_REPORT_UTC_TIME': '00:00',
             }
         )
 
@@ -75,7 +75,7 @@ class CeleryTest(MasuTestCase):
                 'REMOVE_EXPIRED_REPORT_DATA_ON_DAY': '1',
                 'REMOVE_EXPIRED_REPORT_UTC_TIME': '00:00',
                 'CW_AWS_ACCESS_KEY_ID': 'bogusAWSkey',
-                'CW_AWS_SECRET_ACCESS_KEY': 'bogusAWSsecret'
+                'CW_AWS_SECRET_ACCESS_KEY': 'bogusAWSsecret',
             }
         )
 

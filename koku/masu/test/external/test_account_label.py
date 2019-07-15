@@ -41,7 +41,9 @@ class AccountLabelTest(MasuTestCase):
         accessor = AccountLabel('roleARN', 'acct10001', 'AWS')
         mock_id = 333
         mock_alias = 'three'
-        with patch.object(AWSAccountAlias, 'update_account_alias', return_value=(mock_id, mock_alias)):
+        with patch.object(
+            AWSAccountAlias, 'update_account_alias', return_value=(mock_id, mock_alias)
+        ):
             account_id, alias = accessor.get_label_details()
             self.assertEqual(account_id, 333)
             self.assertEqual(alias, 'three')

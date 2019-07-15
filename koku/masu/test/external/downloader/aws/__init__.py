@@ -8,11 +8,13 @@ def fake_aws_account_id():
     return ''.join(random.choice(string.digits) for _ in range(12))
 
 
-def fake_arn(account_id='',
-             service='fakeservice',
-             region='',
-             resource_separator=':',
-             generate_account_id=False):
+def fake_arn(
+    account_id='',
+    service='fakeservice',
+    region='',
+    resource_separator=':',
+    generate_account_id=False,
+):
     """
     Generate a dummy AWS ARN for testing purposes.
     account_id argument is optional, and will be randomly generated if None.
@@ -30,10 +32,7 @@ def fake_arn(account_id='',
         account_id = fake_aws_account_id()
     resource = faker.Faker().name()
     resource_type = faker.Faker().name().replace(' ', '_')
-    arn = ('arn:aws:{0}:{1}:{2}:{3}{4}{5}').format(service,
-                                                   region,
-                                                   account_id,
-                                                   resource_type,
-                                                   resource_separator,
-                                                   resource)
+    arn = ('arn:aws:{0}:{1}:{2}:{3}{4}{5}').format(
+        service, region, account_id, resource_type, resource_separator, resource
+    )
     return arn
