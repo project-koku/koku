@@ -16,8 +16,9 @@ class MasuTestCase(TestCase):
         with schema_context('public'):
             cls.schema = 'acct10001'
             cls.acct = '10001'
-            cls.customer = Customer.objects.create(account_id=cls.acct,
-                                                   schema_name=cls.schema)
+            cls.customer = Customer.objects.create(
+                account_id=cls.acct, schema_name=cls.schema
+            )
             cls.tenant = Tenant(schema_name=cls.schema)
             cls.tenant.save()
 
@@ -30,7 +31,7 @@ class MasuTestCase(TestCase):
 
         cls.aws_auth = ProviderAuthentication.objects.create(
             uuid=cls.aws_auth_provider_uuid,
-            provider_resource_name=cls.aws_provider_resource_name
+            provider_resource_name=cls.aws_provider_resource_name,
         )
         cls.aws_auth.save()
         cls.aws_billing_source = ProviderBillingSource.objects.create(
@@ -47,12 +48,13 @@ class MasuTestCase(TestCase):
             authentication=cls.aws_auth,
             billing_source=cls.aws_billing_source,
             customer=cls.customer,
-            setup_complete=False)
+            setup_complete=False,
+        )
         cls.aws_provider.save()
 
         cls.ocp_auth = ProviderAuthentication.objects.create(
             uuid='7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd7',
-            provider_resource_name=cls.ocp_provider_resource_name
+            provider_resource_name=cls.ocp_provider_resource_name,
         )
         cls.ocp_auth.save()
         cls.ocp_db_auth_id = cls.ocp_auth.id
@@ -63,5 +65,6 @@ class MasuTestCase(TestCase):
             type='OCP',
             authentication=cls.ocp_auth,
             customer=cls.customer,
-            setup_complete=False)
+            setup_complete=False,
+        )
         cls.ocp_provider.save()

@@ -46,7 +46,9 @@ class AccountAliasAccessorTest(IamTestCase):
     def test_set_account_alias(self):
         """Test alias setter."""
         with schema_context(self.schema):
-            AWSAccountAlias.objects.create(account_id=self.account_id, account_alias=self.account_id)
+            AWSAccountAlias.objects.create(
+                account_id=self.account_id, account_alias=self.account_id
+            )
 
         alias_name = 'test-alias'
         accessor = AccountAliasAccessor(self.account_id, self.schema)
@@ -60,7 +62,9 @@ class AccountAliasAccessorTest(IamTestCase):
     def test_add_account_alias(self):
         """Test Add."""
         with schema_context(self.schema):
-            AWSAccountAlias.objects.create(account_id=self.account_id, account_alias=self.account_id)
+            AWSAccountAlias.objects.create(
+                account_id=self.account_id, account_alias=self.account_id
+            )
         accessor = AccountAliasAccessor(self.account_id, self.schema)
 
         account_id = str(uuid.uuid4())

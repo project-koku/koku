@@ -47,9 +47,7 @@ class OCPRateDBAccessorTest(MasuTestCase):
         )
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(
-            cls.accessor,
-            cls.column_map,
-            cls.report_schema.column_types
+            cls.accessor, cls.column_map, cls.report_schema.column_types
         )
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
