@@ -42,7 +42,9 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         """Test Initializer with auth_id and provider resource name."""
         auth_id = self.ocp_db_auth_id
         provider_resource_name = self.ocp_provider_resource_name
-        accessor = ProviderAuthDBAccessor(auth_id=auth_id, provider_resource_name=provider_resource_name)
+        accessor = ProviderAuthDBAccessor(
+            auth_id=auth_id, provider_resource_name=provider_resource_name
+        )
         self.assertTrue(accessor.does_db_entry_exist())
         self.assertEqual(int(auth_id), accessor.get_auth_id())
 
@@ -61,4 +63,6 @@ class ProviderDBAuthAccessorTest(MasuTestCase):
         """Test provider name getter."""
         auth_id = self.aws_db_auth_id
         accessor = ProviderAuthDBAccessor(auth_id)
-        self.assertEqual(self.aws_provider_resource_name, accessor.get_provider_resource_name())
+        self.assertEqual(
+            self.aws_provider_resource_name, accessor.get_provider_resource_name()
+        )

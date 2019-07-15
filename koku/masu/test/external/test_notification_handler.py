@@ -19,8 +19,11 @@
 
 from unittest.mock import patch
 import json
-from masu.external.notification_handler import NotificationHandler, NotificationHandlerError
-import tests.external.notifications.helpers.sns_helpers as sns_helper 
+from masu.external.notification_handler import (
+    NotificationHandler,
+    NotificationHandlerError,
+)
+import tests.external.notifications.helpers.sns_helpers as sns_helper
 from tests import MasuTestCase
 
 
@@ -30,7 +33,6 @@ class NotificationHandlerTest(MasuTestCase):
     def setUp(self):
         self.notification_headers = list(sns_helper.sns_notification_headers)
         self.notification_body_dict = dict(sns_helper.sns_notification_body_dict)
-
 
     def test_initializer(self):
         """Test to initializer success."""
@@ -45,8 +47,9 @@ class NotificationHandlerTest(MasuTestCase):
         """Test to initializer error setting handler."""
         # Use invalid type
         invalid_msg_type = 'InvalidType'
-        headers =  sns_helper.modify_header_list(self.notification_headers,
-                                           'X-Amz-Sns-Message-Type', invalid_msg_type)
+        headers = sns_helper.modify_header_list(
+            self.notification_headers, 'X-Amz-Sns-Message-Type', invalid_msg_type
+        )
         body_dict = self.notification_body_dict
         body_dict['Type'] = invalid_msg_type
 
@@ -58,16 +61,20 @@ class NotificationHandlerTest(MasuTestCase):
 
     def test_initializer_unsupported_provider(self):
         """Test to initializer unknown provider."""
-        headers = [('X-Wizz-Bang-Message-Type', 'Notification'),
-                   ('Content-Length', 761),
-                   ('Content-Type', 'text/plain; charset=UTF-8'),
-                   ('Connection', 'Keep-Alive'),
-                   ('User-Agent', 'Amazon Simple Notification Service Agent')]
+        headers = [
+            ('X-Wizz-Bang-Message-Type', 'Notification'),
+            ('Content-Length', 761),
+            ('Content-Type', 'text/plain; charset=UTF-8'),
+            ('Connection', 'Keep-Alive'),
+            ('User-Agent', 'Amazon Simple Notification Service Agent'),
+        ]
 
-        body_dict = {"Type" : "Notification",
-                     "MessageId" : "869ace9b-691a-5148-a22c-9d2e1e46e3de",
-                     "Subject" : "Wizz Bang Notification",
-                     "Timestamp" : "2018-07-03T13:07:40.924Z"}
+        body_dict = {
+            'Type': 'Notification',
+            'MessageId': '869ace9b-691a-5148-a22c-9d2e1e46e3de',
+            'Subject': 'Wizz Bang Notification',
+            'Timestamp': '2018-07-03T13:07:40.924Z',
+        }
         body = json.dumps(body_dict)
 
         with self.assertRaises(NotificationHandlerError) as error:
@@ -77,7 +84,7 @@ class NotificationHandlerTest(MasuTestCase):
     def test_billing_source_exception(self):
         """Test to initializer success."""
         headers = self.notification_headers
-        extra_message = '[{\"extra\": \"message\"}, '
+        extra_message = '[{\'extra\': \'message\'}, '
         body_dict = self.notification_body_dict
 
         # Add an extra message in the body 'Message' list (we are currently assuming theres only 1)

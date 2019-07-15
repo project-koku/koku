@@ -43,13 +43,11 @@ class OCPRateDBAccessorTest(MasuTestCase):
         cls.accessor = OCPRateDBAccessor(
             schema='acct10001',
             provider_uuid='3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-            column_map=cls.column_map
+            column_map=cls.column_map,
         )
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(
-            cls.accessor,
-            cls.column_map,
-            cls.report_schema.column_types
+            cls.accessor, cls.column_map, cls.report_schema.column_types
         )
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
@@ -61,28 +59,37 @@ class OCPRateDBAccessorTest(MasuTestCase):
 
         reporting_period = self.creator.create_ocp_report_period()
         report = self.creator.create_ocp_report(reporting_period)
-        self.creator.create_ocp_usage_line_item(
-            reporting_period,
-            report
-        )
-        self.cpu_usage_rate = {'metric': 'cpu_core_usage_per_hour',
-                               'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': [{'value': 1.5, 'unit': 'USD'}]}}
-        self.mem_usage_rate = {'metric': 'memory_gb_usage_per_hour',
-                               'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                               'rates': {'tiered_rate': [{'value': 2.5, 'unit': 'USD'}]}}
-        self.cpu_request_rate = {'metric': 'cpu_core_request_per_hour',
-                                 'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': [{'value': 3.5, 'unit': 'USD'}]}}
-        self.mem_request_rate = {'metric': 'memory_gb_request_per_hour',
-                                 'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                 'rates': {'tiered_rate': [{'value': 4.5, 'unit': 'USD'}]}}
-        self.storage_usage_rate = {'metric': 'storage_gb_usage_per_month',
-                                   'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                   'rates': {'tiered_rate': [{'value': 5.5, 'unit': 'USD'}]}}
-        self.storage_request_rate = {'metric': 'storage_gb_request_per_month',
-                                     'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
-                                     'rates': {'tiered_rate': [{'value': 6.5, 'unit': 'USD'}]}}
+        self.creator.create_ocp_usage_line_item(reporting_period, report)
+        self.cpu_usage_rate = {
+            'metric': 'cpu_core_usage_per_hour',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 1.5, 'unit': 'USD'}]},
+        }
+        self.mem_usage_rate = {
+            'metric': 'memory_gb_usage_per_hour',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 2.5, 'unit': 'USD'}]},
+        }
+        self.cpu_request_rate = {
+            'metric': 'cpu_core_request_per_hour',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 3.5, 'unit': 'USD'}]},
+        }
+        self.mem_request_rate = {
+            'metric': 'memory_gb_request_per_hour',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 4.5, 'unit': 'USD'}]},
+        }
+        self.storage_usage_rate = {
+            'metric': 'storage_gb_usage_per_month',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 5.5, 'unit': 'USD'}]},
+        }
+        self.storage_request_rate = {
+            'metric': 'storage_gb_request_per_month',
+            'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
+            'rates': {'tiered_rate': [{'value': 6.5, 'unit': 'USD'}]},
+        }
 
         self.creator.create_rate(**self.cpu_usage_rate)
         self.creator.create_rate(**self.mem_usage_rate)

@@ -17,25 +17,25 @@
 
 """Test the status endpoint view."""
 
-import re
-import os
 import logging
-import socket
-from subprocess import CompletedProcess, PIPE
-
-import psycopg2
+import os
+import re
 from collections import namedtuple
 from datetime import datetime
-from unittest.mock import ANY, Mock, patch, PropertyMock
+from subprocess import CompletedProcess, PIPE
+from unittest.mock import ANY, Mock, PropertyMock, patch
 
-from celery.events.event import Event
+import psycopg2
+
 from masu import create_app
 from masu.api import API_VERSION
-from masu.api.status import (BROKER_CONNECTION_ERROR,
-                             CELERY_WORKER_NOT_FOUND,
-                             ApplicationStatus,
-                             get_status)
-from tests import MasuTestCase
+from masu.api.status import (
+    ApplicationStatus,
+    BROKER_CONNECTION_ERROR,
+    CELERY_WORKER_NOT_FOUND,
+    get_status,
+)
+from masu.test import MasuTestCase
 
 
 class StatusAPITest(MasuTestCase):
@@ -73,7 +73,6 @@ class StatusAPITest(MasuTestCase):
         self.assertIsNotNone(body['platform_info'])
         self.assertIsNotNone(body['python_version'])
 
-
     @patch.dict(os.environ, {'OPENSHIFT_BUILD_COMMIT': 'fake_commit_hash'})
     def test_commit_with_env(self):
         """Test the commit method via environment."""
@@ -86,34 +85,35 @@ class StatusAPITest(MasuTestCase):
         """Test the commit method via subprocess."""
         expected = 'buildnum'
 
-        args = {'args': ['git', 'describe', '--always'],
-                'returncode': 0,
-                'stdout': bytes(expected, encoding='UTF-8')}
+        args = {
+            'args': ['git', 'describe', '--always'],
+            'returncode': 0,
+            'stdout': bytes(expected, encoding='UTF-8'),
+        }
         mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
 
         result = ApplicationStatus().commit
 
         mock_os.assert_called_with('OPENSHIFT_BUILD_COMMIT', None)
-        mock_subprocess.assert_called_with(args['args'],
-                                           stdout=PIPE)
+        mock_subprocess.assert_called_with(args['args'], stdout=PIPE)
         self.assertEqual(result, expected)
 
     @patch('masu.api.status.subprocess.run')
     @patch('masu.api.status.os.environ.get', return_value=dict())
     def test_commit_with_subprocess_nostdout(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess when stdout is none."""
-        expected = 'buildnum'
 
-        args = {'args': ['git', 'describe', '--always'],
-                'returncode': 0,
-                'stdout': None}
+        args = {
+            'args': ['git', 'describe', '--always'],
+            'returncode': 0,
+            'stdout': None,
+        }
         mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
 
         result = ApplicationStatus().commit
 
         mock_os.assert_called_with('OPENSHIFT_BUILD_COMMIT', None)
-        mock_subprocess.assert_called_with(args['args'],
-                                           stdout=PIPE)
+        mock_subprocess.assert_called_with(args['args'], stdout=PIPE)
         self.assertIsNone(result.stdout)
 
     @patch('masu.api.status.platform.uname')
@@ -137,12 +137,10 @@ class StatusAPITest(MasuTestCase):
     @patch('masu.api.status.sys.modules')
     def test_modules(self, mock_modules):
         """Test the modules method."""
-        expected = {'module1': 'version1',
-                    'module2': 'version2'}
+        expected = {'module1': 'version1', 'module2': 'version2'}
         mod1 = Mock(__version__='version1')
         mod2 = Mock(__version__='version2')
-        mock_modules.items.return_value = (('module1', mod1),
-                                           ('module2', mod2))
+        mock_modules.items.return_value = (('module1', mod1), ('module2', mod2))
         result = ApplicationStatus().modules
         self.assertEqual(result, expected)
 
@@ -168,7 +166,9 @@ class StatusAPITest(MasuTestCase):
         mock_date_string = '2018-07-25 10:41:59.993536'
         mock_date_obj = datetime.strptime(mock_date_string, '%Y-%m-%d %H:%M:%S.%f')
         mock_date.return_value = mock_date_obj
-        expected = 'INFO:masu.api.status:Current Date: {}'.format(mock_date.return_value)
+        expected = 'INFO:masu.api.status:Current Date: {}'.format(
+            mock_date.return_value
+        )
         with self.assertLogs('masu.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
@@ -236,7 +236,6 @@ class StatusAPITest(MasuTestCase):
 
         self.assertIn('Error', result)
         # celery_app.control.inspect
-
 
     def test_database_status(self):
         """test that fetching database status works."""

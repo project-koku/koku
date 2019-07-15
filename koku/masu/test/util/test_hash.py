@@ -29,6 +29,7 @@ from masu.util.hash import Hasher
 
 from tests import MasuTestCase
 
+
 class HasherUtilTests(MasuTestCase):
     """Test the hashing utility class."""
 
@@ -40,13 +41,12 @@ class HasherUtilTests(MasuTestCase):
         if 'shake' in self.hash_function:
             self.hasher = Hasher(
                 hash_function=self.hash_function,
-                length=random.randint(8,64),
-                encoding=self.encoding
+                length=random.randint(8, 64),
+                encoding=self.encoding,
             )
         else:
             self.hasher = Hasher(
-                hash_function=self.hash_function,
-                encoding=self.encoding
+                hash_function=self.hash_function, encoding=self.encoding
             )
         self.string_to_hash = ''.join(
             [random.choice(string.ascii_letters) for _ in range(16)]

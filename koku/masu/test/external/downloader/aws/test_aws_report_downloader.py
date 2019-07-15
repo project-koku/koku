@@ -36,9 +36,11 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.exceptions import MasuProviderError
-from masu.external.downloader.aws.aws_report_downloader import (AWSReportDownloader,
-                                                                AWSReportDownloaderError,
-                                                                AWSReportDownloaderNoFileError)
+from masu.external.downloader.aws.aws_report_downloader import (
+    AWSReportDownloader,
+    AWSReportDownloaderError,
+    AWSReportDownloaderNoFileError,
+)
 from masu.external.report_downloader import ReportDownloader
 from masu.util.aws import common as utils
 from masu.external import AWS_REGIONS
@@ -67,7 +69,7 @@ def mock_download_file_error(manifest):
     raise AWSReportDownloaderNoFileError()
 
 
-class FakeSession():
+class FakeSession:
     """
     Fake Boto Session object.
 
@@ -77,15 +79,19 @@ class FakeSession():
 
     @staticmethod
     def client(service):
-        fake_report = {'ReportDefinitions': [{
-            'ReportName': REPORT,
-            'TimeUnit': random.choice(['HOURLY', 'DAILY']),
-            'Format': random.choice(['text', 'csv']),
-            'Compression': random.choice(['ZIP', 'GZIP']),
-            'S3Bucket': BUCKET,
-            'S3Prefix': PREFIX,
-            'S3Region': REGION,
-        }]}
+        fake_report = {
+            'ReportDefinitions': [
+                {
+                    'ReportName': REPORT,
+                    'TimeUnit': random.choice(['HOURLY', 'DAILY']),
+                    'Format': random.choice(['text', 'csv']),
+                    'Compression': random.choice(['ZIP', 'GZIP']),
+                    'S3Bucket': BUCKET,
+                    'S3Prefix': PREFIX,
+                    'S3Region': REGION,
+                }
+            ]
+        }
 
         if 'cur' in service:
             return Mock(**{'describe_report_definitions.return_value': fake_report})
@@ -93,7 +99,7 @@ class FakeSession():
             return Mock()
 
 
-class FakeSessionNoReport():
+class FakeSessionNoReport:
     """
     Fake Boto Session object with no reports in the S3 bucket.
 
@@ -112,7 +118,7 @@ class FakeSessionNoReport():
             return Mock()
 
 
-class FakeSessionDownloadError():
+class FakeSessionDownloadError:
     """
     Fake Boto Session object.
 
@@ -122,15 +128,19 @@ class FakeSessionDownloadError():
 
     @staticmethod
     def client(service):
-        fake_report = {'ReportDefinitions': [{
-            'ReportName': REPORT,
-            'TimeUnit': random.choice(['HOURLY', 'DAILY']),
-            'Format': random.choice(['text', 'csv']),
-            'Compression': random.choice(['ZIP', 'GZIP']),
-            'S3Bucket': BUCKET,
-            'S3Prefix': PREFIX,
-            'S3Region': REGION,
-        }]}
+        fake_report = {
+            'ReportDefinitions': [
+                {
+                    'ReportName': REPORT,
+                    'TimeUnit': random.choice(['HOURLY', 'DAILY']),
+                    'Format': random.choice(['text', 'csv']),
+                    'Compression': random.choice(['ZIP', 'GZIP']),
+                    'S3Bucket': BUCKET,
+                    'S3Prefix': PREFIX,
+                    'S3Region': REGION,
+                }
+            ]
+        }
 
         if 'cur' in service:
             return Mock(**{'describe_report_definitions.return_value': fake_report})
@@ -160,21 +170,26 @@ class AWSReportDownloaderTest(MasuTestCase):
     def tearDownClass(cls):
         cls.manifest_accessor.close_session()
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def setUp(self, fake_session):
         os.makedirs(DATA_DIR, exist_ok=True)
 
-        self.report_downloader = ReportDownloader(self.fake_customer_name,
-                                                  self.auth_credential,
-                                                  self.fake_bucket_name,
-                                                  'AWS',
-                                                  1)
-        self.aws_report_downloader = AWSReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                            'auth_credential': self.auth_credential,
-                                                            'bucket': self.fake_bucket_name,
-                                                            'report_name': self.fake_report_name,
-                                                            'provider_id': 1})
+        self.report_downloader = ReportDownloader(
+            self.fake_customer_name,
+            self.auth_credential,
+            self.fake_bucket_name,
+            'AWS',
+            1,
+        )
+        self.aws_report_downloader = AWSReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.auth_credential,
+                'bucket': self.fake_bucket_name,
+                'report_name': self.fake_report_name,
+                'provider_id': 1,
+            }
+        )
 
     def tearDown(self):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
@@ -185,8 +200,10 @@ class AWSReportDownloaderTest(MasuTestCase):
         self.manifest_accessor.commit()
 
     @patch('masu.external.downloader.aws.aws_report_downloader.boto3.resource')
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file',
-           return_value=('mock_file_name', None,))
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file',
+        return_value=('mock_file_name', None),
+    )
     def test_download_bucket(self, mock_boto_resource, mock_download_file):
         """Test download bucket method."""
         mock_resource = Mock()
@@ -198,16 +215,20 @@ class AWSReportDownloaderTest(MasuTestCase):
         expected_files = []
         self.assertEqual(out, expected_files)
 
-    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file',
-           side_effect=mock_download_file_error)
+    @patch(
+        'masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.download_file',
+        side_effect=mock_download_file_error,
+    )
     def test_download_report_missing_manifest(self, mock_download_file):
         fake_report_date = self.fake.date_time().replace(day=1)
         out = self.report_downloader.download_report(fake_report_date)
         self.assertEqual(out, [])
 
     @patch('masu.external.report_downloader.ReportStatsDBAccessor')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSessionDownloadError)
+    @patch(
+        'masu.util.aws.common.get_assume_role_session',
+        return_value=FakeSessionDownloadError,
+    )
     def test_download_report_missing_bucket(self, mock_stats, fake_session):
         mock_stats.return_value.__enter__ = Mock()
         fake_report_date = self.fake.date_time().replace(day=1)
@@ -216,205 +237,204 @@ class AWSReportDownloaderTest(MasuTestCase):
         input_key = f'/koku/20180701-20180801/{expected_assembly_id}/koku-1.csv.gz'
         mock_manifest = {
             'assemblyId': expected_assembly_id,
-            'billingPeriod': {
-                'start': fake_report_date_str
-            },
-            'reportKeys': [input_key]
+            'billingPeriod': {'start': fake_report_date_str},
+            'reportKeys': [input_key],
         }
-        with patch.object(AWSReportDownloader, '_get_manifest', return_value=mock_manifest):
+        with patch.object(
+            AWSReportDownloader, '_get_manifest', return_value=mock_manifest
+        ):
             with self.assertRaises(AWSReportDownloaderError):
-                report_downloader = ReportDownloader(self.fake_customer_name,
-                                                     self.auth_credential,
-                                                     self.fake_bucket_name,
-                                                     'AWS',
-                                                     2)
-                AWSReportDownloader(**{'customer_name': self.fake_customer_name,
-                                       'auth_credential': self.auth_credential,
-                                       'bucket': self.fake_bucket_name,
-                                       'report_name': self.fake_report_name,
-                                       'provider_id': 2})
+                report_downloader = ReportDownloader(
+                    self.fake_customer_name,
+                    self.auth_credential,
+                    self.fake_bucket_name,
+                    'AWS',
+                    2,
+                )
+                AWSReportDownloader(
+                    **{
+                        'customer_name': self.fake_customer_name,
+                        'auth_credential': self.auth_credential,
+                        'bucket': self.fake_bucket_name,
+                        'report_name': self.fake_report_name,
+                        'provider_id': 2,
+                    }
+                )
                 report_downloader.download_report(fake_report_date)
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_missing_report_name(self, fake_session):
         """Test downloading a report with an invalid report name."""
         auth_credential = fake_arn(service='iam', generate_account_id=True)
 
         with self.assertRaises(MasuProviderError):
-            AWSReportDownloader(self.fake_customer_name,
-                                auth_credential,
-                                's3_bucket',
-                                'wrongreport')
+            AWSReportDownloader(
+                self.fake_customer_name, auth_credential, 's3_bucket', 'wrongreport'
+            )
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_default_report(self, fake_session):
         # actual test
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         self.assertEqual(downloader.report_name, self.fake_report_name)
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSessionNoReport)
-    @patch('masu.util.aws.common.get_cur_report_definitions',
-           return_value=[])
-    def test_download_default_report_no_report_found(self, fake_session, fake_report_list):
+    @patch(
+        'masu.util.aws.common.get_assume_role_session', return_value=FakeSessionNoReport
+    )
+    @patch('masu.util.aws.common.get_cur_report_definitions', return_value=[])
+    def test_download_default_report_no_report_found(
+        self, fake_session, fake_report_list
+    ):
         auth_credential = fake_arn(service='iam', generate_account_id=True)
 
         with self.assertRaises(MasuProviderError):
-            AWSReportDownloader(self.fake_customer_name,
-                                auth_credential,
-                                self.fake_bucket_name)
+            AWSReportDownloader(
+                self.fake_customer_name, auth_credential, self.fake_bucket_name
+            )
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_success(self, fake_session, fake_shutil):
         fake_client = Mock()
-        fake_client.get_object.return_value = {'ContentLength': 123456,
-                                               'Body': Mock()}
-        fake_shutil.disk_usage.return_value = (10, 10, 4096*1024*1024)
+        fake_client.get_object.return_value = {'ContentLength': 123456, 'Body': Mock()}
+        fake_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension=random.choice(['json', 'csv.gz']))
+        fakekey = self.fake.file_path(
+            depth=random.randint(1, 5), extension=random.choice(['json', 'csv.gz'])
+        )
         result = downloader._check_size(fakekey, check_inflate=False)
         self.assertTrue(result)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_fail_nospace(self, fake_session, fake_shutil):
         fake_client = Mock()
-        fake_client.get_object.return_value = {'ContentLength': 123456,
-                                               'Body': Mock()}
+        fake_client.get_object.return_value = {'ContentLength': 123456, 'Body': Mock()}
         fake_shutil.disk_usage.return_value = (10, 10, 10)
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension=random.choice(['json', 'csv.gz']))
+        fakekey = self.fake.file_path(
+            depth=random.randint(1, 5), extension=random.choice(['json', 'csv.gz'])
+        )
         result = downloader._check_size(fakekey, check_inflate=False)
         self.assertFalse(result)
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_fail_nosize(self, fake_session):
         fake_client = Mock()
         fake_client.get_object.return_value = {}
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension=random.choice(['json', 'csv.gz']))
+        fakekey = self.fake.file_path(
+            depth=random.randint(1, 5), extension=random.choice(['json', 'csv.gz'])
+        )
         with self.assertRaises(AWSReportDownloaderError):
             downloader._check_size(fakekey, check_inflate=False)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_inflate_success(self, fake_session, fake_shutil):
         fake_client = Mock()
-        fake_client.get_object.return_value = {'ContentLength': 123456,
-                                               'Body': io.BytesIO(b'\xd2\x02\x96I')}
-        fake_shutil.disk_usage.return_value = (10, 10, 4096*1024*1024)
+        fake_client.get_object.return_value = {
+            'ContentLength': 123456,
+            'Body': io.BytesIO(b'\xd2\x02\x96I'),
+        }
+        fake_shutil.disk_usage.return_value = (10, 10, 4096 * 1024 * 1024)
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension='csv.gz')
+        fakekey = self.fake.file_path(depth=random.randint(1, 5), extension='csv.gz')
         result = downloader._check_size(fakekey, check_inflate=True)
         self.assertTrue(result)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_check_size_inflate_fail(self, fake_session, fake_shutil):
         fake_client = Mock()
-        fake_client.get_object.return_value = {'ContentLength': 123456,
-                                               'Body': io.BytesIO(b'\xd2\x02\x96I')}
+        fake_client.get_object.return_value = {
+            'ContentLength': 123456,
+            'Body': io.BytesIO(b'\xd2\x02\x96I'),
+        }
         fake_shutil.disk_usage.return_value = (10, 10, 1234567)
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension='csv.gz')
+        fakekey = self.fake.file_path(depth=random.randint(1, 5), extension='csv.gz')
         result = downloader._check_size(fakekey, check_inflate=True)
         self.assertFalse(result)
 
     @patch('masu.external.downloader.aws.aws_report_downloader.shutil')
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_check_size_fail(self, fake_session, fake_shutil):
         fake_client = Mock()
-        fake_client.get_object.return_value = {'ContentLength': 123456,
-                                               'Body': io.BytesIO(b'\xd2\x02\x96I')}
+        fake_client.get_object.return_value = {
+            'ContentLength': 123456,
+            'Body': io.BytesIO(b'\xd2\x02\x96I'),
+        }
         fake_shutil.disk_usage.return_value = (10, 10, 1234567)
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
-        fakekey = self.fake.file_path(depth=random.randint(1, 5),
-                                      extension='csv.gz')
+        fakekey = self.fake.file_path(depth=random.randint(1, 5), extension='csv.gz')
         with self.assertRaises(AWSReportDownloaderError):
             downloader.download_file(fakekey)
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_raise_downloader_err(self, fake_session):
         fake_response = {'Error': {'Code': self.fake.word()}}
         fake_client = Mock()
-        fake_client.get_object.side_effect = ClientError(fake_response,
-                                                         'masu-test')
+        fake_client.get_object.side_effect = ClientError(fake_response, 'masu-test')
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
         with self.assertRaises(AWSReportDownloaderError):
             downloader.download_file(self.fake.file_path())
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_download_file_raise_nofile_err(self, fake_session):
         fake_response = {'Error': {'Code': 'NoSuchKey'}}
         fake_client = Mock()
-        fake_client.get_object.side_effect = ClientError(fake_response,
-                                                         'masu-test')
+        fake_client.get_object.side_effect = ClientError(fake_response, 'masu-test')
 
         auth_credential = fake_arn(service='iam', generate_account_id=True)
-        downloader = AWSReportDownloader(self.fake_customer_name,
-                                         auth_credential,
-                                         self.fake_bucket_name)
+        downloader = AWSReportDownloader(
+            self.fake_customer_name, auth_credential, self.fake_bucket_name
+        )
         downloader.s3_client = fake_client
 
         with self.assertRaises(AWSReportDownloaderNoFileError):

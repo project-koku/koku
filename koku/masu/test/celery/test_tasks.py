@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 from masu.celery.tasks import check_report_updates, remove_expired_data
 from tests import MasuTestCase
 
+
 class TestCeleryTasks(MasuTestCase):
     """Test cases for Celery tasks."""
 
@@ -29,4 +30,3 @@ class TestCeleryTasks(MasuTestCase):
 
         mock_orchestrator.assert_called()
         mock_orch.remove_expired_report_data.assert_called()
-

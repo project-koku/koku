@@ -18,12 +18,10 @@
 """Test the report_data endpoint view."""
 
 import datetime
-from unittest.mock import patch, ANY
+from unittest.mock import patch
 from urllib.parse import urlencode
 
-from celery.result import AsyncResult
-
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportDataTests(MasuTestCase):
@@ -36,14 +34,13 @@ class ReportDataTests(MasuTestCase):
         params = {
             'schema': 'acct10001',
             'start_date': start_date,
-            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64'
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
         }
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
@@ -54,7 +51,7 @@ class ReportDataTests(MasuTestCase):
             'AWS',
             params['provider_uuid'],
             str(params['start_date']),
-            None
+            None,
         )
 
     @patch('masu.api.report_data.update_summary_tables')
@@ -63,15 +60,14 @@ class ReportDataTests(MasuTestCase):
         start_date = datetime.date.today()
         params = {
             'start_date': start_date,
-            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64'
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
         }
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'schema is a required parameter.'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -83,17 +79,15 @@ class ReportDataTests(MasuTestCase):
     def test_get_report_data_provider_uuid_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing provider_uuid."""
         start_date = datetime.date.today()
-        params = {
-            'start_date': start_date,
-            'schema': 'acct10001'
-        }
+        params = {'start_date': start_date, 'schema': 'acct10001'}
         query_string = urlencode(params)
         expected_key = 'Error'
-        expected_message = 'provider_uuid or provider_type must be supplied as a parameter.'
+        expected_message = (
+            'provider_uuid or provider_type must be supplied as a parameter.'
+        )
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -108,15 +102,14 @@ class ReportDataTests(MasuTestCase):
         params = {
             'start_date': start_date,
             'schema': 'acct10001',
-            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132ddd'
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132ddd',
         }
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'Unable to determine provider type.'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -129,14 +122,14 @@ class ReportDataTests(MasuTestCase):
         """Test GET report_data endpoint returns a 400 for missing date."""
         params = {
             'schema': 'acct10001',
-            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64'}
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
+        }
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'start_date is a required parameter.'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -152,14 +145,16 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
             'provider_type': 'OCP',
-            'start_date': start_date}
+            'start_date': start_date,
+        }
         query_string = urlencode(params)
         expected_key = 'Error'
-        expected_message = 'provider_uuid and provider_type have mismatched provider types.'
+        expected_message = (
+            'provider_uuid and provider_type have mismatched provider types.'
+        )
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -176,14 +171,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
             'start_date': start_date,
-            'end_date': end_date
+            'end_date': end_date,
         }
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
@@ -194,7 +188,7 @@ class ReportDataTests(MasuTestCase):
             'AWS',
             params['provider_uuid'],
             str(params['start_date']),
-            str(params['end_date'])
+            str(params['end_date']),
         )
 
     @patch('masu.api.report_data.update_summary_tables')
@@ -206,14 +200,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider_type': 'AWS',
             'start_date': start_date,
-            'end_date': end_date
+            'end_date': end_date,
         }
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
@@ -224,32 +217,25 @@ class ReportDataTests(MasuTestCase):
             params['provider_type'],
             None,
             str(params['start_date']),
-            str(params['end_date'])
+            str(params['end_date']),
         )
 
     @patch('masu.api.report_data.update_all_summary_tables')
     def test_get_report_data_for_all_providers(self, mock_update):
         """Test GET report_data endpoint with provider_uuid=*."""
         start_date = datetime.date.today()
-        params = {
-            'provider_uuid': '*',
-            'start_date': start_date,
-        }
+        params = {'provider_uuid': '*', 'start_date': start_date}
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.get('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.get('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(
-            str(params['start_date']),
-            None
-        )
+        mock_update.delay.assert_called_with(str(params['start_date']), None)
 
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data(self, mock_remove):
@@ -258,14 +244,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider': 'AWS',
             'provider_id': 1,
-            'simulate': False
+            'simulate': False,
         }
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
@@ -275,7 +260,7 @@ class ReportDataTests(MasuTestCase):
             params['schema'],
             params['provider'],
             params['simulate'],
-            str(params['provider_id'])
+            str(params['provider_id']),
         )
 
     @patch('masu.api.report_data.remove_expired_data')
@@ -285,14 +270,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider': 'AWS',
             'provider_id': 1,
-            'simulate': True
+            'simulate': True,
         }
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
@@ -302,49 +286,36 @@ class ReportDataTests(MasuTestCase):
             params['schema'],
             params['provider'],
             params['simulate'],
-            str(params['provider_id'])
+            str(params['provider_id']),
         )
 
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_simulate_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {
-            'schema': 'acct10001',
-            'provider': 'AWS',
-            'provider_id': 1
-        }
+        params = {'schema': 'acct10001', 'provider': 'AWS', 'provider_id': 1}
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
         # self.client.get()
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_remove.delay.assert_called_with(
-            params['schema'],
-            params['provider'],
-            False,
-            str(params['provider_id'])
+            params['schema'], params['provider'], False, str(params['provider_id'])
         )
 
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_schema_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {
-            'provider': 'AWS',
-            'provider_id': 1,
-            'simulate': True
-        }
+        params = {'provider': 'AWS', 'provider_id': 1, 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'schema is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -355,17 +326,12 @@ class ReportDataTests(MasuTestCase):
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_provider_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {
-            'schema': 'acct10001',
-            'provider_id': 1,
-            'simulate': True
-        }
+        params = {'schema': 'acct10001', 'provider_id': 1, 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'provider is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)
@@ -376,17 +342,12 @@ class ReportDataTests(MasuTestCase):
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_provider_id_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {
-            'schema': 'acct10001',
-            'provider': 'AWS',
-            'simulate': True
-        }
+        params = {'schema': 'acct10001', 'provider': 'AWS', 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'provider_id is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/',
-                                   query_string=query_string)
+        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
         body = response.json
 
         self.assertEqual(response.status_code, 400)

@@ -23,7 +23,10 @@ import pytz
 
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
-from masu.processor.expired_data_remover import ExpiredDataRemover, ExpiredDataRemoverError
+from masu.processor.expired_data_remover import (
+    ExpiredDataRemover,
+    ExpiredDataRemoverError,
+)
 from tests import MasuTestCase
 
 
@@ -47,7 +50,10 @@ class ExpiredDataRemoverTest(MasuTestCase):
         with self.assertRaises(ExpiredDataRemoverError):
             ExpiredDataRemover('acct10001', 'BAD')
 
-    @patch('masu.processor.aws.aws_report_db_cleaner.AWSReportDBCleaner.__init__', side_effect=Exception)
+    @patch(
+        'masu.processor.aws.aws_report_db_cleaner.AWSReportDBCleaner.__init__',
+        side_effect=Exception,
+    )
     def test_initializer_provider_exception(self, mock_aws_cleaner):
         """Test to init"""
         with self.assertRaises(ExpiredDataRemoverError):
@@ -55,26 +61,44 @@ class ExpiredDataRemoverTest(MasuTestCase):
 
     def test_calculate_expiration_date(self):
         """Test that the expiration date is correctly calculated."""
-        date_matrix = [{'current_date':    datetime(year=2018, month=7, day=1),
-                        'expected_expire': datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': None},
-                       {'current_date':    datetime(year=2018, month=7, day=31),
-                        'expected_expire': datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': None},
-                       {'current_date':    datetime(year=2018, month=3, day=20),
-                        'expected_expire': datetime(year=2017, month=12, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': None},
-                       {'current_date':    datetime(year=2018, month=7, day=1),
-                        'expected_expire': datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': 12},
-                       {'current_date':    datetime(year=2018, month=7, day=31),
-                        'expected_expire': datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': 12},
-                       {'current_date':    datetime(year=2018, month=3, day=20),
-                        'expected_expire': datetime(year=2016, month=3, day=1, tzinfo=pytz.UTC),
-                        'months_to_keep': 24},]
+        date_matrix = [
+            {
+                'current_date': datetime(year=2018, month=7, day=1),
+                'expected_expire': datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
+                'months_to_keep': None,
+            },
+            {
+                'current_date': datetime(year=2018, month=7, day=31),
+                'expected_expire': datetime(year=2018, month=4, day=1, tzinfo=pytz.UTC),
+                'months_to_keep': None,
+            },
+            {
+                'current_date': datetime(year=2018, month=3, day=20),
+                'expected_expire': datetime(
+                    year=2017, month=12, day=1, tzinfo=pytz.UTC
+                ),
+                'months_to_keep': None,
+            },
+            {
+                'current_date': datetime(year=2018, month=7, day=1),
+                'expected_expire': datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
+                'months_to_keep': 12,
+            },
+            {
+                'current_date': datetime(year=2018, month=7, day=31),
+                'expected_expire': datetime(year=2017, month=7, day=1, tzinfo=pytz.UTC),
+                'months_to_keep': 12,
+            },
+            {
+                'current_date': datetime(year=2018, month=3, day=20),
+                'expected_expire': datetime(year=2016, month=3, day=1, tzinfo=pytz.UTC),
+                'months_to_keep': 24,
+            },
+        ]
         for test_case in date_matrix:
-            with patch.object(DateAccessor, 'today', return_value=test_case.get('current_date')):
+            with patch.object(
+                DateAccessor, 'today', return_value=test_case.get('current_date')
+            ):
                 retention_policy = test_case.get('months_to_keep')
                 if retention_policy:
                     remover = ExpiredDataRemover('acct10001', 'AWS', retention_policy)
@@ -89,7 +113,9 @@ class ExpiredDataRemoverTest(MasuTestCase):
         removed_data = remover.remove()
         self.assertEqual(len(removed_data), 0)
 
-    @patch('masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_report_data')
+    @patch(
+        'masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_report_data'
+    )
     def test_remove_provider(self, mock_purge):
         """Test that remove is called with provider_id."""
         provider_id = 1

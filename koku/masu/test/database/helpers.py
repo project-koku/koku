@@ -33,8 +33,12 @@ from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 
 # A subset of AWS product family values
-AWS_PRODUCT_FAMILY = ['Storage', 'Compute Instance',
-                      'Database Storage', 'Database Instance']
+AWS_PRODUCT_FAMILY = [
+    'Storage',
+    'Compute Instance',
+    'Database Storage',
+    'Database Instance',
+]
 
 
 class ReportObjectCreator:
@@ -55,7 +59,9 @@ class ReportObjectCreator:
         if entry_datetime:
             start_datetime = entry_datetime
         else:
-            start_datetime = self.fake.past_datetime(start_date='-60d')  # pylint: ignore=no-member
+            start_datetime = self.fake.past_datetime(
+                start_date='-60d'
+            )  # pylint: ignore=no-member
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         row.interval_start = self.stringify_datetime(start_datetime)
         row.interval_end = self.stringify_datetime(end_datetime)
@@ -113,13 +119,9 @@ class ReportObjectCreator:
 
         return row
 
-    def create_cost_entry_line_item(self,
-                                    bill,
-                                    cost_entry,
-                                    product,
-                                    pricing,
-                                    reservation,
-                                    resource_id=None):
+    def create_cost_entry_line_item(
+        self, bill, cost_entry, product, pricing, reservation, resource_id=None
+    ):
         """Create a cost entry line item database object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
@@ -134,7 +136,7 @@ class ReportObjectCreator:
         row.usage_end = cost_entry.interval_end
         row.tags = {
             'environment': random.choice(['dev', 'qa', 'prod']),
-            self.fake.pystr()[:8]: self.fake.pystr()[:8]
+            self.fake.pystr()[:8]: self.fake.pystr()[:8],
         }
         if resource_id:
             row.resource_id = resource_id
@@ -142,16 +144,22 @@ class ReportObjectCreator:
 
         return row
 
-    def create_ocp_report_period(self, period_date=None, provider_id=None, cluster_id=None):
+    def create_ocp_report_period(
+        self, period_date=None, provider_id=None, cluster_id=None
+    ):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
         period_start = self.fake.past_datetime().date().replace(day=1)
-        period_end = period_start + relativedelta.relativedelta(days=random.randint(1, 15))
-        data = {'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
-                'provider_id': provider_id if provider_id else 1,
-                'report_period_start': self.stringify_datetime(period_start),
-                'report_period_end': self.stringify_datetime(period_end)}
+        period_end = period_start + relativedelta.relativedelta(
+            days=random.randint(1, 15)
+        )
+        data = {
+            'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
+            'provider_id': provider_id if provider_id else 1,
+            'report_period_start': self.stringify_datetime(period_start),
+            'report_period_end': self.stringify_datetime(period_end),
+        }
 
         if period_date:
             period_start = period_date.replace(day=1).date()
@@ -180,10 +188,7 @@ class ReportObjectCreator:
         row.save()
         return row
 
-    def create_ocp_usage_line_item(self,
-                                   report_period,
-                                   report,
-                                   resource_id=None):
+    def create_ocp_usage_line_item(self, report_period, report, resource_id=None):
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
@@ -237,12 +242,10 @@ class ReportObjectCreator:
             elif col_type == 'JSONField':
                 data[column] = {
                     'label_one': self.fake.pystr()[:8],
-                    'label_two': self.fake.pystr()[:8]
+                    'label_two': self.fake.pystr()[:8],
                 }
             elif col_type == 'DateTimeField':
-                data[column] = self.stringify_datetime(
-                    self.fake.past_datetime()
-                )
+                data[column] = self.stringify_datetime(self.fake.past_datetime())
             elif col_type == 'DecimalField':
                 data[column] = self.fake.pydecimal(0, 7, positive=True)
             else:
@@ -254,10 +257,7 @@ class ReportObjectCreator:
         """Create a CSV file object for bulk upload testing."""
         file_obj = io.StringIO()
         writer = csv.writer(
-            file_obj,
-            delimiter='\t',
-            quoting=csv.QUOTE_NONE,
-            quotechar=''
+            file_obj, delimiter='\t', quoting=csv.QUOTE_NONE, quotechar=''
         )
         writer.writerow(row)
         file_obj.seek(0)
@@ -276,9 +276,7 @@ class ReportObjectCreator:
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['rate']
 
-        data = {'metric': metric,
-                'rates': rates,
-                'uuid': str(uuid.uuid4())}
+        data = {'metric': metric, 'rates': rates, 'uuid': str(uuid.uuid4())}
 
         rate_obj = self.db_accessor.create_db_object(table_name, data)
         rate_obj.save()
@@ -305,12 +303,8 @@ class ReportObjectCreator:
             row.namespace = self.fake.pystr()[:8]
             row.pod = self.fake.pystr()[:8]
             row.node = self.fake.pystr()[:8]
-            row.usage_start = self.stringify_datetime(
-                self.fake.past_datetime()
-            )
-            row.usage_end = self.stringify_datetime(
-                self.fake.past_datetime()
-            )
+            row.usage_start = self.stringify_datetime(self.fake.past_datetime())
+            row.usage_end = self.stringify_datetime(self.fake.past_datetime())
             row.product_code = self.fake.pystr()[:8]
             row.usage_account_id = self.fake.pystr()[:8]
 
@@ -331,9 +325,7 @@ class ReportObjectCreator:
 
             row.account_alias = account_alias
             row.cost_entry_bill = self.create_cost_entry_bill()
-            row.usage_start = self.stringify_datetime(
-                self.fake.past_datetime()
-            )
+            row.usage_start = self.stringify_datetime(self.fake.past_datetime())
             row.product_code = self.fake.pystr()[:8]
             row.usage_account_id = self.fake.pystr()[:8]
 

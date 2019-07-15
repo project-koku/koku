@@ -18,15 +18,19 @@
 """Test the download endpoint view."""
 
 from unittest.mock import patch
+
 from celery.result import AsyncResult
-from tests import MasuTestCase
+
+from masu.test import MasuTestCase
 
 
 class DownloadAPIViewTest(MasuTestCase):
     """Test Cases for the Download API."""
 
-    @patch('masu.celery.tasks.check_report_updates.delay',
-           return_value=AsyncResult('dc350f15-ffc7-4fcb-92d7-2a9f1275568e'))
+    @patch(
+        'masu.celery.tasks.check_report_updates.delay',
+        return_value=AsyncResult('dc350f15-ffc7-4fcb-92d7-2a9f1275568e'),
+    )
     def test_download(self, file_list):
         """Test the download endpoint."""
         response = self.client.get('/api/v1/download/')

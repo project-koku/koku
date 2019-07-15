@@ -29,8 +29,8 @@ from masu.util.blueprint import add_routes_to_blueprint, application_route
 
 from tests import MasuTestCase
 
-class BlueprintUtilTests(MasuTestCase):
 
+class BlueprintUtilTests(MasuTestCase):
     def setUp(self):
         super().setUp()
         self.blueprint = Blueprint('test', __name__, url_prefix='/test')
@@ -48,8 +48,7 @@ class BlueprintUtilTests(MasuTestCase):
         self.assertNotEqual(self.routes, {})
         self.assertIn(__name__, self.routes)
         route_keys = list(self.routes.get(__name__)[0].keys())
-        self.assertEqual(route_keys,
-                         self.expected_keys)
+        self.assertEqual(route_keys, self.expected_keys)
 
     def test_add_routes_to_blueprint(self):
         """Test that a routes dict is added to a blueprint."""
