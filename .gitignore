@@ -87,6 +87,7 @@ celerybeat.pid
 # dotenv
 .env
 .env.test
+openshift/parameters/*.env
 
 # virtualenv
 .venv
