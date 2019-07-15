@@ -19,11 +19,17 @@
 import boto3
 from unittest.mock import patch, Mock
 import json
-from masu.external.notifications.aws.aws_notification_handler import AWSNotificationHandler, AWSNotificationHandlerError
-from masu.external.notifications.notification_interface import NotificationInterfaceFilter
-import tests.external.notifications.helpers.sns_helpers as sns_helper 
+from masu.external.notifications.aws.aws_notification_handler import (
+    AWSNotificationHandler,
+    AWSNotificationHandlerError,
+)
+from masu.external.notifications.notification_interface import (
+    NotificationInterfaceFilter,
+)
+import tests.external.notifications.helpers.sns_helpers as sns_helper
 
 from tests import MasuTestCase
+
 
 class AWSNotificationHandlerTest(MasuTestCase):
     """Test Cases for AWSNotificationHandler."""
@@ -34,21 +40,19 @@ class AWSNotificationHandlerTest(MasuTestCase):
         self.notification_headers = list(sns_helper.sns_notification_headers)
         self.notification_body_dict = dict(sns_helper.sns_notification_body_dict)
 
-
     @patch('masu.external.notifications.aws.aws_notification_handler.boto3.client')
     def test_confirm_subscription(self, mock_boto3_client):
         sns_client = Mock()
         sns_client.confirm_subscription.return_value = {
-            'ResponseMetadata': {
-                'HTTPStatusCode': 201
-            }
-        } 
+            'ResponseMetadata': {'HTTPStatusCode': 201}
+        }
         mock_boto3_client.return_value = sns_client
 
         topic_arn = 'arn:aws:sns:us-east-1:123456789012:MyTopic'
         body_dict = self.confirm_body_dict
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                                 'X-Amz-Sns-Topic-Arn', topic_arn)
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers, 'X-Amz-Sns-Topic-Arn', topic_arn
+        )
         body_dict['TopicArn'] = topic_arn
         body = json.dumps(body_dict)
         try:
@@ -56,11 +60,10 @@ class AWSNotificationHandlerTest(MasuTestCase):
         except Exception:
             self.fail('Unexpected exception')
 
-
     @patch('masu.external.notifications.aws.aws_notification_handler.boto3.client')
     def test_confirm_subscription_not_successful(self, mock_boto3_client):
         sns_client = Mock()
-        sns_client.confirm_subscription.return_value = {} 
+        sns_client.confirm_subscription.return_value = {}
         mock_boto3_client.return_value = sns_client
 
         # Make the TopicArn into a non-standard, unexpected format
@@ -69,8 +72,9 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
         body_dict = self.confirm_body_dict
 
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Topic-Arn', corrupted_arn_name)
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers, 'X-Amz-Sns-Topic-Arn', corrupted_arn_name
+        )
         body_dict['TopicArn'] = corrupted_arn_name
 
         body = json.dumps(body_dict)
@@ -83,7 +87,9 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
         # Set a non-top level manifest file.  It is non-top level because the file name is in a uuid named directory
         new_path = '/cur/20180701-20180801/58d25dAA-bcb7-4d6C-87CB-6d1f719428EF/cur-Manifest.json'
-        new_message = body_dict['Message'].replace('/koku/20180701-20180801/koku-Manifest.json', new_path)
+        new_message = body_dict['Message'].replace(
+            '/koku/20180701-20180801/koku-Manifest.json', new_path
+        )
         body_dict['Message'] = new_message
 
         body = json.dumps(body_dict)
@@ -106,8 +112,12 @@ class AWSNotificationHandlerTest(MasuTestCase):
         body_dict = self.notification_body_dict
 
         # Set a non-manifest file (doesn't end in Manifest.json) in the notification body
-        new_path = '/koku/20180701-20180801/bb976103-7c20-4053-852c-ad0c4b778dd0/koku-1.csv.gz'
-        new_message = body_dict['Message'].replace('/koku/20180701-20180801/koku-Manifest.json', new_path)
+        new_path = (
+            '/koku/20180701-20180801/bb976103-7c20-4053-852c-ad0c4b778dd0/koku-1.csv.gz'
+        )
+        new_message = body_dict['Message'].replace(
+            '/koku/20180701-20180801/koku-Manifest.json', new_path
+        )
         body_dict['Message'] = new_message
 
         body = json.dumps(body_dict)
@@ -148,8 +158,9 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
     def test_missing_message_type(self):
         # Remove the Message-Type header from a notification header request.
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Message-Type', None)
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers, 'X-Amz-Sns-Message-Type', None
+        )
         body_dict = self.confirm_body_dict
 
         body = json.dumps(body_dict)
@@ -158,8 +169,11 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
     def test_get_region_invalid_arn(self):
         # Removed a ':' in Topic ARN
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Topic-Arn', 'arnaws:sns:us-east-1:123456789012:MyTopic')
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers,
+            'X-Amz-Sns-Topic-Arn',
+            'arnaws:sns:us-east-1:123456789012:MyTopic',
+        )
         body_dict = self.confirm_body_dict
         body_dict['TopicArn'] = 'arnaws:sns:us-east-1:123456789012:MyTopic'
 
@@ -170,8 +184,11 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
     def test_get_region_invalid_arn_2(self):
         # Removed all ':' in Subscription ARN
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Topic-Arn', 'arnawssnsus-east-1123456789012MyTopic')
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers,
+            'X-Amz-Sns-Topic-Arn',
+            'arnawssnsus-east-1123456789012MyTopic',
+        )
         body_dict = self.confirm_body_dict
         body_dict['TopicArn'] = 'arnawssnsus-east-1123456789012MyTopic'
 
@@ -182,8 +199,11 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
     def test_get_region_unknown_region(self):
         # Set the region to an unknown value (mars-east-1) in the Topic-Arn
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Topic-Arn', 'arn:aws:sns:mars-east-1:123456789012:MyTopic')
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers,
+            'X-Amz-Sns-Topic-Arn',
+            'arn:aws:sns:mars-east-1:123456789012:MyTopic',
+        )
         body_dict = self.confirm_body_dict
         body_dict['TopicArn'] = 'arn:aws:sns:mars-east-1:123456789012:MyTopic'
 
@@ -194,8 +214,9 @@ class AWSNotificationHandlerTest(MasuTestCase):
 
     def test_get_region_missing_header(self):
         # Missing X-Amz-Sns-Topic-Arn
-        headers =  sns_helper.modify_header_list(self.confirm_headers,
-                                           'X-Amz-Sns-Topic-Arn', None)
+        headers = sns_helper.modify_header_list(
+            self.confirm_headers, 'X-Amz-Sns-Topic-Arn', None
+        )
         body_dict = self.confirm_body_dict
 
         body = json.dumps(body_dict)

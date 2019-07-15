@@ -125,9 +125,9 @@ class DateAccessorTest(MasuTestCase):
         self.assertEqual(today.month, fake_dt.month)
         self.assertEqual(today.day, fake_dt.day)
 
-        expected_offset = dateutil.tz.tzoffset(fake_tz_name,
-                                               fake_tz.utcoffset(fake_dt,
-                                                                 is_dst=False))
+        expected_offset = dateutil.tz.tzoffset(
+            fake_tz_name, fake_tz.utcoffset(fake_dt, is_dst=False)
+        )
         self.assertEqual(today.tzinfo, expected_offset)
 
     def test_today_with_timezone_string(self):

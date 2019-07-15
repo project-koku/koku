@@ -50,27 +50,37 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.fake_report_name = 'ocp-report'
         self.cluster_id = 'my-ocp-cluster-1'
 
-        report_path = '{}/{}/{}'.format(REPORTS_DIR, self.cluster_id, '20180901-20181001')
+        report_path = '{}/{}/{}'.format(
+            REPORTS_DIR, self.cluster_id, '20180901-20181001'
+        )
         os.makedirs(report_path, exist_ok=True)
 
         test_file_path = './tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
-        self.test_file_path = os.path.join(report_path, os.path.basename(test_file_path))
+        self.test_file_path = os.path.join(
+            report_path, os.path.basename(test_file_path)
+        )
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
         test_manifest_path = './tests/data/ocp/manifest.json'
-        self.test_manifest_path = os.path.join(report_path, os.path.basename(test_manifest_path))
-        shutil.copyfile(test_manifest_path, os.path.join(report_path, self.test_manifest_path))
+        self.test_manifest_path = os.path.join(
+            report_path, os.path.basename(test_manifest_path)
+        )
+        shutil.copyfile(
+            test_manifest_path, os.path.join(report_path, self.test_manifest_path)
+        )
 
-        self.report_downloader = ReportDownloader(self.fake_customer_name,
-                                                  self.cluster_id,
-                                                  None,
-                                                  'OCP',
-                                                  1)
+        self.report_downloader = ReportDownloader(
+            self.fake_customer_name, self.cluster_id, None, 'OCP', 1
+        )
 
-        self.ocp_report_downloader = OCPReportDownloader(**{'customer_name': self.fake_customer_name,
-                                                            'auth_credential': self.cluster_id,
-                                                            'bucket': None,
-                                                            'provider_id': 1})
+        self.ocp_report_downloader = OCPReportDownloader(
+            **{
+                'customer_name': self.fake_customer_name,
+                'auth_credential': self.cluster_id,
+                'bucket': None,
+                'provider_id': 1,
+            }
+        )
 
     def tearDown(self):
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
@@ -80,9 +90,11 @@ class OCPReportDownloaderTest(MasuTestCase):
         test_report_date = datetime(year=2018, month=9, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
             self.report_downloader.download_report(test_report_date)
-        expected_path = '{}/{}/{}'.format(Config.TMP_DIR, self.fake_customer_name, 'ocp')
+        expected_path = '{}/{}/{}'.format(
+            Config.TMP_DIR, self.fake_customer_name, 'ocp'
+        )
         self.assertTrue(os.path.isdir(expected_path))
- 
+
     def test_download_bucket_no_csv_found(self):
         """Test to verify that basic report downloading with no .csv file in source directory."""
         reports = []
@@ -101,7 +113,9 @@ class OCPReportDownloaderTest(MasuTestCase):
             os.remove(self.test_file_path)
 
             # Create .txt file
-            txt_file_path = '{}/{}'.format(os.path.dirname(self.test_file_path), 'report.txt')
+            txt_file_path = '{}/{}'.format(
+                os.path.dirname(self.test_file_path), 'report.txt'
+            )
             open(txt_file_path, 'a').close()
 
             reports = self.report_downloader.download_report(test_report_date)

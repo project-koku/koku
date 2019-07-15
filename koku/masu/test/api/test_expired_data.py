@@ -18,12 +18,10 @@
 """Test the expired_endpoint endpoint view."""
 
 from unittest.mock import patch
+
 from masu.config import Config
-from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
-from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
-from celery.result import AsyncResult
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ExpiredDataTest(MasuTestCase):
@@ -32,8 +30,12 @@ class ExpiredDataTest(MasuTestCase):
     @patch.object(Orchestrator, 'remove_expired_report_data')
     def test_get_expired_data(self, mock_orchestrator):
         """Test the GET expired_data endpoint."""
-        mock_response = [{'customer': 'acct10001',
-                          'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf'}]
+        mock_response = [
+            {
+                'customer': 'acct10001',
+                'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf',
+            }
+        ]
         expected_key = 'Async jobs for expired data removal (simulated)'
         mock_orchestrator.return_value = mock_response
         response = self.client.get('/api/v1/expired_data/')
@@ -44,15 +46,18 @@ class ExpiredDataTest(MasuTestCase):
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))
 
-    @patch.object(Config, 'DEBUG')
+    @patch.object(Config, 'DEBUG', return_value=False)
     @patch.object(Orchestrator, 'remove_expired_report_data')
     def test_del_expired_data(self, mock_orchestrator, mock_debug):
         """Test the DELETE expired_data endpoint."""
-        mock_response = [{'customer': 'acct10001',
-                          'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf'}]
+        mock_response = [
+            {
+                'customer': 'acct10001',
+                'async_id': 'f9eb2ce7-4564-4509-aecc-1200958c07cf',
+            }
+        ]
         expected_key = 'Async jobs for expired data removal'
         mock_orchestrator.return_value = mock_response
-        mock_debug = False
 
         response = self.client.delete('/api/v1/expired_data/')
         body = response.json

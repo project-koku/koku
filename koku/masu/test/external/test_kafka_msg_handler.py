@@ -28,7 +28,7 @@ from requests.exceptions import HTTPError
 import requests_mock
 from masu.config import Config
 from masu.external import OPENSHIFT_CONTAINER_PLATFORM
-from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
+from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 import masu.external.kafka_msg_handler as msg_handler
 from tests import MasuTestCase
@@ -40,6 +40,7 @@ class KafkaMsg:
         value_dict = {'url': url}
         value_str = json.dumps(value_dict)
         self.value = value_str.encode('utf-8')
+
 
 class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
@@ -68,9 +69,11 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
                 with patch.object(Config, 'TMP_DIR', fake_dir):
                     msg_handler.extract_payload(payload_url)
-                    expected_path = '{}/{}/{}/'.format(Config.INSIGHTS_LOCAL_REPORT_DIR,
-                                                    self.cluster_id,
-                                                    self.date_range)
+                    expected_path = '{}/{}/{}/'.format(
+                        Config.INSIGHTS_LOCAL_REPORT_DIR,
+                        self.cluster_id,
+                        self.date_range,
+                    )
                     self.assertTrue(os.path.isdir(expected_path))
                     shutil.rmtree(fake_dir)
                     shutil.rmtree(fake_pvc_dir)
@@ -127,16 +130,33 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def test_handle_messages(self):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = KafkaMsg(msg_handler.HCCM_TOPIC, 'http://insights-upload.com/quarnantine/file_to_validate')
-        advisor_msg = KafkaMsg('platform.upload.advisor', 'http://insights-upload.com/quarnantine/file_to_validate')
+        hccm_msg = KafkaMsg(
+            msg_handler.HCCM_TOPIC,
+            'http://insights-upload.com/quarnantine/file_to_validate',
+        )
+        advisor_msg = KafkaMsg(
+            'platform.upload.advisor',
+            'http://insights-upload.com/quarnantine/file_to_validate',
+        )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
-        with patch('masu.external.kafka_msg_handler.extract_payload', return_value=None):
-            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.SUCCESS_CONFIRM_STATUS, None))
+        with patch(
+            'masu.external.kafka_msg_handler.extract_payload', return_value=None
+        ):
+            self.assertEqual(
+                msg_handler.handle_message(hccm_msg),
+                (msg_handler.SUCCESS_CONFIRM_STATUS, None),
+            )
 
         # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
-        with patch('masu.external.kafka_msg_handler.extract_payload', side_effect=msg_handler.KafkaMsgHandlerError):
-            self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None))
+        with patch(
+            'masu.external.kafka_msg_handler.extract_payload',
+            side_effect=msg_handler.KafkaMsgHandlerError,
+        ):
+            self.assertEqual(
+                msg_handler.handle_message(hccm_msg),
+                (msg_handler.FAILURE_CONFIRM_STATUS, None),
+            )
 
         # Verify that when None status is returned for non-hccm messages (we don't confirm these)
         self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None))
@@ -158,10 +178,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch('masu.external.kafka_msg_handler.get_report_files')
     def test_process_report_unknown_cluster_id(self, mock_get_reports, mock_summarize):
         """Test processing a report for an unknown cluster_id."""
-        mock_download_process_value = [{'schema_name': self.test_schema,
-                                        'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
-                                        'provider_uuid': self.ocp_test_provider_uuid,
-                                        'start_date': DateAccessor().today()}]
+        mock_download_process_value = [
+            {
+                'schema_name': self.test_schema,
+                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_uuid': self.ocp_test_provider_uuid,
+                'start_date': DateAccessor().today(),
+            }
+        ]
         mock_get_reports.return_value = mock_download_process_value
         sample_report = {'cluster_id': 'missing_cluster_id'}
 
@@ -173,10 +197,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch('masu.external.kafka_msg_handler.get_report_files')
     def test_process_report(self, mock_get_reports, mock_summarize):
         """Test processing a report for an unknown cluster_id."""
-        mock_download_process_value = [{'schema_name': self.test_schema,
-                                        'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
-                                        'provider_uuid': self.ocp_test_provider_uuid,
-                                        'start_date': DateAccessor().today()}]
+        mock_download_process_value = [
+            {
+                'schema_name': self.test_schema,
+                'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
+                'provider_uuid': self.ocp_test_provider_uuid,
+                'start_date': DateAccessor().today(),
+            }
+        ]
         mock_get_reports.return_value = mock_download_process_value
         cluster_id = self.ocp_provider_resource_name
         sample_report = {'cluster_id': cluster_id}

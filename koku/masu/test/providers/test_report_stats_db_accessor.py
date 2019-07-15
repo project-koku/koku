@@ -23,6 +23,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from tests import MasuTestCase
 
+
 class ReportStatsDBAccessorTest(MasuTestCase):
     """Test Cases for the ReportStatsDBAccessor object."""
 
@@ -34,7 +35,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1
+            'provider_id': 1,
         }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -63,10 +64,12 @@ class ReportStatsDBAccessorTest(MasuTestCase):
     def test_initializer_preexisting_report(self):
         """Test getting a new accessor stats on a preexisting report."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
-        saver.update(cursor_position=33,
-                     last_completed_datetime='1/1/2011 11:11:11',
-                     last_started_datetime='2/2/22 22:22:22',
-                     etag='myetag')
+        saver.update(
+            cursor_position=33,
+            last_completed_datetime='1/1/2011 11:11:11',
+            last_started_datetime='2/2/22 22:22:22',
+            etag='myetag',
+        )
         saver.commit()
 
         self.assertIsNotNone(saver._session)
@@ -112,10 +115,12 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         returned_obj = saver._get_db_obj_query()
         self.assertEqual(returned_obj.first().report_name, 'myreport')
 
-        saver.update(cursor_position=33,
-                     last_completed_datetime='1/1/2011 11:11:11',
-                     last_started_datetime='2/2/22 22:22:22',
-                     etag='myetag')
+        saver.update(
+            cursor_position=33,
+            last_completed_datetime='1/1/2011 11:11:11',
+            last_started_datetime='2/2/22 22:22:22',
+            etag='myetag',
+        )
         saver.commit()
 
         self.assertEqual(saver.get_cursor_position(), 33)

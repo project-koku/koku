@@ -48,11 +48,13 @@ class ProviderStatusTest(MasuTestCase):
         This is being done in a separate function instead of in setUp() to
         facilitate testing the case where there is no status in the DB.
         """
-        self.test_status = {'provider_id': self.provider_id,
-                            'status': random.choice(list(ProviderStatusCode)),
-                            'last_message': self.FAKE.word(),
-                            'timestamp': DateAccessor().today(),
-                            'retries': random.randint(0, 10)}
+        self.test_status = {
+            'provider_id': self.provider_id,
+            'status': random.choice(list(ProviderStatusCode)),
+            'last_message': self.FAKE.word(),
+            'timestamp': DateAccessor().today(),
+            'retries': random.randint(0, 10),
+        }
 
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**self.test_status)
@@ -60,11 +62,13 @@ class ProviderStatusTest(MasuTestCase):
 
     def _setup_ready_status(self):
         """set status to READY state. """
-        ready_status = {'provider_id': self.provider_id,
-                        'status': ProviderStatusCode.READY,
-                        'last_message': 'none',
-                        'timestamp': DateAccessor().today(),
-                        'retries': 0}
+        ready_status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.READY,
+            'last_message': 'none',
+            'timestamp': DateAccessor().today(),
+            'retries': 0,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**ready_status)
             accessor.commit()
@@ -111,15 +115,17 @@ class ProviderStatusTest(MasuTestCase):
             # status should stay in WARNING until MAX_RETRIES is exceeded.
             if idx < ProviderStatus.MAX_RETRIES:
                 with ProviderStatus(self.aws_test_provider_uuid) as new_accessor:
-                    self.assertEqual(new_accessor.get_status(), ProviderStatusCode.WARNING)
+                    self.assertEqual(
+                        new_accessor.get_status(), ProviderStatusCode.WARNING
+                    )
                     self.assertEqual(new_accessor.get_retries(), idx)
 
         # status should be DISABLED after MAX_RETRIES is reached.
         with ProviderStatus(self.aws_test_provider_uuid) as other_accessor:
-            self.assertEqual(other_accessor.get_status(),
-                             ProviderStatusCode.DISABLED_ERROR)
-            self.assertEqual(other_accessor.get_retries(),
-                             ProviderStatus.MAX_RETRIES)
+            self.assertEqual(
+                other_accessor.get_status(), ProviderStatusCode.DISABLED_ERROR
+            )
+            self.assertEqual(other_accessor.get_retries(), ProviderStatus.MAX_RETRIES)
 
     def test_is_valid_ready(self):
         """Test is_valid() should be True when status is READY."""
@@ -131,11 +137,13 @@ class ProviderStatusTest(MasuTestCase):
 
     def test_is_valid_warn(self):
         """Test is_valid() should be True when status is WARNING."""
-        status = {'provider_id': self.provider_id,
-                  'status': ProviderStatusCode.WARNING,
-                  'last_message': self.FAKE.word(),
-                  'timestamp': DateAccessor().today(),
-                  'retries': 3}
+        status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.WARNING,
+            'last_message': self.FAKE.word(),
+            'timestamp': DateAccessor().today(),
+            'retries': 3,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
             accessor.commit()
@@ -146,11 +154,13 @@ class ProviderStatusTest(MasuTestCase):
 
     def test_is_valid_disabled(self):
         """Test when is_valid() should be False when status is DISABLED."""
-        status = {'provider_id': self.provider_id,
-                  'status': ProviderStatusCode.DISABLED_ERROR,
-                  'last_message': self.FAKE.word(),
-                  'timestamp': DateAccessor().today(),
-                  'retries': 3}
+        status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.DISABLED_ERROR,
+            'last_message': self.FAKE.word(),
+            'timestamp': DateAccessor().today(),
+            'retries': 3,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
             accessor.commit()
@@ -161,11 +171,13 @@ class ProviderStatusTest(MasuTestCase):
 
     def test_is_valid_new(self):
         """Test when is_valid() should be False when status is NEW."""
-        status = {'provider_id': self.provider_id,
-                  'status': ProviderStatusCode.NEW,
-                  'last_message': self.FAKE.word(),
-                  'timestamp': DateAccessor().today(),
-                  'retries': 3}
+        status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.NEW,
+            'last_message': self.FAKE.word(),
+            'timestamp': DateAccessor().today(),
+            'retries': 3,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
             accessor.commit()
@@ -177,11 +189,13 @@ class ProviderStatusTest(MasuTestCase):
     def test_is_backing_off_true(self):
         """Test is_backing_off() is true within the appropriate time window."""
         two_hours_ago = DateAccessor().today() - timedelta(hours=2)
-        status = {'provider_id': self.provider_id,
-                  'status': ProviderStatusCode.WARNING,
-                  'last_message': self.FAKE.word(),
-                  'timestamp': two_hours_ago,
-                  'retries': 1}
+        status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.WARNING,
+            'last_message': self.FAKE.word(),
+            'timestamp': two_hours_ago,
+            'retries': 1,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
             accessor.commit()
@@ -192,11 +206,13 @@ class ProviderStatusTest(MasuTestCase):
     def test_is_backing_off_false(self):
         """Test is_backing_off() is false outside the appropriate time window."""
         three_hours_ago = DateAccessor().today() - timedelta(hours=3)
-        status = {'provider_id': self.provider_id,
-                  'status': ProviderStatusCode.WARNING,
-                  'last_message': self.FAKE.word(),
-                  'timestamp': three_hours_ago,
-                  'retries': 1}
+        status = {
+            'provider_id': self.provider_id,
+            'status': ProviderStatusCode.WARNING,
+            'last_message': self.FAKE.word(),
+            'timestamp': three_hours_ago,
+            'retries': 1,
+        }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
             accessor.commit()

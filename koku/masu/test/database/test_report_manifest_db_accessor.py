@@ -36,7 +36,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1
+            'provider_id': 1,
         }
         self.manifest_accessor = ReportManifestDBAccessor()
 
@@ -66,8 +66,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertEqual(manifest.assembly_id, assembly_id)
         self.assertEqual(manifest.provider_id, provider_id)
         self.assertEqual(
-            manifest.num_total_files,
-            self.manifest_dict.get('num_total_files')
+            manifest.num_total_files, self.manifest_dict.get('num_total_files')
         )
 
     def test_get_manifest_by_id(self):

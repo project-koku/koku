@@ -24,7 +24,10 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater, AWSReportChargeUpdaterError
+from masu.processor.aws.aws_report_charge_updater import (
+    AWSReportChargeUpdater,
+    AWSReportChargeUpdaterError,
+)
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
 
@@ -47,9 +50,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
 
         cls.creator = ReportObjectCreator(
-            cls.accessor,
-            cls.column_map,
-            cls.report_schema.column_types
+            cls.accessor, cls.column_map, cls.report_schema.column_types
         )
 
         cls.date_accessor = DateAccessor()
@@ -58,7 +59,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1
+            'provider_id': 1,
         }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -90,7 +91,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         self.updater = AWSReportChargeUpdater(
             schema=self.test_schema,
             provider_uuid=self.aws_test_provider_uuid,
-            provider_id=provider_id
+            provider_id=provider_id,
         )
         today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_cost_entry_bill(today)
@@ -99,11 +100,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         pricing = self.creator.create_cost_entry_pricing()
         reservation = self.creator.create_cost_entry_reservation()
         self.creator.create_cost_entry_line_item(
-            bill,
-            cost_entry,
-            product,
-            pricing,
-            reservation
+            bill, cost_entry, product, pricing, reservation
         )
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
@@ -111,7 +108,6 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
-
 
     def tearDown(self):
         """Return the database to a pre-test state."""

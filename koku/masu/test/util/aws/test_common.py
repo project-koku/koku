@@ -38,8 +38,7 @@ from masu.util.aws import common as utils
 
 from tests import MasuTestCase
 from tests.database.helpers import ReportObjectCreator
-from tests.external.downloader.aws import (fake_arn,
-                                           fake_aws_account_id)
+from tests.external.downloader.aws import fake_arn, fake_aws_account_id
 from tests.external.downloader.aws.test_aws_report_downloader import FakeSession
 
 # the cn endpoints aren't supported by moto, so filter them out
@@ -51,19 +50,23 @@ BUCKET = Faker().word()
 PREFIX = Faker().word()
 FORMAT = random.choice(['text', 'csv'])
 COMPRESSION = random.choice(['ZIP', 'GZIP'])
-REPORT_DEFS = [{'ReportName': NAME,
-                'TimeUnit': 'DAILY',
-                'Format': FORMAT,
-                'Compression': COMPRESSION,
-                'S3Bucket': BUCKET,
-                'S3Prefix': PREFIX,
-                'S3Region': REGION}]
+REPORT_DEFS = [
+    {
+        'ReportName': NAME,
+        'TimeUnit': 'DAILY',
+        'Format': FORMAT,
+        'Compression': COMPRESSION,
+        'S3Bucket': BUCKET,
+        'S3Prefix': PREFIX,
+        'S3Region': REGION,
+    }
+]
 MOCK_BOTO_CLIENT = Mock()
 response = {
     'Credentials': {
         'AccessKeyId': 'mock_access_key_id',
         'SecretAccessKey': 'mock_secret_access_key',
-        'SessionToken': 'mock_session_token'
+        'SessionToken': 'mock_session_token',
     }
 }
 MOCK_BOTO_CLIENT.assume_role.return_value = response
@@ -76,22 +79,21 @@ class TestAWSUtils(MasuTestCase):
         """Setup the test."""
         super().setUp()
         self.account_id = fake_aws_account_id()
-        self.arn = fake_arn(account_id=self.account_id,
-                            region=REGION,
-                            service='iam')
+        self.arn = fake_arn(account_id=self.account_id, region=REGION, service='iam')
         with ReportingCommonDBAccessor() as common_accessor:
             self.column_map = common_accessor.column_map
 
     def tearDown(self):
         """Tear down the test."""
-        with AWSReportDBAccessor(schema=self.test_schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(
+            schema=self.test_schema, column_map=self.column_map
+        ) as accessor:
             for table_name in list(AWS_CUR_TABLE_MAP.values()):
                 table_obj = getattr(accessor.report_schema, table_name)
                 accessor._session.query(table_obj).delete()
                 # for table in tables:
                 #     accessor._session.delete(table)
             accessor.commit()
-
 
     @patch('masu.util.aws.common.boto3.client', return_value=MOCK_BOTO_CLIENT)
     def test_get_assume_role_session(self, mock_boto_client):
@@ -105,27 +107,26 @@ class TestAWSUtils(MasuTestCase):
         start_month = today.replace(day=1, second=1, microsecond=1)
         end_month = start_month + relativedelta(months=+1)
         timeformat = '%Y%m%d'
-        expected_string = '{}-{}'.format(start_month.strftime(timeformat),
-                                         end_month.strftime(timeformat))
+        expected_string = '{}-{}'.format(
+            start_month.strftime(timeformat), end_month.strftime(timeformat)
+        )
 
         self.assertEqual(out, expected_string)
 
-    @patch('masu.util.aws.common.get_cur_report_definitions',
-           return_value=REPORT_DEFS)
+    @patch('masu.util.aws.common.get_cur_report_definitions', return_value=REPORT_DEFS)
     def test_cur_report_names_in_bucket(self, fake_report_defs):
         session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id,
-                                                            BUCKET,
-                                                            session)
+        report_names = utils.get_cur_report_names_in_bucket(
+            self.account_id, BUCKET, session
+        )
         self.assertIn(NAME, report_names)
 
-    @patch('masu.util.aws.common.get_cur_report_definitions',
-           return_value=REPORT_DEFS)
+    @patch('masu.util.aws.common.get_cur_report_definitions', return_value=REPORT_DEFS)
     def test_cur_report_names_in_bucket_malformed(self, fake_report_defs):
         session = Mock()
-        report_names = utils.get_cur_report_names_in_bucket(self.account_id,
-                                                            'wrong-bucket',
-                                                            session)
+        report_names = utils.get_cur_report_names_in_bucket(
+            self.account_id, 'wrong-bucket', session
+        )
         self.assertNotIn(NAME, report_names)
 
     def test_get_cur_report_definitions(self):
@@ -133,8 +134,7 @@ class TestAWSUtils(MasuTestCase):
         defs = utils.get_cur_report_definitions(self.arn, session)
         self.assertEqual(len(defs), 1)
 
-    @patch('masu.util.aws.common.get_assume_role_session',
-           return_value=FakeSession)
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def test_get_cur_report_definitions_no_session(self, fake_session):
         defs = utils.get_cur_report_definitions(self.arn)
         self.assertEqual(len(defs), 1)
@@ -146,11 +146,11 @@ class TestAWSUtils(MasuTestCase):
 
         session = Mock()
         mock_client = Mock()
-        mock_client.list_account_aliases.return_value = {
-            'AccountAliases': [mock_alias]
-        }
+        mock_client.list_account_aliases.return_value = {'AccountAliases': [mock_alias]}
         session.client.return_value = mock_client
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(
+            role_arn, session
+        )
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_alias, account_alias)
 
@@ -158,21 +158,26 @@ class TestAWSUtils(MasuTestCase):
     def test_get_account_alias_from_role_arn_no_policy(self, mock_get_role_session):
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
-        mock_client.return_value.list_account_aliases.side_effect = ClientError({}, 'Error')
+        mock_client.return_value.list_account_aliases.side_effect = ClientError(
+            {}, 'Error'
+        )
 
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
 
-        account_id, account_alias = utils.get_account_alias_from_role_arn(role_arn, mock_session)
+        account_id, account_alias = utils.get_account_alias_from_role_arn(
+            role_arn, mock_session
+        )
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
     @patch('masu.util.aws.common.get_assume_role_session')
-    def test_get_account_alias_from_role_arn_no_session(self,
-                                                        mock_get_role_session):
+    def test_get_account_alias_from_role_arn_no_session(self, mock_get_role_session):
         mock_session = mock_get_role_session.return_value
         mock_client = mock_session.client
-        mock_client.return_value.list_account_aliases.side_effect = ClientError({}, 'Error')
+        mock_client.return_value.list_account_aliases.side_effect = ClientError(
+            {}, 'Error'
+        )
 
         mock_account_id = '111111111111'
         role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
@@ -207,12 +212,12 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider."""
         date_accessor = DateAccessor()
 
-        with AWSReportDBAccessor(schema=self.test_schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(
+            schema=self.test_schema, column_map=self.column_map
+        ) as accessor:
             report_schema = accessor.report_schema
             creator = ReportObjectCreator(
-                accessor,
-                self.column_map,
-                report_schema.column_types
+                accessor, self.column_map, report_schema.column_types
             )
             expected_bill_ids = []
 
@@ -224,8 +229,7 @@ class TestAWSUtils(MasuTestCase):
                 expected_bill_ids.append(str(bill.id))
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
-            self.test_schema
+            self.aws_test_provider_uuid, self.test_schema
         )
 
         bill_ids = [str(bill.id) for bill in bills]
@@ -236,14 +240,16 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with start date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(
+            provider_uuid=self.aws_test_provider_uuid
+        ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.test_schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(
+            schema=self.test_schema, column_map=self.column_map
+        ) as accessor:
             report_schema = accessor.report_schema
             creator = ReportObjectCreator(
-                accessor,
-                self.column_map,
-                report_schema.column_types
+                accessor, self.column_map, report_schema.column_types
             )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
@@ -255,13 +261,11 @@ class TestAWSUtils(MasuTestCase):
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = bills.filter(bill_obj.billing_period_start>=end_date.date()).all()
+            bills = bills.filter(bill_obj.billing_period_start >= end_date.date()).all()
             expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
-            self.test_schema,
-            start_date=end_date
+            self.aws_test_provider_uuid, self.test_schema, start_date=end_date
         )
         bill_ids = [str(bill.id) for bill in bills]
 
@@ -271,14 +275,16 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with end date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(
+            provider_uuid=self.aws_test_provider_uuid
+        ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.test_schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(
+            schema=self.test_schema, column_map=self.column_map
+        ) as accessor:
             report_schema = accessor.report_schema
             creator = ReportObjectCreator(
-                accessor,
-                self.column_map,
-                report_schema.column_types
+                accessor, self.column_map, report_schema.column_types
             )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
@@ -290,14 +296,13 @@ class TestAWSUtils(MasuTestCase):
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = bills.filter(bill_obj.billing_period_start<=start_date.date()).all()
+            bills = bills.filter(
+                bill_obj.billing_period_start <= start_date.date()
+            ).all()
             expected_bill_ids = [str(bill.id) for bill in bills]
 
-
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
-            self.test_schema,
-            end_date=start_date
+            self.aws_test_provider_uuid, self.test_schema, end_date=start_date
         )
         bill_ids = [str(bill.id) for bill in bills]
 
@@ -307,14 +312,16 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with both dates."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(
+            provider_uuid=self.aws_test_provider_uuid
+        ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(schema=self.test_schema, column_map=self.column_map) as accessor:
+        with AWSReportDBAccessor(
+            schema=self.test_schema, column_map=self.column_map
+        ) as accessor:
             report_schema = accessor.report_schema
             creator = ReportObjectCreator(
-                accessor,
-                self.column_map,
-                report_schema.column_types
+                accessor, self.column_map, report_schema.column_types
             )
 
             end_date = date_accessor.today_with_timezone('utc').replace(day=1)
@@ -327,29 +334,33 @@ class TestAWSUtils(MasuTestCase):
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
             bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = bills.filter(bill_obj.billing_period_start>=start_date.date())\
-                .filter(bill_obj.billing_period_start<=end_date.date()).all()
+            bills = (
+                bills.filter(bill_obj.billing_period_start >= start_date.date())
+                .filter(bill_obj.billing_period_start <= end_date.date())
+                .all()
+            )
             expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
             self.aws_test_provider_uuid,
             self.test_schema,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
         )
         bill_ids = [str(bill.id) for bill in bills]
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
+
 class AwsArnTest(TestCase):
     """AwnArn class test case."""
+
     fake = Faker()
 
     def test_parse_arn_with_region_and_account(self):
         """Assert successful account ID parsing from a well-formed ARN."""
         mock_account_id = fake_aws_account_id()
-        mock_arn = fake_arn(account_id=mock_account_id,
-                            region='test-region-1')
+        mock_arn = fake_arn(account_id=mock_account_id, region='test-region-1')
 
         arn_object = utils.AwsArn(mock_arn)
 
@@ -374,14 +385,20 @@ class AwsArnTest(TestCase):
         resource = arn_object.resource
         self.assertIsNotNone(resource)
 
-        reconstructed_arn = 'arn:' + \
-                            partition + ':' + \
-                            service + ':' + \
-                            region + ':' + \
-                            account_id + ':' + \
-                            resource_type + \
-                            resource_separator + \
-                            resource
+        reconstructed_arn = (
+            'arn:'
+            + partition
+            + ':'
+            + service
+            + ':'
+            + region
+            + ':'
+            + account_id
+            + ':'
+            + resource_type
+            + resource_separator
+            + resource
+        )
 
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_arn, reconstructed_arn)

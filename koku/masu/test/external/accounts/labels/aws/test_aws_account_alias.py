@@ -46,7 +46,9 @@ class AWSAccountAliasTest(MasuTestCase):
         self.assertEqual(accessor._role_arn, arn)
         self.assertEqual(accessor._schema, schema)
 
-    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn')
+    @patch(
+        'masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn'
+    )
     def test_update_account_alias_no_alias(self, mock_get_alias):
         """Test updating alias when none is set."""
         mock_get_alias.return_value = (self.account_id, None)
@@ -58,8 +60,9 @@ class AWSAccountAliasTest(MasuTestCase):
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertIsNone(db_access._obj.account_alias)
 
-
-    @patch('masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn')
+    @patch(
+        'masu.external.accounts.labels.aws.aws_account_alias.get_account_alias_from_role_arn'
+    )
     def test_update_account_alias_with_alias(self, mock_get_alias):
         """Test updating alias."""
         alias = 'hccm-alias'
