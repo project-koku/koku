@@ -18,6 +18,7 @@
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
+from reporting_common.models import CostUsageReportManifest
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -27,38 +28,37 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Access the AWS report manifest database table."""
         self._schema = 'public'
         super().__init__(self._schema)
-        self._table = \
-            self.get_base().classes.reporting_common_costusagereportmanifest
+        self._table = CostUsageReportManifest
         self.date_accessor = DateAccessor()
 
     def get_manifest(self, assembly_id, provider_id):
         """Get the manifest associated with the provided provider and id."""
         query = self._get_db_obj_query()
-        return query.filter_by(provider_id=provider_id)\
-            .filter_by(assembly_id=assembly_id).first()
+        return query.filter(provider_id=provider_id)\
+            .filter(assembly_id=assembly_id).first()
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
         query = self._get_db_obj_query()
-        return query.filter_by(id=manifest_id).first()
+        return query.filter(id=manifest_id).first()
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         manifest.manifest_updated_datetime = \
             self.date_accessor.today_with_timezone('UTC')
 
-    def add(self, use_savepoint=True, **kwargs):
+    # pylint: disable=arguments-differ
+    def add(self, **kwargs):
         """
         Add a new row to the CUR stats database.
 
         Args:
             kwargs (dict): Fields containing CUR Manifest attributes.
-
-            Valid keys are: assembly_id,
-                            billing_period_start_datetime,
-                            num_processed_files (optional),
-                            num_total_files,
-                            provider_id,
+                Valid keys are: assembly_id,
+                                billing_period_start_datetime,
+                                num_processed_files (optional),
+                                num_total_files,
+                                provider_id,
         Returns:
             None
 
@@ -70,4 +70,4 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if 'num_processed_files' not in kwargs:
             kwargs['num_processed_files'] = 0
 
-        return super().add(use_savepoint, **kwargs)
+        return super().add(**kwargs)
