@@ -18,7 +18,10 @@
 
 from collections import defaultdict
 
+import django.apps
+
 from masu.database.koku_database_access import KokuDBAccess
+from reporting_common.models import ReportColumnMap
 
 
 class ReportingCommonDBAccessor(KokuDBAccess):
@@ -37,14 +40,14 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
     def _get_reporting_tables(self):
         """Load table objects for reference and creation."""
-        base = self.get_base()
+        models = django.apps.apps.get_models()
 
-        for table in base.classes:
-            if 'reporting_common' in table.__name__:
-                setattr(self.report_common_schema, table.__name__, table)
+        for model in models:
+            if 'reporting_common' in model._meta.db_table:
+                setattr(self.report_common_schema, model._meta.db_table, model)
 
-            if 'region_mapping' in table.__name__:
-                setattr(self, f'_{table.__name__}', table)
+            if 'region_mapping' in model._meta.db_table:
+                setattr(self, f'_{model._meta.db_table}', model)
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table_name):
@@ -58,14 +61,14 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
         """
         table = getattr(self.report_common_schema, table_name)
-        return self._session.query(table)
+        return table.objects.all()
 
+    # pylint: disable=no-self-use
     def generate_column_map(self):
         """Generate a mapping of provider data columns to db columns."""
         column_map = defaultdict(dict)
 
-        report_column_map = \
-            self._get_db_obj_query('reporting_common_reportcolumnmap').all()
+        report_column_map = ReportColumnMap.objects.all()
 
         for row in report_column_map:
             entry = {row.provider_column_name: row.database_column}
@@ -86,8 +89,6 @@ class ReportingCommonDBAccessor(KokuDBAccess):
             None
 
         """
-        new = getattr(self, f'_{table.lower()}')(**fields)
+        getattr(self, f'_{table.lower()}').create(**fields)
         if use_savepoint:
-            self.savepoint(self._session.add, new)
-        else:
-            self._session.add(new)
+            self.savepoint(self.add, table=table, field=fields)

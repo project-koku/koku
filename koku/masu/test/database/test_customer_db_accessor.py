@@ -18,30 +18,26 @@
 """Test the CustomerDBAccessor utility object."""
 
 from masu.database.customer_db_accessor import CustomerDBAccessor
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class CustomerDBAccessorTest(MasuTestCase):
     """Test Cases for the CustomerDBAccessor object."""
 
     def test_initializer(self):
-        """Test Initializer"""
-        customer_id = '1'
+        """Test Initializer."""
+        customer_id = self.customer.id
         accessor = CustomerDBAccessor(customer_id)
-        self.assertIsNotNone(accessor._session)
         self.assertTrue(accessor.does_db_entry_exist())
-        accessor.close_session()
 
     def test_get_uuid(self):
         """Test uuid getter."""
-        customer_id = '1'
+        customer_id = self.customer.id
         accessor = CustomerDBAccessor(customer_id)
         self.assertIsNotNone(accessor.get_uuid())
-        accessor.close_session()
 
     def test_get_schema_name(self):
         """Test provider name getter."""
-        customer_id = '1'
+        customer_id = self.customer.id
         accessor = CustomerDBAccessor(customer_id)
-        self.assertEqual('acct10001', accessor.get_schema_name())
-        accessor.close_session()
+        self.assertEqual(self.schema, accessor.get_schema_name())

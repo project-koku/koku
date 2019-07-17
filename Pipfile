@@ -26,6 +26,7 @@ django-redis = "==4.10.0"
 flake8 = "==3.7.7"
 watchtower = "==0.6.0"
 celery = "~=4.3.0"
+python-dateutil = "*"
 
 [dev-packages]
 astroid = "==2.2.5"
@@ -37,6 +38,8 @@ coverage = ">=4.5.0"
 codecov = ">=2.0.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.9"
+pydocstyle = "~=3.0.0"
+flake8-docstrings = "*"
 
 [requires]
 python_version = "3.6"

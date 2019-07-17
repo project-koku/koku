@@ -16,7 +16,7 @@
 #
 """Accessor for Provider information from koku database."""
 
-
+from api.provider.models import Provider
 from masu.database.customer_db_accessor import CustomerDBAccessor
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
@@ -37,7 +37,7 @@ class ProviderDBAccessor(KokuDBAccess):
         super().__init__('public')
         self._uuid = provider_uuid
         self._auth_id = auth_id
-        self._table = self.get_base().classes.api_provider
+        self._table = Provider
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -49,16 +49,11 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        query = None
-        if self._auth_id and not self._uuid:
-            query = super()._get_db_obj_query(authentication_id=self._auth_id)
-        elif self._uuid and not self._auth_id:
-            query = super()._get_db_obj_query(uuid=self._uuid)
-        elif self._uuid and self._auth_id:
-            query = super()._get_db_obj_query(uuid=self._uuid, authentication_id=self._auth_id)
-        else:
-            query = super()._get_db_obj_query()
-
+        query = self._table.objects.all()
+        if self._auth_id:
+            query = query.filter(authentication_id=self._auth_id)
+        if self._uuid:
+            query = query.filter(uuid=self._uuid)
         return query
 
     def get_provider(self):
@@ -76,7 +71,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
         """
         obj = self._get_db_obj_query().first()
-        return obj.uuid
+        return str(obj.uuid) if obj else None
 
     def get_provider_name(self):
         """
@@ -89,7 +84,7 @@ class ProviderDBAccessor(KokuDBAccess):
                     example: "Test Provider"
         """
         obj = self._get_db_obj_query().first()
-        return obj.name
+        return obj.name if obj else None
 
     def get_type(self):
         """
@@ -146,7 +141,7 @@ class ProviderDBAccessor(KokuDBAccess):
             (Boolean): "True if a report has been processed for the provider.",
         """
         obj = self._get_db_obj_query().first()
-        return obj.setup_complete
+        return obj.setup_complete if obj else None
 
     def setup_complete(self):
         """
@@ -159,6 +154,7 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         obj = self._get_db_obj_query().first()
         obj.setup_complete = True
+        obj.save()
 
     def get_customer_uuid(self):
         """

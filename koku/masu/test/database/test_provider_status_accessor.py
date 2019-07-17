@@ -21,12 +21,14 @@ import random
 import uuid
 
 from faker import Faker
-from masu.database.provider_status_accessor import (ProviderStatusAccessor,
-                                                    ProviderStatusCode)
+
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.provider_status_accessor import (
+    ProviderStatusAccessor,
+    ProviderStatusCode,
+)
 from masu.exceptions import MasuProviderError
-from masu.external.date_accessor import DateAccessor
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ProviderStatusAccessorTest(MasuTestCase):
@@ -48,15 +50,17 @@ class ProviderStatusAccessorTest(MasuTestCase):
         This is being done in a separate function instead of in setUp() to
         facilitate testing the case where there is no status in the DB.
         """
-        self.test_status = {'provider_id': self.provider_id,
-                            'status': random.choice(list(ProviderStatusCode)),
-                            'last_message': self.FAKE.word(),
-                            'timestamp': DateAccessor().today(),
-                            'retries': random.randint(0, 10)}
+        self.test_status = {
+            'provider_id': self.provider_id,
+            'status': random.choice(list(ProviderStatusCode)),
+            'last_message': self.FAKE.word(),
+            'retries': random.randint(0, 10),
+        }
 
         with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
-            accessor.add(**self.test_status)
-            accessor.commit()
+            status = accessor.add(**self.test_status)
+            status.save()
+            self.time_stamp = status.timestamp
 
     def test_init(self):
         """Test __init__() when a status is in the DB."""
@@ -103,4 +107,4 @@ class ProviderStatusAccessorTest(MasuTestCase):
         self._setup_random_status()
         with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
             output = accessor.get_timestamp()
-            self.assertEqual(output, self.test_status.get('timestamp'))
+            self.assertEqual(output, self.time_stamp)
