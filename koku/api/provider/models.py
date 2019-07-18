@@ -84,6 +84,7 @@ class Provider(models.Model):
     created_by = models.ForeignKey('User', null=True,
                                    on_delete=models.SET_NULL)
     setup_complete = models.BooleanField(default=False)
+    created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
 
 class ProviderStatus(models.Model):
