@@ -38,25 +38,35 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid
         self.column_map = column_map
+        self.rates = self._make_rate_by_metric_map()
 
-    def _get_base_entry(self, metric_value):
+    def _get_base_entry(self):
         """Get base metric query."""
         query_sql = f"""
-            SELECT rates_table.rates
-            FROM {self.schema}.rates_rate as rates_table
-            JOIN {self.schema}.rates_ratemap as rates_map
-                ON rates_table.id = rates_map.rate_id
-            WHERE rates_map.provider_uuid = '{self.provider_uuid}'
-                AND rates_table.metric = '{metric_value}'
+            SELECT cost_model_table.rates
+            FROM {self.schema}.cost_model as cost_model_table
+            JOIN {self.schema}.cost_model_map as map
+                ON cost_model_table.uuid = map.cost_model_id
+            WHERE map.provider_uuid = '{self.provider_uuid}'
             """
         self._cursor.execute(query_sql)
         results = self._cursor.fetchall()
 
         return results[0][0] if len(results) == 1 else None
 
+    def _make_rate_by_metric_map(self):
+        """Convert the rates JSON list to a dict keyed on metric."""
+        metric_rate_map = {}
+        rates = self._get_base_entry()
+        if not rates:
+            return {}
+        for rate in rates:
+            metric_rate_map[rate.get('metric', {}).get('name')] = rate
+        return metric_rate_map
+
     def get_rates(self, value):
         """Get the rates."""
-        return self._get_base_entry(value)
+        return self.rates.get(value)
 
     def get_cpu_core_usage_per_hour_rates(self):
         """Get cpu usage rates."""
