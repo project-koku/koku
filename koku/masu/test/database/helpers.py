@@ -272,21 +272,29 @@ class ReportObjectCreator:
         """Convert datetime string to datetime with AWS formatting."""
         return datetime.datetime.strptime(value, Config.AWS_DATETIME_STR_FORMAT)
 
-    def create_rate(self, metric, provider_uuid, rates):
+    def create_cost_model(self, provider_uuid, source_type, rates):
         """Create an OCP rate database object for test."""
-        table_name = OCP_REPORT_TABLE_MAP['rate']
+        table_name = OCP_REPORT_TABLE_MAP['cost_model']
+        data = {
+            'uuid': str(uuid.uuid4()),
+            'created_timestamp': self.fake.past_datetime(),
+            'updated_timestamp': self.fake.past_datetime(),
+            'name': self.fake.pystr()[:8],
+            'description': self.fake.pystr(),
+            'source_type': source_type,
+            'rates': rates
+        }
 
-        data = {'metric': metric, 'rates': rates, 'uuid': str(uuid.uuid4())}
+        cost_model_obj = self.db_accessor.create_db_object(table_name, data)
+        cost_model_obj.save()
 
-        rate_obj = self.db_accessor.create_db_object(table_name, data)
-        rate_obj.save()
-
-        rate_map_table = OCP_REPORT_TABLE_MAP['rate_map']
+        cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
-        data = {'provider_uuid': provider_obj.uuid, 'rate_id': rate_obj.id}
-        rate_map_obj = self.db_accessor.create_db_object(rate_map_table, data)
-        rate_map_obj.save()
-        return rate_obj
+        data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
+        cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
+        cost_model_map_obj.save()
+
+        return cost_model_obj
 
     def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
         """Create an ocpawscostlineitem_project_daily_summary object for test."""

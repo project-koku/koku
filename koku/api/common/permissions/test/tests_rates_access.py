@@ -20,18 +20,18 @@ from uuid import uuid4
 
 from django.test import TestCase
 
-from api.common.permissions.rates_access import RatesAccessPermission
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from api.iam.models import User
 
 
-class RatesAccessPermissionTest(TestCase):
+class CostModelsAccessPermissionTest(TestCase):
     """Test the Rates access permission."""
 
     def test_has_perm_admin(self):
         """Test that an admin user can execute."""
         user = Mock(spec=User, admin=True)
         req = Mock(user=user)
-        accessPerm = RatesAccessPermission()
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
@@ -39,7 +39,7 @@ class RatesAccessPermissionTest(TestCase):
         """Test that a user with no access cannot execute."""
         user = Mock(spec=User, access=None, admin=False)
         req = Mock(user=user)
-        accessPerm = RatesAccessPermission()
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertFalse(result)
 
@@ -48,7 +48,7 @@ class RatesAccessPermissionTest(TestCase):
         access = {'rate': {'read': ['*'], 'write': []}}
         user = Mock(spec=User, access=access, admin=False)
         req = Mock(user=user, method='GET')
-        accessPerm = RatesAccessPermission()
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
@@ -57,7 +57,7 @@ class RatesAccessPermissionTest(TestCase):
         access = {'rate': {'read': ['*'], 'write': ['*']}}
         user = Mock(spec=User, access=access, admin=False)
         req = Mock(user=user, method='POST')
-        accessPerm = RatesAccessPermission()
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)
 
@@ -65,18 +65,18 @@ class RatesAccessPermissionTest(TestCase):
         """Test that a user with access cannot execute PUT."""
         access = {'rate': {'read': ['*'], 'write': []}}
         user = Mock(spec=User, access=access, admin=False)
-        req = Mock(user=user, method='PUT', META={'PATH_INFO': 'http://localhost/api/v1/rates/no_uuid'})
-        accessPerm = RatesAccessPermission()
+        req = Mock(user=user, method='PUT', META={'PATH_INFO': 'http://localhost/api/v1/costmodels/no_uuid'})
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertFalse(result)
 
     def test_has_perm_with_access_on_put(self):
         """Test that a user with access cannot execute PUT."""
-        rate_uuid = str(uuid4())
-        access = {'rate': {'read': ['*'], 'write': [rate_uuid]}}
+        cost_model_uuid = str(uuid4())
+        access = {'rate': {'read': ['*'], 'write': [cost_model_uuid]}}
         user = Mock(spec=User, access=access, admin=False)
-        rate_url = 'http://localhost/api/v1/rates/{}'.format(rate_uuid)
-        req = Mock(user=user, method='PUT', META={'PATH_INFO': rate_url})
-        accessPerm = RatesAccessPermission()
+        cost_model_url = 'http://localhost/api/v1/costmodels/{}'.format(cost_model_uuid)
+        req = Mock(user=user, method='PUT', META={'PATH_INFO': cost_model_url})
+        accessPerm = CostModelsAccessPermission()
         result = accessPerm.has_permission(request=req, view=None)
         self.assertTrue(result)

@@ -19,7 +19,7 @@
 from django.apps import AppConfig
 
 
-class RatesConfig(AppConfig):
+class CostModelsConfig(AppConfig):
     """Rates application configuration."""
 
-    name = 'rates'
+    name = 'cost_models'
