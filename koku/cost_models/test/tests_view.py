@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Test the Rate views."""
+"""Test the Cost Model views."""
 import copy
 import random
 from decimal import Decimal
@@ -33,13 +33,13 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
+from cost_models.models import CostModel, CostModelMap
+from cost_models.serializers import CostModelSerializer
 from koku.rbac import RbacService
-from rates.models import Rate, RateMap
-from rates.serializers import RateSerializer
 
 
-class RateViewTests(IamTestCase):
-    """Test the Rate view."""
+class CostModelViewTests(IamTestCase):
+    """Test the Cost Model view."""
 
     def initialize_request(self, context=None):
         """Initialize model data."""
@@ -64,16 +64,31 @@ class RateViewTests(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
-        self.fake_data = {'provider_uuids': [self.provider.uuid],
-                          'metric': {'name': CostModelMetricsMap.OCP_METRIC_MEM_GB_USAGE_HOUR},
-                          'tiered_rate': [{
-                              'value': round(Decimal(random.random()), 6),
-                              'unit': 'USD',
-                              'usage': {'usage_start': None, 'usage_end': None}
-                          }]
-                          }
+        self.ocp_metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        self.ocp_source_type = 'OCP'
+        tiered_rates = [
+            {
+                'value': round(Decimal(random.random()), 6),
+                'unit': 'USD',
+                'usage': {'usage_start': None, 'usage_end': None}
+            }
+        ]
+        self.fake_data = {
+            'name': 'Test Cost Model',
+            'description': 'Test',
+            'source_type': self.ocp_source_type,
+            'provider_uuids': [self.provider.uuid],
+            'rates': [
+                {
+                    'metric': {'name': self.ocp_metric},
+                    'tiered_rates': tiered_rates
+                }
+            ]
+        }
+
         with tenant_context(self.tenant):
-            serializer = RateSerializer(data=self.fake_data, context=request_context)
+            serializer = CostModelSerializer(data=self.fake_data,
+                                             context=request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
@@ -81,237 +96,180 @@ class RateViewTests(IamTestCase):
         """Set up the rate view tests."""
         super().setUp()
         caches['rbac'].clear()
-
-        with tenant_context(self.tenant):
-            Rate.objects.all().delete()
-            RateMap.objects.all().delete()
-            Provider.objects.all().delete()
-            User.objects.all().delete()
         self.initialize_request()
 
     def tearDown(self):
         """Tear down rate view tests."""
         with tenant_context(self.tenant):
-            Rate.objects.all().delete()
-            RateMap.objects.all().delete()
+            CostModel.objects.all().delete()
+            CostModelMap.objects.all().delete()
             Provider.objects.all().delete()
             User.objects.all().delete()
 
-    def test_create_rate_success(self):
-        """Test that we can create a rate."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        # create a rate
-        url = reverse('rates-list')
+    def test_create_cost_model_success(self):
+        """Test that we can create a cost model."""
+        # create a cost model
+        url = reverse('costmodels-list')
         client = APIClient()
-        response = client.post(url, data=test_data, format='json', **self.headers)
+        response = client.post(url, data=self.fake_data,
+                               format='json', **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        # test that we can retrieve the rate
-        url = reverse('rates-detail', kwargs={'uuid': response.data.get('uuid')})
+        # test that we can retrieve the cost model
+        url = reverse('costmodels-detail', kwargs={'uuid': response.data.get('uuid')})
         response = client.get(url, **self.headers)
-
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuids'))
-        self.assertEqual(test_data['metric']['name'], response.data.get('metric').get('name'))
-        self.assertIsNotNone(response.data.get('tiered_rate'))
+        for rate in response.data.get('rates', []):
+            self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
+                             rate.get('metric', {}).get('name'))
+            self.assertIsNotNone(rate.get('tiered_rates'))
 
-    def test_create_rate_invalid(self):
-        """Test that creating an invalid rate returns an error."""
-        test_data = {'name': self.fake.word(),
-                     'provider_uuids': [],
-                     'description': self.fake.text(),
-                     'price': round(Decimal(random.random()), 6),
-                     'timeunit': 'jiffy',
-                     'metric': self.fake.word()}
-
-        url = reverse('rates-list')
+    def test_create_new_cost_model_map_association_for_provider(self):
+        """Test that the CostModelMap updates for a new cost model."""
+        url = reverse('costmodels-list')
         client = APIClient()
+
+        with tenant_context(self.tenant):
+            original_cost_model = CostModel.objects.all()[0]
+        response = client.post(url, data=self.fake_data,
+                               format='json', **self.headers)
+        new_cost_model_uuid = response.data.get('uuid')
+
+        # Test that the previous cost model for this provider is no longer
+        # associated
+        with tenant_context(self.tenant):
+            result = CostModelMap.objects.filter(
+                cost_model_id=original_cost_model.uuid
+            ).all()
+            self.assertEqual(len(result), 0)
+            # Test that the new cost model is associated to the provider
+            result = CostModelMap.objects.filter(
+                cost_model_id=new_cost_model_uuid
+            ).all()
+            self.assertEqual(len(result), 1)
+
+    def test_create_cost_model_invalid_rates(self):
+        """Test that creating a cost model with invalid rates returns an error."""
+        url = reverse('costmodels-list')
+        client = APIClient()
+
+        test_data = copy.deepcopy(self.fake_data)
+        test_data['rates'][0]['metric']['name'] = self.fake.word()
         response = client.post(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_read_rate_success(self):
-        """Test that we can read a rate."""
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+    def test_create_cost_model_invalid_source_type(self):
+        """Test that an invalid source type is not allowed."""
+        url = reverse('costmodels-list')
+        client = APIClient()
+
+        test_data = copy.deepcopy(self.fake_data)
+        test_data['source_type'] = 'Bad Source'
+        response = client.post(url, test_data, format='json', **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_read_cost_model_success(self):
+        """Test that we can read a cost model."""
+        cost_model = CostModel.objects.first()
+        url = reverse('costmodels-detail', kwargs={'uuid': cost_model.uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
         self.assertIsNotNone(response.data.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric']['name'], response.data.get('metric').get('name'))
-        self.assertIsNotNone(response.data.get('tiered_rate'))
+        for rate in response.data.get('rates', []):
+            self.assertEqual(self.ocp_metric,
+                             rate.get('metric', {}).get('name'))
+            self.assertIsNotNone(rate.get('tiered_rates'))
 
-    def test_read_rate_invalid(self):
-        """Test that reading an invalid rate returns an error."""
-        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
+    def test_read_cost_model_invalid(self):
+        """Test that reading an invalid cost_model returns an error."""
+        url = reverse('costmodels-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_update_rate_success(self):
+    def test_update_cost_model_success(self):
         """Test that we can update an existing rate."""
-        test_data = self.fake_data
-        test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+        new_value = round(Decimal(random.random()), 6)
+        self.fake_data['rates'][0]['tiered_rates'][0]['value'] = new_value
 
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+        cost_model = CostModel.objects.first()
+        url = reverse('costmodels-detail', kwargs={'uuid': cost_model.uuid})
         client = APIClient()
-        response = client.put(url, test_data, format='json', **self.headers)
+        response = client.put(url, self.fake_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertEqual(test_data['tiered_rate'][0]['value'],
-                         response.data.get('tiered_rate')[0].get('value'))
-        self.assertEqual(test_data['metric']['name'], response.data.get('metric').get('name'))
+        rates = response.data.get('rates', [])
+        self.assertEqual(rates[0].get('tiered_rates', [])[0].get('value'),
+                         new_value)
+        self.assertEqual(rates[0].get('metric', {}).get('name'), self.ocp_metric)
 
-    def test_update_rate_failure(self):
+    def test_update_cost_model_failure(self):
         """Test that we update fails with metric type duplication."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        # create a rate
-        url = reverse('rates-list')
+        # create a cost model
+        url = reverse('costmodels-list')
         client = APIClient()
-        response = client.post(url, data=test_data, format='json', **self.headers)
-
+        response = client.post(url, data=self.fake_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        test_data = {'provider_uuids': [],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
+        # Add another entry with tiered rates for this metric
+        rates = self.fake_data['rates']
+        rates.append(rates[0])
 
-        # create a rate
-        url = reverse('rates-list')
-        response = client.post(url, data=test_data, format='json', **self.headers)
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        rate_2_uuid = response.data.get('uuid')
-
-        # Update rate_2_uuid rate (no provider) with the provider that is associated with rate_1
-        url = reverse('rates-detail', kwargs={'uuid': rate_2_uuid})
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        response = client.put(url, test_data, format='json', **self.headers)
+        # Make sure the update with duplicate rate information fails
+        url = reverse('costmodels-detail', kwargs={'uuid': response.data.get('uuid')})
+        response = client.put(url, self.fake_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        # Create another rate of a different type that's associated with the same provider
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_REQUEST_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        # create a rate
-        url = reverse('rates-list')
-        client = APIClient()
-        response = client.post(url, data=test_data, format='json', **self.headers)
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        rate_3_uuid = response.data.get('uuid')
-
-        # Attempt to update this new rate to be the same type as the other rate with provider association
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        url = reverse('rates-detail', kwargs={'uuid': rate_3_uuid})
-        response = client.put(url, test_data, format='json', **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-        # Attempt to update again but now remove the provider and it should be successful
-        test_data = {'provider_uuids': [],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        url = reverse('rates-detail', kwargs={'uuid': rate_3_uuid})
-        response = client.put(url, test_data, format='json', **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_patch_failure(self):
         """Test that PATCH throws exception."""
         test_data = self.fake_data
-        test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+        test_data['rates'][0]['tiered_rates'][0]['value'] = round(Decimal(random.random()), 6)
         with tenant_context(self.tenant):
-            rate = Rate.objects.first()
-            url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+            cost_model = CostModel.objects.first()
+            url = reverse('costmodels-detail', kwargs={'uuid': cost_model.uuid})
             client = APIClient()
 
             response = client.patch(url, test_data, format='json', **self.headers)
             self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def test_update_rate_invalid(self):
-        """Test that updating an invalid rate returns an error."""
+    def test_update_cost_model_invalid(self):
+        """Test that updating an invalid cost model returns an error."""
         test_data = self.fake_data
-        test_data['tiered_rate'][0]['value'] = round(Decimal(random.random()), 6)
+        test_data['rates'][0]['tiered_rates'][0]['value'] = round(Decimal(random.random()), 6)
 
-        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
+        url = reverse('costmodels-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.put(url, test_data, format='json', **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_delete_rate_success(self):
+    def test_delete_cost_model_success(self):
         """Test that we can delete an existing rate."""
-        rate = Rate.objects.first()
-        url = reverse('rates-detail', kwargs={'uuid': rate.uuid})
+        cost_model = CostModel.objects.first()
+        url = reverse('costmodels-detail', kwargs={'uuid': cost_model.uuid})
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
-        # verify the rate no longer exists
+        # verify the cost model no longer exists
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_delete_rate_invalid(self):
-        """Test that deleting an invalid rate returns an error."""
-        url = reverse('rates-detail', kwargs={'uuid': uuid4()})
+    def test_delete_cost_model_invalid(self):
+        """Test that deleting an invalid cost model returns an error."""
+        url = reverse('costmodels-detail', kwargs={'uuid': uuid4()})
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_read_rate_list_success(self):
-        """Test that we can read a list of rates."""
-        url = reverse('rates-list')
+    def test_read_cost_model_list_success(self):
+        """Test that we can read a list of cost models."""
+        url = reverse('costmodels-list')
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -321,15 +279,17 @@ class RateViewTests(IamTestCase):
         self.assertIsInstance(response.data.get('data'), list)
         self.assertEqual(len(response.data.get('data')), 1)
 
-        rate = response.data.get('data')[0]
-        self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric']['name'], rate.get('metric').get('name'))
+        cost_model = response.data.get('data')[0]
+        self.assertIsNotNone(cost_model.get('uuid'))
+        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
+                         cost_model.get('rates', [])[0].get('metric', {}).get('name'))
+        self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),
+                         str(cost_model.get('rates', [])[0].get('tiered_rates', [])[0].get('value')))
 
-    def test_read_rate_list_success_provider_query(self):
-        """Test that we can read a list of rates for a specific provider uuid."""
-        url = '{}?provider_uuid={}'.format(reverse('rates-list'), self.provider.uuid)
+    def test_read_cost_model_list_success_provider_query(self):
+        """Test that we can read a list of cost models for a specific provider."""
+        url = '{}?provider_uuid={}'.format(reverse('costmodels-list'), self.provider.uuid)
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -339,15 +299,17 @@ class RateViewTests(IamTestCase):
         self.assertIsInstance(response.data.get('data'), list)
         self.assertEqual(len(response.data.get('data')), 1)
 
-        rate = response.data.get('data')[0]
-        self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('uuid'))
-        self.assertIsNotNone(rate.get('provider_uuids'))
-        self.assertEqual(self.fake_data['metric']['name'], rate.get('metric').get('name'))
+        cost_model = response.data.get('data')[0]
+        self.assertIsNotNone(cost_model.get('uuid'))
+        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
+                         cost_model.get('rates', [])[0].get('metric', {}).get('name'))
+        self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),
+                         str(cost_model.get('rates', [])[0].get('tiered_rates', [])[0].get('value')))
 
-    def test_read_rate_list_failure_provider_query(self):
+    def test_read_cost_model_list_failure_provider_query(self):
         """Test that we throw proper error for invalid provider_uuid query."""
-        url = '{}?provider_uuid={}'.format(reverse('rates-list'), 'not_a_uuid')
+        url = '{}?provider_uuid={}'.format(reverse('costmodels-list'), 'not_a_uuid')
 
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -355,8 +317,8 @@ class RateViewTests(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         self.assertIsNotNone(response.data.get('errors'))
 
-    def test_list_rates_rbac_access(self):
-        """Test GET /rates with an rbac user."""
+    def test_list_cost_model_rate_rbac_access(self):
+        """Test GET /costmodels with an rbac user."""
         user_data = self._create_user_data()
         customer = self._create_customer_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True,
@@ -374,33 +336,24 @@ class RateViewTests(IamTestCase):
 
         for test_case in test_matrix:
             with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
-                url = reverse('rates-list')
+                url = reverse('costmodels-list')
                 caches['rbac'].clear()
                 response = client.get(url, **request_context['request'].META)
                 self.assertEqual(response.status_code, test_case.get('expected_response'))
 
-    def test_get_rate_rbac_access(self):
-        """Test GET /rates/{uuid} with an rbac user."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
-        # create a rate
+    def test_get_cost_model_rate_rbac_access(self):
+        """Test GET /costmodels/{uuid} with an rbac user."""
+        # create a cost model
         user_data = self._create_user_data()
         customer = self._create_customer_data()
 
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
                                                              is_admin=True)
 
-        url = reverse('rates-list')
+        url = reverse('costmodels-list')
         client = APIClient()
-        response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
-        rate_uuid = response.data.get('uuid')
+        response = client.post(url, data=self.fake_data, format='json', **admin_request_context['request'].META)
+        cost_model_uuid = response.data.get('uuid')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user_data = self._create_user_data()
@@ -414,28 +367,19 @@ class RateViewTests(IamTestCase):
                         'expected_response': status.HTTP_403_FORBIDDEN},
                        {'access': {'rate': {'read': ['*'], 'write': []}},
                         'expected_response': status.HTTP_200_OK},
-                       {'access': {'rate': {'read': [str(rate_uuid)], 'write': []}},
+                       {'access': {'rate': {'read': [str(cost_model_uuid)], 'write': []}},
                         'expected_response': status.HTTP_200_OK}]
         client = APIClient()
 
         for test_case in test_matrix:
             with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
-                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                url = reverse('costmodels-detail', kwargs={'uuid': cost_model_uuid})
                 caches['rbac'].clear()
                 response = client.get(url, **request_context['request'].META)
                 self.assertEqual(response.status_code, test_case.get('expected_response'))
 
-    def test_write_rate_rbac_access(self):
+    def test_write_cost_model_rate_rbac_access(self):
         """Test POST, PUT, and DELETE for rates with an rbac user."""
-        test_data = {'provider_uuids': [self.provider.uuid],
-                     'metric': {'name': CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR},
-                     'tiered_rate': [{
-                         'value': round(Decimal(random.random()), 6),
-                         'unit': 'USD',
-                         'usage': {'usage_start': None, 'usage_end': None}
-                     }]
-                     }
-
         # create a rate as admin
         user_data = self._create_user_data()
         customer = self._create_customer_data()
@@ -443,11 +387,11 @@ class RateViewTests(IamTestCase):
         admin_request_context = self._create_request_context(customer, user_data, create_customer=True,
                                                              is_admin=True)
         with patch.object(RbacService, 'get_access_for_user', return_value=None):
-            url = reverse('rates-list')
+            url = reverse('costmodels-list')
             client = APIClient()
 
-            response = client.post(url, data=test_data, format='json', **admin_request_context['request'].META)
-            rate_uuid = response.data.get('uuid')
+            response = client.post(url, data=self.fake_data, format='json', **admin_request_context['request'].META)
+            cost_model_uuid = response.data.get('uuid')
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user_data = self._create_user_data()
@@ -468,40 +412,40 @@ class RateViewTests(IamTestCase):
                         'expected_response': status.HTTP_201_CREATED,
                         'metric': {'name': CostModelMetricsMap.OCP_METRIC_MEM_GB_REQUEST_HOUR}}]
         client = APIClient()
-        other_rates = []
+        other_cost_models = []
 
         for test_case in test_matrix:
             with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
-                url = reverse('rates-list')
-                rate_data = copy.deepcopy(test_data)
-                rate_data['metric'] = test_case.get('metric')
+                url = reverse('costmodels-list')
+                rate_data = copy.deepcopy(self.fake_data)
+                rate_data['rates'][0]['metric'] = test_case.get('metric')
                 caches['rbac'].clear()
                 response = client.post(url, data=rate_data, format='json', **request_context['request'].META)
 
                 self.assertEqual(response.status_code, test_case.get('expected_response'))
                 if response.data.get('uuid'):
-                    other_rates.append(response.data.get('uuid'))
+                    other_cost_models.append(response.data.get('uuid'))
 
         # PUT tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
-                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_cost_models[0])]}},
                         'expected_response': status.HTTP_403_FORBIDDEN},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_200_OK,
                         'value': round(Decimal(random.random()), 6)},
-                       {'access': {'rate': {'read': ['*'], 'write': [str(rate_uuid)]}},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(cost_model_uuid)]}},
                         'expected_response': status.HTTP_200_OK,
                         'value': round(Decimal(random.random()), 6)}]
         client = APIClient()
 
         for test_case in test_matrix:
             with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
-                url = reverse('rates-list')
-                rate_data = copy.deepcopy(test_data)
-                rate_data.get('tiered_rate')[0]['value'] = test_case.get('value')
+                url = reverse('costmodels-list')
+                rate_data = copy.deepcopy(self.fake_data)
+                rate_data['rates'][0].get('tiered_rates')[0]['value'] = test_case.get('value')
 
-                url = reverse('rates-detail', kwargs={'uuid': rate_uuid})
+                url = reverse('costmodels-detail', kwargs={'uuid': cost_model_uuid})
                 caches['rbac'].clear()
                 response = client.put(url, data=rate_data, format='json', **request_context['request'].META)
 
@@ -510,21 +454,20 @@ class RateViewTests(IamTestCase):
         # DELETE tests
         test_matrix = [{'access': {'rate': {'read': [], 'write': []}},
                         'expected_response': status.HTTP_403_FORBIDDEN,
-                        'rate_uuid': rate_uuid},
-                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'cost_model_uuid': cost_model_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_cost_models[0])]}},
                         'expected_response': status.HTTP_403_FORBIDDEN,
-                        'rate_uuid': rate_uuid},
+                        'cost_model_uuid': cost_model_uuid},
                        {'access': {'rate': {'read': ['*'], 'write': ['*']}},
                         'expected_response': status.HTTP_204_NO_CONTENT,
-                        'rate_uuid': rate_uuid},
-                       {'access': {'rate': {'read': ['*'], 'write': [str(other_rates[0])]}},
+                        'cost_model_uuid': cost_model_uuid},
+                       {'access': {'rate': {'read': ['*'], 'write': [str(other_cost_models[0])]}},
                         'expected_response': status.HTTP_204_NO_CONTENT,
-                        'rate_uuid': other_rates[0]}]
+                        'cost_model_uuid': other_cost_models[0]}]
         client = APIClient()
         for test_case in test_matrix:
             with patch.object(RbacService, 'get_access_for_user', return_value=test_case.get('access')):
-                test_data.get('tiered_rate')[0]['value'] = test_case.get('value')
-                url = reverse('rates-detail', kwargs={'uuid': test_case.get('rate_uuid')})
+                url = reverse('costmodels-detail', kwargs={'uuid': test_case.get('cost_model_uuid')})
                 caches['rbac'].clear()
                 response = client.delete(url, **request_context['request'].META)
                 self.assertEqual(response.status_code, test_case.get('expected_response'))

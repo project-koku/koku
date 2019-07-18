@@ -20,14 +20,14 @@ from uuid import UUID
 from rest_framework import permissions
 
 
-class RatesAccessPermission(permissions.BasePermission):
-    """Determines if a user has access to RATE APIs."""
+class CostModelsAccessPermission(permissions.BasePermission):
+    """Determines if a user has access to Cost Model APIs."""
 
     def get_uuid_from_url(self, request):
         """Get the uuid from the request url."""
         url_parts = request.META.get('PATH_INFO').split('/')
         try:
-            given_uuid = str(UUID(url_parts[url_parts.index('rates') + 1]))
+            given_uuid = str(UUID(url_parts[url_parts.index('costmodels') + 1]))
         except ValueError:
             given_uuid = None
         return given_uuid

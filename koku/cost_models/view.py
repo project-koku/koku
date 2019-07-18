@@ -24,9 +24,9 @@ from django.utils.encoding import force_text
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.common.permissions.rates_access import RatesAccessPermission
-from rates.models import Rate, RateMap
-from rates.serializers import RateSerializer
+from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from cost_models.models import CostModel, CostModelMap
+from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class RateProviderPermissionDenied(APIException):
         self.detail = {'detail': force_text(self.default_detail)}
 
 
-class RateProviderQueryException(APIException):
+class CostModelProviderQueryException(APIException):
     """Rate query custom internal error exception."""
 
     def __init__(self, message):
@@ -51,7 +51,7 @@ class RateProviderQueryException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
-class RateProviderMethodException(APIException):
+class CostModelProviderMethodException(APIException):
     """General Exception class for ProviderManager errors."""
 
     def __init__(self, message):
@@ -60,22 +60,22 @@ class RateProviderMethodException(APIException):
         self.detail = {'detail': force_text(message)}
 
 
-class RateViewSet(mixins.CreateModelMixin,
-                  mixins.DestroyModelMixin,
-                  mixins.ListModelMixin,
-                  mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin,
-                  viewsets.GenericViewSet):
-    """Rate View.
+class CostModelViewSet(mixins.CreateModelMixin,
+                       mixins.DestroyModelMixin,
+                       mixins.ListModelMixin,
+                       mixins.RetrieveModelMixin,
+                       mixins.UpdateModelMixin,
+                       viewsets.GenericViewSet):
+    """CostModel View.
 
     A viewset that provides default `create()`, `destroy`, `retrieve()`,
     and `list()` actions.
 
     """
 
-    queryset = Rate.objects.all()
-    serializer_class = RateSerializer
-    permission_classes = (RatesAccessPermission,)
+    queryset = CostModel.objects.all()
+    serializer_class = CostModelSerializer
+    permission_classes = (CostModelsAccessPermission,)
     lookup_field = 'uuid'
 
     def get_queryset(self):
@@ -83,13 +83,13 @@ class RateViewSet(mixins.CreateModelMixin,
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
-        queryset = Rate.objects.all()
+        queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:
-            rate_ids = []
-            for e in RateMap.objects.filter(provider_uuid=provider_uuid):
-                rate_ids.append(e.rate_id)
-            queryset = Rate.objects.filter(id__in=rate_ids)
+            cost_model_uuids = []
+            for e in CostModelMap.objects.filter(provider_uuid=provider_uuid):
+                cost_model_uuids.append(e.cost_model.uuid)
+            queryset = CostModel.objects.filter(uuid__in=cost_model_uuids)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:
@@ -98,7 +98,7 @@ class RateViewSet(mixins.CreateModelMixin,
                         UUID(access_item)
                     except ValueError:
                         err_msg = 'Unexpected rbac access item.  {} is not a uuid.'.format(access_item)
-                        raise RateProviderQueryException(err_msg)
+                        raise CostModelProviderQueryException(err_msg)
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
                 except ValidationError as queryset_error:
@@ -225,7 +225,7 @@ class RateViewSet(mixins.CreateModelMixin,
         try:
             response = super().list(request=request, args=args, kwargs=kwargs)
         except ValidationError:
-            raise RateProviderQueryException('Invalid provider uuid')
+            raise CostModelProviderQueryException('Invalid provider uuid')
 
         return response
 
@@ -320,5 +320,5 @@ class RateViewSet(mixins.CreateModelMixin,
             }
         """
         if request.method == 'PATCH':
-            raise RateProviderMethodException('PATCH not supported')
+            raise CostModelProviderMethodException('PATCH not supported')
         return super().update(request=request, args=args, kwargs=kwargs)

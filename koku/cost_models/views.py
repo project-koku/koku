@@ -18,4 +18,4 @@
 """API views for import organization"""
 # flake8: noqa
 # pylint: disable=unused-import
-from rates.view import RateViewSet
+from cost_models.view import CostModelViewSet
