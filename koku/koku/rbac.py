@@ -224,3 +224,7 @@ class RbacService:  # pylint: disable=too-few-public-methods
 
         processed_acls = _process_acls(acls)
         return _apply_access(processed_acls)
+
+    def get_cache_ttl(self):
+        """Return the cache time to live value."""
+        return self.cache_ttl
