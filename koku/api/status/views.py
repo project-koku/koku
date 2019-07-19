@@ -22,6 +22,7 @@ from rest_framework.response import Response
 
 from api.status.models import Status
 from api.status.serializers import StatusSerializer
+from koku.rbac import RbacService
 
 
 @api_view(['GET', 'HEAD'])
@@ -75,4 +76,5 @@ def status(request):
     serializer = StatusSerializer(status_info)
     server_info = serializer.data
     server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
+    server_info['rbac_cache_ttl'] = RbacService().get_cache_ttl()
     return Response(server_info)

@@ -3508,6 +3508,10 @@
                         "type": "string",
                         "example": "127.0.0.1:8000"
                     },
+                    "rbac_cache_ttl": {
+                        "type": "integer",
+                        "example": "30"
+                    },
                     "platform_info": {
                         "type": "object",
                         "example": {

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the RBAC Service interaction."""
+import os
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
@@ -390,3 +391,9 @@ class RbacServiceTest(TestCase):
         }
         self.assertEqual(access, expected)
         mock_get.assert_called()
+
+    @patch.dict(os.environ, {'RBAC_CACHE_TTL': '5'})
+    def test_get_cache_ttl(self):
+        """Test to get the cache ttl value."""
+        rbac = RbacService()
+        self.assertEqual(rbac.get_cache_ttl(), 5)
