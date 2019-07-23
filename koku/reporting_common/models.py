@@ -45,9 +45,14 @@ class CostUsageReportManifest(models.Model):
 class CostUsageReportStatus(models.Model):
     """Information on the state of the cost usage report."""
 
+    class Meta:
+        """Meta for CostUsageReportStatus."""
+
+        unique_together = ('manifest', 'report_name')
+
     manifest = models.ForeignKey('CostUsageReportManifest', null=True,
                                  on_delete=models.CASCADE)
-    report_name = models.CharField(max_length=128, null=False, unique=True)
+    report_name = models.CharField(max_length=128, null=False)
     last_completed_datetime = models.DateTimeField(null=True)
     last_started_datetime = models.DateTimeField(null=True)
     etag = models.CharField(max_length=64, null=True)
