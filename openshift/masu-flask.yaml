@@ -389,12 +389,12 @@ parameters:
   displayName: Masu CPU Limit
   name: CPU_REQUEST
   required: true
-  value: '500m'
+  value: 100m
 - description: Maximum amount of CPU the Flower container can use.
   displayName: Masu CPU Limit
   name: CPU_LIMIT
   required: true
-  value: '1'
+  value: 300m
 - description: Initial amount of memory the build container will request.
   displayName: Build Memory Request
   name: BUILD_MEMORY_REQUEST

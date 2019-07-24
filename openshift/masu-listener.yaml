@@ -237,17 +237,17 @@ parameters:
   displayName: Masu Listener Memory Limit
   name: MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 2Gi
 - description: Initial amount of CPU the listener container will request.
   displayName: Masu Listener CPU Request
   name: CPU_REQUEST
   required: true
-  value: '500m'
+  value: 100m
 - description: Maximum amount of CPU the listener container can use.
   displayName: Masu Listener CPU Limit
   name: CPU_LIMIT
   required: true
-  value: '1'
+  value: 250m
 - displayName: Volume Capacity
   description: Volume space available for shared files, e.g. 512Mi, 2Gi
   name: VOLUME_CAPACITY

@@ -292,22 +292,22 @@ parameters:
   displayName: Celery Flower Memory Resource Request
   name: MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 256Mi
 - description: Maximum amount of memory the Flower container can use.
   displayName: Celery Flower Memory Resource Limit
   name: MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 512Mi
 - description: Initial amount of CPU the Flower container will request.
   displayName: Celery Flower CPU Resource Request
   name: CPU_REQUEST
   required: true
-  value: 500m
+  value: 100m
 - description: Maximum amount of CPU the Flower container can use.
   displayName: Celery Flower CPU Resource Limit
   name: CPU_LIMIT
   required: true
-  value: '1'
+  value: 250m
 - description: Initial amount of memory the build container will request.
   displayName: Build Memory Resource Request
   name: BUILD_MEMORY_REQUEST

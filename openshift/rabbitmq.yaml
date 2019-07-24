@@ -237,12 +237,12 @@ parameters:
   displayName: CPU Request
   name: CPU_REQUEST
   required: true
-  value: '500m'
+  value: 100m
 - description: Maximum amount of CPU the app container can use.
   displayName: CPU Limit
   name: CPU_LIMIT
   required: true
-  value: '1'
+  value: 300m
 - displayName: Volume Capacity
   description: Volume space available for shared files, e.g. 512Mi, 2Gi
   name: VOLUME_CAPACITY
