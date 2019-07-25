@@ -16,7 +16,6 @@
 #
 """Django database settings."""
 import os
-from tempfile import NamedTemporaryFile
 
 from django.conf import settings
 
