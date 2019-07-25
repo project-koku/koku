@@ -162,6 +162,10 @@ objects:
         containers:
         - name: ${NAME}
           image: ${NAME}
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -417,6 +421,15 @@ objects:
             limits:
               cpu: ${CPU_LIMIT}
               memory: ${MEMORY_LIMIT}
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
     triggers:
     - type: ConfigChange
     - imageChangeParams:
