@@ -337,7 +337,7 @@ parameters:
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
   required: true
-  value: https://github.com/project-koku/masu.git
+  value: https://github.com/project-koku/koku.git
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference
@@ -348,6 +348,7 @@ parameters:
   displayName: Context Directory
   name: CONTEXT_DIR
   required: false
+  value: openshift/buildenv/flower
 - description: The exposed hostname that will route to the app service, if left
     blank a value will be defaulted.
   displayName: Application Hostname
