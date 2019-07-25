@@ -32,6 +32,7 @@ services:
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
+        - MASU_SECRET_KEY=abc
       privileged: true
       ports:
           - 8000:8000
@@ -91,6 +92,7 @@ services:
         - RABBITMQ_PORT=5672
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
       privileged: true
       volumes:
         - '.:/koku'
@@ -119,6 +121,7 @@ services:
         - RABBITMQ_PORT=5672
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
     privileged: true
     volumes:
       - .:/koku
