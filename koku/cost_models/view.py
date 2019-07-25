@@ -17,10 +17,15 @@
 
 """View for Rates."""
 import logging
+from functools import reduce
+from operator import and_
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.utils.encoding import force_text
+from django_filters import CharFilter, FilterSet
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
@@ -29,6 +34,23 @@ from cost_models.models import CostModel, CostModelMap
 from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
+
+
+class CostModelsFilter(FilterSet):
+    """Cost model custom filters."""
+
+    name = CharFilter(field_name='name', method='list_contain_filter')
+
+    def list_contain_filter(self, qs, name, values):
+        """Filter items that contain values in their name."""
+        lookup = '__'.join([name, 'icontains'])
+        value_list = ','.join(values).split(',')
+        queries = [Q(**{lookup: val}) for val in value_list]
+        return qs.filter(reduce(and_, queries))
+
+    class Meta:
+        model = CostModel
+        fields = ['source_type', 'name']
 
 
 class RateProviderPermissionDenied(APIException):
@@ -77,6 +99,8 @@ class CostModelViewSet(mixins.CreateModelMixin,
     serializer_class = CostModelSerializer
     permission_classes = (CostModelsAccessPermission,)
     lookup_field = 'uuid'
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = CostModelsFilter
 
     def get_queryset(self):
         """Get a queryset.
