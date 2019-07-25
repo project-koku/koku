@@ -33,13 +33,11 @@ engines = {
 def _cert_config(db_config, database_cert):
     """Add certificate configuration as needed."""
     if database_cert:
-        temp_cert_file = NamedTemporaryFile(delete=False, mode='w', suffix='pem')
-        with open(temp_cert_file.name, mode='w') as cert_file:
-            cert_file.write(database_cert)
+        cert_file = '/etc/ssl/certs/server.pem'
         db_options = {
             'OPTIONS': {
                 'sslmode': 'verify-full',
-                'sslrootcert': temp_cert_file.name
+                'sslrootcert': cert_file
             }
         }
         db_config.update(db_options)
