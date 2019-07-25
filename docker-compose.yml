@@ -33,6 +33,7 @@ services:
         - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
         - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
       privileged: true
       ports:
           - 8000:8000
@@ -100,6 +101,47 @@ services:
           - koku-rabbit
       depends_on:
           - koku-rabbit
+
+  koku-listener:
+      container_name: koku_listener
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/
+      entrypoint: ['python', 'koku/manage.py', 'listener']
+      environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - DATABASE_HOST=db
+        - DATABASE_PORT=5432
+        - RABBITMQ_HOST=rabbit
+        - RABBITMQ_PORT=5672
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - MASU_SECRET_KEY=abc
+        - INSIGHTS_KAFKA_HOST=kafka
+        - INSIGHTS_KAFKA_PORT=29092
+        - KAFKA_CONNECT=True
+        - prometheus_multiproc_dir=/tmp
+        - MASU_DATE_OVERRIDE
+        - MASU_DEBUG
+        - LOG_LEVEL=INFO
+        - INITIAL_INGEST_NUM_MONTHS=1
+        - PYTHONPATH=/koku/koku
+      privileged: true
+      ports:
+          - "9988:9999"
+      volumes:
+        - '.:/koku'
+      links:
+        - db
+        - koku-rabbit
+      depends_on:
+        - db
+        - koku-rabbit
 
   koku-beat:
     container_name: koku_beat

@@ -131,15 +131,18 @@ class ReportDownloader:
         """
         LOG.info('Attempting to get %s manifest for %s...', self.provider_type, str(date_time))
         report_context = self._downloader.get_report_context_for_date(date_time)
+        print('FOUND REPORT_CONTEXT: ', str(report_context))
         manifest_id = report_context.get('manifest_id')
         reports = report_context.get('files')
-
+        print('FOUND CONTEXT: ', str(manifest_id), str(reports))
         cur_reports = []
         for report in reports:
             report_dictionary = {}
             local_file_name = self._downloader.get_local_file_for_report(report)
+            print('ABOUT TO ACCESS REPORT STATS DB ACCESSOR WITH: ', str(local_file_name), str(manifest_id))
             with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
                 stored_etag = stats_recorder.get_etag()
+                print('ABOUT TO DOWNLOAD FILE WITH: ', str(report))
                 file_name, etag = self._downloader.download_file(report, stored_etag)
                 stats_recorder.update(etag=etag)
                 stats_recorder.commit()
@@ -152,4 +155,5 @@ class ReportDownloader:
             report_dictionary['provider_id'] = self.provider_id
 
             cur_reports.append(report_dictionary)
+        print('RETURNING CUR_REPORTS: ', str(cur_reports))
         return cur_reports
