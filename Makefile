@@ -346,7 +346,7 @@ oc-delete-celery-worker:
 	oc delete all -n $(NAMESPACE) -l template=koku-celery-worker
 
 oc-delete-configmap:
-	oc delete all -n $(NAMESPACE) -l template=koku-configmap
+	oc delete configmap -n $(NAMESPACE) -l template=koku-configmap
 
 oc-delete-database:
 	oc delete all -n $(NAMESPACE) -l template=koku-database
@@ -358,7 +358,7 @@ oc-delete-imagestream:
 	oc delete all -n $(NAMESPACE) -l template=koku-imagestream
 
 oc-delete-koku-api:
-	oc delete all -n $(NAMESPACE) -l template=koku-api
+	oc delete all -n $(NAMESPACE) -l template=koku
 
 oc-delete-koku-auth-cache:
 	oc delete all -n $(NAMESPACE) -l template=koku-auth-cache
@@ -373,13 +373,13 @@ oc-delete-rabbitmq:
 	oc delete all -n $(NAMESPACE) -l template=rabbitmq
 
 oc-delete-secret:
-	oc delete all -n $(NAMESPACE) -l template=koku-secret
+	oc delete secret -n $(NAMESPACE) -l template=koku-secret
 
 oc-down:
 	oc cluster down
 
 oc-forward-ports: oc-stop-forwarding-ports
-	@oc port-forward $$(oc get pods -o jsonpath='{.items[*].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
+	@oc port-forward $$(oc get pods -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
 
 oc-login-dev:
 	oc login -u developer --insecure-skip-tls-verify=true localhost:8443
