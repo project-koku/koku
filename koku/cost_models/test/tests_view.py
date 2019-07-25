@@ -185,6 +185,31 @@ class CostModelViewTests(IamTestCase):
                              rate.get('metric', {}).get('name'))
             self.assertIsNotNone(rate.get('tiered_rates'))
 
+    def test_filter_cost_model(self):
+        """Test that we can filter a cost model."""
+        client = APIClient()
+        url = '%s?name=Cost,Production' % reverse('costmodels-list')
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertEqual(len(results), 0)
+
+        url = '%s?name=Cost,Test&source_type=AWS' % reverse('costmodels-list')
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertEqual(len(results), 0)
+
+        url = '%s?name=Cost,Test' % reverse('costmodels-list')
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get('data')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['name'], 'Test Cost Model')
+
     def test_read_cost_model_invalid(self):
         """Test that reading an invalid cost_model returns an error."""
         url = reverse('costmodels-detail', kwargs={'uuid': uuid4()})
