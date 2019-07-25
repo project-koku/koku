@@ -127,9 +127,6 @@ html:
 lint:
 	tox -e lint
 
-make-migrations:
-	DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py makemigrations api reporting reporting_common cost_models
-
 # FIXME: may need updating after masu is fully merged.
 create-masu-test-db:
 	$(TOPDIR)/tests/create_db.sh
