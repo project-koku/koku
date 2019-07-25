@@ -472,13 +472,13 @@ __oc-apply-object: __oc-create-project
 	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep -v 'not found') ]]; then \
 		echo "WARNING: Resources matching 'oc get $(OC_OBJECT)' exists. Updating template. Skipping object creation." ;\
 		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
-			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
+			bash -c "oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-			| oc apply -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
+			| tee >(oc apply -n $(NAMESPACE) -f -) >(oc replace -f -) || /usr/bin/true" ;\
 		else \
-			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
+			bash -c "oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-			| oc apply -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
+			| tee >(oc apply -n $(NAMESPACE) -f -) >(oc replace -f -) || /usr/bin/true" ;\
 		fi ;\
 	fi
 
