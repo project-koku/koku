@@ -149,7 +149,7 @@ gen-apidoc:
 	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates cost_models
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
@@ -465,7 +465,7 @@ __oc-create-object: __oc-create-project
 	fi
 
 __oc-apply-object: __oc-create-project
-	@if [[ $$(oc get -o name $(OC_OBJECT) 2>&1) != '' ]] || \
+	@if [[ $$(oc get -o name $(OC_OBJECT)) != '' ]] || \
 	[[ $$(oc get -o name $(OC_OBJECT) 2>&1 | grep -v 'not found') ]]; then \
 		echo "WARNING: Resources matching 'oc get $(OC_OBJECT)' exists. Updating template. Skipping object creation." ;\
 		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
