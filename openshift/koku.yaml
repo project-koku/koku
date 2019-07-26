@@ -447,8 +447,8 @@ objects:
     name: ${NAME}
     namespace: ${NAMESPACE}
   spec:
-    maxReplicas: 10
-    minReplicas: 1
+    maxReplicas: ${MAX_REPLICAS}
+    minReplicas: ${MIN_REPLICAS}
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
@@ -535,3 +535,13 @@ parameters:
   displayName: Git Reference
   name: SOURCE_REPOSITORY_REF
   required: false
+  - description: The minimum number of replicas to keep
+  displayName: Replica minimum
+  name: MIN_REPLICAS
+  required: true
+  value: 1
+- description: The maximum number of replicas to keep
+  displayName: Replica maximum
+  name: MAX_REPLICAS
+  required: true
+  value: 10
