@@ -24,6 +24,8 @@ from dateutil.parser import parse
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from reporting.provider.ocp.models import OCPUsageReportPeriod
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -198,12 +200,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_report_periods(self):
         """Get all usage period objects."""
-        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        periods = []
+        print('get_report_periods SCHEMA: ', str(self.schema))
+        with schema_context(self.schema):
+            print('VALUES_LIST QUERY')
+            periods = OCPUsageReportPeriod.objects.values_list('id', 'cluster_id', 'report_period_start', 'provider_id', named=True)
+            print('PERIODS: ', str(periods))
 
-        columns = ['id', 'cluster_id', 'report_period_start', 'provider_id']
-        periods = self._get_db_obj_query(table_name, columns=columns).all()
-        return {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
-                for p in periods}
+        return_value = {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
+                        for p in periods}
+        print('RETURN_VALUE: ', str(return_value))
+        return return_value
 
     def get_reports(self):
         """Make a mapping of reports by time."""

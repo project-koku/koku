@@ -22,6 +22,7 @@ from decimal import Decimal, InvalidOperation
 
 import django.apps
 from django.db import connection
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
@@ -222,12 +223,17 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         """
         # If table is a str, get te model associated
+        print('IN REPORTDBACCESSORBASE _GET_DB_OBJ_QUERY: ', str(table), str(columns))
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
-        query = table.objects.all()
-        if columns:
-            query = query.values(*columns)
+        with schema_context(self.schema):
+            if columns:
+                print('COLUMNS ARE: ', str(columns))
+                query = table.objects.values(*columns)
+                print('FILTER QUERY: ', str(query))
+            else:
+                query = table.objects.all()
 
         return query
 
