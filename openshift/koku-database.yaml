@@ -66,7 +66,7 @@ objects:
                 name: ${NAME}-db
           - name: POSTGRESQL_DATABASE
             value: ${DATABASE_NAME}
-          image: postgresql:9.6
+          image: postgresql:latest
           imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
@@ -111,7 +111,7 @@ objects:
         - ${NAME}-db
         from:
           kind: ImageStreamTag
-          name: postgresql:9.6
+          name: postgresql:latest
           namespace: ${NAMESPACE}
       type: ImageChange
     - type: ConfigChange

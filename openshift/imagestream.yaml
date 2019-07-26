@@ -25,6 +25,7 @@ objects:
     name: python-36-centos7
     namespace: ${NAMESPACE}
   spec:
+    dockerImageRepository: registry.centos.org/centos/python-36-centos7
     lookupPolicy:
       local: false
     tags:
@@ -43,12 +44,15 @@ objects:
     name: postgresql
     namespace: ${NAMESPACE}
   spec:
+    dockerImageRepository: registry.access.redhat.com/rhscl/postgresql-10-rhel7
+    lookupPolicy:
+      local: false
     tags:
     - from:
         kind: DockerImage
-        name: centos/postgresql-96-centos7
+        name: rhscl/postgresql-10-rhel7
         resourceVersion: latest
-      name: "9.6"
+      name: latest
       referencePolicy:
         type: Source
 
@@ -64,7 +68,7 @@ objects:
         kind: DockerImage
         name: redis
         resourceVersion: latest
-      name: "5.0.4"
+      name: latest
       referencePolicy:
         type: Source
 
