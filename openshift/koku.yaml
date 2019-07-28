@@ -535,13 +535,13 @@ parameters:
   displayName: Git Reference
   name: SOURCE_REPOSITORY_REF
   required: false
-  - description: The minimum number of replicas to keep
+- description: The minimum number of replicas to keep
   displayName: Replica minimum
   name: MIN_REPLICAS
   required: true
-  value: 1
+  value: '1'
 - description: The maximum number of replicas to keep
   displayName: Replica maximum
   name: MAX_REPLICAS
   required: true
-  value: 10
+  value: '10'

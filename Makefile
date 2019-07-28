@@ -456,11 +456,11 @@ __oc-create-object: __oc-create-project
 		if [ -f $(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) ]; then \
 			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				--param-file=$(OC_PARAM_DIR)/$(OC_PARAMETER_FILE) \
-			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 | grep -v "already exists" || /usr/bin/true ;\
+			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
 		else \
 			oc process -f $(OC_TEMPLATE_DIR)/$(OC_TEMPLATE_FILE) \
 				$(foreach PARAM, $(OC_PARAMETERS), -p $(PARAM)) \
-			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 | grep -v "already exists" || /usr/bin/true ;\
+			| oc create --save-config=True -n $(NAMESPACE) -f - 2>&1 || /usr/bin/true ;\
 		fi ;\
 	fi
 
