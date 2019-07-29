@@ -261,7 +261,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
           - ${NAME}-worker
         from:
