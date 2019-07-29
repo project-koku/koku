@@ -298,10 +298,10 @@
         },
         "redis": {
             "hashes": [
-                "sha256:6946b5dca72e86103edc8033019cc3814c031232d339d5f4533b02ea85685175",
-                "sha256:8ca418d2ddca1b1a850afa1680a7d2fd1f3322739271de4b704e0d4668449273"
+                "sha256:2cbbf935c82a32d243db9fc3f07fc24af31005c79debef87b433ff36d17aec9a",
+                "sha256:c475ffb763d63f93a4e15db18c4bcaa854284e46b313591870d6162457b589eb"
             ],
-            "version": "==3.2.1"
+            "version": "==3.3.1"
         },
         "requests": {
             "hashes": [
