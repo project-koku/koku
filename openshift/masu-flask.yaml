@@ -333,7 +333,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: false
+        automatic: true
         containerNames:
           - ${NAME}-masu-flask
         from:

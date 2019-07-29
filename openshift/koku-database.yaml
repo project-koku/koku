@@ -106,7 +106,7 @@ objects:
             claimName: ${NAME}-db
     triggers:
     - imageChangeParams:
-        automatic: false
+        automatic: true
         containerNames:
         - ${NAME}-db
         from:
