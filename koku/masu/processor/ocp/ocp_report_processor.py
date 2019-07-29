@@ -39,6 +39,8 @@ from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import extract_uuids_from_string
 
+from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport, OCPUsageLineItem, OCPStorageLineItem
+
 LOG = logging.getLogger(__name__)
 
 
@@ -108,6 +110,7 @@ class OCPReportProcessor():
         self.report_type = self._detect_report_type(report_path)
         print('FOUND REPORT TYPE: ', str(self.report_type))
         if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
+            import pdb; pdb.set_trace()
             self._processor = OCPCpuMemReportProcessor(schema_name, report_path,
                                                        compression, provider_id)
         elif self.report_type == OCPReportTypes.STORAGE:
@@ -125,7 +128,9 @@ class OCPReportProcessor():
             column_names = next(reader)
             if sorted(column_names) == sorted(self.storage_columns):
                 report_type = OCPReportTypes.STORAGE
+                print('FOUND STORAGE TYPE')
             elif sorted(column_names) == sorted(self.cpu_mem_usage_columns):
+                print('FOUND CPU_MEM USAGE TYPE')
                 report_type = OCPReportTypes.CPU_MEM_USAGE
         return report_type
 
@@ -229,7 +234,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (dict): The data from the row keyed on the DB table's column names
 
         """
-        column_map = self.column_map[table_name]
+        column_map = self.column_map[table_name._meta.db_table]
 
         return {column_map[key]: value
                 for key, value in row.items()
@@ -246,7 +251,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (str): The DB id of the report object
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['report']
+        table_name = OCPUsageReport
         start = datetime.strptime(row.get('interval_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('interval_end'), Config.OCP_DATETIME_STR_FORMAT)
 
@@ -283,7 +288,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (str): The DB id of the report period object
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        table_name = OCPUsageReportPeriod
         start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
 
@@ -387,17 +392,23 @@ class OCPReportProcessorBase(ReportProcessorBase):
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
-                    self.table_name,
+                    self.table_name._meta.db_table,
                     drop_column='id'
                 )
 
                 print('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
+                print('FILE TO PROCESS')
                 for row in reader:
+                    print('ROW: ', str(row))
+                    print('CREATING REPORT PERIOD')
                     report_period_id = self._create_report_period(row, self._cluster_id, report_db)
+                    print('CREATED REPORT PERIOD')
                     report_id = self._create_report(row, report_period_id, report_db)
-                    self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
+                    print('CREATED REPORT')
 
+                    self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
+                    print('CREATED USAGE LINE ITEM')
                     if len(self.processed_report.line_items) >= self._batch_size:
                         self._save_to_db(temp_table, report_db)
 
@@ -416,10 +427,11 @@ class OCPReportProcessorBase(ReportProcessorBase):
                         self._update_mappings()
 
                 if self.processed_report.line_items:
+                    print('SAVING TO DB')
                     self._save_to_db(temp_table, report_db)
 
                     report_db.merge_temp_table(
-                        self.table_name,
+                        self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
                         self.line_item_conflict_columns
@@ -454,7 +466,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             compression=compression,
             provider_id=provider_id
         )
-        self.table_name = OCP_REPORT_TABLE_MAP['line_item']
+        self.table_name = OCPUsageLineItem()
         print('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
@@ -475,20 +487,20 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name)
-
+        print('USAGE LINE ITEM DATA: ', str(data))
         pod_label_str = ''
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
 
         data = report_db_accessor.clean_data(
             data,
-            self.table_name
+            self.table_name._meta.db_table
         )
 
         data['report_period_id'] = report_period_id
         data['report_id'] = report_id
         data['pod_labels'] = self._process_pod_labels(pod_label_str)
-
+        print('USAGE LINE ITEM new data set')
         # Deduplicate potential repeated rows in data
         key = tuple(data.get(column)
                     for column in self.line_item_conflict_columns)
@@ -528,7 +540,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             provider_id=provider_id
         )
         print('STORAGE PROCESSOR SUPER INITIALDFD')
-        self.table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
+        self.table_name = OCPStorageLineItem()
         print('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
@@ -560,7 +572,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 
         data = report_db_accessor.clean_data(
             data,
-            self.table_name
+            self.table_name._meta.db_table
         )
 
         data['report_period_id'] = report_period_id
