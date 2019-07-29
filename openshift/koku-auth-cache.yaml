@@ -68,7 +68,7 @@ objects:
               name: ${NAME}-redis-config
     triggers:
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
         - ${NAME}-redis
         from:
