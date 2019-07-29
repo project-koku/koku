@@ -178,7 +178,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: false
+        automatic: true
         containerNames:
           - ${NAME}-scheduler
         from:
