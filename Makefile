@@ -267,7 +267,7 @@ oc-create-koku-api:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-koku-auth-cache: OC_OBJECT := 'bc/$(NAME)-redis dc/$(NAME)-redis'
+oc-create-koku-auth-cache: OC_OBJECT := 'dc/$(NAME)-redis'
 oc-create-koku-auth-cache: OC_PARAMETER_FILE := $(NAME)-auth-cache.env
 oc-create-koku-auth-cache: OC_TEMPLATE_FILE := $(NAME)-auth-cache.yaml
 oc-create-koku-auth-cache: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
@@ -289,7 +289,7 @@ oc-create-listener:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu dc/$(NAME)-masu'
+oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu-flask dc/$(NAME)-masu-flask'
 oc-create-masu: OC_PARAMETER_FILE := masu-flask.env
 oc-create-masu: OC_TEMPLATE_FILE := masu-flask.yaml
 oc-create-masu: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
