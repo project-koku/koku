@@ -14,31 +14,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Celery configuration for the Koku project."""
-
+"""Celery module."""
 import logging
-import os
 
-import django
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import after_setup_logger
-from masu.config import Config
 
+from masu.config import Config
 from masu.util import setup_cloudwatch_logging
 
-LOGGER = logging.getLogger(__name__)
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'koku.settings')
-
-LOGGER.info('Starting celery.')
-# Django setup is required *before* Celery app can start correctly.
-django.setup()
-LOGGER.info('Django setup.')
-
-APP = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
-APP.config_from_object('django.conf:settings', namespace='CELERY')
-LOGGER.info('Celery autodiscover tasks.')
-APP.autodiscover_tasks()
+# pylint: disable=invalid-name, redefined-outer-name
+celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
 
 # The signal decorator is associated with the
 # following method signature, but args and kwargs are not currently utilized.
@@ -47,9 +35,10 @@ APP.autodiscover_tasks()
 @after_setup_logger.connect
 def setup_loggers(logger, *args, **kwargs):  # pylint: disable=unused-argument
     """Add logging for celery with optional cloud watch."""
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    logger.addHandler(console_handler)
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setLevel(logging.INFO)
+    logger.addHandler(consoleHandler)
+
     setup_cloudwatch_logging(logger)
 
 
@@ -91,3 +80,14 @@ def update_celery_config(celery, app):
                                                        day_of_month=cleaning_day),
                                    'args': []}
         celery.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
+
+    # pylint: disable=too-few-public-methods
+    class ContextTask(celery.Task):
+        """Celery Task Context."""
+
+        def __call__(self, *args, **kwargs):
+            """Call task with context."""
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask

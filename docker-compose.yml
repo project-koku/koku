@@ -79,8 +79,8 @@ services:
       build:
           context: .
           dockerfile: Dockerfile-env
-      working_dir: /koku/
-      entrypoint: ['celery', '-A', 'koku.masu.worker', 'worker', '-l', 'info']
+      working_dir: /koku/koku
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info']
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
