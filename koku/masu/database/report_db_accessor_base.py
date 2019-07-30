@@ -76,6 +76,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         self.column_map = column_map
         self.report_schema = ReportSchema(django.apps.apps.get_models(),
                                           self.column_map)
+        self._conn = connection
         self._cursor = self._get_psycopg2_cursor()
 
     def __exit__(self, exception_type, exception_value, traceback):
@@ -90,7 +91,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def _get_psycopg2_cursor(self):
         """Get a cursor for the low level database connection."""
-        cursor = connection.cursor()
+        cursor = self._conn.cursor()
         cursor.execute(f'SET search_path TO {self.schema}')
         return cursor
 
@@ -211,6 +212,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             conn.close()
         else:
             self._cursor.close()
+            self._conn.close()
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):

@@ -383,7 +383,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
                     self.table_name._meta.db_table,
                     drop_column='id'
                 )
-                LOG.info('TEMP_TABLE: %s', str(temp_table))
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
@@ -393,7 +392,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
                     self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         self._save_to_db(temp_table, report_db)
-                        LOG.info('merge_temp_table(%s)', str(temp_table))
                         report_db.merge_temp_table(
                             self.table_name._meta.db_table,
                             temp_table,
@@ -409,7 +407,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
                 if self.processed_report.line_items:
                     self._save_to_db(temp_table, report_db)
-                    LOG.info('merge_temp_table_2(%s)', str(temp_table))
                     report_db.merge_temp_table(
                         self.table_name._meta.db_table,
                         temp_table,

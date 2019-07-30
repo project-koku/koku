@@ -99,6 +99,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         """
         self._obj.last_started_datetime = DateAccessor().today_with_timezone('UTC')
+        self._obj.save()
 
     def log_last_completed_datetime(self):
         """
@@ -110,6 +111,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         """
         self._obj.last_completed_datetime = DateAccessor().today_with_timezone('UTC')
+        self._obj.save()
 
     def get_etag(self):
         """

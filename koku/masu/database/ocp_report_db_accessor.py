@@ -71,7 +71,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        import pdb; pdb.set_trace()
         self._cursor.execute(upsert_sql)
 
         delete_sql = f'DELETE FROM {temp_table_name}'

@@ -83,6 +83,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
         if manifest:
             manifest.num_processed_files += 1
+            manifest.save()
             manifest_accesor.mark_manifest_as_updated(manifest)
             manifest_accesor.commit()
         else:
