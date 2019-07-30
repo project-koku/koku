@@ -83,6 +83,7 @@ Please use \`make <target>' where <target> is one of:
   oc-create-listener           create Masu Listener pod (deprecated)
   oc-create-masu               create Masu pod (deprecated)
   oc-create-rabbitmq           create RabbitMQ pod
+  oc-create-route              create routes for Koku APIs
   oc-create-secret             create Secrets
   oc-create-worker             create Celery worker pod
   oc-create-test-db-file       create a Postgres DB dump file for Masu
@@ -308,6 +309,14 @@ oc-create-rabbitmq:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
+oc-create-route: OC_OBJECT := 'route/koku route/koku-masu-flask'
+oc-create-route: OC_PARAMETER_FILE := route.env
+oc-create-route: OC_TEMPLATE_FILE := route.yaml
+oc-create-route: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
+oc-create-route:
+	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
+
 oc-create-secret: OC_OBJECT := 'secret -l app=$(NAME)'
 oc-create-secret: OC_PARAMETER_FILE := secret.env
 oc-create-secret: OC_TEMPLATE_FILE := secret.yaml
@@ -368,6 +377,9 @@ oc-delete-masu:
 
 oc-delete-rabbitmq:
 	oc delete all -n $(NAMESPACE) -l template=rabbitmq
+
+oc-delete-route:
+	oc delete all -n $(NAMESPACE) -l template=koku-route
 
 oc-delete-secret:
 	oc delete secret -n $(NAMESPACE) -l template=koku-secret
