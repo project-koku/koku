@@ -63,6 +63,9 @@ objects:
     name: redis
     namespace: ${NAMESPACE}
   spec:
+    dockerImageRepository: registry.access.redhat.com/rhscl/redis-5-rhel7
+    lookupPolicy:
+      local: false
     tags:
     - from:
         kind: DockerImage
