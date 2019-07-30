@@ -112,7 +112,6 @@ class AccountsAccessor:
 
         """
         try:
-            print('TRYING TO GET ACCOUNTS FROM SOURCE type ', self.source_type)
             accounts = self.source.get_accounts_from_source(provider_uuid)
         except CURAccountsInterfaceError as error:
             raise AccountsAccessorError(str(error))

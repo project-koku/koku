@@ -60,24 +60,21 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
                                 compression,
                                 provider,
                                 start_date)
-    print(log_statement)
+    LOG.info(log_statement)
     mem = psutil.virtual_memory()
     mem_msg = 'Avaiable memory: {} bytes ({}%)'.format(mem.free, mem.percent)
-    print(mem_msg)
+    LOG.info(mem_msg)
 
     file_name = report_path.split('/')[-1]
-    print('IN _PROCESS_REPORT_FILE')
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_started_datetime()
         stats_recorder.commit()
-        print("CALLING OCP PROCESSOR")
         processor = ReportProcessor(schema_name=schema_name,
                                     report_path=report_path,
                                     compression=compression,
                                     provider=provider,
                                     provider_id=provider_id,
                                     manifest_id=manifest_id)
-        print('CALLING processor.process()')
         processor.process()
         stats_recorder.log_last_completed_datetime()
         stats_recorder.commit()
@@ -89,11 +86,11 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
             manifest_accesor.mark_manifest_as_updated(manifest)
             manifest_accesor.commit()
         else:
-            print('Unable to find manifest for ID: %s, file %s', manifest_id, file_name)
+            LOG.error('Unable to find manifest for ID: %s, file %s', manifest_id, file_name)
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         provider_accessor.setup_complete()
         provider_accessor.commit()
 
     files = processor.remove_processed_files(path.dirname(report_path))
-    print('Temporary files removed: %s', str(files))
+    LOG.info('Temporary files removed: %s', str(files))

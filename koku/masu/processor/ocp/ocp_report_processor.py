@@ -108,9 +108,7 @@ class OCPReportProcessor():
         """
         self._processor = None
         self.report_type = self._detect_report_type(report_path)
-        print('FOUND REPORT TYPE: ', str(self.report_type))
         if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
-            import pdb; pdb.set_trace()
             self._processor = OCPCpuMemReportProcessor(schema_name, report_path,
                                                        compression, provider_id)
         elif self.report_type == OCPReportTypes.STORAGE:
@@ -118,7 +116,6 @@ class OCPReportProcessor():
                                                   compression, provider_id)
         elif self.report_type == OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError('Unknown OCP report type.')
-        print('_PROCESSOR: ', str(self._processor))
 
     def _detect_report_type(self, report_path):
         """Detect OCP report type."""
@@ -128,9 +125,7 @@ class OCPReportProcessor():
             column_names = next(reader)
             if sorted(column_names) == sorted(self.storage_columns):
                 report_type = OCPReportTypes.STORAGE
-                print('FOUND STORAGE TYPE')
             elif sorted(column_names) == sorted(self.cpu_mem_usage_columns):
-                print('FOUND CPU_MEM USAGE TYPE')
                 report_type = OCPReportTypes.CPU_MEM_USAGE
         return report_type
 
@@ -142,7 +137,7 @@ class OCPReportProcessor():
         """Remove temporary report files."""
         files = listdir(report_path)
 
-        print('Cleaning up temporary report files for %s', report_path)
+        LOG.info('Cleaning up temporary report files for %s', report_path)
         victim_list = []
         current_assembly_id = None
         for file in files:
@@ -165,12 +160,12 @@ class OCPReportProcessor():
         for victim in victim_list:
             if victim['uuid'] != current_assembly_id:
                 try:
-                    print('Removing %s, completed processing on date %s',
+                    LOG.info('Removing %s, completed processing on date %s',
                              victim['file'], victim['completed_date'])
                     remove(victim['file'])
                     removed_files.append(victim['file'])
                 except FileNotFoundError:
-                    print('Unable to locate file: %s', victim['file'])
+                    LOG.warning('Unable to locate file: %s', victim['file'])
         return removed_files
 
 
@@ -185,28 +180,22 @@ class OCPReportProcessorBase(ReportProcessorBase):
             compression=compression,
             provider_id=provider_id
         )
-        print('OCPREPORTPROCESSORBASE super complete')
+
         self._report_name = path.basename(report_path)
         self._cluster_id = report_path.split('/')[-2]
 
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
-        print('GETTING REPORTCOMMONDB ACCESSOR')
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
 
-        print('GETTING OCBREPORTDBACCESSOR')
         with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
-            print('IN OCPREPORTDBACCESSOR')
             self.existing_report_periods_map = report_db.get_report_periods()
-            print('GOT EXISTING PERIODS')
             self.existing_report_map = report_db.get_reports()
-            print('GOT REPORTS')
 
         self.line_item_columns = None
         self.processed_report = ProcessedOCPReport()
-        print('BASE INITIALIZED')
 
     def _get_file_opener(self, compression):
         """Get the file opener for the file's compression.
@@ -335,8 +324,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
                 key = key.replace('label_', '')
                 label_dict[key] = value
             except ValueError as err:
-                print(err)
-                print('%s could not be properly split', label)
+                LOG.warning(err)
+                LOG.warning('%s could not be properly split', label)
                 continue
 
         return json.dumps(label_dict)
@@ -388,38 +377,30 @@ class OCPReportProcessorBase(ReportProcessorBase):
         """
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
-        print('IN OCP process()')
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
                     self.table_name._meta.db_table,
                     drop_column='id'
                 )
-
-                print('File %s opened for processing', str(f))
+                LOG.info('TEMP_TABLE: %s', str(temp_table))
+                LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
-                print('FILE TO PROCESS')
                 for row in reader:
-                    print('ROW: ', str(row))
-                    print('CREATING REPORT PERIOD')
                     report_period_id = self._create_report_period(row, self._cluster_id, report_db)
-                    print('CREATED REPORT PERIOD')
                     report_id = self._create_report(row, report_period_id, report_db)
-                    print('CREATED REPORT')
 
                     self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
-                    print('CREATED USAGE LINE ITEM')
                     if len(self.processed_report.line_items) >= self._batch_size:
                         self._save_to_db(temp_table, report_db)
-
+                        LOG.info('merge_temp_table(%s)', str(temp_table))
                         report_db.merge_temp_table(
-                            self.table_name,
+                            self.table_name._meta.db_table,
                             temp_table,
                             self.line_item_columns,
                             self.line_item_conflict_columns
                         )
-
-                        print('Saving report rows %d to %d for %s', row_count,
+                        LOG.info('Saving report rows %d to %d for %s', row_count,
                                  row_count + len(self.processed_report.line_items),
                                  self._report_name)
                         row_count += len(self.processed_report.line_items)
@@ -427,23 +408,21 @@ class OCPReportProcessorBase(ReportProcessorBase):
                         self._update_mappings()
 
                 if self.processed_report.line_items:
-                    print('SAVING TO DB')
                     self._save_to_db(temp_table, report_db)
-
+                    LOG.info('merge_temp_table_2(%s)', str(temp_table))
                     report_db.merge_temp_table(
                         self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
                         self.line_item_conflict_columns
                     )
-
-                    print('Saving report rows %d to %d for %s', row_count,
+                    LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
 
                     row_count += len(self.processed_report.line_items)
 
-        print('Completed report processing for file: %s and schema: %s',
+        LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
 
@@ -467,7 +446,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             provider_id=provider_id
         )
         self.table_name = OCPUsageLineItem()
-        print('Initialized report processor for file: %s and schema: %s',
+        LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
     def _create_usage_report_line_item(self,
@@ -487,7 +466,6 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name)
-        print('USAGE LINE ITEM DATA: ', str(data))
         pod_label_str = ''
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
@@ -500,7 +478,6 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
         data['report_period_id'] = report_period_id
         data['report_id'] = report_id
         data['pod_labels'] = self._process_pod_labels(pod_label_str)
-        print('USAGE LINE ITEM new data set')
         # Deduplicate potential repeated rows in data
         key = tuple(data.get(column)
                     for column in self.line_item_conflict_columns)
@@ -532,16 +509,14 @@ class OCPStorageProcessor(OCPReportProcessorBase):
                 Accepted values: UNCOMPRESSED, GZIP_COMPRESSED
 
         """
-        print('IN STORAGE PROCESSOR')
         super().__init__(
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
             provider_id=provider_id
         )
-        print('STORAGE PROCESSOR SUPER INITIALDFD')
         self.table_name = OCPStorageLineItem()
-        print('Initialized report processor for file: %s and schema: %s',
+        LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
     def _create_usage_report_line_item(self,

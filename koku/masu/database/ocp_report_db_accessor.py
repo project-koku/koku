@@ -71,6 +71,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
+        import pdb; pdb.set_trace()
         self._cursor.execute(upsert_sql)
 
         delete_sql = f'DELETE FROM {temp_table_name}'
@@ -201,14 +202,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_report_periods(self):
         """Get all usage period objects."""
         periods = []
-        print('get_report_periods SCHEMA: ', str(self.schema))
         with schema_context(self.schema):
-            print('VALUES_LIST QUERY')
             periods = OCPUsageReportPeriod.objects.values('id', 'cluster_id', 'report_period_start', 'provider_id')
-            print('PERIODS: ', str(periods))
             return_value = {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
                             for p in periods}
-            print('RETURN_VALUE: ', str(return_value))
             return return_value
 
     def get_reports(self):

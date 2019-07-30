@@ -21,8 +21,9 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
+import logging
 
-from celery.utils.log import get_task_logger
+# from celery.utils.log import get_task_logger
 from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
@@ -37,7 +38,8 @@ from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 
-LOG = get_task_logger(__name__)
+# LOG = get_task_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-locals
@@ -68,7 +70,6 @@ def get_report_files(customer_name,
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    print('IN GET_REPORT_FILES')
     reports = _get_report_files(customer_name,
                                 authentication,
                                 billing_source,
@@ -76,7 +77,7 @@ def get_report_files(customer_name,
                                 provider_uuid)
 
     try:
-        print('Reports to be processed: %s', str(reports))
+        LOG.info('Reports to be processed: %s', str(reports))
         reports_to_summarize = []
         for report_dict in reports:
             manifest_id = report_dict.get('manifest_id')
@@ -89,17 +90,17 @@ def get_report_files(customer_name,
             if started_date and not completed_date:
                 expired_start_date = started_date + datetime.timedelta(hours=2)
                 if DateAccessor().today_with_timezone('UTC') < expired_start_date:
-                    print('Skipping processing task for %s since it was started at: %s.',
+                    LOG.info('Skipping processing task for %s since it was started at: %s.',
                              file_name, str(started_date))
                     continue
 
             # Skip processing if complete.
             if started_date and completed_date:
-                print('Skipping processing task for %s. Started on: %s and completed on: %s.',
+                LOG.info('Skipping processing task for %s. Started on: %s and completed on: %s.',
                          file_name, str(started_date), str(completed_date))
                 continue
 
-            print('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
+            LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
                      schema_name, provider_uuid, report_dict.get('file'))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
             _process_report_file(schema_name,
@@ -118,6 +119,9 @@ def get_report_files(customer_name,
     except ReportProcessorError as processing_error:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
+    except Exception as error:
+        import pdb; pdb.set_trace()
+        LOG.error(str(error))
 
     return reports_to_summarize
 
@@ -145,7 +149,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
                        provider,
                        simulate,
                        provider_id)
-    print(stmt)
+    LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
 
@@ -207,7 +211,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
                        start_date,
                        end_date,
                        manifest_id)
-    print(stmt)
+    LOG.info(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
     if updater.manifest_is_ready():
@@ -241,7 +245,7 @@ def update_all_summary_tables(start_date, end_date=None):
     try:
         all_accounts = AccountsAccessor().get_accounts()
         for account in all_accounts:
-            print('Gathering data for account=%s.', account)
+            LOG.info('Gathering data for account=%s.', account)
             schema_name = account.get('schema_name')
             provider = account.get('provider_type')
             provider_uuid = account.get('provider_uuid')
@@ -273,7 +277,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
             ' provider_uuid: {}')
     stmt = stmt.format(schema_name,
                        provider_uuid)
-    print(stmt)
+    LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)

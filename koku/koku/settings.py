@@ -334,6 +334,11 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'masu': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
+
     },
 }
 

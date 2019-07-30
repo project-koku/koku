@@ -38,14 +38,10 @@ class CURAccountsDB(CURAccountsInterface):
 
         """
         accounts = []
-        print('COLLECTING PROVIDERS')
         with ProviderCollector() as collector:
             all_providers = collector.get_providers()
-            print('PROVIDERS FOUND: ', str(all_providers))
             for provider in all_providers:
-                print('ARGUMENT IS: ', str(provider_uuid))
                 if provider_uuid and str(provider.uuid) != provider_uuid:
-                    print('SKIPPING WITHOUT PROVIDER UUID MATCH')
                     continue
                 account = {
                     'authentication': provider.authentication.provider_resource_name,
@@ -58,5 +54,4 @@ class CURAccountsDB(CURAccountsInterface):
                 if provider.billing_source:
                     account['billing_source'] = provider.billing_source.bucket
                 accounts.append(account)
-        print('RETURNING ACCOUNTS: ', str(accounts))
         return accounts

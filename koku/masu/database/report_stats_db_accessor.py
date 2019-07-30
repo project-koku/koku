@@ -37,9 +37,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
         self._manifest_id = manifest_id
         self._report_name = report_name
         self._table = CostUsageReportStatus
-        print('CHECKING IF EXISTS')
         if self.does_db_entry_exist() is False:
-            print('LAZY ADD')
             update_fields = {}
             update_fields['report_name'] = self._report_name
             update_fields['manifest_id'] = self._manifest_id

@@ -21,6 +21,7 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import django.apps
+
 from django.db import connection
 from tenant_schemas.utils import schema_context
 
@@ -96,18 +97,13 @@ class ReportDBAccessorBase(KokuDBAccess):
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
-        print('CREATING TEMP TABLE for: ', table_name)
         self._cursor.execute(
             f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
         )
-        print('TEMP TABLE CREATED: ', temp_table_name)
         if drop_column:
-            print('ALTERING TEMP TABLE, ', str(temp_table_name), str(drop_column))
             self._cursor.execute(
                 f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
             )
-            print('ALTERING COMPLETE')
-        print('CREATE_TEMP_TABLE: ', str(temp_table_name))
         return temp_table_name
 
     def create_new_temp_table(self, table_name, columns):
@@ -176,11 +172,12 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
-        old_isolation_level = connection.connection.isolation_level
-        connection.connection.set_isolation_level(0)
-        vacuum = f'VACUUM {self.schema}.{table_name}'
-        self._cursor.execute(vacuum)
-        connection.connection.set_isolation_level(old_isolation_level)
+        with schema_context(self.schema):
+            old_isolation_level = connection.connection.isolation_level
+            connection.connection.set_isolation_level(0)
+            vacuum = f'VACUUM {table_name}'
+            self._cursor.execute(vacuum)
+            connection.connection.set_isolation_level(old_isolation_level)
 
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
@@ -228,18 +225,14 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         """
         # If table is a str, get te model associated
-        print('IN REPORTDBACCESSORBASE _GET_DB_OBJ_QUERY: ', str(table), str(columns))
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
         with schema_context(self.schema):
             if columns:
-                print('COLUMNS ARE: ', str(columns))
                 query = table.objects.values(*columns)
-                print('FILTER QUERY: ', str(query))
             else:
                 query = table.objects.all()
-            print('QUERY IS ', str(query))
             return query
 
     def create_db_object(self, table_name, data):
@@ -287,9 +280,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-        print('EXECUTING SQL: ', str(insert_sql))
         self._cursor.execute(insert_sql)
-        print('RAW SQL COMPLETE')
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
@@ -342,11 +333,8 @@ class ReportDBAccessorBase(KokuDBAccess):
     def _get_primary_key(self, table_name, data):
         """Return the row id for a specific object."""
         with schema_context(self.schema):
-            print('GET_PRIMARY_KEY: ', str(table_name), str(data))
             query = self._get_db_obj_query(table_name)
-            print('GET_PRIMARY_KEY query: ', str(query))
             query = query.filter(**data)
-            print('GET_PRIMARY_KEY filter: ', str(query), str(data))
             try:
                 row_id = query.first().id
             except AttributeError as err:

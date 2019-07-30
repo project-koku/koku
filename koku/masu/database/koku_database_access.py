@@ -86,7 +86,6 @@ class KokuDBAccess:
         Returns:
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
         """
-        print('LOOKING FOR OBJ WITH FILTER ARGS: ', str(filter_args))
         with schema_context(self.schema):
             queryset = self._table.objects.all()
             if filter_args:

@@ -101,7 +101,6 @@ def get_local_file_name(file_path):
     filename = file_path.split('/')[-1]
     date_range = file_path.split('/')[-2]
     local_file_name = f'{date_range}_{filename}'
-    print('LOCAL FILE NAME FOR OCP: ', str(local_file_name))
     return local_file_name
 
 
@@ -145,14 +144,11 @@ def get_provider_uuid_from_cluster_id(cluster_id):
     """
     provider_uuid = None
     auth_id = None
-    print('IN GET_PROVIDER_UUID_FROM_CLUSTER_ID')
     with ProviderAuthDBAccessor(provider_resource_name=cluster_id) as auth_accessor:
-        print('HAVE ACCESSOR')
         auth_id = auth_accessor.get_auth_id()
         if auth_id:
             with ProviderDBAccessor(auth_id=auth_id) as provider_accessor:
                 provider_uuid = provider_accessor.get_uuid()
-    print('provider_uuid is: ', str(provider_uuid))
     return provider_uuid
 
 
