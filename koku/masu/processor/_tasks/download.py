@@ -59,6 +59,7 @@ def _get_report_files(customer_name,
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
+    print('IN _GET_REPORT_FILES')
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         reports_processed = provider_accessor.get_setup_complete()
         provider_id = provider_accessor.get_provider().id
@@ -79,16 +80,17 @@ def _get_report_files(customer_name,
                                 customer_name,
                                 provider_type,
                                 number_of_months)
-    LOG.info(log_statement)
+    print(log_statement)
     try:
         disk = psutil.disk_usage(Config.TMP_DIR)
         disk_msg = 'Available disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
     except OSError:
         disk_msg = 'Unable to find available disk space. {} does not exist'.format(Config.TMP_DIR)
-    LOG.info(disk_msg)
+    print(disk_msg)
 
     reports = None
     try:
+        print('GETTING REPORTDOWNLOADER')
         downloader = ReportDownloader(customer_name=customer_name,
                                       access_credential=authentication,
                                       report_source=billing_source,
@@ -98,7 +100,7 @@ def _get_report_files(customer_name,
         reports = downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
         worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(err))
+        print(str(err))
         with ProviderStatus(provider_uuid) as status:
             status.set_error(error=err)
         raise err

@@ -49,7 +49,9 @@ class ReportProcessor:
         self.manifest_id = manifest_id
         try:
             self._processor = self._set_processor()
+            print('REPORT PROCESSOR TYPE: ', str(self._processor))
         except Exception as err:
+            print('HELP!!!: ', str(err))
             raise ReportProcessorError(str(err))
 
         if not self._processor:
@@ -68,6 +70,7 @@ class ReportProcessor:
             (Object) : Provider-specific report processor
 
         """
+        print('IN _SET_PROCESSOR, provider: ', str(self.provider_type))
         if self.provider_type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
@@ -76,6 +79,7 @@ class ReportProcessor:
                                       manifest_id=self.manifest_id)
 
         if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, OCP_LOCAL_SERVICE_PROVIDER):
+            print('SETTING OCPREPORTPROCESSOR')
             return OCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,

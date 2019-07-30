@@ -17,6 +17,5 @@
 
 """App factory for Masu application."""
 
-
 def create_app():
     pass

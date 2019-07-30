@@ -18,7 +18,7 @@
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
-from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportStatus
 
 
 class ReportStatsDBAccessor(KokuDBAccess):
@@ -36,9 +36,10 @@ class ReportStatsDBAccessor(KokuDBAccess):
         super().__init__(schema)
         self._manifest_id = manifest_id
         self._report_name = report_name
-        self._table = CostUsageReportManifest
-
+        self._table = CostUsageReportStatus
+        print('CHECKING IF EXISTS')
         if self.does_db_entry_exist() is False:
+            print('LAZY ADD')
             update_fields = {}
             update_fields['report_name'] = self._report_name
             update_fields['manifest_id'] = self._manifest_id

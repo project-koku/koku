@@ -115,7 +115,7 @@ def extract_payload(url):
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if 'manifest.json' in manifest]
     except ReadError as error:
-        LOG.error('Unable to untar file. Reason: %s', str(error))
+        print('Unable to untar file. Reason: %s', str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError('Extraction failure.')
 
@@ -143,9 +143,9 @@ def extract_payload(url):
         try:
             shutil.copy(payload_source_path, payload_destination_path)
         except FileNotFoundError as error:
-            LOG.error('Unable to find file in payload. %s', str(error))
+            print('Unable to find file in payload. %s', str(error))
             raise KafkaMsgHandlerError('Missing file in payload')
-    LOG.info('Successfully extracted OCP for %s/%s', report_meta.get('cluster_id'), usage_month)
+    print('Successfully extracted OCP for %s/%s', report_meta.get('cluster_id'), usage_month)
     # Remove temporary directory and files
     shutil.rmtree(temp_dir)
     return report_meta
@@ -182,9 +182,9 @@ async def send_confirmation(request_id, status):  # pragma: no cover
             'validation': status
         }
         msg = bytes(json.dumps(validation), 'utf-8')
-        LOG.info('Validating message: %s', str(msg))
+        print('Validating message: %s', str(msg))
         await producer.send_and_wait(VALIDATION_TOPIC, msg)
-        LOG.info('Validating message complete.')
+        print('Validating message complete.')
     finally:
         await producer.stop()
 
@@ -231,10 +231,10 @@ def handle_message(msg):
             report_meta = extract_payload(value['url'])
             return SUCCESS_CONFIRM_STATUS, report_meta
         except KafkaMsgHandlerError as error:
-            LOG.error('Unable to extract payload. Error: %s', str(error))
+            print('Unable to extract payload. Error: %s', str(error))
             return FAILURE_CONFIRM_STATUS, None
     else:
-        LOG.error('Unexpected Message')
+        print('Unexpected Message')
     return None, None
 
 
@@ -259,7 +259,7 @@ def get_account(provider_uuid):
     try:
         all_accounts = AccountsAccessor().get_accounts(provider_uuid)
     except AccountsAccessorError as error:
-        LOG.info('Unable to get accounts. Error: %s', str(error))
+        print('Unable to get accounts. Error: %s', str(error))
         return None
 
     return all_accounts.pop()
@@ -281,20 +281,21 @@ def process_report(report):
         None
 
     """
+    print('IN PROCESS_REPORT')
     cluster_id = report.get('cluster_id')
     provider_uuid = utils.get_provider_uuid_from_cluster_id(cluster_id)
     if provider_uuid:
-        LOG.info('Found provider_uuid: %s for cluster_id: %s', str(provider_uuid), str(cluster_id))
+        print('Found provider_uuid: %s for cluster_id: %s', str(provider_uuid), str(cluster_id))
         account = get_account(provider_uuid)
-        LOG.info('Processing report for account %s', account)
+        print('Processing report for account %s', account)
 
         reports_to_summarize = get_report_files(**account)
-        LOG.info('Processing complete for account %s', account)
+        print('Processing complete for account %s', account)
 
         async_id = summarize_reports.delay(reports_to_summarize)
-        LOG.info('Summarization celery uuid: %s', str(async_id))
+        print('Summarization celery uuid: %s', str(async_id))
     else:
-        LOG.error('Could not find provider_uuid for cluster_id: %s', str(cluster_id))
+        print('Could not find provider_uuid for cluster_id: %s', str(cluster_id))
 
 
 # pylint: disable=broad-except
@@ -319,13 +320,13 @@ async def process_messages():  # pragma: no cover
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 try:
                     await EVENT_LOOP.run_in_executor(pool, process_report, report_meta)
-                    LOG.info('Processing: %s complete.', str(report_meta))
+                    print('Processing: %s complete.', str(report_meta))
                 except Exception as error:
                     # The reason for catching all exceptions is to ensure that the event
                     # loop does not block if process_report fails.
                     # Since this is a critical path for the listener it's not worth the
                     # risk of missing an exception in the download->process sequence.
-                    LOG.error('Line item processing exception: %s', str(error))
+                    print('Line item processing exception: %s', str(error))
 
 
 async def listen_for_messages(consumer):  # pragma: no cover
@@ -348,7 +349,7 @@ async def listen_for_messages(consumer):  # pragma: no cover
         await consumer.stop()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.')
 
-    LOG.info('Listener started.  Waiting for messages...')
+    print('Listener started.  Waiting for messages...')
     try:
         # Consume messages
         async for msg in consumer:
@@ -372,7 +373,7 @@ def asyncio_worker_thread(loop):  # pragma: no cover
     def backoff(interval, maximum=64):
         """Exponential back-off."""
         wait = min(maximum, (2 ** interval)) + (random.randint(0, 1000) / 1000.0)
-        LOG.info('Sleeping for %s seconds.', wait)
+        print('Sleeping for %s seconds.', wait)
         time.sleep(wait)
 
     count = 0
@@ -390,10 +391,10 @@ def asyncio_worker_thread(loop):  # pragma: no cover
             try:
                 loop.run_until_complete(listen_for_messages(consumer))
             except KafkaMsgHandlerError as err:
-                LOG.info('Kafka connection failure.  Error: %s', str(err))
+                print('Kafka connection failure.  Error: %s', str(err))
             backoff(count, Config.INSIGHTS_KAFKA_CONN_RETRY_MAX)
             count += 1
-            LOG.info('Attempting to reconnect')
+            print('Attempting to reconnect')
 
     except KeyboardInterrupt:
         exit(0)

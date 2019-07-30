@@ -22,6 +22,7 @@ from decimal import Decimal, InvalidOperation
 
 import django.apps
 from django.db import connection
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
@@ -95,13 +96,18 @@ class ReportDBAccessorBase(KokuDBAccess):
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
+        print('CREATING TEMP TABLE for: ', table_name)
         self._cursor.execute(
             f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
         )
+        print('TEMP TABLE CREATED: ', temp_table_name)
         if drop_column:
+            print('ALTERING TEMP TABLE, ', str(temp_table_name), str(drop_column))
             self._cursor.execute(
                 f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
             )
+            print('ALTERING COMPLETE')
+        print('CREATE_TEMP_TABLE: ', str(temp_table_name))
         return temp_table_name
 
     def create_new_temp_table(self, table_name, columns):
@@ -222,14 +228,19 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         """
         # If table is a str, get te model associated
+        print('IN REPORTDBACCESSORBASE _GET_DB_OBJ_QUERY: ', str(table), str(columns))
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
-        query = table.objects.all()
-        if columns:
-            query = query.values(*columns)
-
-        return query
+        with schema_context(self.schema):
+            if columns:
+                print('COLUMNS ARE: ', str(columns))
+                query = table.objects.values(*columns)
+                print('FILTER QUERY: ', str(query))
+            else:
+                query = table.objects.all()
+            print('QUERY IS ', str(query))
+            return query
 
     def create_db_object(self, table_name, data):
         """Instantiate a populated database object.
@@ -248,7 +259,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         return table(**data)
 
     def insert_on_conflict_do_nothing(self,
-                                      table_name,
+                                      table,
                                       data,
                                       conflict_columns=None):
         """Write an INSERT statement with an ON CONFLICT clause.
@@ -265,6 +276,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             (str): The id of the inserted row
 
         """
+        table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
         columns_formatted = ', '.join(str(value) for value in data.keys())
         data_formatted = ', '.join("'{}'".format(str(value)) for value in data.values())
@@ -275,14 +287,14 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-
+        print('EXECUTING SQL: ', str(insert_sql))
         self._cursor.execute(insert_sql)
-
+        print('RAW SQL COMPLETE')
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
 
-        return self._get_primary_key(table_name, data)
+        return self._get_primary_key(table, data)
 
     def insert_on_conflict_do_update(self,
                                      table_name,
@@ -329,16 +341,20 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def _get_primary_key(self, table_name, data):
         """Return the row id for a specific object."""
-        query = self._get_db_obj_query(table_name)
-        query = query.filter(**data)
-        try:
-            row_id = query.first().id
-        except AttributeError as err:
-            LOG.error('Row in %s does not exist in database.', table_name)
-            LOG.error('Failed row data: %s', data)
-            raise err
-        else:
-            return row_id
+        with schema_context(self.schema):
+            print('GET_PRIMARY_KEY: ', str(table_name), str(data))
+            query = self._get_db_obj_query(table_name)
+            print('GET_PRIMARY_KEY query: ', str(query))
+            query = query.filter(**data)
+            print('GET_PRIMARY_KEY filter: ', str(query), str(data))
+            try:
+                row_id = query.first().id
+            except AttributeError as err:
+                LOG.error('Row in %s does not exist in database.', table_name)
+                LOG.error('Failed row data: %s', data)
+                raise err
+            else:
+                return row_id
 
     # pylint: disable=no-self-use
     def flush_db_object(self, table):

@@ -68,7 +68,7 @@ def get_report_files(customer_name,
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-
+    print('IN GET_REPORT_FILES')
     reports = _get_report_files(customer_name,
                                 authentication,
                                 billing_source,
@@ -76,7 +76,7 @@ def get_report_files(customer_name,
                                 provider_uuid)
 
     try:
-        LOG.info('Reports to be processed: %s', str(reports))
+        print('Reports to be processed: %s', str(reports))
         reports_to_summarize = []
         for report_dict in reports:
             manifest_id = report_dict.get('manifest_id')
@@ -89,17 +89,17 @@ def get_report_files(customer_name,
             if started_date and not completed_date:
                 expired_start_date = started_date + datetime.timedelta(hours=2)
                 if DateAccessor().today_with_timezone('UTC') < expired_start_date:
-                    LOG.info('Skipping processing task for %s since it was started at: %s.',
+                    print('Skipping processing task for %s since it was started at: %s.',
                              file_name, str(started_date))
                     continue
 
             # Skip processing if complete.
             if started_date and completed_date:
-                LOG.info('Skipping processing task for %s. Started on: %s and completed on: %s.',
+                print('Skipping processing task for %s. Started on: %s and completed on: %s.',
                          file_name, str(started_date), str(completed_date))
                 continue
 
-            LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
+            print('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
                      schema_name, provider_uuid, report_dict.get('file'))
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
             _process_report_file(schema_name,
@@ -145,7 +145,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
                        provider,
                        simulate,
                        provider_id)
-    LOG.info(stmt)
+    print(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
 
@@ -207,7 +207,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
                        start_date,
                        end_date,
                        manifest_id)
-    LOG.info(stmt)
+    print(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
     if updater.manifest_is_ready():
@@ -241,7 +241,7 @@ def update_all_summary_tables(start_date, end_date=None):
     try:
         all_accounts = AccountsAccessor().get_accounts()
         for account in all_accounts:
-            LOG.info('Gathering data for account=%s.', account)
+            print('Gathering data for account=%s.', account)
             schema_name = account.get('schema_name')
             provider = account.get('provider_type')
             provider_uuid = account.get('provider_uuid')
@@ -273,7 +273,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
             ' provider_uuid: {}')
     stmt = stmt.format(schema_name,
                        provider_uuid)
-    LOG.info(stmt)
+    print(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)

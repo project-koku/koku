@@ -24,6 +24,8 @@ from dateutil.parser import parse
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -198,22 +200,24 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_report_periods(self):
         """Get all usage period objects."""
-        table_name = OCP_REPORT_TABLE_MAP['report_period']
-
-        columns = ['id', 'cluster_id', 'report_period_start', 'provider_id']
-        periods = self._get_db_obj_query(table_name, columns=columns).all()
-        return {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
-                for p in periods}
+        periods = []
+        print('get_report_periods SCHEMA: ', str(self.schema))
+        with schema_context(self.schema):
+            print('VALUES_LIST QUERY')
+            periods = OCPUsageReportPeriod.objects.values('id', 'cluster_id', 'report_period_start', 'provider_id')
+            print('PERIODS: ', str(periods))
+            return_value = {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
+                            for p in periods}
+            print('RETURN_VALUE: ', str(return_value))
+            return return_value
 
     def get_reports(self):
         """Make a mapping of reports by time."""
-        table_name = OCP_REPORT_TABLE_MAP['report']
-
-        reports = self._get_db_obj_query(table_name).all()
-
-        return {(entry.report_period_id,
-                 entry.interval_start.strftime(self._datetime_format)): entry.id
-                for entry in reports}
+        with schema_context(self.schema):
+            reports = OCPUsageReport.objects.all()
+            return {(entry.report_period_id,
+                    entry.interval_start.strftime(self._datetime_format)): entry.id
+                    for entry in reports}
 
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
