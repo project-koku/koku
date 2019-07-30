@@ -80,7 +80,11 @@ services:
           context: .
           dockerfile: Dockerfile-env
       working_dir: /koku/koku
-      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info']
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
+      # entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
+
+      #entrypoint: ['celery', '-A', 'masu.celery.worker', 'worker', '-E', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
+
       environment:
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
@@ -94,6 +98,7 @@ services:
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
       privileged: true
       volumes:
         - '.:/koku'

@@ -1,11 +1,15 @@
 """Celery configuration for the Koku project."""
+from __future__ import absolute_import, unicode_literals
 
 import logging
 import os
 
 import django
+from django.apps import apps
+from django.conf import settings
 from celery import Celery
 from celery.signals import after_setup_logger
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,6 +23,7 @@ LOGGER.info('Django setup.')
 APP = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
 APP.config_from_object('django.conf:settings', namespace='CELERY')
 LOGGER.info('Celery autodiscover tasks.')
+# APP.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 APP.autodiscover_tasks()
 
 # The signal decorator is associated with the

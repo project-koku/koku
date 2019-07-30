@@ -21,9 +21,8 @@
 # we expect this situation to be temporary as we iterate on these details.
 import datetime
 import os
-import logging
 
-# from celery.utils.log import get_task_logger
+from celery.utils.log import get_task_logger
 from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
@@ -38,8 +37,7 @@ from masu.processor.report_charge_updater import ReportChargeUpdater
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 
-# LOG = get_task_logger(__name__)
-LOG = logging.getLogger(__name__)
+LOG = get_task_logger(__name__)
 
 
 # pylint: disable=too-many-locals
