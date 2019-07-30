@@ -16,12 +16,14 @@
 #
 """Celery worker entry-point."""
 from masu import create_app
-from masu.celery import celery, update_celery_config
+from masu.celery import APP, update_celery_config
 from masu.prometheus_stats import initialize_prometheus_exporter
 
 
-MASU = create_app()
-MASU.app_context().push()
+# MASU = create_app()
+# MASU.app_context().push()
+MASU = {}
+MASU['config'] = 
 update_celery_config(celery, MASU)
 
 initialize_prometheus_exporter()
