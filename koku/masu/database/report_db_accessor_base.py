@@ -415,5 +415,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             LOG.info('Updating %s', table)
 
         self._cursor.execute(sql)
+        LOG.info('EXECUTE STATUS: %s', self._cursor.statusmessage)
         self.vacuum_table(table)
-        LOG.info('Finished updating %s.', table)
+        LOG.info('Finished updating %s. Status: %s', table, self._cursor.statusmessage)
