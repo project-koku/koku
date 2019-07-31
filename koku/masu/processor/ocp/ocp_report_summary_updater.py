@@ -112,6 +112,7 @@ class OCPReportSummaryUpdater:
                             self._date_accessor.today_with_timezone('UTC')
                     period.summary_data_updated_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
+                    period.save()
                 print('COMMIT')
                 accessor.commit()
 

@@ -268,7 +268,6 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
         None
 
     """
-    return
     worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
 
     stmt = ('update_charge_info called with args:\n'

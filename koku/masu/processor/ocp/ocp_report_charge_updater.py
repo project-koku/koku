@@ -26,6 +26,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.ocp.common import get_cluster_id_from_provider
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -181,9 +182,11 @@ class OCPReportChargeUpdater:
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 try:
                     cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(self._cluster_id)
+                    print('FOUND CPU USAGE: ', str(cpu_usage))
                     cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
 
                     cpu_request = report_accessor.get_pod_request_cpu_core_hours(self._cluster_id)
+                    print('FOUND CPU REQUEST: ', str(cpu_request))
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
@@ -264,12 +267,14 @@ class OCPReportChargeUpdater:
         self._update_storage_charge()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
-                     self._schema, self._provider_uuid)
-            accessor.populate_cost_summary_table(self._cluster_id,
-                                                 start_date=start_date,
-                                                 end_date=end_date)
-            report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
-            for period in report_periods:
-                period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
-            accessor.commit()
+            with schema_context(self._schema):
+                LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
+                        self._schema, self._provider_uuid)
+                accessor.populate_cost_summary_table(self._cluster_id,
+                                                    start_date=start_date,
+                                                    end_date=end_date)
+                report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
+                for period in report_periods:
+                    period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
+                    period.save()
+                accessor.commit()

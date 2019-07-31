@@ -24,7 +24,7 @@ from dateutil.parser import parse
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport
+from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport, OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
 from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
@@ -217,13 +217,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
-        return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        table_name = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            if cluster_id:
+                reports = self._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
+            else:
+                reports = self._get_db_obj_query(table_name).all()
+            return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
     def _get_reports(self, table, cluster_id=None):
         """Return requested reports from given table."""
@@ -235,33 +235,38 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_pod_request_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
+        table_name = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table_name, cluster_id)
+            return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
 
     def get_pod_usage_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_usage hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        table_name = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table_name, cluster_id)
+            return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
     def get_pod_request_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_request_hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        table_name = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table_name, cluster_id)
+            return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
     def get_persistentvolumeclaim_usage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        table_name = OCPStorageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table_name, cluster_id)
+            return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        table_name = OCPStorageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table_name, cluster_id)
+            return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
