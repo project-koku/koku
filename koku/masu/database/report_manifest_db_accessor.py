@@ -19,6 +19,7 @@
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest
+from tenant_schemas.utils import schema_context
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -39,8 +40,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        query = self._get_db_obj_query()
-        return query.filter(id=manifest_id).first()
+        print('IN GET_MANIFEST_BY_ID')
+        with schema_context(self._schema):
+            query = self._get_db_obj_query()
+            return query.filter(id=manifest_id).first()
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""

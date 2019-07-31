@@ -276,12 +276,13 @@ class ReportDBAccessorBase(KokuDBAccess):
         columns_formatted = ', '.join(str(value) for value in data.keys())
         data_formatted = ', '.join("'{}'".format(str(value)) for value in data.values())
         insert_sql = f"""INSERT INTO {table_name}({columns_formatted}) VALUES({data_formatted})"""
-
+        print('INSERT_ON_CONFLICT_DO_NOTHING data_formatted: %s', str(data_formatted))
         if conflict_columns:
             conflict_columns_formatted = ', '.join(conflict_columns)
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
+        print('INSERT_ON_CONFLICT_DO_NOTHING inswert_sql: %s', str(insert_sql))
         self._cursor.execute(insert_sql)
         if conflict_columns:
             data = {key: value for key, value in data.items()
