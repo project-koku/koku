@@ -182,11 +182,9 @@ class OCPReportChargeUpdater:
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 try:
                     cpu_usage = report_accessor.get_pod_usage_cpu_core_hours(self._cluster_id)
-                    print('FOUND CPU USAGE: ', str(cpu_usage))
                     cpu_usage_charge = self._calculate_charge(cpu_usage_rates, cpu_usage)
 
                     cpu_request = report_accessor.get_pod_request_cpu_core_hours(self._cluster_id)
-                    print('FOUND CPU REQUEST: ', str(cpu_request))
                     cpu_request_charge = self._calculate_charge(cpu_request_rates, cpu_request)
 
                     total_cpu_charge = self._aggregate_charges(cpu_usage_charge, cpu_request_charge)
