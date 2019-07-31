@@ -94,6 +94,20 @@ def _get_configured_sns_topics(bucket, credentials):
     return topics
 
 
+def _check_org_access(credentials):
+    """Check for provider organization access."""
+    access_ok = True
+    org_client = boto3.client(
+        'organizations', **credentials
+    )
+    try:
+        org_client.describe_organization()
+    except (ClientError, BotoConnectionError) as boto_error:
+        LOG.exception(boto_error)
+        access_ok = False
+    return access_ok
+
+
 def _check_cost_report_access(credential_name, credentials,
                               region='us-east-1', bucket=None):
     """Check for provider cost and usage report access."""
@@ -160,6 +174,12 @@ class AWSProvider(ProviderInterface):
             raise serializers.ValidationError(error_obj(key, message))
 
         _check_cost_report_access(credential_name, creds, bucket=storage_resource_name)
+
+        org_access = _check_org_access(creds)
+        if not org_access:
+            message = 'Unable to obtain organization data with {}.'.format(
+                credential_name)
+            LOG.info(message)
 
         sns_topics = _get_configured_sns_topics(storage_resource_name, creds)
         topics_string = ', '.join(sns_topics)

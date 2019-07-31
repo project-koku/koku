@@ -41,17 +41,6 @@ objects:
       targetPort: 9100
     selector:
       name: ${NAME}-masu-flask
-- kind: Route
-  apiVersion: v1
-  metadata:
-    name: ${NAME}-masu-flask
-  spec:
-    host: ${APPLICATION_DOMAIN}
-    port:
-      targetPort: 8080-tcp
-    to:
-      kind: Service
-      name: ${NAME}-masu-flask
 - kind: BuildConfig
   apiVersion: v1
   metadata:
@@ -333,7 +322,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: false
+        automatic: true
         containerNames:
           - ${NAME}-masu-flask
         from:
