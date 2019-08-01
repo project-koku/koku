@@ -127,8 +127,10 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
 
-
+MASU = ENVIRONMENT.bool('MASU', default=False)
 ROOT_URLCONF = 'koku.urls'
+if MASU:
+    ROOT_URLCONF = 'masu.urls'
 
 TEMPLATES = [
     {
