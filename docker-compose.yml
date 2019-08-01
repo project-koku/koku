@@ -151,14 +151,17 @@ services:
         - koku-rabbit
 
   koku-beat:
-    container_name: koku_beat
-    hostname: koku_beat
-    build:
-        context: .
-        dockerfile: Dockerfile-env
-    working_dir: /koku/koku
-    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
-    environment:
+      container_name: koku_beat
+      hostname: koku_beat
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/koku
+      entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
         - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -171,12 +174,17 @@ services:
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
-    privileged: true
-    volumes:
-      - .:/koku
-    depends_on:
-      - db
-      - koku-rabbit
+        - prometheus_multiproc_dir=/tmp
+        - SCHEDULE_REPORT_CHECKS=True
+        - SCHEDULE_CHECK_INTERVAL=1
+      privileged: true
+      volumes:
+        - '.:/koku'
+      links:
+          - koku-rabbit
+      depends_on:
+          - koku-rabbit
+
 
 networks:
   default:
