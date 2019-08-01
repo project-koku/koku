@@ -97,7 +97,7 @@ class AWSReportProcessor(ReportProcessorBase):
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
             self.column_map = report_common_db.column_map
-        LOG.info('AWSREPORTPROCESS INIT')
+
         with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
@@ -118,15 +118,12 @@ class AWSReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        LOG.info('IN AWS PROCESS()')
         row_count = 0
         self._delete_line_items()
         opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
-        LOG.info('FINISHED IS_FINALIZED_DATA')
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
-            LOG.info('OPENING AWSREPORTDBACCESSOR')
             with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
@@ -245,7 +242,7 @@ class AWSReportProcessor(ReportProcessorBase):
         """Delete stale data for the report being processed, if necessary."""
         if not self.manifest_id:
             return False
-        LOG.info('_DELETE_LINE_ITEMS')
+
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
             if manifest.num_processed_files != 0:

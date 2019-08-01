@@ -104,6 +104,8 @@ services:
       privileged: true
       volumes:
         - '.:/koku'
+        # - '~/aws_local:/tmp/local_bucket'
+        # - '~/insights_local:/var/tmp/insights_local'
       links:
           - koku-rabbit
       depends_on:

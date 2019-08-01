@@ -64,6 +64,7 @@ APP.autodiscover_tasks()
 @after_setup_logger.connect
 def setup_loggers(logger, *args, **kwargs):  # pylint: disable=unused-argument
     """Add logging for celery with optional cloud watch."""
+    return  #TODO this is causing double logging in the worker
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     logger.addHandler(console_handler)
