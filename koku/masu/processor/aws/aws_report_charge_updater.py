@@ -20,6 +20,7 @@ import logging
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -59,9 +60,11 @@ class AWSReportChargeUpdater:
                   self._provider_uuid, str(start_date), str(end_date))
 
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
-            LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
-                      self._schema, self._provider_uuid)
-            bills = accessor.bills_for_provider_id(self._provider_id, start_date)
-            for bill in bills:
-                bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
-            accessor.commit()
+            with schema_context(self._schema):
+                LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
+                        self._schema, self._provider_uuid)
+                bills = accessor.bills_for_provider_id(self._provider_id, start_date)
+                for bill in bills:
+                    bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
+                    bill.save()
+                accessor.commit()

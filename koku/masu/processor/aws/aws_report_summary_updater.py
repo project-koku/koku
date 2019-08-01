@@ -22,6 +22,7 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -54,22 +55,23 @@ class AWSReportSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema_name,
-            start_date,
-            end_date
-        )
-        bill_ids = [str(bill.id) for bill in bills]
+        with schema_context(self._schema_name):
+            start_date, end_date = self._get_sql_inputs(start_date, end_date)
+            bills = get_bills_from_provider(
+                self._provider.uuid,
+                self._schema_name,
+                start_date,
+                end_date
+            )
+            bill_ids = [str(bill.id) for bill in bills]
 
-        LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
-                 '\n\tProvider: %s \n\tDates: %s - %s',
-                 self._schema_name, self._provider.uuid, start_date, end_date)
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+            LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
+                    '\n\tProvider: %s \n\tDates: %s - %s',
+                    self._schema_name, self._provider.uuid, start_date, end_date)
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
 
-        return start_date, end_date
+            return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
         """Populate the summary tables for reporting.
@@ -82,32 +84,36 @@ class AWSReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema_name,
-            start_date,
-            end_date
-        )
-        bill_ids = [str(bill.id) for bill in bills]
+        with schema_context(self._schema_name):
+            start_date, end_date = self._get_sql_inputs(start_date, end_date)
+            bills = get_bills_from_provider(
+                self._provider.uuid,
+                self._schema_name,
+                start_date,
+                end_date
+            )
+            bill_ids = [str(bill.id) for bill in bills]
 
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            # Need these bills on the session to update dates after processing
-            bills = accessor.bills_for_provider_id(self._provider.id, start_date)
-            LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
-                     '\n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema_name, self._provider.uuid, start_date, end_date)
-            accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-            accessor.populate_tags_summary_table()
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                # Need these bills on the session to update dates after processing
+                bills = accessor.bills_for_provider_id(self._provider.id, start_date)
+                LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
+                        '\n\tProvider: %s \n\tDates: %s - %s',
+                        self._schema_name, self._provider.uuid, start_date, end_date)
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                accessor.populate_tags_summary_table()
 
-            for bill in bills:
-                if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = \
+                for bill in bills:
+                    if bill.summary_data_creation_datetime is None:
+                        bill.summary_data_creation_datetime = \
+                            self._date_accessor.today_with_timezone('UTC')
+                    bill.summary_data_updated_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
-                bill.summary_data_updated_datetime = \
-                    self._date_accessor.today_with_timezone('UTC')
+                    bill.save()
 
-            accessor.commit()
+                accessor.commit()
         return start_date, end_date
 
     def _get_sql_inputs(self, start_date, end_date):
@@ -115,25 +121,26 @@ class AWSReportSummaryUpdater:
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             # This is the normal processing route
             if self._manifest:
-                # Override the bill date to correspond with the manifest
-                bill_date = self._manifest.billing_period_start_datetime.date()
-                bills = accessor.get_cost_entry_bills_query_by_provider(
-                    self._provider.id
-                )
-                bills = bills.filter_by(billing_period_start=bill_date).all()
+                with schema_context(self._schema_name):
+                    # Override the bill date to correspond with the manifest
+                    bill_date = self._manifest.billing_period_start_datetime.date()
+                    bills = accessor.get_cost_entry_bills_query_by_provider(
+                        self._provider.id
+                    )
+                    bills = bills.filter(billing_period_start=bill_date).all()
 
-                do_month_update = self._determine_if_full_summary_update_needed(
-                    bills[0]
-                )
-                if do_month_update:
-                    last_day_of_month = calendar.monthrange(
-                        bill_date.year,
-                        bill_date.month
-                    )[1]
-                    start_date = bill_date.strftime('%Y-%m-%d')
-                    end_date = bill_date.replace(day=last_day_of_month)
-                    end_date = end_date.strftime('%Y-%m-%d')
-                    LOG.info('Overriding start and end date to process full month.')
+                    do_month_update = self._determine_if_full_summary_update_needed(
+                        bills[0]
+                    )
+                    if do_month_update:
+                        last_day_of_month = calendar.monthrange(
+                            bill_date.year,
+                            bill_date.month
+                        )[1]
+                        start_date = bill_date.strftime('%Y-%m-%d')
+                        end_date = bill_date.replace(day=last_day_of_month)
+                        end_date = end_date.strftime('%Y-%m-%d')
+                        LOG.info('Overriding start and end date to process full month.')
 
             return start_date, end_date
 

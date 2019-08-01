@@ -44,7 +44,7 @@ objects:
       spec:
         containers:
         - env:
-          image: redis:5.0.4
+          image: redis:latest
           command:
             - "redis-server"
           args:
@@ -73,7 +73,7 @@ objects:
         - ${NAME}-redis
         from:
           kind: ImageStreamTag
-          name: redis:5.0.4
+          name: redis:latest
           namespace: ${NAMESPACE}
       type: ImageChange
 

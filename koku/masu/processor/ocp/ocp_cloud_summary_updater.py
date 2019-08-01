@@ -25,6 +25,7 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
 from masu.util.ocp.common import get_cluster_id_from_provider
+from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -56,31 +57,32 @@ class OCPCloudReportSummaryUpdater:
             None
 
         """
-        cluster_id = get_cluster_id_from_provider(self._provider.uuid)
-        aws_bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema_name,
-            start_date,
-            end_date
-        )
-        aws_bill_ids = [str(bill.id) for bill in aws_bills]
-        # OpenShift on AWS
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            LOG.info('Updating OpenShift on AWS summary table for '
-                     '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                     self._schema_name, self._provider.uuid, start_date, end_date)
-            accessor.populate_ocp_on_aws_cost_daily_summary(
+        with schema_context(self._schema_name):
+            cluster_id = get_cluster_id_from_provider(self._provider.uuid)
+            aws_bills = get_bills_from_provider(
+                self._provider.uuid,
+                self._schema_name,
                 start_date,
-                end_date,
-                cluster_id,
-                aws_bill_ids
+                end_date
             )
-            accessor.commit()
-
-        if cluster_id:
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-                LOG.info('Updating OpenShift on OCP cost summary table for'
-                         '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                         self._schema_name, self._provider.uuid, start_date, end_date)
-                accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
+            aws_bill_ids = [str(bill.id) for bill in aws_bills]
+            # OpenShift on AWS
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                LOG.info('Updating OpenShift on AWS summary table for '
+                        '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
+                        self._schema_name, self._provider.uuid, start_date, end_date)
+                accessor.populate_ocp_on_aws_cost_daily_summary(
+                    start_date,
+                    end_date,
+                    cluster_id,
+                    aws_bill_ids
+                )
                 accessor.commit()
+
+            if cluster_id:
+                with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                    LOG.info('Updating OpenShift on OCP cost summary table for'
+                            '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
+                            self._schema_name, self._provider.uuid, start_date, end_date)
+                    accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
+                    accessor.commit()

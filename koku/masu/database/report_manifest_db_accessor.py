@@ -40,7 +40,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        print('IN GET_MANIFEST_BY_ID')
         with schema_context(self._schema):
             query = self._get_db_obj_query()
             return query.filter(id=manifest_id).first()
