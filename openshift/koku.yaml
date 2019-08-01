@@ -37,16 +37,6 @@ objects:
     selector:
       name: ${NAME}
 - apiVersion: v1
-  kind: Route
-  metadata:
-    name: ${NAME}
-  spec:
-    host: ${APPLICATION_DOMAIN}
-    to:
-      kind: Service
-      name: ${NAME}
-
-- apiVersion: v1
   kind: ImageStream
   metadata:
     name: ${NAME}
@@ -500,11 +490,6 @@ parameters:
   value: '/api'
   name: API_PATH_PREFIX
   required: true
-- description: The exposed hostname that will route to the Django service, if left
-    blank a value will be defaulted.
-  displayName: Application Hostname
-  name: APPLICATION_DOMAIN
-  required: false
 - description: Set this to the relative path to your project if it is not in the root
     of your repository.
   displayName: Context Directory
