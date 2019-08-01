@@ -231,7 +231,6 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = AWSCostEntryBill
             bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            print('START_DATE TYPE: %s', str(type(start_date)))
             if start_date:
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
