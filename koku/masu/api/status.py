@@ -25,7 +25,14 @@ import subprocess
 import sys
 
 import psycopg2
-from flask import jsonify, request
+from rest_framework import status
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from masu.api import API_VERSION
 from masu.celery import celery as celery_app
@@ -36,21 +43,22 @@ from masu.util.blueprint import application_route
 
 LOG = logging.getLogger(__name__)
 
-API_V1_ROUTES = {}
-
 BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
 CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
 
 
-@application_route('/status/', API_V1_ROUTES, methods=('GET',))
-def get_status():
+# @application_route('/status/', API_V1_ROUTES, methods=('GET',))
+@api_view(http_method_names=['GET'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def get_status(request):
     """Packages response for class-based view."""
-    if 'liveness' in request.args:
-        return jsonify({'alive': True})
+    if 'liveness' in request.query_params:
+        return Response({'alive': True})
 
     app_status = ApplicationStatus()
     response = {
-        'connection_pool': DB_ENGINE.pool.status(),
+        # 'connection_pool': DB_ENGINE.pool.status(),
         'api_version': app_status.api_version,
         'celery_status': app_status.celery_status,
         'commit': app_status.commit,
@@ -61,7 +69,7 @@ def get_status():
         'platform_info': app_status.platform_info,
         'python_version': app_status.python_version
     }
-    return jsonify(response)
+    return Response(response)
 
 
 # pylint: disable=too-few-public-methods, no-self-use

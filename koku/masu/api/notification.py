@@ -19,7 +19,13 @@
 
 import logging
 
-from flask import request
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from masu.external.notification_handler import (NotificationHandler,
                                                 NotificationHandlerError,
@@ -29,12 +35,13 @@ from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-API_V1_ROUTES = {}
-
-
-@application_route('/notification/', API_V1_ROUTES, methods=('POST',))
-def post_notification():
+# @application_route('/notification/', API_V1_ROUTES, methods=('POST',))
+@api_view(http_method_names=['GET'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def post_notification(request):
     """Packages response for class-based view."""
+    import pdb; pdb.set_trace()
     header_list = request.headers.to_wsgi_list()
     body = request.data.decode('utf-8')
     logger.debug('Received Header: %s', str(request.headers))
