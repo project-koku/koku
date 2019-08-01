@@ -56,7 +56,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
         group_by = self._get_group_by()
         if (group_by and group_by[0] == 'project') or \
                 'project' in self.query_parameters.get('filter', {}).keys():
-            self._report_type = self._report_type + '_by_project'
+            self._report_type = kwargs.get('report_type') + '_by_project'
             self._mapper = OCPAWSProviderMap(provider=provider,
                                              report_type=self._report_type)
 
