@@ -21,8 +21,8 @@ LOGGER.info('Starting celery.')
 django.setup()
 LOGGER.info('Django setup.')
 
-APP = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
-APP.config_from_object('django.conf:settings', namespace='CELERY')
+celery = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
+celery.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')
 
@@ -34,7 +34,7 @@ if ENVIRONMENT.bool('SCHEDULE_REPORT_CHECKS', default=False):
     check_report_updates_def = {'task': 'masu.celery.tasks.check_report_updates',
                                 'schedule': REPORT_CHECK_INTERVAL.seconds,
                                 'args': []}
-    APP.conf.beat_schedule['check-report-updates'] = check_report_updates_def
+    celery.conf.beat_schedule['check-report-updates'] = check_report_updates_def
 
 
 # Specify the day of the month for removal of expired report data.
@@ -53,6 +53,6 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
                                                     minute=int(minute),
                                                     day_of_month=cleaning_day),
                                 'args': []}
-    APP.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
+    celery.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
 
-APP.autodiscover_tasks()
+celery.autodiscover_tasks()
