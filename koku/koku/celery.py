@@ -56,15 +56,3 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
     APP.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
 
 APP.autodiscover_tasks()
-
-# The signal decorator is associated with the
-# following method signature, but args and kwargs are not currently utilized.
-# Learn more about celery signals here:
-# http://docs.celeryproject.org/en/v4.2.0/userguide/signals.html#logging-signals
-@after_setup_logger.connect
-def setup_loggers(logger, *args, **kwargs):  # pylint: disable=unused-argument
-    """Add logging for celery with optional cloud watch."""
-    return  #TODO this is causing double logging in the worker
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    logger.addHandler(console_handler)

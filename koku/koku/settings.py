@@ -400,13 +400,3 @@ CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
 BROKER_POOL_LIMIT = None
 CELERYD_CONCURRENCY = 2
 CELERYD_PREFETCH_MULTIPLIER = 1
-
-# if ENVIRONMENT.bool('SCHEDULE_REPORT_CHECKS', default=False):
-#     print('SETTTING BEAT STUFF')
-#     CELERYBEAT_SCHEDULE = {
-#         'check-report-updates': {
-#             'task': 'masu.celery.tasks.check_report_update',
-#             'schedule': int(ENVIRONMENT.get_value('REPORT_CHECK_INTERVAL')),
-#             'args': [],
-#         },
-#     }
