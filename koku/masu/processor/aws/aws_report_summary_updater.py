@@ -55,22 +55,23 @@ class AWSReportSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema_name,
-            start_date,
-            end_date
-        )
-        bill_ids = [str(bill.id) for bill in bills]
+        with schema_context(self._schema_name):
+            start_date, end_date = self._get_sql_inputs(start_date, end_date)
+            bills = get_bills_from_provider(
+                self._provider.uuid,
+                self._schema_name,
+                start_date,
+                end_date
+            )
+            bill_ids = [str(bill.id) for bill in bills]
 
-        LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
-                 '\n\tProvider: %s \n\tDates: %s - %s',
-                 self._schema_name, self._provider.uuid, start_date, end_date)
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+            LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
+                    '\n\tProvider: %s \n\tDates: %s - %s',
+                    self._schema_name, self._provider.uuid, start_date, end_date)
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
 
-        return start_date, end_date
+            return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
         """Populate the summary tables for reporting.
@@ -83,16 +84,16 @@ class AWSReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
-        bills = get_bills_from_provider(
-            self._provider.uuid,
-            self._schema_name,
-            start_date,
-            end_date
-        )
-        bill_ids = [str(bill.id) for bill in bills]
-
         with schema_context(self._schema_name):
+            start_date, end_date = self._get_sql_inputs(start_date, end_date)
+            bills = get_bills_from_provider(
+                self._provider.uuid,
+                self._schema_name,
+                start_date,
+                end_date
+            )
+            bill_ids = [str(bill.id) for bill in bills]
+
             with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 # Need these bills on the session to update dates after processing
                 bills = accessor.bills_for_provider_id(self._provider.id, start_date)

@@ -30,7 +30,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER
 from masu.util import common as utils
-
+from reporting.provider.aws.models import AWSCostEntryBill
 from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
@@ -229,12 +229,13 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     with AWSReportDBAccessor(schema, column_map) as report_accessor:
         with schema_context(schema):
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(report_accessor.report_schema, bill_table_name)
+            bill_obj = AWSCostEntryBill
             bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            print('START_DATE TYPE: %s', str(type(start_date)))
             if start_date:
-                bills = bills.filter(bill_obj.billing_period_start >= start_date)
+                bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:
-                bills = bills.filter(bill_obj.billing_period_start <= end_date)
+                bills = bills.filter(billing_period_start__lte=end_date)
             bills = bills.all()
 
     return bills
