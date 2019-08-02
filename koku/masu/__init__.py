@@ -19,4 +19,5 @@
 
 
 def create_app():
+    """Create application."""
     pass

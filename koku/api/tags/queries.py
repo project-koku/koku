@@ -74,8 +74,8 @@ class TagQueryHandler(QueryHandler):
     _DEFAULT_ORDERING = {'tags': 'asc'}
     data_sources = []
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, default_ordering=None, **kwargs):
+    def __init__(self, query_parameters, url_data, tenant,
+                 default_ordering=None, **kwargs):
         """Establish tag query handler.
 
         Args:
@@ -89,8 +89,9 @@ class TagQueryHandler(QueryHandler):
         if default_ordering is None:
             default_ordering = self._DEFAULT_ORDERING
 
-        super().__init__(query_parameters, url_data,
-                         tenant, default_ordering, **kwargs)
+        self.query_parameters = query_parameters
+
+        super().__init__(query_parameters, tenant, default_ordering, **kwargs)
 
         self.query_filter = self._get_filter()
         self.parameter_filter = {}
