@@ -44,6 +44,8 @@ from masu.test.database.helpers import (
     map_django_field_type_to_python_type,
 )
 
+from reporting.provider.aws.models import AWSCostEntryProduct, AWSCostEntryReservation
+
 
 class ReportSchemaTest(MasuTestCase):
     """Test Cases for the ReportSchema object."""
@@ -67,7 +69,7 @@ class ReportSchemaTest(MasuTestCase):
     def tearDown(self):
         """Close the DB session."""
         super().tearDown()
-        self.accessor.close_connections()
+        # self.accessor.close_connections()
 
     def test_init(self):
         """Test the initializer."""
@@ -171,6 +173,11 @@ class ReportDBAccessorTest(MasuTestCase):
                 bill, cost_entry, product, pricing, reservation
             )
             self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+
+    def tearDown(self):
+        """Close the DB session."""
+        super().tearDown()
+        # self.accessor.close_connections()
 
     def test_initializer(self):
         """Test initializer."""
@@ -421,25 +428,30 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_nothing_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
         table_name = AWS_CUR_TABLE_MAP['product']
+        table = AWSCostEntryProduct
+
         data = self.creator.create_columns_for_table(table_name)
         query = self.accessor._get_db_obj_query(table_name)
 
         initial_count = query.count()
 
-        row_id = self.accessor.insert_on_conflict_do_nothing(table_name, data)
+        row_id = self.accessor.insert_on_conflict_do_nothing(table, data)
 
         insert_count = query.count()
 
         self.assertEqual(insert_count, initial_count + 1)
 
-        row_id_2 = self.accessor.insert_on_conflict_do_nothing(table_name, data)
+        row_id_2 = self.accessor.insert_on_conflict_do_nothing(table, data)
 
         self.assertEqual(insert_count, query.count())
         self.assertEqual(row_id, row_id_2)
 
     def test_insert_on_conflict_do_nothing_without_conflict(self):
         """Test that an INSERT succeeds inserting all non-conflicting rows."""
-        table_name = random.choice(self.foreign_key_tables)
+        #table_name = random.choice(self.foreign_key_tables)
+        table_name = AWS_CUR_TABLE_MAP['product']
+        table = AWSCostEntryProduct
+
         data = [
             self.creator.create_columns_for_table(table_name),
             self.creator.create_columns_for_table(table_name),
@@ -449,7 +461,7 @@ class ReportDBAccessorTest(MasuTestCase):
         previous_count = query.count()
         previous_row_id = None
         for entry in data:
-            row_id = self.accessor.insert_on_conflict_do_nothing(table_name, entry)
+            row_id = self.accessor.insert_on_conflict_do_nothing(table, entry)
             count = query.count()
 
             self.assertEqual(count, previous_count + 1)
@@ -461,13 +473,14 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_update_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
         table_name = AWS_CUR_TABLE_MAP['reservation']
+        table = AWSCostEntryReservation
         data = self.creator.create_columns_for_table(table_name)
-        query = self.accessor._get_db_obj_query(table_name)
+        query = self.accessor._get_db_obj_query(table)
         initial_res_count = 1
         initial_count = query.count()
         data['number_of_reservations'] = initial_res_count
         row_id = self.accessor.insert_on_conflict_do_update(
-            table_name,
+            table,
             data,
             conflict_columns=['reservation_arn'],
             set_columns=list(data.keys()),
@@ -479,7 +492,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
         data['number_of_reservations'] = initial_res_count + 1
         row_id_2 = self.accessor.insert_on_conflict_do_update(
-            table_name,
+            table,
             data,
             conflict_columns=['reservation_arn'],
             set_columns=list(data.keys()),
@@ -493,6 +506,8 @@ class ReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_update_without_conflict(self):
         """Test that an INSERT succeeds inserting all non-conflicting rows."""
         table_name = AWS_CUR_TABLE_MAP['reservation']
+        table = AWSCostEntryReservation
+
         data = [
             self.creator.create_columns_for_table(table_name),
             self.creator.create_columns_for_table(table_name),
@@ -503,7 +518,7 @@ class ReportDBAccessorTest(MasuTestCase):
         previous_row_id = None
         for entry in data:
             row_id = self.accessor.insert_on_conflict_do_update(
-                table_name,
+                table,
                 entry,
                 conflict_columns=['reservation_arn'],
                 set_columns=list(entry.keys()),
@@ -1029,7 +1044,7 @@ class ReportDBAccessorTest(MasuTestCase):
             ocp_accessor.populate_line_item_daily_summary_table(
                 start_date, end_date, cluster_id
             )
-
+        # import pdb; pdb.set_trace()
         query = self.accessor._get_db_obj_query(summary_table_name)
         initial_count = query.count()
 

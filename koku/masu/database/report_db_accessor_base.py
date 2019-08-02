@@ -290,7 +290,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         return self._get_primary_key(table, data)
 
     def insert_on_conflict_do_update(self,
-                                     table_name,
+                                     table,
                                      data,
                                      conflict_columns,
                                      set_columns):
@@ -309,6 +309,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             (str): The id of the inserted row
 
         """
+        table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
         set_data = {key: value for key, value in data.items()
                     if key in set_columns}
@@ -317,15 +318,16 @@ class ReportDBAccessorBase(KokuDBAccess):
         )
 
         columns_formatted = ', '.join(str(value) for value in data.keys())
-        data_formatted = ', '.join("'{}'".format(str(value)) for value in data.values())
+        values = list(data.values())
+        val_str = ','.join(['%s' for _ in data])
         conflict_columns_formatted = ', '.join(conflict_columns)
 
         insert_sql = f"""
-        INSERT INTO {table_name}({columns_formatted}) VALUES ({data_formatted})
+        INSERT INTO {table_name}({columns_formatted}) VALUES ({val_str})
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {formatted_set}
         """
-        self._cursor.execute(insert_sql)
+        self._cursor.execute(insert_sql, values)
 
         data = {key: value for key, value in data.items()
                 if key in conflict_columns}

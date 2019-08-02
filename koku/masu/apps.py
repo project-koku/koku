@@ -17,7 +17,7 @@
 """Masu application configuration module."""
 
 from django.apps import AppConfig
-from masu.celery import celery, update_celery_config
+from koku.celery import celery
 
 class MasuConfig(AppConfig):
     """Masu application configuration."""

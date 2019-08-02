@@ -35,11 +35,12 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.api import API_VERSION
-from masu.celery import celery as celery_app
 from masu.config import Config
 from masu.database.engine import DB_ENGINE
 from masu.external.date_accessor import DateAccessor
 from masu.util.blueprint import application_route
+
+from koku.celery import celery as celery_app
 
 LOG = logging.getLogger(__name__)
 
