@@ -113,6 +113,8 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
                 AND aws.usage_start::date = ocp.usage_start::date
         WHERE date(aws.usage_start) >= '{start_date}'
             AND date(aws.usage_start) <= '{end_date}'
+            {aws_where_clause}
+            {ocp_where_clause}
     ),
     cte_number_of_shared_projects AS (
         SELECT aws_id,

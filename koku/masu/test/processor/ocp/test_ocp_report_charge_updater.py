@@ -86,6 +86,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         )
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
+        self.creator.create_ocp_usage_line_item(
+            reporting_period,
+            report,
+            null_cpu_usage=True
+        )
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -521,7 +526,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 round(float(item.pod_charge_memory_gigabyte_hours), 6),
             )
 
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours)
+            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
             cpu_request_value = float(item.pod_request_cpu_core_hours)
             cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (
                 cpu_request_value * cpu_request_rate_value
@@ -565,7 +570,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         items = self.accessor._get_db_obj_query(table_name).all()
         for item in items:
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours)
+            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
             self.assertEqual(
                 round(0.0, 6), round(float(item.pod_charge_memory_gigabyte_hours), 6)
             )
@@ -734,12 +739,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         items = self.accessor._get_db_obj_query(table_name).all()
         for item in items:
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours)
-
             self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
             self.assertIsNone(item.pod_charge_cpu_core_hours)
-            # self.assertEqual(round(cpu_usage_value*cpu_rate_value, 6),
-            #                  round(float(item.pod_charge_cpu_core_hours), 6))
 
     @patch(
         'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates'
@@ -779,8 +780,6 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_db_mem_usage_rate.return_value = mem_rate
         mock_db_cpu_usage_rate.return_value = cpu_rate
 
-        mem_rate_value = float(mem_rate.get('tiered_rate')[0].get('value'))
-
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
         end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
@@ -798,9 +797,6 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         items = self.accessor._get_db_obj_query(table_name).all()
         for item in items:
-            mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
-            # self.assertEqual(round(mem_usage_value*mem_rate_value, 6),
-            #                  round(float(item.pod_charge_memory_gigabyte_hours), 6))
             self.assertIsNone(item.pod_charge_cpu_core_hours)
             self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
 
@@ -847,7 +843,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         items = self.accessor._get_db_obj_query(table_name).all()
         for item in items:
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours)
+            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
             self.assertEqual(
                 round(0.0, 5), round(float(item.pod_charge_memory_gigabyte_hours), 5)
             )

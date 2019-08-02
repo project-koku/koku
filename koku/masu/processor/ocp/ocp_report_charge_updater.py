@@ -125,6 +125,8 @@ class OCPReportChargeUpdater:
         """Calculate charge based on rate and usage."""
         charge_dictionary = {}
         for key, value in usage.items():
+            if not value:
+                value = Decimal(0.0)
             charge_value = self._calculate_variable_charge(value, rates)
             charge_dictionary[key] = {'usage': value, 'charge': charge_value}
         return charge_dictionary
