@@ -172,7 +172,7 @@ def summarize_reports(reports_to_summarize):
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
         start_date = start_date.strftime('%Y-%m-%d')
         end_date = DateAccessor().today().strftime('%Y-%m-%d')
-        LOG.error('report to summarize: %s', str(report))
+        LOG.info('report to summarize: %s', str(report))
         update_summary_tables.delay(
             report.get('schema_name'),
             report.get('provider_type'),

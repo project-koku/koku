@@ -111,6 +111,6 @@ class ReportProcessor:
 
         """
         try:
-            return self._processor.remove_temp_cur_files(path, self.manifest_id)
+            return self._processor.remove_temp_cur_files(path)
         except Exception as err:
             raise ReportProcessorError(str(err))

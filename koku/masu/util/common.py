@@ -16,14 +16,19 @@
 #
 
 """Common util functions."""
+import logging
 import re
+from os import listdir, remove
 
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            LISTEN_INGEST,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM,
                            POLL_INGEST)
+
+LOG = logging.getLogger(__name__)
 
 
 def extract_uuids_from_string(source_string):
@@ -65,3 +70,26 @@ def ingest_method_for_provider(provider):
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }
     return ingest_map.get(provider)
+
+def clear_temp_directory(report_path, current_assembly_id, prefix=None):
+    """Remove temporary files from masu temp directory."""
+    files = listdir(report_path)
+    removed_files = []
+    for file in files:
+        file_path = '{}/{}'.format(report_path, file)
+        if prefix:
+            file = prefix + file
+        completed_date = None
+        with ReportStatsDBAccessor(file, None) as stats:
+            completed_date = stats.get_completion_time_for_report(file)
+        if completed_date:
+            uuids = extract_uuids_from_string(file_path)
+            assembly_id = uuids.pop() if uuids else None
+            if assembly_id and assembly_id != current_assembly_id:
+                try:
+                    LOG.info('Removing %s, Completed on %s', file_path, str(completed_date))
+                    remove(file_path)
+                    removed_files.append(file_path)
+                except FileNotFoundError:
+                    LOG.warning('Unable to locate file: %s', file_path)
+    return removed_files
