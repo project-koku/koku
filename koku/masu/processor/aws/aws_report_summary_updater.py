@@ -142,7 +142,7 @@ class AWSReportSummaryUpdater:
                         end_date = end_date.strftime('%Y-%m-%d')
                         LOG.info('Overriding start and end date to process full month.')
 
-            return start_date, end_date
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""

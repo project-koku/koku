@@ -58,6 +58,11 @@ class OCPReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
+        print('UPDATE SUMMARY TABLES, Start: %s End: %s', str(start_date), str(end_date))
+        if not start_date:
+            print('START DATE IS NONE')
+        if not end_date:
+            print('END DATE IS NONE')
         start_date, end_date = self._get_sql_inputs(
             start_date,
             end_date
@@ -146,8 +151,8 @@ class OCPReportSummaryUpdater:
                         end_date = bill_date.replace(day=last_day_of_month)
                         end_date = end_date.strftime('%Y-%m-%d')
                         LOG.info('Overriding start and end date to process full month.')
-
-                    return start_date, end_date
+                    LOG.info('Returning start: %s, end: %s', str(start_date), str(end_date))
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, report_period):
         """Decide whether to update summary tables for full billing period."""
