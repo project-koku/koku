@@ -99,7 +99,7 @@ class OCPReportChargeUpdater:
         balance = usage
         tier = []
         if rates:
-            tier = self._normalize_tier(rates.get('tiered_rate'))
+            tier = self._normalize_tier(rates.get('tiered_rates', []))
 
         for bucket in tier:
             usage_end = Decimal(bucket.get('usage_end')) if bucket.get('usage_end') else None

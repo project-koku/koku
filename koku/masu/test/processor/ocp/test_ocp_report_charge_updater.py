@@ -267,7 +267,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def test_calculate_variable_charge(self):
         """Test the helper function to calculate charge."""
         rate_json = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {
                     'usage_start': None,
                     'usage_end': '10',
@@ -321,7 +321,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def test_calculate_variable_charge_floating_ends(self):
         """Test the helper function to calculate charge with floating endpoints."""
         rate_json = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {
                     'usage_start': None,
                     'usage_end': '10.3',
@@ -376,7 +376,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def test_calculate_variable_charge_ends_missing(self):
         """Test the helper function to calculate charge when end limits are missing."""
         rate_json = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {'usage_end': '10', 'value': '0.10', 'unit': 'USD'},
                 {
                     'usage_start': '10',
@@ -416,7 +416,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     def test_calculate_charge(self):
         """Test the helper function to calculate charge."""
         rate_json = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {
                     'usage_start': None,
                     'usage_end': '10',
@@ -480,23 +480,23 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         mock_db_cpu_request_rate,
     ):
         """Test that OCP charge information is updated for cpu and memory."""
-        mem_rate_usage = {'tiered_rate': [{'value': '100', 'unit': 'USD'}]}
-        mem_rate_request = {'tiered_rate': [{'value': '150', 'unit': 'USD'}]}
-        cpu_rate_usage = {'tiered_rate': [{'value': '200', 'unit': 'USD'}]}
-        cpu_rate_request = {'tiered_rate': [{'value': '250', 'unit': 'USD'}]}
+        mem_rate_usage = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
+        mem_rate_request = {'tiered_rates': [{'value': '150', 'unit': 'USD'}]}
+        cpu_rate_usage = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
+        cpu_rate_request = {'tiered_rates': [{'value': '250', 'unit': 'USD'}]}
 
         mock_db_mem_usage_rate.return_value = mem_rate_usage
         mock_db_mem_request_rate.return_value = mem_rate_request
         mock_db_cpu_usage_rate.return_value = cpu_rate_usage
         mock_db_cpu_request_rate.return_value = cpu_rate_request
 
-        cpu_usage_rate_value = float(cpu_rate_usage.get('tiered_rate')[0].get('value'))
+        cpu_usage_rate_value = float(cpu_rate_usage.get('tiered_rates')[0].get('value'))
         cpu_request_rate_value = float(
-            cpu_rate_request.get('tiered_rate')[0].get('value')
+            cpu_rate_request.get('tiered_rates')[0].get('value')
         )
-        mem_usage_rate_value = float(mem_rate_usage.get('tiered_rate')[0].get('value'))
+        mem_usage_rate_value = float(mem_rate_usage.get('tiered_rates')[0].get('value'))
         mem_request_rate_value = float(
-            mem_rate_request.get('tiered_rate')[0].get('value')
+            mem_rate_request.get('tiered_rates')[0].get('value')
         )
 
         usage_period = self.accessor.get_current_usage_period()
@@ -546,12 +546,12 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     ):
         """Test that OCP charge information is updated for cpu."""
         mem_rate = None
-        cpu_rate = {'tiered_rate': [{'value': '200', 'unit': 'USD'}]}
+        cpu_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
 
         mock_db_mem_usage_rate.return_value = mem_rate
         mock_db_cpu_usage_rate.return_value = cpu_rate
 
-        cpu_rate_value = float(cpu_rate.get('tiered_rate')[0].get('value'))
+        cpu_rate_value = float(cpu_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -589,13 +589,13 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate
     ):
         """Test that OCP charge information is updated for cpu and memory."""
-        mem_rate = {'tiered_rate': [{'value': '100', 'unit': 'USD'}]}
+        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         cpu_rate = None
 
         mock_db_mem_usage_rate.return_value = mem_rate
         mock_db_cpu_usage_rate.return_value = cpu_rate
 
-        mem_rate_value = float(mem_rate.get('tiered_rate')[0].get('value'))
+        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -633,14 +633,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self, mock_db_storage_usage_rate, mock_db_storage_request_rate
     ):
         """Test that OCP charge information is updated for storage."""
-        usage_rate = {'tiered_rate': [{'value': '100', 'unit': 'USD'}]}
-        request_rate = {'tiered_rate': [{'value': '200', 'unit': 'USD'}]}
+        usage_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
+        request_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
 
         mock_db_storage_usage_rate.return_value = usage_rate
         mock_db_storage_request_rate.return_value = request_rate
 
-        usage_rate_value = float(usage_rate.get('tiered_rate')[0].get('value'))
-        request_rate_value = float(request_rate.get('tiered_rate')[0].get('value'))
+        usage_rate_value = float(usage_rate.get('tiered_rates')[0].get('value'))
+        request_rate_value = float(request_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -688,7 +688,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     ):
         """Test that OCP charge information is updated for cpu and memory with malformed memory rates."""
         mem_rate = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {
                     'usage_start': None,
                     'usage_end': '10',
@@ -715,12 +715,12 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 },
             ]
         }
-        cpu_rate = {'tiered_rate': [{'value': '200', 'unit': 'USD'}]}
+        cpu_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
 
         mock_db_mem_usage_rate.return_value = mem_rate
         mock_db_cpu_usage_rate.return_value = cpu_rate
 
-        cpu_rate_value = float(cpu_rate.get('tiered_rate')[0].get('value'))
+        cpu_rate_value = float(cpu_rate.get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -752,9 +752,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate
     ):
         """Test that OCP charge information is updated for cpu and memory with malformed cpu rates."""
-        mem_rate = {'tiered_rate': [{'value': '100', 'unit': 'USD'}]}
+        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         cpu_rate = {
-            'tiered_rate': [
+            'tiered_rates': [
                 {'usage_start': '5', 'usage_end': '10', 'value': '0.10', 'unit': 'USD'},
                 {
                     'usage_start': '10',
@@ -802,23 +802,16 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
     def test_update_summary_charge_info_cpu_real_rates(self):
         """Test that OCP charge information is updated for cpu from the right provider uuid."""
-        cpu_usage_rate = {
-            'metric': 'cpu_core_usage_per_hour',
-            'provider_uuid': self.ocp_provider_uuid,
-            'rates': {'tiered_rate': [{'value': 1.5, 'unit': 'USD'}]},
-        }
-        self.creator.create_rate(**cpu_usage_rate)
+        cpu_usage_rate = [{'metric': {'name': 'cpu_core_usage_per_hour'},
+                          'tiered_rates': [{'value': 1.5, 'unit': 'USD'}]}]
+        self.creator.create_cost_model(self.ocp_provider_uuid, 'OCP', cpu_usage_rate)
 
-        other_cpu_usage_rate = {
-            'metric': 'cpu_core_usage_per_hour',
-            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
-            'rates': {'tiered_rate': [{'value': 2.5, 'unit': 'USD'}]},
-        }
-        self.creator.create_rate(**other_cpu_usage_rate)
+        other_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
+        other_cpu_usage_rate = [{'metric': {'name': 'cpu_core_usage_per_hour'},
+                                'tiered_rates': [{'value': 2.5, 'unit': 'USD'}]}]
+        self.creator.create_cost_model(other_provider_uuid, 'OCP', other_cpu_usage_rate)
 
-        cpu_rate_value = float(
-            cpu_usage_rate.get('rates').get('tiered_rate')[0].get('value')
-        )
+        cpu_rate_value = float(cpu_usage_rate[0].get('tiered_rates')[0].get('value'))
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)

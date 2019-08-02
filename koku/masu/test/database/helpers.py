@@ -281,10 +281,11 @@ class ReportObjectCreator:
     def create_cost_model(self, provider_uuid, source_type, rates):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['cost_model']
+
         data = {
             'uuid': str(uuid.uuid4()),
-            'created_timestamp': self.fake.past_datetime(),
-            'updated_timestamp': self.fake.past_datetime(),
+            'created_timestamp': DateAccessor().today_with_timezone('UTC'),
+            'updated_timestamp': DateAccessor().today_with_timezone('UTC'),
             'name': self.fake.pystr()[:8],
             'description': self.fake.pystr(),
             'source_type': source_type,
@@ -292,13 +293,18 @@ class ReportObjectCreator:
         }
 
         cost_model_obj = self.db_accessor.create_db_object(table_name, data)
-        cost_model_obj.save()
+
+        self.db_accessor._session.add(cost_model_obj)
+        self.db_accessor._session.commit()
 
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
         data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
         cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
         cost_model_map_obj.save()
+
+        # self.db_accessor._session.add(cost_model_map_obj)
+        # self.db_accessor._session.commit()
 
         return cost_model_obj
 
