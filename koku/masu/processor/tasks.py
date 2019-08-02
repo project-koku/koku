@@ -23,7 +23,6 @@ import datetime
 import os
 
 from celery.utils.log import get_task_logger
-from dateutil import parser
 
 import masu.prometheus_stats as worker_stats
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor

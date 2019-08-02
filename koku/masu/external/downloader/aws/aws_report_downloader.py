@@ -72,6 +72,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
 
         self.customer_name = customer_name.replace(' ', '_')
+        self._provider_id = kwargs.get('provider_id')
 
         LOG.debug('Connecting to AWS...')
         session = utils.get_assume_role_session(utils.AwsArn(auth_credential),
@@ -269,11 +270,33 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([]): List of report files.
 
         """
+        should_download = True
+        manifest_dict = {}
         report_dict = {}
         manifest = self._get_manifest(date_time)
-        manifest_id = None
         if manifest != self.empty_manifest:
-            manifest_id = self._prepare_db_manifest_record(manifest)
+            manifest_dict = self._prepare_db_manifest_record(manifest)
+            should_download = self.check_if_manifest_should_be_downloaded(
+                manifest_dict.get('assembly_id')
+            )
+
+        if not should_download:
+            manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
+            stmt = ('This manifest has already been downloaded and processed:\n'
+                    ' customer: {},\n'
+                    ' provider_id: {},\n'
+                    ' manifest_id: {}')
+            stmt = stmt.format(self.customer_name,
+                               self._provider_id,
+                               manifest_id)
+            LOG.info(stmt)
+            return report_dict
+
+        manifest_id = self._process_manifest_db_record(
+            manifest_dict.get('assembly_id'),
+            manifest_dict.get('billing_start'),
+            manifest_dict.get('num_of_files')
+        )
 
         report_dict['manifest_id'] = manifest_id
         report_dict['assembly_id'] = manifest.get('assemblyId')
@@ -294,4 +317,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.manifest_date_format
         )
         num_of_files = len(manifest.get('reportKeys', []))
-        return self._process_manifest_db_record(assembly_id, billing_start, num_of_files)
+        return {
+            'assembly_id': assembly_id,
+            'billing_start': billing_start,
+            'num_of_files': num_of_files
+        }

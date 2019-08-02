@@ -189,6 +189,34 @@ def get_account_alias_from_role_arn(role_arn, session=None):
 
     return (account_id, alias)
 
+def get_account_names_by_organization(role_arn, session=None):
+    """
+    Get account ID for given RoleARN.
+
+    Args:
+        role_arn     (String) AWS IAM RoleARN
+
+    Returns:
+        (list): Dictionaries of accounts with id, name keys
+
+    """
+    if not session:
+        session = get_assume_role_session(role_arn)
+    org_client = session.client('organizations')
+    all_accounts = []
+    try:
+        paginator = org_client.get_paginator('list_accounts')
+        response_iterator = paginator.paginate()
+        for response in response_iterator:
+            accounts = response.get('Accounts', [])
+            for account in accounts:
+                account_id = account.get('Id')
+                name = account.get('Name')
+                all_accounts.append({'id': account_id, 'name': name})
+    except ClientError as err:
+        LOG.info('Unable to list accounts using organization API.  Reason: %s', str(err))
+
+    return all_accounts
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
