@@ -107,7 +107,6 @@ def get_report_files(customer_name,
             report_meta = {}
             known_manifest_ids = [report.get('manifest_id') for report in reports_to_summarize]
             if report_dict.get('manifest_id') not in known_manifest_ids:
-                report_meta['start_date'] = report_dict.get('start_date')
                 report_meta['schema_name'] = schema_name
                 report_meta['provider_type'] = provider_type
                 report_meta['provider_uuid'] = provider_uuid
@@ -164,7 +163,13 @@ def summarize_reports(reports_to_summarize):
 
     """
     for report in reports_to_summarize:
-        start_date = parser.parse(report.get('start_date'))
+        # For day-to-day summarization we choose a small window to
+        # cover new data from a window of days.
+        # This saves us from re-summarizing unchanged data and cuts down
+        # on processing time. There are override mechanisms in the
+        # Updater classes for when full-month summarization is
+        # required.
+        start_date = DateAccessor().today() - datetime.timedelta(days=2)
         start_date = start_date.strftime('%Y-%m-%d')
         end_date = DateAccessor().today().strftime('%Y-%m-%d')
         LOG.error('report to summarize: %s', str(report))
@@ -172,7 +177,7 @@ def summarize_reports(reports_to_summarize):
             report.get('schema_name'),
             report.get('provider_type'),
             report.get('provider_uuid'),
-            start_date,
+            start_date=start_date,
             end_date=end_date,
             manifest_id=report.get('manifest_id')
         )
