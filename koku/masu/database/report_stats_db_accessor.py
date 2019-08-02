@@ -55,7 +55,8 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        return super()._get_db_obj_query(report_name=self._report_name)
+        return super()._get_db_obj_query(report_name=self._report_name,
+                                         manifest_id=self._manifest_id)
 
     # pylint: disable=no-self-use
     def get_cursor_position(self):
