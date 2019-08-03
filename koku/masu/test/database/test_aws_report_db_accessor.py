@@ -142,42 +142,43 @@ class ReportDBAccessorTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['pricing'],
             AWS_CUR_TABLE_MAP['reservation'],
         ]
-        billing_start = datetime.datetime.utcnow().replace(day=1)
-        cls.manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': cls.aws_provider.id,
-        }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
+        today = DateAccessor().today_with_timezone('UTC')
+        billing_start = today.replace(day=1)
 
         if self.accessor._cursor.closed:
+            self.accessor._conn.connect()
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         self.cluster_id = 'testcluster'
 
-        with schema_context(self.schema):
-            today = DateAccessor().today_with_timezone('UTC')
-            bill = self.creator.create_cost_entry_bill(
-                today, provider_id=self.aws_provider.id
-            )
-            cost_entry = self.creator.create_cost_entry(bill, today)
-            product = self.creator.create_cost_entry_product()
-            pricing = self.creator.create_cost_entry_pricing()
-            reservation = self.creator.create_cost_entry_reservation()
-            self.creator.create_cost_entry_line_item(
-                bill, cost_entry, product, pricing, reservation
-            )
-            self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_dict = {
+            'assembly_id': '1234',
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 2,
+            'provider_id': self.aws_provider.id,
+        }
+
+        bill = self.creator.create_cost_entry_bill(
+            bill_date=today, provider_id=self.aws_provider.id
+        )
+        cost_entry = self.creator.create_cost_entry(bill, entry_datetime=today)
+        product = self.creator.create_cost_entry_product()
+        pricing = self.creator.create_cost_entry_pricing()
+        reservation = self.creator.create_cost_entry_reservation()
+        self.creator.create_cost_entry_line_item(
+            bill, cost_entry, product, pricing, reservation
+        )
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
     def tearDown(self):
         """Close the DB session."""
         super().tearDown()
-        # self.accessor.close_connections()
+        self.accessor.close_connections()
 
     def test_initializer(self):
         """Test initializer."""
@@ -415,15 +416,15 @@ class ReportDBAccessorTest(MasuTestCase):
                     value = self.creator.stringify_datetime(value)
                 self.assertEqual(value, data_dict[column])
 
-    def test_create_db_object(self):
-        """Test that a mapped database object is returned."""
-        table = random.choice(self.all_tables)
-        data = self.creator.create_columns_for_table(table)
+    # def test_create_db_object(self):
+    #     """Test that a mapped database object is returned."""
+    #     table = random.choice(self.all_tables)
+    #     data = self.creator.create_columns_for_table(table)
 
-        row = self.accessor.create_db_object(table, data)
+    #     row = self.accessor.create_db_object(table, data)
 
-        for column, value in data.items():
-            self.assertEqual(getattr(row, column), value)
+    #     for column, value in data.items():
+    #         self.assertEqual(getattr(row, column), value)
 
     def test_insert_on_conflict_do_nothing_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
@@ -552,19 +553,6 @@ class ReportDBAccessorTest(MasuTestCase):
         data['sku'] = ''.join([random.choice(string.digits) for _ in range(5)])
         with self.assertRaises(AttributeError):
             self.accessor._get_primary_key(table_name, data)
-
-    def test_flush_db_object(self):
-        """Test that the database flush moves the object to the database."""
-        table = random.choice(self.foreign_key_tables)
-        data = self.creator.create_columns_for_table(table)
-        initial_row_count = self.accessor._get_db_obj_query(table).count()
-        row = self.accessor.create_db_object(table, data)
-
-        self.accessor.flush_db_object(row)
-        self.assertIsNotNone(row.id)
-
-        row_count = self.accessor._get_db_obj_query(table).count()
-        self.assertTrue(row_count > initial_row_count)
 
     def test_clean_data(self):
         """Test that data cleaning produces proper data types."""
@@ -748,7 +736,7 @@ class ReportDBAccessorTest(MasuTestCase):
             pricing = self.creator.create_cost_entry_pricing()
             reservation = self.creator.create_cost_entry_reservation()
             self.creator.create_cost_entry_line_item(
-                bill, cost_entry, product, pricing, reservation
+                bill, cost_entry, product, pricing, reservation, resource_id='1234'
             )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
@@ -779,7 +767,6 @@ class ReportDBAccessorTest(MasuTestCase):
 
         self.assertEqual(result_start_date, start_date)
         self.assertEqual(result_end_date, end_date)
-
         entry = query.first()
 
         summary_columns = [
@@ -1047,6 +1034,10 @@ class ReportDBAccessorTest(MasuTestCase):
         # import pdb; pdb.set_trace()
         query = self.accessor._get_db_obj_query(summary_table_name)
         initial_count = query.count()
+
+        # Reconnect as the OCP accessor closed the connection.
+        self.accessor._conn.connect()
+        self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today)
 
