@@ -49,13 +49,13 @@ class ReportObjectCreator:
     def __init__(self, db_accessor, column_map, column_types):
         """Initialize the report object creation helpler."""
         self.db_accessor = db_accessor
+        self.schema = self.db_accessor.schema
         self.column_map = column_map
         self.column_types = column_types
 
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
         table_name = AWS_CUR_TABLE_MAP['cost_entry']
-        row = self.db_accessor.create_db_object(table_name, {})
         if entry_datetime:
             start_datetime = entry_datetime
         else:
@@ -63,12 +63,12 @@ class ReportObjectCreator:
                 start_date='-60d'
             )  # pylint: ignore=no-member
         end_datetime = start_datetime + datetime.timedelta(hours=1)
-        row.interval_start = self.stringify_datetime(start_datetime)
-        row.interval_end = self.stringify_datetime(end_datetime)
-        row.bill_id = bill.id
-        row.save()
-
-        return row
+        data = {
+            'bill_id': bill.id,
+            'interval_start': self.stringify_datetime(start_datetime),
+            'interval_end': self.stringify_datetime(end_datetime)
+        }
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_cost_entry_bill(self, bill_date=None, provider_id=None):
         """Create a cost entry bill database object for test."""
@@ -84,10 +84,7 @@ class ReportObjectCreator:
             data['billing_period_start'] = bill_start
             data['billing_period_end'] = bill_end
 
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.save()
-
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_cost_entry_pricing(self):
         """Create a cost entry pricing database object for test."""
@@ -101,23 +98,17 @@ class ReportObjectCreator:
         """Create a cost entry product database object for test."""
         table_name = AWS_CUR_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
-        row = self.db_accessor.create_db_object(table_name, data)
-        if product_family:
-            row.product_family = product_family
-        else:
-            row.product_family = random.choice(AWS_PRODUCT_FAMILY)
-        row.save()
+        prod_fam = {
+            'product_family': product_family if product_family else random.choice(AWS_PRODUCT_FAMILY)
+        }
+        data.update(prod_fam)
+        return self.db_accessor.create_db_object(table_name, data)
 
-        return row
-
-    def create_cost_entry_reservation(self):
+    def create_cost_entry_reservation(self, schema=None):
         """Create a cost entry reservation database object for test."""
         table_name = AWS_CUR_TABLE_MAP['reservation']
         data = self.create_columns_for_table(table_name)
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.save()
-
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_cost_entry_line_item(
         self, bill, cost_entry, product, pricing, reservation, resource_id=None
@@ -125,24 +116,24 @@ class ReportObjectCreator:
         """Create a cost entry line item database object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item']
         data = self.create_columns_for_table(table_name)
-
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.cost_entry_bill_id = bill.id
-        row.cost_entry_id = cost_entry.id
-        row.cost_entry_product_id = product.id
-        row.cost_entry_pricing_id = pricing.id
-        row.cost_entry_reservation_id = reservation.id
-        row.usage_start = cost_entry.interval_start
-        row.usage_end = cost_entry.interval_end
-        row.tags = {
-            'environment': random.choice(['dev', 'qa', 'prod']),
-            self.fake.pystr()[:8]: self.fake.pystr()[:8],
+        extra_data = {
+            'cost_entry_bill_id': bill.id,
+            'cost_entry_id': cost_entry.id,
+            'cost_entry_product_id': product.id,
+            'cost_entry_pricing_id': pricing.id,
+            'cost_entry_reservation_id': reservation.id,
+            'usage_start': cost_entry.interval_start,
+            'usage_end': cost_entry.interval_end,
+            'resource_id': resource_id,
+            'tags': {
+                'environment': random.choice(['dev', 'qa', 'prod']),
+                self.fake.pystr()[:8]: self.fake.pystr()[:8],
+            }
         }
-        if resource_id:
-            row.resource_id = resource_id
-        row.save()
 
-        return row
+        data.update(extra_data)
+
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_ocp_report_period(
         self, period_date=None, provider_id=None, cluster_id=None
@@ -168,10 +159,7 @@ class ReportObjectCreator:
             data['report_period_start'] = period_start
             data['report_period_end'] = period_end
 
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.save()
-
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_ocp_report(self, reporting_period, report_datetime=None):
         """Create an OCP reporting period database object for test."""
@@ -184,9 +172,7 @@ class ReportObjectCreator:
             start_datetime = self.fake.past_datetime(start_date='-60d')
         data['interval_start'] = start_datetime
         data['interval_end'] = start_datetime + relativedelta.relativedelta(hours=+1)
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.save()
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_ocp_usage_line_item(self, report_period, report, resource_id=None):
         """Create an OCP usage line item database object for test."""
@@ -200,13 +186,10 @@ class ReportObjectCreator:
         if resource_id:
             data['resource_id'] = resource_id
 
-        row = self.db_accessor.create_db_object(table_name, data)
+        data['report_period_id'] = report_period.id
+        data['report_id'] = report.id
 
-        row.report_period_id = report_period.id
-        row.report_id = report.id
-        row.save()
-
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_ocp_storage_line_item(self, report_period, report):
         """Create an OCP storage line item database object for test."""
@@ -217,12 +200,10 @@ class ReportObjectCreator:
             if 'bytes' in key or 'byte' in key:
                 data[key] = data[key] * Decimal(pow(2, 30)) * 5
 
-        row = self.db_accessor.create_db_object(table_name, data)
+        data['report_period_id'] = report_period.id
+        data['report_id'] = report.id
 
-        row.report_period_id = report_period.id
-        row.report_id = report.id
-        row.save()
-        return row
+        return self.db_accessor.create_db_object(table_name, data)
 
     def create_columns_for_table(self, table):
         """Generate data for a table."""
