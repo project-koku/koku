@@ -59,6 +59,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         if self.accessor._cursor.closed:
+            self.accessor._conn.connect()
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
         self.cluster_id = 'testcluster'
 
@@ -296,6 +297,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_populate_line_item_daily_summary_table(self, mock_vacuum):
         """Test that the line item daily summary table populates."""
         self.tearDown()
+        self.reporting_period = self.creator.create_ocp_report_period(
+            provider_id=self.ocp_provider_id, cluster_id=self.cluster_id
+        )
+        self.report = self.creator.create_ocp_report(self.reporting_period)
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         summary_table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
@@ -304,38 +309,38 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for _ in range(25):
             self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
+        with schema_context(self.schema):
+            report_entry = report_table.objects.all().aggregate(
+                Min('interval_start'), Max('interval_start')
+            )
+            start_date = report_entry['interval_start__min']
+            end_date = report_entry['interval_start__max']
 
-        report_entry = report_table.objects.all().aggregate(
-            Min('interval_start'), Max('interval_start')
-        )
-        start_date = report_entry['interval_start__min']
-        end_date = report_entry['interval_start__max']
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            query = self.accessor._get_db_obj_query(summary_table_name)
+            initial_count = query.count()
 
-        query = self.accessor._get_db_obj_query(summary_table_name)
-        initial_count = query.count()
+            self.accessor.populate_line_item_daily_table(
+                start_date, end_date, self.cluster_id
+            )
+            self.accessor.populate_line_item_daily_summary_table(
+                start_date, end_date, self.cluster_id
+            )
 
-        self.accessor.populate_line_item_daily_table(
-            start_date, end_date, self.cluster_id
-        )
-        self.accessor.populate_line_item_daily_summary_table(
-            start_date, end_date, self.cluster_id
-        )
+            self.assertNotEqual(query.count(), initial_count)
 
-        self.assertNotEqual(query.count(), initial_count)
+            summary_entry = summary_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_start')
+            )
+            result_start_date = summary_entry['usage_start__min']
+            result_end_date = summary_entry['usage_start__max']
 
-        summary_entry = summary_table.objects.all().aggregate(
-            Min('usage_start'), Max('usage_start')
-        )
-        result_start_date = summary_entry['usage_start__min']
-        result_end_date = summary_entry['usage_start__max']
+            self.assertEqual(result_start_date, start_date)
+            self.assertEqual(result_end_date, end_date)
 
-        self.assertEqual(result_start_date, start_date)
-        self.assertEqual(result_end_date, end_date)
-
-        entry = query.first()
+            entry = query.first()
 
         summary_columns = [
             'cluster_id',
