@@ -251,7 +251,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         table = getattr(self.report_schema, table_name)
         data = self.clean_data(data, table_name)
 
-        return table(**data)
+        with schema_context(self.schema):
+            model_object = table(**data)
+            model_object.save()
+            return  model_object
+
 
     def insert_on_conflict_do_nothing(self,
                                       table,
@@ -347,16 +351,6 @@ class ReportDBAccessorBase(KokuDBAccess):
                 raise err
             else:
                 return row_id
-
-    # pylint: disable=no-self-use
-    def flush_db_object(self, table):
-        """Commit a table row to the database.
-
-        Args:
-            table (Table): A SQLAlchemy mapped table object
-
-        """
-        table.save()
 
     def clean_data(self, data, table_name):
         """Clean data for insertion into database.
