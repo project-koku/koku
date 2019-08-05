@@ -388,7 +388,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'test':
 MASU_SERVICE_HOST = ENVIRONMENT.get_value('MASU_SERVICE_HOST',
                                           default='localhost')
 MASU_SERVICE_PORT = ENVIRONMENT.get_value('MASU_SERVICE_PORT',
-                                          default='5000')
+                                          default='8000')
 MASU_BASE_URL = 'http://{}:{}'.format(MASU_SERVICE_HOST, MASU_SERVICE_PORT)
 
 MASU_API_REPORT_DATA = '{}/v1/report_data/'.format(API_PATH_PREFIX)
