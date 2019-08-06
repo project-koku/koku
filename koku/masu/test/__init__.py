@@ -1,11 +1,39 @@
 """Shared Class for masu tests."""
+import json
+import pkgutil
+
 from django.db import connection, connections
 from django.core.management import call_command
 from django.test import TestCase, TransactionTestCase
 from tenant_schemas.utils import schema_context
 
-from api.models import Customer, Tenant
+from api.models import CostModelMetricsMap, Customer, Tenant
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
+from reporting_common.models import ReportColumnMap
+
+def load_db_map_data():
+    if ReportColumnMap.objects.count() == 0:
+        data = pkgutil.get_data('reporting_common',
+                                'data/aws_report_column_map.json')
+        data = json.loads(data)
+        for entry in data:
+            map = ReportColumnMap(**entry)
+            map.save()
+
+        data = pkgutil.get_data('reporting_common',
+                                'data/ocp_report_column_map.json')
+        data = json.loads(data)
+        for entry in data:
+            map = ReportColumnMap(**entry)
+            map.save()
+
+    if CostModelMetricsMap.objects.count() == 0:
+        data = pkgutil.get_data('api',
+                                'metrics/data/cost_models_metric_map.json')
+        data = json.loads(data)
+        for entry in data:
+            map = CostModelMetricsMap(**entry)
+            map.save()
 
 
 class MasuTestCase(TransactionTestCase):
@@ -15,6 +43,7 @@ class MasuTestCase(TransactionTestCase):
     def setUpClass(cls):
         """Create test case setup."""
         super().setUpClass()
+
         cls.schema = 'acct10001'
         cls.acct = '10001'
         # cls.customer = Customer.objects.create(
@@ -29,6 +58,10 @@ class MasuTestCase(TransactionTestCase):
         if not result:
             cls.tenant = Tenant(schema_name=cls.schema)
             cls.tenant.save()
+
+        # Load static data into the DB
+        # E.g. report column maps
+        load_db_map_data()
 
         cls.ocp_test_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.aws_test_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
@@ -89,11 +122,15 @@ class MasuTestCase(TransactionTestCase):
         )
         self.ocp_provider.save()
 
+        # Load static data into the DB
+        # E.g. report column maps
+        load_db_map_data()
+
     def tearDown(self):
         """Tear down and restore database on the tenant schema."""
         connection.set_schema(self.schema)
         for db_name in self._databases_names(include_mirrors=False):
-            # Flush the database
+            # Flush the tenant schema's data
             call_command('flush', verbosity=0, interactive=False,
                          database=db_name, reset_sequences=False,
                          allow_cascade=self.available_apps is not None,
