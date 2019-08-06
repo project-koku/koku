@@ -75,7 +75,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         delete_sql = f'DELETE FROM {temp_table_name}'
         self._cursor.execute(delete_sql)
-        self.vacuum_table(temp_table_name)
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""

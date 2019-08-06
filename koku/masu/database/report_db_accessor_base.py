@@ -167,7 +167,6 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         delete_sql = f'DELETE FROM {temp_table_name}'
         self._cursor.execute(delete_sql)
-        self.vacuum_table(temp_table_name)
 
         return is_finalized_data
 
