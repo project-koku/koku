@@ -97,13 +97,9 @@ class OCPReportSummaryUpdater:
             with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 report_periods = accessor.report_periods_for_provider_id(self._provider.id, start_date)
                 accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 accessor.populate_pod_label_summary_table()
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 accessor.populate_volume_claim_label_summary_table()
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 accessor.populate_volume_label_summary_table()
 
                 for period in report_periods:
@@ -113,7 +109,6 @@ class OCPReportSummaryUpdater:
                     period.summary_data_updated_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
                     period.save()
-                accessor.commit()
 
         return start_date, end_date
 
@@ -147,7 +142,7 @@ class OCPReportSummaryUpdater:
                         end_date = end_date.strftime('%Y-%m-%d')
                         LOG.info('Overriding start and end date to process full month.')
 
-                    return start_date, end_date
+            return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, report_period):
         """Decide whether to update summary tables for full billing period."""
