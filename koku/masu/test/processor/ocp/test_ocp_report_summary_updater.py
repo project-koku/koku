@@ -80,7 +80,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'num_processed_files': 2,
+            'num_processed_files': 1,
             'provider_id': self.ocp_provider.id,
         }
 
@@ -93,7 +93,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.creator.create_ocp_usage_line_item(self.report_period, report)
         self.creator.create_ocp_storage_line_item(self.report_period, report)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
-        self.manifest_accessor.commit()
 
         self.updater = OCPReportSummaryUpdater(
             'acct10001', self.provider, self.manifest
@@ -103,10 +102,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         """Return the database to a pre-test state."""
         super().tearDown()
 
-    def run(self, result=None):
-        """Run the tests with the correct schema context."""
-        with schema_context(self.schema):
-            super().run(result)
+    # def run(self, result=None):
+    #     """Run the tests with the correct schema context."""
+    #     with schema_context(self.schema):
+    #         super().run(result)
 
         # for table_name in self.all_tables:
         #     tables = self.accessor._get_db_obj_query(table_name).all()
@@ -136,15 +135,17 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
     ):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
+        self.manifest.save()
+        # self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        period = self.accessor.get_usage_periods_by_date(bill_date)[0]
-        period.summary_data_creation_datetime = start_date
-        self.accessor.commit()
+        with schema_context(self.schema):
+            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+            period.summary_data_creation_datetime = start_date
+            period.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -195,13 +196,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month."""
 
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
+        self.manifest.save()
+        # self.manifest_accessor.commit()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
 
-        period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+        with schema_context(self.schema):
+            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -264,12 +267,11 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         }
 
         self.manifest_accessor.delete(self.manifest)
-        self.manifest_accessor.commit()
+        # self.manifest_accessor.commit()
         self.manifest = self.manifest_accessor.add(**manifest_dict)
-        self.manifest_accessor.commit()
 
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
+        self.manifest.save()
 
         self.updater = OCPReportSummaryUpdater(
             'acct10001', self.provider, self.manifest
@@ -282,7 +284,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.creator.create_ocp_report_period(
             billing_start, provider_id=self.provider.id
         )
-        period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+        with schema_context(self.schema):
+            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -340,9 +343,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        period = self.accessor.get_usage_periods_by_date(bill_date)[0]
-        period.summary_data_creation_datetime = start_date
-        self.accessor.commit()
+        with schema_context(self.schema):
+            period = self.accessor.get_usage_periods_by_date(bill_date)[0]
+            period.summary_data_creation_datetime = start_date
+            period.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -400,7 +404,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         with schema_context(self.schema):
             period = self.accessor.get_usage_periods_by_date(bill_date)[0]
             period.summary_data_updated_datetime = start_date
-            self.accessor.commit()
+            period.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -457,7 +461,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are run for a full month when no report period is found."""
 
         self.manifest.num_processed_files = self.manifest.num_total_files
-        self.manifest_accessor.commit()
+        self.manifest.save()
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
