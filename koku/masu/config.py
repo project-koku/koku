@@ -69,10 +69,6 @@ class Config:
     RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
     RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
 
-    SECRET_KEY = os.getenv('MASU_SECRET_KEY')
-    if SECRET_KEY is None:
-        raise ValueError('No secret key set for Masu application')
-
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 

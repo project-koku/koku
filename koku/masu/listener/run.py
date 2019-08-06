@@ -16,7 +16,6 @@
 #
 """Masu listener entry-point."""
 
-from masu import create_app
 from koku.celery import celery
 from masu.external.kafka_msg_handler import initialize_kafka_handler
 from masu.prometheus_stats import initialize_prometheus_exporter
