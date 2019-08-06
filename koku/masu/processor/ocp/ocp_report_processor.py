@@ -352,10 +352,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
 
-        # This will commit all pricing, products, and reservations
-        # on the session
-        report_db_accessor.commit()
-
         report_db_accessor.bulk_insert_rows(
             csv_file,
             temp_table,
