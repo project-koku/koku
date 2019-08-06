@@ -275,14 +275,14 @@ class OCPReportChargeUpdater:
         self._update_storage_charge()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
+                    self._schema, self._provider_uuid)
+            accessor.populate_cost_summary_table(self._cluster_id,
+                                                start_date=start_date,
+                                                end_date=end_date)
+            report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
             with schema_context(self._schema):
-                LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
-                        self._schema, self._provider_uuid)
-                accessor.populate_cost_summary_table(self._cluster_id,
-                                                    start_date=start_date,
-                                                    end_date=end_date)
-                report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
                 for period in report_periods:
                     period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     period.save()
-                accessor.commit()
+            accessor.commit()

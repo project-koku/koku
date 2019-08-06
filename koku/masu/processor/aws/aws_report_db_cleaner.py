@@ -58,17 +58,17 @@ class AWSReportDBCleaner():
             column_map = reporting_common.column_map
 
         with AWSReportDBAccessor(self._schema, column_map) as accessor:
-            with schema_context(self._schema):
-                if ((expired_date is None and provider_id is None) or  # noqa: W504
-                        (expired_date is not None and provider_id is not None)):
-                    err = 'This method must be called with either expired_date or provider_id'
-                    raise AWSReportDBCleanerError(err)
-                removed_items = []
+            if ((expired_date is None and provider_id is None) or  # noqa: W504
+                    (expired_date is not None and provider_id is not None)):
+                err = 'This method must be called with either expired_date or provider_id'
+                raise AWSReportDBCleanerError(err)
+            removed_items = []
 
-                if expired_date is not None:
-                    bill_objects = accessor.get_bill_query_before_date(expired_date)
-                else:
-                    bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            if expired_date is not None:
+                bill_objects = accessor.get_bill_query_before_date(expired_date)
+            else:
+                bill_objects = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            with schema_context(self._schema):
                 for bill in bill_objects.all():
                     bill_id = bill.id
                     removed_payer_account_id = bill.payer_account_id

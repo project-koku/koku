@@ -121,42 +121,43 @@ class OCPCloudReportSummaryUpdater:
             None
 
         """
-        with schema_context(self._schema_name):
-            infra_map = self._get_ocp_infra_map(start_date, end_date)
-            cluster_id = self._get_ocp_cluster_id_for_provider(self._provider, start_date, end_date, infra_map)
+        infra_map = self._get_ocp_infra_map(start_date, end_date)
+        cluster_id = self._get_ocp_cluster_id_for_provider(self._provider, start_date, end_date, infra_map)
 
-            if cluster_id:
-                aws_uuid = self._get_aws_provider_uuid_from_map(self._provider, infra_map)
-                aws_bills = get_bills_from_provider(
-                    aws_uuid,
-                    self._schema_name,
-                    start_date,
-                    end_date
-                )
+        if cluster_id:
+            aws_uuid = self._get_aws_provider_uuid_from_map(self._provider, infra_map)
+            aws_bills = get_bills_from_provider(
+                aws_uuid,
+                self._schema_name,
+                start_date,
+                end_date
+            )
+            aws_bill_ids = []
+            with schema_context(self._schema_name):
                 aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
-                # OpenShift on AWS
-                with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
-                    LOG.info('Updating OpenShift on AWS summary table for '
-                             '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
-                             '\n\tCluster ID: %s, AWS Bill IDs: %s',
-                             self._schema_name, self._provider.uuid,
-                             start_date, end_date, cluster_id, str(aws_bill_ids))
-                    accessor.populate_ocp_on_aws_cost_daily_summary(
-                        start_date,
-                        end_date,
-                        cluster_id,
-                        aws_bill_ids
-                    )
-                    accessor.commit()
-            else:
-                LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
-
-            # This needs to always run regardless of whether the OpenShift
-            # cluster is tied to a cloud provider
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-                LOG.info('Updating OpenShift on OCP cost summary table for'
-                        '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                        self._schema_name, self._provider.uuid, start_date, end_date)
-                accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
+            # OpenShift on AWS
+            with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
+                LOG.info('Updating OpenShift on AWS summary table for '
+                            '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
+                            '\n\tCluster ID: %s, AWS Bill IDs: %s',
+                            self._schema_name, self._provider.uuid,
+                            start_date, end_date, cluster_id, str(aws_bill_ids))
+                accessor.populate_ocp_on_aws_cost_daily_summary(
+                    start_date,
+                    end_date,
+                    cluster_id,
+                    aws_bill_ids
+                )
                 accessor.commit()
+        else:
+            LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
+
+        # This needs to always run regardless of whether the OpenShift
+        # cluster is tied to a cloud provider
+        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+            LOG.info('Updating OpenShift on OCP cost summary table for'
+                    '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
+                    self._schema_name, self._provider.uuid, start_date, end_date)
+            accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
+            accessor.commit()

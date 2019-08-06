@@ -59,17 +59,17 @@ class OCPReportDBCleaner():
             column_map = reporting_common.column_map
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
-            with schema_context(self._schema):
-                if ((expired_date is not None and provider_id is not None) or  # noqa: W504
-                        (expired_date is None and provider_id is None)):
-                    err = 'This method must be called with expired_date or provider_id'
-                    raise OCPReportDBCleanerError(err)
-                removed_items = []
+            if ((expired_date is not None and provider_id is not None) or  # noqa: W504
+                    (expired_date is None and provider_id is None)):
+                err = 'This method must be called with expired_date or provider_id'
+                raise OCPReportDBCleanerError(err)
+            removed_items = []
 
-                if expired_date is not None:
-                    usage_period_objs = accessor.get_usage_period_before_date(expired_date)
-                else:
-                    usage_period_objs = accessor.get_usage_period_query_by_provider(provider_id)
+            if expired_date is not None:
+                usage_period_objs = accessor.get_usage_period_before_date(expired_date)
+            else:
+                usage_period_objs = accessor.get_usage_period_query_by_provider(provider_id)
+            with schema_context(self._schema):
                 for usage_period in usage_period_objs.all():
                     report_period_id = usage_period.id
                     cluster_id = usage_period.cluster_id

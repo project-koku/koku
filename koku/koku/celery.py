@@ -26,6 +26,7 @@ celery.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')
 
+# Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool('SCHEDULE_REPORT_CHECKS', default=False):
     # The interval to scan for new reports.
     REPORT_CHECK_INTERVAL = datetime.timedelta(
