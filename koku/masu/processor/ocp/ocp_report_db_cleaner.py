@@ -127,5 +127,4 @@ class OCPReportDBCleaner():
 
                 if not simulate:
                     usage_period_objs.delete()
-                    accessor.commit()
         return removed_items
