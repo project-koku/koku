@@ -30,6 +30,7 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
 
     def setUp(self):
         """Set up the test class with required objects."""
+        super().setUp()
         self.accessor = ReportingCommonDBAccessor()
         self.report_tables = list(AWS_CUR_TABLE_MAP.values())
 
@@ -58,6 +59,6 @@ class ReportingCommonDBAccessorTest(MasuTestCase):
 
     def test_add(self):
         """Test the add() function."""
-        accessor = copy.copy(self.accessor)
-        accessor._test = Mock()
-        accessor.add('test', {'foo': 'bar'}, use_savepoint=False)
+        with ReportingCommonDBAccessor() as accessor:
+            accessor._test = Mock()
+            accessor.add('test', {'foo': 'bar'})
