@@ -48,6 +48,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Update the updated timestamp."""
         manifest.manifest_updated_datetime = \
             self.date_accessor.today_with_timezone('UTC')
+        manifest.save()
 
     # pylint: disable=arguments-differ
     def add(self, **kwargs):

@@ -85,7 +85,6 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
             manifest.num_processed_files += 1
             manifest.save()
             manifest_accesor.mark_manifest_as_updated(manifest)
-            manifest_accesor.commit()
         else:
             LOG.error('Unable to find manifest for ID: %s, file %s', manifest_id, file_name)
 

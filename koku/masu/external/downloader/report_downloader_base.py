@@ -69,7 +69,6 @@ class ReportDownloaderBase():
                 manifest_entry = manifest_accessor.add(**manifest_dict)
 
             manifest_accessor.mark_manifest_as_updated(manifest_entry)
-            manifest_accessor.commit()
             manifest_id = manifest_entry.id
 
         return manifest_id
