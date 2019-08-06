@@ -1,8 +1,8 @@
 -i https://pypi.python.org/simple
 amqp==2.5.0
 billiard==3.6.0.0
-boto3==1.9.197
-botocore==1.12.199
+boto3==1.9.200
+botocore==1.12.200
 celery==4.3.0
 certifi==2019.6.16
 chardet==3.0.4
@@ -12,10 +12,10 @@ django-filter==2.2.0
 django-prometheus==1.0.15
 django-redis==4.10.0
 django-tenant-schemas==1.9.0
-django==2.2.3
+django==2.2.4
 djangorestframework-csv==2.1.0
 djangorestframework==3.10.2
-docutils==0.14
+docutils==0.15.2
 drf-nested-routers==0.91
 entrypoints==0.3
 flake8==3.7.8
@@ -31,9 +31,9 @@ psycopg2==2.8.3
 pycodestyle==2.5.0
 pyflakes==2.1.1
 python-dateutil==2.8.0
-pytz==2019.1
+pytz==2019.2
 querystring-parser==1.2.4
-redis==3.3.4
+redis==3.3.5
 requests==2.22.0
 s3transfer==0.2.1
 six==1.12.0
