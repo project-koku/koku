@@ -244,7 +244,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self._commit_and_vacuum(table_name, agg_sql)
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
-                                               cluster_id=None, bill_ids=None):
+                                               cluster_id, bill_ids):
         """Populate the daily cost aggregated summary for OCP on AWS.
 
         Args:

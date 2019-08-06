@@ -308,6 +308,39 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
+    def get_ocp_infrastructure_map(self, start_date, end_date):
+        """Get the OCP on infrastructure map.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        infra_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpinfrastructure_provider_map.sql'
+        )
+        infra_sql = infra_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date
+        )
+        self._cursor.execute(infra_sql)
+        results = self._cursor.fetchall()
+
+        db_results = []
+        for entry in results:
+            db_dict = {}
+            db_dict['aws_uuid'] = entry[0]
+            db_dict['ocp_uuid'] = entry[1]
+            db_dict['cluster_id'] = entry[2]
+            db_results.append(db_dict)
+
+        return db_results
+
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
 

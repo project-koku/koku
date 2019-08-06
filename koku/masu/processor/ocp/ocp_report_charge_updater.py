@@ -55,22 +55,28 @@ class OCPReportChargeUpdater:
     @staticmethod
     def _normalize_tier(input_tier):
         # Pull out the parts for beginning, middle, and end for validation and ordering correction.
-        first_tier = [t for t in input_tier if not t.get('usage_start')]
-        last_tier = [t for t in input_tier if not t.get('usage_end')]
-        middle_tiers = [t for t in input_tier if t.get('usage_start') and t.get('usage_end')]
+        first_tier = [t for t in input_tier if not t.get('usage', {}).get('usage_start')]
+        last_tier = [t for t in input_tier if not t.get('usage', {}).get('usage_end')]
+        middle_tiers = \
+            [t for t in input_tier if
+             t.get('usage', {}).get('usage_start') and t.get('usage', {}).get('usage_end')]
 
         # Ensure that there is only 1 starting tier. (i.e. 1 'usage_start': None, if provided)
         if not first_tier:
+            LOG.error('Failed Tier: %s', str(input_tier))
             raise OCPReportChargeUpdaterError('Missing first tier.')
 
         if len(first_tier) != 1:
+            LOG.error('Failed Tier: %s', str(input_tier))
             raise OCPReportChargeUpdaterError('Two starting tiers.')
 
         # Ensure that there is only 1 final tier. (i.e. 1 'usage_end': None, if provided)
         if not last_tier:
+            LOG.error('Failed Tier: %s', str(input_tier))
             raise OCPReportChargeUpdaterError('Missing last tier.')
 
         if len(last_tier) != 1:
+            LOG.error('Failed Tier: %s', str(input_tier))
             raise OCPReportChargeUpdaterError('Two final tiers.')
 
         # Remove last 'usage_end' for consistency to avoid 'usage_end: 0' situations.
@@ -78,7 +84,7 @@ class OCPReportChargeUpdater:
 
         # Build final tier that is sorted in asending order.
         newlist = first_tier
-        newlist += sorted(middle_tiers, key=lambda k: k['usage_end'])
+        newlist += sorted(middle_tiers, key=lambda k: k['usage']['usage_end'])
         newlist += last_tier
 
         return newlist
@@ -99,11 +105,13 @@ class OCPReportChargeUpdater:
         balance = usage
         tier = []
         if rates:
-            tier = self._normalize_tier(rates.get('tiered_rate'))
+            tier = self._normalize_tier(rates.get('tiered_rates', []))
 
         for bucket in tier:
-            usage_end = Decimal(bucket.get('usage_end')) if bucket.get('usage_end') else None
-            usage_start = Decimal(bucket.get('usage_start') if bucket.get('usage_start') else 0)
+            usage_end = Decimal(bucket.get('usage', {}).get('usage_end')) \
+                if bucket.get('usage', {}).get('usage_end') else None
+            usage_start = Decimal(bucket.get('usage', {}).get('usage_start')) \
+                if bucket.get('usage', {}).get('usage_start') else 0
             bucket_size = (usage_end - usage_start) if usage_end else None
 
             lower_limit = 0
@@ -125,6 +133,8 @@ class OCPReportChargeUpdater:
         """Calculate charge based on rate and usage."""
         charge_dictionary = {}
         for key, value in usage.items():
+            if not value:
+                value = Decimal(0.0)
             charge_value = self._calculate_variable_charge(value, rates)
             charge_dictionary[key] = {'usage': value, 'charge': charge_value}
         return charge_dictionary
@@ -265,14 +275,14 @@ class OCPReportChargeUpdater:
         self._update_storage_charge()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
+            LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
+                    self._schema, self._provider_uuid)
+            accessor.populate_cost_summary_table(self._cluster_id,
+                                                start_date=start_date,
+                                                end_date=end_date)
+            report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
             with schema_context(self._schema):
-                LOG.info('Updating OpenShift on Cloud cost summary for schema: %s and provider: %s',
-                        self._schema, self._provider_uuid)
-                accessor.populate_cost_summary_table(self._cluster_id,
-                                                    start_date=start_date,
-                                                    end_date=end_date)
-                report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
                 for period in report_periods:
                     period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     period.save()
-                accessor.commit()
+            accessor.commit()

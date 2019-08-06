@@ -99,13 +99,6 @@ class Config:
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
     OCP_DATETIME_STR_FORMAT = '%Y-%m-%d %H:%M:%S +0000 UTC'
 
-    # Toggle to enable/disable scheduled checks for new reports.
-    SCHEDULE_REPORT_CHECKS = os.getenv('SCHEDULE_REPORT_CHECKS', 'True')
-
-    # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = datetime.timedelta(
-        minutes=int(os.getenv('SCHEDULE_CHECK_INTERVAL', '60')))
-
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
     MASU_DATE_OVERRIDE = os.getenv('MASU_DATE_OVERRIDE')
 
@@ -116,12 +109,6 @@ class Config:
     # TODO: Remove this if/when reporting model files are owned by masu
     # The decimal precision of our database Numeric columns
     REPORTING_DECIMAL_PRECISION = 9
-
-    # Specify the day of the month for removal of expired report data.
-    REMOVE_EXPIRED_REPORT_DATA_ON_DAY = int(os.getenv('REMOVE_EXPIRED_REPORT_DATA_ON_DAY', '1'))
-
-    # Specify the time of the day for removal of expired report data.
-    REMOVE_EXPIRED_REPORT_UTC_TIME = os.getenv('REMOVE_EXPIRED_REPORT_UTC_TIME', '00:00')
 
     # Specify the number of months (bills) to ingest
     INITIAL_INGEST_NUM_MONTHS = int(os.getenv('INITIAL_INGEST_NUM_MONTHS', '2'))

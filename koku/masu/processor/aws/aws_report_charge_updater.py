@@ -60,10 +60,10 @@ class AWSReportChargeUpdater:
                   self._provider_uuid, str(start_date), str(end_date))
 
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
+            LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
+                    self._schema, self._provider_uuid)
+            bills = accessor.bills_for_provider_id(self._provider_id, start_date)
             with schema_context(self._schema):
-                LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
-                        self._schema, self._provider_uuid)
-                bills = accessor.bills_for_provider_id(self._provider_id, start_date)
                 for bill in bills:
                     bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     bill.save()

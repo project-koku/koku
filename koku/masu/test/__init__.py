@@ -58,11 +58,11 @@ class MasuTestCase(TransactionTestCase):
         if not result:
             cls.tenant = Tenant(schema_name=cls.schema)
             cls.tenant.save()
-
+        
         # Load static data into the DB
         # E.g. report column maps
         load_db_map_data()
-
+        
         cls.ocp_test_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.aws_test_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         cls.aws_provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
@@ -121,6 +121,9 @@ class MasuTestCase(TransactionTestCase):
             setup_complete=False,
         )
         self.ocp_provider.save()
+        
+        self.aws_provider_id = self.aws_provider.id
+        self.ocp_provider_id = self.ocp_provider.id
 
         # Load static data into the DB
         # E.g. report column maps

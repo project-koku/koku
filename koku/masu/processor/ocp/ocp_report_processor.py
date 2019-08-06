@@ -28,7 +28,9 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from os import listdir, path, remove
+from os import path
+
+from dateutil import parser
 
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -37,7 +39,8 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import extract_uuids_from_string
+from masu.util.common import clear_temp_directory
+from masu.util.ocp.common import month_date_range
 
 from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport, OCPUsageLineItem, OCPStorageLineItem
 
@@ -133,39 +136,33 @@ class OCPReportProcessor():
         """Process report file."""
         return self._processor.process()
 
-    def remove_temp_cur_files(self, report_path, manifest_id):
+    def remove_temp_cur_files(self, report_path):
         """Remove temporary report files."""
-        files = listdir(report_path)
-
         LOG.info('Cleaning up temporary report files for %s', report_path)
-        victim_list = []
-        current_assembly_id = None
-        for file in files:
-            file_path = '{}/{}'.format(report_path, file)
-            if file.endswith('manifest.json'):
-                with open(file_path, 'r') as manifest_file_handle:
-                    manifest_json = json.load(manifest_file_handle)
-                    current_assembly_id = manifest_json.get('uuid')
-            else:
-                with ReportStatsDBAccessor(file, manifest_id) as stats:
-                    completed_date = stats.get_last_completed_datetime()
-                    if completed_date:
-                        assembly_id = extract_uuids_from_string(file).pop()
 
-                        victim_list.append({'file': file_path,
-                                            'completed_date': completed_date,
-                                            'uuid': assembly_id})
+        manifest_path = '{}/{}'.format(report_path, 'manifest.json')
+        current_assembly_id = None
+        cluster_id = None
+        payload_date = None
+        month_range = None
+        with open(manifest_path, 'r') as manifest_file_handle:
+            manifest_json = json.load(manifest_file_handle)
+            current_assembly_id = manifest_json.get('uuid')
+            cluster_id = manifest_json.get('cluster_id')
+            payload_date = manifest_json.get('date')
+            if payload_date:
+                month_range = month_date_range(parser.parse(payload_date))
 
         removed_files = []
-        for victim in victim_list:
-            if victim['uuid'] != current_assembly_id:
-                try:
-                    LOG.info('Removing %s, completed processing on date %s',
-                             victim['file'], victim['completed_date'])
-                    remove(victim['file'])
-                    removed_files.append(victim['file'])
-                except FileNotFoundError:
-                    LOG.warning('Unable to locate file: %s', victim['file'])
+        if current_assembly_id:
+            removed_files = clear_temp_directory(report_path, current_assembly_id)
+
+        if current_assembly_id and cluster_id and month_range:
+            report_prefix = '{}_'.format(month_range)
+            insights_local_path = '{}/{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR,
+                                                    cluster_id, month_range)
+            clear_temp_directory(insights_local_path, current_assembly_id, report_prefix)
+
         return removed_files
 
 

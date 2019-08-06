@@ -740,8 +740,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self, mock_cpu_rate, mock_mem_rate, mock_charge_info
     ):
         """Test that the summary table task runs."""
-        mem_rate = {'tiered_rate': [{'value': '1.5', 'unit': 'USD'}]}
-        cpu_rate = {'tiered_rate': [{'value': '2.5', 'unit': 'USD'}]}
+        mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
+        cpu_rate = {'tiered_rates': [{'value': '2.5', 'unit': 'USD'}]}
 
         mock_cpu_rate.return_value = cpu_rate
         mock_mem_rate.return_value = mem_rate

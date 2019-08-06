@@ -79,23 +79,24 @@ class AWSReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         cls.test_report = './tests/data/test_cur.csv'
         cls.test_report_gzip = './tests/data/test_cur.csv.gz'
-
+        cls.provider_id = 1
         cls.processor = AWSReportProcessor(
             schema_name='acct10001',
             report_path=cls.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=cls.provider_id,
         )
 
         cls.date_accessor = DateAccessor()
         billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
             year=2018, month=6, day=1, hour=0, minute=0, second=0
         )
+        cls.assembly_id = '1234'
         cls.manifest_dict = {
-            'assembly_id': '1234',
+            'assembly_id': cls.assembly_id,
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1,
+            'provider_id': cls.provider_id,
         }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -894,7 +895,8 @@ class AWSReportProcessorTest(MasuTestCase):
         for item in file_list:
             path = '{}/{}'.format(cur_dir, item['file'])
             f = open(path, 'w')
-            stats = ReportStatsDBAccessor(item['file'], None)
+            obj = self.manifest_accessor.get_manifest(self.assembly_id, self.provider_id)
+            stats = ReportStatsDBAccessor(item['file'], obj.id)
             stats.update(last_completed_datetime=item['processed_date'])
             stats.commit()
             stats.close_session()
@@ -905,7 +907,7 @@ class AWSReportProcessorTest(MasuTestCase):
             ):
                 expected_delete_list.append(path)
 
-        removed_files = self.processor.remove_temp_cur_files(cur_dir, manifest_id=None)
+        removed_files = self.processor.remove_temp_cur_files(cur_dir)
         self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
         shutil.rmtree(cur_dir)
 

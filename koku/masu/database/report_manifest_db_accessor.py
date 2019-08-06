@@ -15,10 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from django.db.models import Max
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
-from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 from tenant_schemas.utils import schema_context
 
 
@@ -74,3 +75,38 @@ class ReportManifestDBAccessor(KokuDBAccess):
             kwargs['num_processed_files'] = 0
 
         return super().add(**kwargs)
+
+    def get_last_report_completed_datetime(self, manifest_id):
+        """Get the most recent report processing completion time for a manifest."""
+        #table = self.get_base().classes.reporting_common_costusagereportstatus
+        #TODO FIX THIS when we update tests
+        table = CostUsageReportStatus
+        result = table.objects.filter(Max(table.last_completed_datetime))\
+            .filter(table.manifest_id == manifest_id)\
+            .first()
+        # result = self._session.query(Max(table.last_completed_datetime))\
+        #     .filter(table.manifest_id == manifest_id)\
+        #     .first()
+
+        return result[0]
+
+    def reset_manifest(self, manifest_id):
+        """Return the manifest to a state as if it had not been processed.
+
+        This sets the number of processed files to zero and
+        nullifies the started and completed times on the reports.
+        """
+        #TODO FIX THIS when we update tests
+        manifest = self.get_manifest_by_id(manifest_id)
+        manifest.num_processed_files = 0
+
+        table = CostUsageReportStatus
+        files = table.objects.filter(table.manifest_id == manifest_id).all()
+        # table = self.get_base().classes.reporting_common_costusagereportstatus
+        # files = self._session.query(table).filter(table.manifest_id == manifest_id)\
+         #    .all()
+        for file in files:
+            file.last_completed_datetime = None
+            file.last_started_datetime = None
+            file.save()
+        self.commit()

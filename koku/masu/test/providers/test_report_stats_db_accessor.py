@@ -39,7 +39,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
-        manifest = cls.manifest_accessor.add(manifest_dict)
+        manifest = cls.manifest_accessor.add(**manifest_dict)
         cls.manifest_accessor.commit()
         cls.manifest_id = manifest.id
 

@@ -19,6 +19,7 @@
 import csv
 import copy
 import datetime
+import os
 import gzip
 import json
 import shutil
@@ -29,10 +30,12 @@ from tenant_schemas.utils import schema_context
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_processor import (
     OCPReportProcessor,
     OCPReportProcessorError,
@@ -41,6 +44,7 @@ from masu.processor.ocp.ocp_report_processor import (
 )
 from masu.test import MasuTestCase
 from unittest.mock import patch
+from masu.util.ocp.common import month_date_range
 
 
 class ProcessedOCPReportTest(MasuTestCase):
@@ -82,8 +86,26 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name=cls.schema,
             report_path=cls.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=cls.provider_id,
         )
+
+        cls.date_accessor = DateAccessor()
+        billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
+            year=2018,
+            month=6,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0
+        )
+        cls.assembly_id = '1234'
+        cls.manifest_dict = {
+            'assembly_id': cls.assembly_id,
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 2,
+            'provider_id': 1
+        }
+        cls.manifest_accessor = ReportManifestDBAccessor()
 
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
@@ -110,6 +132,11 @@ class OCPReportProcessorTest(MasuTestCase):
         if self.accessor._cursor.closed:
             self.accessor._conn.connect()
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
+
+    def setUp(self):
+        super().setUp()
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.commit()
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -516,8 +543,11 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_remove_temp_cur_files(self):
         """Test to remove temporary usage report files."""
         insights_local_dir = tempfile.mkdtemp()
-
-        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5"}
+        cluster_id = 'my-ocp-cluster'
+        manifest_date = "2018-05-01"
+        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
+                         "cluster_id": cluster_id,
+                         "date": manifest_date}
         manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
         with open(manifest, 'w') as outfile:
             json.dump(manifest_data, outfile)
@@ -548,7 +578,8 @@ class OCPReportProcessorTest(MasuTestCase):
         for item in file_list:
             path = '{}/{}'.format(insights_local_dir, item['file'])
             f = open(path, 'w')
-            stats = ReportStatsDBAccessor(item['file'], None)
+            obj = self.manifest_accessor.get_manifest(self.assembly_id, self.provider_id)
+            stats = ReportStatsDBAccessor(item['file'], obj.id)
             stats.update(last_completed_datetime=item['processed_date'])
             stats.commit()
             stats.close_session()
@@ -558,10 +589,29 @@ class OCPReportProcessorTest(MasuTestCase):
                 and item['processed_date']
             ):
                 expected_delete_list.append(path)
+        fake_dir = tempfile.mkdtemp()
+        with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
+            destination_dir = '{}/{}/{}'.format(fake_dir,
+                                                cluster_id,
+                                                month_date_range(parser.parse(manifest_date)))
+            os.makedirs(destination_dir, exist_ok=True)
+            removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
+            self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
+            shutil.rmtree(insights_local_dir)
+            shutil.rmtree(fake_dir)
 
-        removed_files = self.ocp_processor.remove_temp_cur_files(
-            insights_local_dir, manifest_id=None
-        )
+    def test_remove_temp_cur_files_missing_manifest(self):
+        """Test to remove temporary usage report files with missing uuid in manifest."""
+        insights_local_dir = tempfile.mkdtemp()
+        cluster_id = 'my-ocp-cluster'
+        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
+                         "cluster_id": cluster_id}
+        manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
+        with open(manifest, 'w') as outfile:
+            json.dump(manifest_data, outfile)
+
+        expected_delete_list = []
+        removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
         self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
         shutil.rmtree(insights_local_dir)
 

@@ -58,6 +58,11 @@ class OCPReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
+        print('UPDATE SUMMARY TABLES, Start: %s End: %s', str(start_date), str(end_date))
+        if not start_date:
+            print('START DATE IS NONE')
+        if not end_date:
+            print('END DATE IS NONE')
         start_date, end_date = self._get_sql_inputs(
             start_date,
             end_date
@@ -117,32 +122,31 @@ class OCPReportSummaryUpdater:
         # Default to this month's bill
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
             if self._manifest:
+                # Override the bill date to correspond with the manifest
+                bill_date = self._manifest.billing_period_start_datetime.date()
+                report_periods = accessor.get_usage_period_query_by_provider(
+                    self._provider.id
+                )
+                report_periods = report_periods.filter(
+                    report_period_start=bill_date
+                ).all()
+                do_month_update = True
                 with schema_context(self._schema_name):
-                    # Override the bill date to correspond with the manifest
-                    bill_date = self._manifest.billing_period_start_datetime.date()
-                    report_periods = accessor.get_usage_period_query_by_provider(
-                        self._provider.id
-                    )
-                    report_periods = report_periods.filter(
-                        report_period_start=bill_date
-                    ).all()
-
-                    do_month_update = True
                     if report_periods is not None and len(report_periods) > 0:
                         do_month_update = self._determine_if_full_summary_update_needed(
                             report_periods[0]
                         )
-                    if do_month_update:
-                        last_day_of_month = calendar.monthrange(
-                            bill_date.year,
-                            bill_date.month
-                        )[1]
-                        start_date = bill_date.strftime('%Y-%m-%d')
-                        end_date = bill_date.replace(day=last_day_of_month)
-                        end_date = end_date.strftime('%Y-%m-%d')
-                        LOG.info('Overriding start and end date to process full month.')
-
-            return start_date, end_date
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(
+                        bill_date.year,
+                        bill_date.month
+                    )[1]
+                    start_date = bill_date.strftime('%Y-%m-%d')
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    end_date = end_date.strftime('%Y-%m-%d')
+                    LOG.info('Overriding start and end date to process full month.')
+                LOG.info('Returning start: %s, end: %s', str(start_date), str(end_date))
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, report_period):
         """Decide whether to update summary tables for full billing period."""
