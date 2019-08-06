@@ -21,7 +21,7 @@ from unittest.mock import patch
 from decimal import Decimal
 import uuid
 
-import psycopg2
+from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -42,6 +42,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.ocp_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
@@ -60,19 +61,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         )
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
-    @classmethod
-    def tearDownClass(cls):
-        """Close the DB session."""
-        cls.accessor.close_session()
-
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        if self.accessor._conn.closed:
-            self.accessor._conn = self.accessor._db.connect()
-        if self.accessor._pg2_conn.closed:
-            self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
         if self.accessor._cursor.closed:
+            self.accessor._conn.connect()
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
         provider_id = self.provider_accessor.get_provider().id
         self.cluster_id = self.ocp_provider_resource_name
@@ -81,7 +74,7 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         report = self.creator.create_ocp_report(reporting_period, reporting_period.report_period_start)
         self.updater = OCPReportChargeUpdater(
-            schema=self.test_schema,
+            schema=self.schema,
             provider_uuid=self.ocp_provider_uuid,
             provider_id=provider_id
         )
@@ -98,15 +91,6 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             report,
             null_cpu_usage=True
         )
-
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        self.accessor._session.rollback()
-
-        for table_name in self.all_tables:
-            tables = self.accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.accessor._session.delete(table)
 
     def test_normalize_tier(self):
         """Test the tier helper function to normalize rate tier."""
@@ -622,19 +606,20 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
-            mem_request_value = float(item.pod_request_memory_gigabyte_hours)
-            mem_charge = (mem_usage_value * mem_usage_rate_value) + (mem_request_value * mem_request_rate_value)
-            self.assertEqual(round(mem_charge, 6),
-                             round(float(item.pod_charge_memory_gigabyte_hours), 6))
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
+                mem_request_value = float(item.pod_request_memory_gigabyte_hours)
+                mem_charge = (mem_usage_value * mem_usage_rate_value) + (mem_request_value * mem_request_rate_value)
+                self.assertEqual(round(mem_charge, 6),
+                                round(float(item.pod_charge_memory_gigabyte_hours), 6))
 
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-            cpu_request_value = float(item.pod_request_cpu_core_hours)
-            cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
-            self.assertEqual(round(cpu_charge, 6),
-                             round(float(item.pod_charge_cpu_core_hours), 6))
+                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
+                cpu_request_value = float(item.pod_request_cpu_core_hours)
+                cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
+                self.assertEqual(round(cpu_charge, 6),
+                                round(float(item.pod_charge_cpu_core_hours), 6))
 
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
@@ -659,13 +644,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-            self.assertEqual(round(0.0, 6),
-                             round(float(item.pod_charge_memory_gigabyte_hours), 6))
-            self.assertEqual(round(cpu_usage_value*cpu_rate_value, 6),
-                             round(float(item.pod_charge_cpu_core_hours), 6))
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
+                self.assertEqual(round(0.0, 6),
+                                round(float(item.pod_charge_memory_gigabyte_hours), 6))
+                self.assertEqual(round(cpu_usage_value*cpu_rate_value, 6),
+                                round(float(item.pod_charge_cpu_core_hours), 6))
 
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
@@ -690,13 +676,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
-            self.assertEqual(round(mem_usage_value*mem_rate_value, 6),
-                             round(float(item.pod_charge_memory_gigabyte_hours), 6))
-            self.assertEqual(round(0.0, 6),
-                             round(float(item.pod_charge_cpu_core_hours), 6))
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                mem_usage_value = float(item.pod_usage_memory_gigabyte_hours)
+                self.assertEqual(round(mem_usage_value*mem_rate_value, 6),
+                                    round(float(item.pod_charge_memory_gigabyte_hours), 6))
+                self.assertEqual(round(0.0, 6),
+                                    round(float(item.pod_charge_cpu_core_hours), 6))
 
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_request_per_month_rates')
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_usage_per_month_rates')
@@ -724,13 +711,14 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
 
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            storage_charge = float(item.persistentvolumeclaim_charge_gb_month)
-            expected_usage_charge = usage_rate_value * float(item.persistentvolumeclaim_usage_gigabyte_months)
-            expected_request_charge = request_rate_value * float(item.volume_request_storage_gigabyte_months)
-            self.assertEqual(round(storage_charge, 6),
-                             round(expected_usage_charge + expected_request_charge, 6))
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                storage_charge = float(item.persistentvolumeclaim_charge_gb_month)
+                expected_usage_charge = usage_rate_value * float(item.persistentvolumeclaim_usage_gigabyte_months)
+                expected_request_charge = request_rate_value * float(item.volume_request_storage_gigabyte_months)
+                self.assertEqual(round(storage_charge, 6),
+                                round(expected_usage_charge + expected_request_charge, 6))
 
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
@@ -787,10 +775,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
-            self.assertIsNone(item.pod_charge_cpu_core_hours)
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
+                self.assertIsNone(item.pod_charge_cpu_core_hours)
 
 
     @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
@@ -845,11 +834,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.updater.update_summary_charge_info()
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            self.assertIsNone(item.pod_charge_cpu_core_hours)
-            self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                self.assertIsNone(item.pod_charge_cpu_core_hours)
+                self.assertIsNone(item.pod_charge_memory_gigabyte_hours)
 
     def test_update_summary_charge_info_cpu_real_rates(self):
         """Test that OCP charge information is updated for cpu from the right provider uuid."""
@@ -878,9 +867,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         items = self.accessor._get_db_obj_query(table_name).all()
-        for item in items:
-            cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
-            self.assertEqual(round(0.0, 5),
-                             round(float(item.pod_charge_memory_gigabyte_hours), 5))
-            self.assertEqual(round(cpu_usage_value*cpu_rate_value, 5),
-                             round(float(item.pod_charge_cpu_core_hours), 5))
+        with schema_context(self.schema):
+            for item in items:
+                cpu_usage_value = float(item.pod_usage_cpu_core_hours) if item.pod_usage_cpu_core_hours else float(0.0)
+                self.assertEqual(round(0.0, 5),
+                                round(float(item.pod_charge_memory_gigabyte_hours), 5))
+                self.assertEqual(round(cpu_usage_value*cpu_rate_value, 5),
+                                round(float(item.pod_charge_cpu_core_hours), 5))

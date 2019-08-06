@@ -21,12 +21,13 @@ import io
 import logging
 from decimal import Decimal
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.ocp.common import get_cluster_id_from_provider
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -224,7 +225,6 @@ class OCPReportChargeUpdater:
                                                            total_memory_charge)
 
                 report_accessor.populate_pod_charge(cpu_temp_table, mem_temp_table)
-                report_accessor.commit()
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate charge. Error: %s', str(error))
 
@@ -251,7 +251,6 @@ class OCPReportChargeUpdater:
                 temp_table = self._write_to_temp_table(report_accessor,
                                                        total_storage_charge)
                 report_accessor.populate_storage_charge(temp_table)
-                report_accessor.commit()
 
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to calculate storage usage charge. Error: %s', str(error))
@@ -285,4 +284,3 @@ class OCPReportChargeUpdater:
                 for period in report_periods:
                     period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     period.save()
-            accessor.commit()

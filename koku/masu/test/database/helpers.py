@@ -31,6 +31,7 @@ from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external.date_accessor import DateAccessor
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = [
@@ -65,8 +66,8 @@ class ReportObjectCreator:
         end_datetime = start_datetime + datetime.timedelta(hours=1)
         data = {
             'bill_id': bill.id,
-            'interval_start': self.stringify_datetime(start_datetime),
-            'interval_end': self.stringify_datetime(end_datetime)
+            'interval_start': start_datetime,
+            'interval_end': end_datetime
         }
         return self.db_accessor.create_db_object(table_name, data)
 
@@ -148,8 +149,8 @@ class ReportObjectCreator:
         data = {
             'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
             'provider_id': provider_id if provider_id else 1,
-            'report_period_start': self.stringify_datetime(period_start),
-            'report_period_end': self.stringify_datetime(period_end),
+            'report_period_start': period_start,
+            'report_period_end': period_end,
         }
 
         if period_date:
@@ -194,7 +195,7 @@ class ReportObjectCreator:
         data['report_id'] = report.id
         if null_cpu_usage:
             data['pod_usage_cpu_core_seconds'] = None
-        
+
         return self.db_accessor.create_db_object(table_name, data)
 
     def create_ocp_storage_line_item(self, report_period, report):
@@ -232,7 +233,7 @@ class ReportObjectCreator:
                     'label_two': self.fake.pystr()[:8],
                 }
             elif col_type == 'DateTimeField':
-                data[column] = self.stringify_datetime(self.fake.past_datetime())
+                data[column] = self.fake.past_datetime()
             elif col_type == 'DecimalField':
                 data[column] = self.fake.pydecimal(0, 7, positive=True)
             else:
@@ -275,17 +276,10 @@ class ReportObjectCreator:
 
         cost_model_obj = self.db_accessor.create_db_object(table_name, data)
 
-        self.db_accessor._session.add(cost_model_obj)
-        self.db_accessor._session.commit()
-
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
         data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
         cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
-        cost_model_map_obj.save()
-
-        # self.db_accessor._session.add(cost_model_map_obj)
-        # self.db_accessor._session.commit()
 
         return cost_model_obj
 
@@ -304,8 +298,8 @@ class ReportObjectCreator:
             row.namespace = self.fake.pystr()[:8]
             row.pod = self.fake.pystr()[:8]
             row.node = self.fake.pystr()[:8]
-            row.usage_start = self.stringify_datetime(self.fake.past_datetime())
-            row.usage_end = self.stringify_datetime(self.fake.past_datetime())
+            row.usage_start = self.fake.past_datetime()
+            row.usage_end = self.fake.past_datetime()
             row.product_code = self.fake.pystr()[:8]
             row.usage_account_id = self.fake.pystr()[:8]
 
@@ -326,7 +320,7 @@ class ReportObjectCreator:
 
             row.account_alias = account_alias
             row.cost_entry_bill = self.create_cost_entry_bill()
-            row.usage_start = self.stringify_datetime(self.fake.past_datetime())
+            row.usage_start = self.fake.past_datetime()
             row.product_code = self.fake.pystr()[:8]
             row.usage_account_id = self.fake.pystr()[:8]
 
