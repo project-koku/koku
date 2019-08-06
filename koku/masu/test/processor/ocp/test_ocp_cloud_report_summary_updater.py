@@ -23,7 +23,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class OCPCloudReportSummaryUpdaterTest(MasuTestCase):

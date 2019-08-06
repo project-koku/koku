@@ -27,8 +27,8 @@ from masu.processor.ocp.ocp_report_db_cleaner import (
     OCPReportDBCleanerError,
 )
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tests import MasuTestCase
-from tests.database.helpers import ReportObjectCreator
+from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class OCPReportDBCleanerTest(MasuTestCase):

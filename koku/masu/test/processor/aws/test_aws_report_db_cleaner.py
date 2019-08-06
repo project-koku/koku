@@ -26,8 +26,8 @@ from masu.processor.aws.aws_report_db_cleaner import (
     AWSReportDBCleanerError,
 )
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tests import MasuTestCase
-from tests.database.helpers import ReportObjectCreator
+from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class AWSReportDBCleanerTest(MasuTestCase):

@@ -31,8 +31,8 @@ from masu.processor.report_processor import ReportProcessor, ReportProcessorErro
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 
-from tests import MasuTestCase
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 
 class ReportProcessorTest(MasuTestCase):

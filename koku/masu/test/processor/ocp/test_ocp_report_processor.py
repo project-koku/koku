@@ -39,7 +39,7 @@ from masu.processor.ocp.ocp_report_processor import (
     OCPReportTypes,
     ProcessedOCPReport,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 from unittest.mock import patch
 
 

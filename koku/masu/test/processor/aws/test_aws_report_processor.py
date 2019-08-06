@@ -45,7 +45,7 @@ from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor, ProcessedReport
 import masu.util.common as common_util
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ProcessedReportTest(MasuTestCase):

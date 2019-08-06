@@ -26,7 +26,6 @@ from unittest.mock import call, patch, Mock, ANY
 
 import faker
 from dateutil import relativedelta
-from sqlalchemy.sql import func
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
@@ -49,9 +48,9 @@ from masu.processor.tasks import (
     update_all_summary_tables,
     update_summary_tables,
 )
-from tests import MasuTestCase
-from tests.database.helpers import ReportObjectCreator
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
+from masu.test.external.downloader.aws import fake_arn
 
 
 class FakeDownloader(Mock):
@@ -685,17 +684,22 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
         ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
 
-        ce_start_date = (
-            self.aws_accessor._session.query(func.min(ce_table.interval_start))
-            .filter(ce_table.interval_start >= start_date)
-            .first()[0]
-        )
+        # ce_start_date = (
+        #     self.aws_accessor._session.query(func.min(ce_table.interval_start))
+        #     .filter(ce_table.interval_start >= start_date)
+        #     .first()[0]
+        # )
 
-        ce_end_date = (
-            self.aws_accessor._session.query(func.max(ce_table.interval_start))
-            .filter(ce_table.interval_start <= end_date)
-            .first()[0]
-        )
+        ce_start_date = ce_table.objects\
+            .filter(interval_start >= start_date).first().interval_start
+        ce_start_date = ce_table.objects\
+            .filter(interval_start <= end_date).first().interval_start
+
+        # ce_end_date = (
+        #     self.aws_accessor._session.query(func.max(ce_table.interval_start))
+        #     .filter(ce_table.interval_start <= end_date)
+        #     .first()[0]
+        # )
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)

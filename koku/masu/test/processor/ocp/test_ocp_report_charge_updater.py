@@ -32,8 +32,8 @@ from masu.processor.ocp.ocp_report_charge_updater import (
     OCPReportChargeUpdater,
     OCPReportChargeUpdaterError,
 )
-from tests import MasuTestCase
-from tests.database.helpers import ReportObjectCreator
+from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class OCPReportChargeUpdaterTest(MasuTestCase):

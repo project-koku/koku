@@ -37,7 +37,7 @@ from masu.processor.report_summary_updater import (
     ReportSummaryUpdater,
     ReportSummaryUpdaterError,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportSummaryUpdaterTest(MasuTestCase):

@@ -27,7 +27,7 @@ from masu.processor.expired_data_remover import (
     ExpiredDataRemover,
     ExpiredDataRemoverError,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ExpiredDataRemoverTest(MasuTestCase):
