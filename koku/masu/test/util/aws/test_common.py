@@ -186,6 +186,47 @@ class TestAWSUtils(MasuTestCase):
         self.assertEqual(mock_account_id, account_id)
         self.assertEqual(mock_account_id, account_alias)
 
+    def test_get_account_names_by_organization(self):
+        mock_account_id = '111111111111'
+        role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
+        mock_alias = 'test-alias'
+        expected = [{'id': mock_account_id, 'name': mock_alias}]
+
+        session = Mock()
+        mock_client = Mock()
+        mock_paginator = Mock()
+        paginated_results = [{'Accounts': [{'Id': mock_account_id, 'Name': mock_alias}]}]
+        mock_paginator.paginate.return_value = paginated_results
+        mock_client.get_paginator.return_value = mock_paginator
+        session.client.return_value = mock_client
+        accounts = utils.get_account_names_by_organization(role_arn, session)
+        self.assertEqual(accounts, expected)
+
+    @patch('masu.util.aws.common.get_assume_role_session')
+    def test_get_account_names_by_organization_no_policy(self, mock_get_role_session):
+        mock_session = mock_get_role_session.return_value
+        mock_client = mock_session.client
+        mock_client.return_value.get_paginator.side_effect = ClientError({}, 'Error')
+
+        mock_account_id = '111111111111'
+        role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
+
+        accounts = utils.get_account_names_by_organization(role_arn, mock_session)
+        self.assertEqual(accounts, [])
+
+    @patch('masu.util.aws.common.get_assume_role_session')
+    def test_get_account_names_by_organization_no_session(self,
+                                                        mock_get_role_session):
+        mock_session = mock_get_role_session.return_value
+        mock_client = mock_session.client
+        mock_client.return_value.get_paginator.side_effect = ClientError({}, 'Error')
+
+        mock_account_id = '111111111111'
+        role_arn = 'arn:aws:iam::{}:role/CostManagement'.format(mock_account_id)
+
+        accounts = utils.get_account_names_by_organization(role_arn)
+        self.assertEqual(accounts, [])
+
     def test_get_assembly_id_from_cur_key(self):
         """Test get_assembly_id_from_cur_key is successful."""
         expected_assembly_id = '882083b7-ea62-4aab-aa6a-f0d08d65ee2b'

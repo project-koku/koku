@@ -132,7 +132,7 @@ class ReportDownloader:
         LOG.info('Attempting to get %s manifest for %s...', self.provider_type, str(date_time))
         report_context = self._downloader.get_report_context_for_date(date_time)
         manifest_id = report_context.get('manifest_id')
-        reports = report_context.get('files')
+        reports = report_context.get('files', [])
         cur_reports = []
         for report in reports:
             report_dictionary = {}

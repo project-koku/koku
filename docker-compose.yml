@@ -28,7 +28,7 @@ services:
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-5000}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
@@ -42,6 +42,7 @@ services:
       links:
         - db
         - koku-rabbit
+        - masu-server
       depends_on:
         - db
 
@@ -52,7 +53,7 @@ services:
           dockerfile: Dockerfile-env
       working_dir: /koku
       entrypoint:
-        - /koku/run_server.sh
+        - /koku/run_internal.sh
       environment:
         - MASU=True
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -73,7 +74,7 @@ services:
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-5000}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
@@ -126,9 +127,6 @@ services:
           dockerfile: Dockerfile-env
       working_dir: /koku/koku
       entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
-      # entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
-
-      #entrypoint: ['celery', '-A', 'masu.celery.worker', 'worker', '-E', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
 
       environment:
         - AWS_ACCESS_KEY_ID

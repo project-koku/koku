@@ -37,13 +37,26 @@ class ReportStatsDBAccessor(KokuDBAccess):
         self._manifest_id = manifest_id
         self._report_name = report_name
         self._table = CostUsageReportStatus
-        if self.does_db_entry_exist() is False:
+
+        if manifest_id and self.does_db_entry_exist() is False:
             update_fields = {}
             update_fields['report_name'] = self._report_name
             update_fields['manifest_id'] = self._manifest_id
             self.add(**update_fields)
 
         self._obj = self._get_db_obj_query().first()
+
+    def get_completion_time_for_report(self, report_name):
+        """
+        Return the completion date for a report name.
+
+        Args:
+            None
+        Returns:
+            DateTime
+        """
+        obj = (super()._get_db_obj_query(report_name=report_name)).first()
+        return obj.last_completed_datetime if obj else None
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self):
@@ -55,7 +68,8 @@ class ReportStatsDBAccessor(KokuDBAccess):
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
         """
-        return super()._get_db_obj_query(report_name=self._report_name)
+        return super()._get_db_obj_query(report_name=self._report_name,
+                                         manifest_id=self._manifest_id)
 
     # pylint: disable=no-self-use
     def get_cursor_position(self):

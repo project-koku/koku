@@ -34,8 +34,9 @@ from faker import Faker
 
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+
 from masu.exceptions import MasuProviderError
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
     AWSReportDownloaderError,
@@ -439,3 +440,67 @@ class AWSReportDownloaderTest(MasuTestCase):
 
         with self.assertRaises(AWSReportDownloaderNoFileError):
             downloader.download_file(self.fake.file_path())
+
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
+    def test_get_report_context_for_date_should_download(self, mock_session, mock_manifest, mock_check):
+        """Test that data is returned on the reports to process."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service='iam', generate_account_id=True)
+        downloader = AWSReportDownloader(self.fake_customer_name,
+                                         auth_credential,
+                                         self.fake_bucket_name)
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = '1234'
+        compression = downloader.report.get('Compression')
+        report_keys = ['file1', 'file2']
+        mock_manifest.return_value = {
+            'assemblyId': assembly_id,
+            'Compression': compression,
+            'reportKeys': report_keys,
+            'billingPeriod': {'start': start_str}
+        }
+        mock_check.return_value = True
+
+        expected = {
+            'manifest_id': None,
+            'assembly_id': assembly_id,
+            'compression': compression,
+            'files': report_keys
+        }
+
+        result = downloader.get_report_context_for_date(current_month)
+        self.assertIsInstance(result, dict)
+        for key, value in result.items():
+            self.assertIn(key, expected)
+            self.assertEqual(value, expected.get(key))
+
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.check_if_manifest_should_be_downloaded')
+    @patch('masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader._get_manifest')
+    @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
+    def test_get_report_context_for_date_should_not_download(self, mock_session, mock_manifest, mock_check):
+        """Test that no data is returned when we don't want to process."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        auth_credential = fake_arn(service='iam', generate_account_id=True)
+        downloader = AWSReportDownloader(self.fake_customer_name,
+                                         auth_credential,
+                                         self.fake_bucket_name)
+
+        start_str = current_month.strftime(downloader.manifest_date_format)
+        assembly_id = '1234'
+        compression = downloader.report.get('Compression')
+        report_keys = ['file1', 'file2']
+        mock_manifest.return_value = {
+            'assemblyId': assembly_id,
+            'Compression': compression,
+            'reportKeys': report_keys,
+            'billingPeriod': {'start': start_str}
+        }
+        mock_check.return_value = False
+
+        expected = {}
+
+        result = downloader.get_report_context_for_date(current_month)
+        self.assertEqual(result, expected)
