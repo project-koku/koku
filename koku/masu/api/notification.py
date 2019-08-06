@@ -41,7 +41,6 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def post_notification(request):
     """Packages response for class-based view."""
-    import pdb; pdb.set_trace()
     header_list = request.headers.to_wsgi_list()
     body = request.data.decode('utf-8')
     logger.debug('Received Header: %s', str(request.headers))
