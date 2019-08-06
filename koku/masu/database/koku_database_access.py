@@ -50,9 +50,15 @@ class KokuDBAccess(Atomic):
             self.savepoint = savepoint
 
     def __enter__(self):
-        """Context manager entry."""
+        """Enter context manager."""
         super().__enter__()
+        get_connection().set_schema(self.schema)
         return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit context manager."""
+        super().__exit__(exc_type, exc_value, traceback)
+        get_connection().set_schema_to_public()
 
     # pylint: disable=no-self-use
     def close_session(self):
