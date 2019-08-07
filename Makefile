@@ -137,7 +137,7 @@ create-test-db-file: run-migrations
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api
-	pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
+	PGPASSWORD=$(DATABASE_PASSWORD) pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 collect-static:
