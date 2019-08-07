@@ -39,8 +39,8 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
         FROM (
             SELECT li.*,
                 ce.interval_start
-            FROM reporting_awscostentrylineitem AS li
-            JOIN reporting_awscostentry AS ce
+            FROM {schema}.reporting_awscostentrylineitem AS li
+            JOIN {schema}.reporting_awscostentry AS ce
                 ON li.cost_entry_id = ce.id
             WHERE date(ce.interval_start) >= '{start_date}'
                 AND date(ce.interval_start) <= '{end_date}'
@@ -97,8 +97,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
             sum(li.blended_cost) as blended_cost,
             sum(li.public_on_demand_cost) as public_on_demand_cost,
             max(li.public_on_demand_rate) as public_on_demand_rate
-        FROM reporting_awscostentrylineitem AS li
-        JOIN reporting_awscostentry AS ce
+        FROM {schema}.reporting_awscostentrylineitem AS li
+        JOIN {schema}.reporting_awscostentry AS ce
             ON li.cost_entry_id = ce.id
         WHERE date(ce.interval_start) >= '{start_date}'
             AND date(ce.interval_start) <= '{end_date}'
@@ -171,14 +171,14 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM reporting_awscostentrylineitem_daily
+DELETE FROM {schema}.reporting_awscostentrylineitem_daily
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
     AND cost_entry_bill_id IN ({cost_entry_bill_ids})
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO reporting_awscostentrylineitem_daily (
+INSERT INTO {schema}.reporting_awscostentrylineitem_daily (
     usage_start,
     usage_end,
     cost_entry_bill_id,

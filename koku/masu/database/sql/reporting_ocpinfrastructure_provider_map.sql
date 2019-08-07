@@ -4,7 +4,7 @@ CREATE TEMPORARY TABLE aws_daily_tags_temp AS (
         aws.resource_id,
         LOWER(key) as key,
         value
-    FROM reporting_awscostentrylineitem_daily as aws,
+    FROM {schema}.reporting_awscostentrylineitem_daily as aws,
         jsonb_each_text(aws.tags) labels
 )
 ;
@@ -13,7 +13,7 @@ CREATE TEMPORARY TABLE ocp_infrastructure_temp AS (
     SELECT aws.cost_entry_bill_id,
         ocp.cluster_id
     FROM aws_daily_tags_temp as aws
-    JOIN reporting_ocpusagelineitem_daily as ocp
+    JOIN {schema}.reporting_ocpusagelineitem_daily as ocp
         ON aws.usage_start::date = ocp.usage_start::date
             AND (aws.resource_id = ocp.resource_id
                 OR (aws.key = 'openshift_project' AND aws.value = ocp.namespace)
@@ -30,7 +30,7 @@ CREATE TEMPORARY TABLE aws_infrastructure_uuid_temp AS (
     SELECT provider.uuid as aws_uuid,
         ocp_infra_temp.cost_entry_bill_id,
         ocp_infra_temp.cluster_id
-    FROM reporting_awscostentrybill as awsbill
+    FROM {schema}.reporting_awscostentrybill as awsbill
     JOIN ocp_infrastructure_temp as ocp_infra_temp
         ON awsbill.id = ocp_infra_temp.cost_entry_bill_id
     JOIN public.api_provider as provider

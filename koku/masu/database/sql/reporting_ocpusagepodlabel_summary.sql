@@ -1,10 +1,10 @@
-INSERT INTO reporting_ocpusagepodlabel_summary
+INSERT INTO {schema}.reporting_ocpusagepodlabel_summary
 SELECT l.key,
     array_agg(DISTINCT l.value) as values
 FROM (
     SELECT key,
         value
-    FROM reporting_ocpusagelineitem_daily AS li,
+    FROM {schema}.reporting_ocpusagelineitem_daily AS li,
         jsonb_each_text(li.pod_labels) labels
 ) l
 GROUP BY l.key
