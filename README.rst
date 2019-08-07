@@ -65,18 +65,21 @@ Database
 
 PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. If modifications were made to the .env file the docker-compose file will need to be modified to ensure matching database credentials. Several commands are available for interacting with the database. ::
 
+    # Initialize the docker network for koku services if it doesn't already exist
+    docker network create koku-network
+
     # This will launch a Postgres container
-    make start-db
+    make docker-up-db
 
     # This will run Django's migrations against the database
     make run-migrations
 
     # This will stop and remove a currently running database and run the above commands
-    make reinitdb
+    make docker-reinitdb
 
 Assuming the default .env file values are used, to access the database directly using psql run ::
 
-    psql koku -U koku -h localhost -p 15432
+    PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
 There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
