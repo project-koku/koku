@@ -21,8 +21,7 @@ from unittest.mock import patch
 from masu.exceptions import CURAccountsInterfaceError
 from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
-from masu.external.accounts.network.cur_accounts_network import CURAccountsNetwork
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class AccountsAccessorTest(MasuTestCase):
@@ -43,7 +42,7 @@ class AccountsAccessorTest(MasuTestCase):
                 self.assertEqual(
                     account.get('billing_source'), self.aws_test_billing_source
                 )
-                self.assertEqual(account.get('customer_name'), self.test_schema)
+                self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:
                 self.assertEqual(
                     account.get('authentication'), self.ocp_provider_resource_name
@@ -51,7 +50,7 @@ class AccountsAccessorTest(MasuTestCase):
                 self.assertEqual(
                     account.get('billing_source'), self.ocp_test_billing_source
                 )
-                self.assertEqual(account.get('customer_name'), self.test_schema)
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
 
@@ -88,13 +87,3 @@ class AccountsAccessorTest(MasuTestCase):
 
         with self.assertRaises(AccountsAccessorError):
             AccountsAccessor('bad')
-
-    def test_get_accounts_exception(self):
-        """Test to get accounts with an exception."""
-        with patch.object(
-            CURAccountsNetwork,
-            'get_accounts_from_source',
-            side_effect=CURAccountsInterfaceError('test'),
-        ):
-            with self.assertRaises(AccountsAccessorError):
-                AccountsAccessor('network').get_accounts()
