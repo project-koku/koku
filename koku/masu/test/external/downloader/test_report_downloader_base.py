@@ -21,16 +21,15 @@ import os.path
 from unittest.mock import patch
 
 from faker import Faker
-from pyfakefs.fake_filesystem_unittest import TestCaseMixin
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
-class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
+class ReportDownloaderBaseTest(MasuTestCase):
     """Test Cases for ReportDownloaderBase."""
 
     fake = Faker()
@@ -49,7 +48,6 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
     def setUp(self):
         """Setup each test case."""
         super().setUp()
-        self.setUpPyfakefs()
         self.downloader = ReportDownloaderBase(provider_id=self.aws_provider_id)
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
         self.manifest_dict = {
@@ -60,23 +58,21 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
         }
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**self.manifest_dict)
-            manifest_accessor.commit()
+            manifest.save()
             self.manifest_id = manifest.id
 
     def tearDown(self):
         """Tear down each test case."""
-
+        super().tearDown()
         with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
             files = file_accessor._get_db_obj_query().all()
             for file in files:
                 file_accessor.delete(file)
-            file_accessor.commit()
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifests = manifest_accessor._get_db_obj_query().all()
             for manifest in manifests:
                 manifest_accessor.delete(manifest)
-            manifest_accessor.commit()
 
     def test_report_downloader_base_no_path(self):
         downloader = ReportDownloaderBase()
@@ -108,12 +104,11 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
             manifest.num_processed_files = 1
             manifest.num_total_files = 2
-            manifest_accessor.commit()
+            manifest.save()
+
         with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
             file_accessor.log_last_started_datetime()
-            file_accessor.commit()
             file_accessor.log_last_completed_datetime()
-            file_accessor.commit()
 
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
@@ -124,17 +119,13 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
             manifest.num_processed_files = 1
             manifest.num_total_files = 2
-            manifest_accessor.commit()
+            manifest.save()
 
         with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
             file_accessor.log_last_started_datetime()
-            file_accessor.commit()
             file_accessor.log_last_completed_datetime()
-            file_accessor.commit()
             completed_datetime = self.date_accessor.today_with_timezone('UTC') - datetime.timedelta(hours=1)
             file_accessor.update(last_completed_datetime=completed_datetime)
-            file_accessor.commit()
-
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertTrue(result)
 
@@ -144,7 +135,7 @@ class ReportDownloaderBaseTest(MasuTestCase, TestCaseMixin):
             manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
             manifest.num_processed_files = 2
             manifest.num_total_files = 2
-            manifest_accessor.commit()
+            manifest.save()
 
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)

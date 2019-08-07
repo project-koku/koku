@@ -45,8 +45,8 @@ from masu.external.downloader.aws.aws_report_downloader import (
 from masu.external.report_downloader import ReportDownloader
 from masu.util.aws import common as utils
 from masu.external import AWS_REGIONS
-from tests import MasuTestCase
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -158,6 +158,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = REPORT
         cls.fake_bucket_prefix = PREFIX
@@ -173,6 +174,7 @@ class AWSReportDownloaderTest(MasuTestCase):
 
     @patch('masu.util.aws.common.get_assume_role_session', return_value=FakeSession)
     def setUp(self, fake_session):
+        super().setUp()
         os.makedirs(DATA_DIR, exist_ok=True)
 
         self.report_downloader = ReportDownloader(
@@ -180,7 +182,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.auth_credential,
             self.fake_bucket_name,
             'AWS',
-            1,
+            self.aws_provider_id,
         )
         self.aws_report_downloader = AWSReportDownloader(
             **{
@@ -188,7 +190,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 'auth_credential': self.auth_credential,
                 'bucket': self.fake_bucket_name,
                 'report_name': self.fake_report_name,
-                'provider_id': 1,
+                'provider_id': self.aws_provider_id,
             }
         )
 
@@ -241,6 +243,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             'billingPeriod': {'start': fake_report_date_str},
             'reportKeys': [input_key],
         }
+
         with patch.object(
             AWSReportDownloader, '_get_manifest', return_value=mock_manifest
         ):
@@ -250,7 +253,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     self.auth_credential,
                     self.fake_bucket_name,
                     'AWS',
-                    2,
+                    self.aws_provider_id,
                 )
                 AWSReportDownloader(
                     **{
@@ -258,7 +261,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                         'auth_credential': self.auth_credential,
                         'bucket': self.fake_bucket_name,
                         'report_name': self.fake_report_name,
-                        'provider_id': 2,
+                        'provider_id': self.aws_provider_id,
                     }
                 )
                 report_downloader.download_report(fake_report_date)
@@ -450,7 +453,8 @@ class AWSReportDownloaderTest(MasuTestCase):
         auth_credential = fake_arn(service='iam', generate_account_id=True)
         downloader = AWSReportDownloader(self.fake_customer_name,
                                          auth_credential,
-                                         self.fake_bucket_name)
+                                         self.fake_bucket_name,
+                                         provider_id=self.aws_provider_id)
 
         start_str = current_month.strftime(downloader.manifest_date_format)
         assembly_id = '1234'
@@ -472,6 +476,13 @@ class AWSReportDownloaderTest(MasuTestCase):
         }
 
         result = downloader.get_report_context_for_date(current_month)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_entry = manifest_accessor.get_manifest(
+                assembly_id,
+                self.aws_provider_id
+            )
+            expected['manifest_id'] = manifest_entry.id
+
         self.assertIsInstance(result, dict)
         for key, value in result.items():
             self.assertIn(key, expected)

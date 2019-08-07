@@ -141,7 +141,6 @@ class ReportDownloader:
                 stored_etag = stats_recorder.get_etag()
                 file_name, etag = self._downloader.download_file(report, stored_etag)
                 stats_recorder.update(etag=etag)
-                stats_recorder.commit()
 
             report_dictionary['file'] = file_name
             report_dictionary['compression'] = report_context.get('compression')
