@@ -31,7 +31,7 @@ from masu.external import OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 import masu.external.kafka_msg_handler as msg_handler
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class KafkaMsg:
@@ -47,8 +47,8 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
     def setUp(self):
         super().setUp()
-        payload_file = open('./tests/data/ocp/payload.tar.gz', 'rb')
-        bad_payload_file = open('./tests/data/ocp/bad_payload.tar.gz', 'rb')
+        payload_file = open('./koku/masu/test/data/ocp/payload.tar.gz', 'rb')
+        bad_payload_file = open('./koku/masu/test/data/ocp/bad_payload.tar.gz', 'rb')
         self.tarball_file = payload_file.read()
         payload_file.close()
 
@@ -119,7 +119,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         payload_url = 'http://insights-upload.com/quarnantine/file_to_validate'
 
         with requests_mock.mock() as m:
-            payload_file = open('./tests/data/test_cur.csv', 'rb')
+            payload_file = open('./koku/masu/test/data/test_cur.csv', 'rb')
             csv_file = payload_file.read()
             payload_file.close()
 
@@ -180,7 +180,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test processing a report for an unknown cluster_id."""
         mock_download_process_value = [
             {
-                'schema_name': self.test_schema,
+                'schema_name': self.schema,
                 'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
                 'provider_uuid': self.ocp_test_provider_uuid,
                 'start_date': DateAccessor().today(),
@@ -199,7 +199,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test processing a report for an unknown cluster_id."""
         mock_download_process_value = [
             {
-                'schema_name': self.test_schema,
+                'schema_name': self.schema,
                 'provider_type': OPENSHIFT_CONTAINER_PLATFORM,
                 'provider_uuid': self.ocp_test_provider_uuid,
                 'start_date': DateAccessor().today(),

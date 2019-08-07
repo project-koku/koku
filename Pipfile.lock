@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4f5ec04f14f2791ec74f52dfccd253fa860fbc0e90b0493c49a72bf30b271eee"
+            "sha256": "20a773fc3c9cc92043e41df2e85284ae1809c4e7e49c2df936d04c9273f0f009"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -54,10 +54,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:25d87047241b7b775443570c0e790ca952f9f7491d4d6472430a4b006383a257",
-                "sha256:e4729c1acaa936d4c5c948a18d279f92bbf61fad9b5fb03942c753ec405e427d"
+                "sha256:71ca578701e746fe947c098e5dee06128d0f6ba98217ba7e29aff0dab8caf82f",
+                "sha256:e55003c46e71396a551d4b70f39286f8fc4094ac6cf90f5db8d7a68bb4af1f9d"
             ],
-            "version": "==1.12.199"
+            "version": "==1.12.202"
         },
         "bs4": {
             "hashes": [
@@ -351,10 +351,10 @@
         },
         "redis": {
             "hashes": [
-                "sha256:1f2493b72f669a096c59ca7cf7f4067b1ab58a0a3c6bef51d5d8fd384298c6a2",
-                "sha256:b851b0ef53b6d416f1dc692dc168f3d390b37995925bfe29351b3a869976598c"
+                "sha256:45682ecf226c7611efe731974c4fa3390170ba045b9cdb26f0051114a5c2a68b",
+                "sha256:f2609a85e5f37f489ba3b5652e1175dc3711c4d7a7818c4f657615810afd23df"
             ],
-            "version": "==3.3.4"
+            "version": "==3.3.6"
         },
         "requests": {
             "hashes": [
@@ -560,11 +560,11 @@
         },
         "flake8-docstrings": {
             "hashes": [
-                "sha256:4e0ce1476b64e6291520e5570cf12b05016dd4e8ae454b8a8a9a48bc5f84e1cd",
-                "sha256:8436396b5ecad51a122a2c99ba26e5b4e623bf6e913b0fea0cb6c2c4050f91eb"
+                "sha256:3ad372b641f4c8e70c7465f067aed4ff8bf1e9347fce14f9eb71ed816db36257",
+                "sha256:d8d72ccd5807c1ab9ff1466cb9bece0c4d94b8669e9bc4f472abc80dbc5d399e"
             ],
             "index": "pypi",
-            "version": "==1.3.0"
+            "version": "==1.3.1"
         },
         "flake8-polyfill": {
             "hashes": [
@@ -774,6 +774,14 @@
             ],
             "index": "pypi",
             "version": "==2.22.0"
+        },
+        "requests-mock": {
+            "hashes": [
+                "sha256:12e17c7ad1397fd1df5ead7727eb3f1bdc9fe1c18293b0492e0e01b57997e38d",
+                "sha256:dc9e416a095ee7c3360056990d52e5611fb94469352fc1c2dc85be1ff2189146"
+            ],
+            "index": "pypi",
+            "version": "==1.6.0"
         },
         "six": {
             "hashes": [
