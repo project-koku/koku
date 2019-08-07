@@ -1,12 +1,9 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [packages]
-
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
@@ -31,9 +28,7 @@ watchtower = "==0.6.0"
 celery = "~=4.3.0"
 python-dateutil = "*"
 
-
 [dev-packages]
-
 astroid = "==2.2.5"
 pylint = "==2.3.1"
 sphinx-rtd-theme = ">=0.3.0"
@@ -45,8 +40,7 @@ faker = ">=0.8.14"
 pylint-django = "==2.0.11"
 pydocstyle = "==4.0.0"
 flake8-docstrings = "*"
-
+pyyaml = "*"
 
 [requires]
-
 python_version = "3.6"
