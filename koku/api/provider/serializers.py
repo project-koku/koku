@@ -28,6 +28,7 @@ from api.iam.serializers import (AdminCustomerSerializer,
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)
+from api.report.serializers import StringOrListField
 
 
 LOG = logging.getLogger(__name__)
@@ -59,8 +60,8 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    bucket = serializers.CharField(max_length=63, required=True,
-                                   allow_null=False, allow_blank=True)
+    bucket = StringOrListField(max_length=63, required=True,
+                               allow_null=False)
 
     class Meta:
         """Metadata for the serializer."""
