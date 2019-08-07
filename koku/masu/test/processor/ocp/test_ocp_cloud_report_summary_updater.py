@@ -53,10 +53,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
     def _generate_ocp_on_aws_data(self):
         """Test that the OCP on AWS cost summary table is populated."""
-        creator = ReportObjectCreator(
-            self.schema,
-            self.column_map
-        )
+        creator = ReportObjectCreator(self.schema, self.column_map)
 
         bill_ids = []
 

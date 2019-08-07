@@ -253,23 +253,18 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider."""
         date_accessor = DateAccessor()
 
-        with AWSReportDBAccessor(
-            schema=self.test_schema, column_map=self.column_map
-        ) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                accessor, self.column_map, report_schema.column_types
-            )
-            expected_bill_ids = []
+        creator = ReportObjectCreator(self.schema, self.column_map)
 
-            end_date = date_accessor.today_with_timezone('utc').replace(day=1)
-            start_date = end_date
-            for i in range(2):
-                start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(
-                    provider_id=self.aws_provider.id, bill_date=start_date
-                )
-                expected_bill_ids.append(str(bill.id))
+        expected_bill_ids = []
+
+        end_date = date_accessor.today_with_timezone('utc').replace(day=1)
+        start_date = end_date
+        for i in range(2):
+            start_date = start_date - relativedelta(months=i)
+            bill = creator.create_cost_entry_bill(
+                provider_id=self.aws_provider.id, bill_date=start_date
+            )
+            expected_bill_ids.append(str(bill.id))
 
         bills = utils.get_bills_from_provider(
             self.aws_test_provider_uuid, self.test_schema
@@ -287,27 +282,21 @@ class TestAWSUtils(MasuTestCase):
             provider_uuid=self.aws_test_provider_uuid
         ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(
-            schema=self.test_schema, column_map=self.column_map
-        ) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                accessor, self.column_map, report_schema.column_types
+        creator = ReportObjectCreator(self.schema, self.column_map)
+
+        end_date = date_accessor.today_with_timezone('utc').replace(day=1)
+        start_date = end_date
+        for i in range(2):
+            start_date = start_date - relativedelta(months=i)
+            bill = creator.create_cost_entry_bill(
+                provider_id=self.aws_provider.id, bill_date=start_date
             )
 
-            end_date = date_accessor.today_with_timezone('utc').replace(day=1)
-            start_date = end_date
-            for i in range(2):
-                start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(
-                    provider_id=self.aws_provider.id, bill_date=start_date
-                )
-
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = bills.filter(bill_obj.billing_period_start >= end_date.date()).all()
-            expected_bill_ids = [str(bill.id) for bill in bills]
+        bill_table_name = AWS_CUR_TABLE_MAP['bill']
+        bill_obj = getattr(accessor.report_schema, bill_table_name)
+        bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+        bills = bills.filter(bill_obj.billing_period_start >= end_date.date()).all()
+        expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
             self.aws_test_provider_uuid, self.test_schema, start_date=end_date
@@ -324,29 +313,23 @@ class TestAWSUtils(MasuTestCase):
             provider_uuid=self.aws_test_provider_uuid
         ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(
-            schema=self.test_schema, column_map=self.column_map
-        ) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                accessor, self.column_map, report_schema.column_types
+        creator = ReportObjectCreator(self.schema, self.column_map)
+
+        end_date = date_accessor.today_with_timezone('utc').replace(day=1)
+        start_date = end_date
+        for i in range(2):
+            start_date = start_date - relativedelta(months=i)
+            bill = creator.create_cost_entry_bill(
+                provider_id=self.aws_provider.id, bill_date=start_date
             )
 
-            end_date = date_accessor.today_with_timezone('utc').replace(day=1)
-            start_date = end_date
-            for i in range(2):
-                start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(
-                    provider_id=self.aws_provider.id, bill_date=start_date
-                )
-
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = bills.filter(
-                bill_obj.billing_period_start <= start_date.date()
-            ).all()
-            expected_bill_ids = [str(bill.id) for bill in bills]
+        bill_table_name = AWS_CUR_TABLE_MAP['bill']
+        bill_obj = getattr(accessor.report_schema, bill_table_name)
+        bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+        bills = bills.filter(
+            bill_obj.billing_period_start <= start_date.date()
+        ).all()
+        expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
             self.aws_test_provider_uuid, self.test_schema, end_date=start_date
@@ -363,32 +346,26 @@ class TestAWSUtils(MasuTestCase):
             provider_uuid=self.aws_test_provider_uuid
         ) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with AWSReportDBAccessor(
-            schema=self.test_schema, column_map=self.column_map
-        ) as accessor:
-            report_schema = accessor.report_schema
-            creator = ReportObjectCreator(
-                accessor, self.column_map, report_schema.column_types
+        creator = ReportObjectCreator(self.schema, self.column_map)
+
+        end_date = date_accessor.today_with_timezone('utc').replace(day=1)
+        start_date = end_date
+        for i in range(2):
+            start_date = start_date - relativedelta(months=i)
+            print(start_date)
+            bill = creator.create_cost_entry_bill(
+                provider_id=self.aws_provider.id, bill_date=start_date
             )
 
-            end_date = date_accessor.today_with_timezone('utc').replace(day=1)
-            start_date = end_date
-            for i in range(2):
-                start_date = start_date - relativedelta(months=i)
-                print(start_date)
-                bill = creator.create_cost_entry_bill(
-                    provider_id=self.aws_provider.id, bill_date=start_date
-                )
-
-            bill_table_name = AWS_CUR_TABLE_MAP['bill']
-            bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
-            bills = (
-                bills.filter(bill_obj.billing_period_start >= start_date.date())
-                .filter(bill_obj.billing_period_start <= end_date.date())
-                .all()
-            )
-            expected_bill_ids = [str(bill.id) for bill in bills]
+        bill_table_name = AWS_CUR_TABLE_MAP['bill']
+        bill_obj = getattr(accessor.report_schema, bill_table_name)
+        bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+        bills = (
+            bills.filter(bill_obj.billing_period_start >= start_date.date())
+            .filter(bill_obj.billing_period_start <= end_date.date())
+            .all()
+        )
+        expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
             self.aws_test_provider_uuid,

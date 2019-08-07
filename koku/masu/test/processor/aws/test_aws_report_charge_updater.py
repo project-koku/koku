@@ -49,9 +49,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
 
-        cls.creator = ReportObjectCreator(
-            cls.accessor, cls.column_map, cls.report_schema.column_types
-        )
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         cls.date_accessor = DateAccessor()
         billing_start = cls.date_accessor.today_with_timezone('UTC').replace(day=1)

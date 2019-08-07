@@ -51,9 +51,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
-        cls.creator = ReportObjectCreator(
-            cls.accessor, cls.column_map, cls.report_schema.column_types
-        )
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         cls.date_accessor = DateAccessor()
 

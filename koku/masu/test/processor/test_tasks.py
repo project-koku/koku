@@ -578,11 +578,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             schema=self.schema_name, column_map=self.column_map
         )
 
-        self.creator = ReportObjectCreator(
-            self.aws_accessor,
-            self.column_map,
-            self.aws_accessor.report_schema.column_types,
-        )
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         # Populate some line item data so that the summary tables
         # have something to pull from

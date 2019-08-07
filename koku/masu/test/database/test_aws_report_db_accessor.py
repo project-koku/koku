@@ -131,9 +131,7 @@ class ReportDBAccessorTest(MasuTestCase):
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = AWSReportDBAccessor(schema=cls.schema, column_map=cls.column_map)
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(
-            cls.accessor, cls.column_map, cls.report_schema.column_types
-        )
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
         cls.foreign_key_tables = [

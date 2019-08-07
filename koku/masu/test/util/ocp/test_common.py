@@ -51,9 +51,7 @@ class OCPUtilTests(MasuTestCase):
             provider_uuid=self.ocp_test_provider_uuid
         )
         self.report_schema = self.accessor.report_schema
-        self.creator = ReportObjectCreator(
-            self.accessor, self.column_map, self.report_schema.column_types
-        )
+        self.creator = ReportObjectCreator(self.schema, self.column_map)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
         self.provider_id = self.provider_accessor.get_provider().id
