@@ -18,7 +18,7 @@
 
 import logging
 
-from django.db import DEFAULT_DB_ALIAS
+from django.db import transaction
 from django.db.transaction import Atomic, commit, get_connection, savepoint as django_savepoint, savepoint_commit, savepoint_rollback
 
 from django.db import IntegrityError
@@ -27,7 +27,7 @@ from tenant_schemas.utils import schema_context
 LOG = logging.getLogger(__name__)
 
 
-class KokuDBAccess(Atomic):
+class KokuDBAccess:
     """Base Class to connect to the koku database.
 
     Subclass of Django Atomic class to make use of atomic transactions
@@ -35,7 +35,7 @@ class KokuDBAccess(Atomic):
     """
 
     # pylint: disable=no-member
-    def __init__(self, schema, using=None, savepoint=None):
+    def __init__(self, schema):
         """
         Establish database connection.
 
@@ -43,21 +43,21 @@ class KokuDBAccess(Atomic):
             schema       (String) database schema (i.e. public or customer tenant value)
         """
         self.schema = schema
-        if using is None:
-            self.using = DEFAULT_DB_ALIAS
-        self.savepoint = True
-        if savepoint == False:
-            self.savepoint = savepoint
+        self._savepoint = None
 
     def __enter__(self):
         """Enter context manager."""
-        super().__enter__()
+        self._savepoint = transaction.savepoint()
         get_connection().set_schema(self.schema)
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exit context manager."""
-        super().__exit__(exc_type, exc_value, traceback)
+    def __exit__(self, exception_type, exception_value, traceback):
+        """Context manager close session."""
+        with schema_context(self.schema):
+            if exception_type:
+                transaction.savepoint_rollback(self._savepoint)
+            else:
+                transaction.savepoint_commit(self._savepoint)
         get_connection().set_schema_to_public()
 
     # pylint: disable=no-self-use
@@ -127,7 +127,10 @@ class KokuDBAccess(Atomic):
         """
         with schema_context(self.schema):
             new_entry = self._table.objects.create(**kwargs)
-            new_entry.save()
+            if use_savepoint:
+                self.savepoint(new_entry.save)
+            else:
+                new_entry.save()
             return new_entry
 
     def commit(self):
@@ -140,7 +143,7 @@ class KokuDBAccess(Atomic):
             None
         """
         with schema_context(self.schema):
-            commit()
+            transaction.commit()
 
     def delete(self, obj=None, use_savepoint=True):
         """
@@ -157,7 +160,11 @@ class KokuDBAccess(Atomic):
         else:
             deleteme = self._obj
         with schema_context(self.schema):
-            deleteme.delete()
+            if use_savepoint:
+                self.savepoint(deleteme.delete)
+            else:
+                deleteme.delete()
+
 
     def set_savepoint(self, func, *args, **kwargs):
         """Wrap a db access function in a savepoint block.
