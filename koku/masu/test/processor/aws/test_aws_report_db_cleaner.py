@@ -61,7 +61,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
     def setUp(self):
         """"Set up a test with database objects."""
-        bill_id = self.creator.create_cost_entry_bill()
+        bill_id = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
         cost_entry_id = self.creator.create_cost_entry(bill_id)
         product_id = self.creator.create_cost_entry_product()
         pricing_id = self.creator.create_cost_entry_pricing()

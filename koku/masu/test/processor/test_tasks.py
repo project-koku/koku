@@ -590,7 +590,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         last_month = self.start_date - relativedelta.relativedelta(months=1)
 
         for cost_entry_date in (self.start_date, last_month):
-            bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            bill = self.creator.create_cost_entry_bill(
+                provider_id=self.aws_provider.id, bill_date=cost_entry_date
+            )
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
             for family in [
                 'Storage',

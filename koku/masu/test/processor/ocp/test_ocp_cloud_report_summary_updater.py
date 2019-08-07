@@ -33,6 +33,7 @@ from masu.util.ocp.common import get_cluster_id_from_provider
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
@@ -48,44 +49,13 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         """Setup tests."""
         super().setUp()
         self.column_map = ReportingCommonDBAccessor().column_map
-        self.accessor = AWSReportDBAccessor(
-            schema='acct10001',
-            column_map=self.column_map
-        )
-        self.manifest_accessor = ReportManifestDBAccessor()
-
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        self.accessor._session.rollback()
-
-        aws_tables = list(AWS_CUR_TABLE_MAP.values())
-        with AWSReportDBAccessor(self.test_schema, self.column_map) as aws_accessor:
-            aws_accessor._session.rollback()
-            for table_name in aws_tables:
-                tables = aws_accessor._get_db_obj_query(table_name).all()
-                for table in tables:
-                    aws_accessor._session.delete(table)
-                aws_accessor.commit()
-
-        ocp_tables = list(OCP_REPORT_TABLE_MAP.values())
-        with OCPReportDBAccessor(self.test_schema, self.column_map) as ocp_accessor:
-            for table_name in ocp_tables:
-                tables = ocp_accessor._get_db_obj_query(table_name).all()
-                for table in tables:
-                    ocp_accessor._session.delete(table)
-                ocp_accessor.commit()
-
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
+        # self.manifest_accessor = ReportManifestDBAccessor()
 
     def _generate_ocp_on_aws_data(self):
         """Test that the OCP on AWS cost summary table is populated."""
         creator = ReportObjectCreator(
-            self.accessor,
-            self.column_map,
-            self.accessor.report_schema.column_types
+            self.schema,
+            self.column_map
         )
 
         bill_ids = []
@@ -93,8 +63,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         today = DateAccessor().today_with_timezone('UTC')
         last_month = today - relativedelta.relativedelta(months=1)
         resource_id = 'i-12345'
+
         for cost_entry_date in (today, last_month):
-            bill = creator.create_cost_entry_bill(cost_entry_date)
+            bill = creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=cost_entry_date)
             bill_ids.append(str(bill.id))
             cost_entry = creator.create_cost_entry(bill, cost_entry_date)
             product = creator.create_cost_entry_product('Compute Instance')
@@ -109,25 +80,25 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 resource_id=resource_id
             )
 
-        self.accessor.populate_line_item_daily_table(last_month, today, bill_ids)
+        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+            aws_accessor.populate_line_item_daily_table(last_month.date(), today.date(), bill_ids)
 
-        with OCPReportDBAccessor(self.test_schema, self.column_map) as ocp_accessor:
-            cluster_id = self.ocp_provider_resource_name
-            with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
-                provider_id = provider_access.get_provider().id
+        cluster_id = self.ocp_provider_resource_name
+        provider_id = self.ocp_provider.id
 
-            for cost_entry_date in (today, last_month):
-                period = creator.create_ocp_report_period(cost_entry_date, provider_id=provider_id, cluster_id=cluster_id)
-                report = creator.create_ocp_report(period, cost_entry_date)
-                creator.create_ocp_usage_line_item(
-                    period,
-                    report,
-                    resource_id=resource_id
-                )
-            cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
-            ocp_accessor.populate_line_item_daily_table(last_month, today, cluster_id)
+        for cost_entry_date in (today, last_month):
+            period = creator.create_ocp_report_period(cost_entry_date, provider_id=provider_id, cluster_id=cluster_id)
+            report = creator.create_ocp_report(period, cost_entry_date)
+            creator.create_ocp_usage_line_item(
+                period,
+                report,
+                resource_id=resource_id
+            )
+        cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
+            ocp_accessor.populate_line_item_daily_table(last_month.date(), today.date(), cluster_id)
 
-     def test_get_infra_db_key_for_provider_type(self):
+    def test_get_infra_db_key_for_provider_type(self):
         """Test db_key private method for OCP-on-AWS infrastructure map."""
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
@@ -228,6 +199,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
+        start_date = start_date - relativedelta.relativedelta(months=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
         with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
@@ -238,9 +210,13 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             manifest=None
         )
 
-        with AWSReportDBAccessor(self.test_schema, self.column_map) as aws_accessor:
+        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
             summary_table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
             query = aws_accessor._get_db_obj_query(summary_table_name)
             initial_count = query.count()
-            updater.update_summary_tables(start_date_str, end_date_str)
+
+        updater.update_summary_tables(start_date_str, end_date_str)
+
+        with AWSReportDBAccessor(self.schema, self.column_map) as aws_accessor:
+            query = aws_accessor._get_db_obj_query(summary_table_name)
             self.assertNotEqual(query.count(), initial_count)

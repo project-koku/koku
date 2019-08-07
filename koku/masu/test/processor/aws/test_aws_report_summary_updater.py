@@ -87,7 +87,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(today)
+        bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
@@ -245,7 +245,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = billing_start.date()
         self.creator.create_cost_entry_bill(
-            bill_date=billing_start, provider_id=self.provider.id
+            provider_id=self.provider.id, bill_date=billing_start
         )
         bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 

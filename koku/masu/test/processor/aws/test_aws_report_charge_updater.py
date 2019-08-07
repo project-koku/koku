@@ -94,7 +94,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
             provider_id=provider_id,
         )
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(today)
+        bill = self.creator.create_cost_entry_bill(provider_id = provider_id, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()

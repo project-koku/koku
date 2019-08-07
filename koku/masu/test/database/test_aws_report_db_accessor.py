@@ -164,7 +164,8 @@ class ReportDBAccessorTest(MasuTestCase):
         }
 
         bill = self.creator.create_cost_entry_bill(
-            bill_date=today, provider_id=self.aws_provider.id
+            provider_id=self.aws_provider.id,
+            bill_date=today,
         )
         cost_entry = self.creator.create_cost_entry(bill, entry_datetime=today)
         product = self.creator.create_cost_entry_product()
@@ -912,7 +913,7 @@ class ReportDBAccessorTest(MasuTestCase):
 
         for cost_entry_date in (today, last_month):
             bill = self.creator.create_cost_entry_bill(
-                cost_entry_date, provider_id=self.aws_provider.id
+                provider_id=self.aws_provider.id, bill_date=cost_entry_date,
             )
             bill_ids.append(str(bill.id))
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
@@ -977,7 +978,7 @@ class ReportDBAccessorTest(MasuTestCase):
         last_month = today - relativedelta.relativedelta(months=1)
         resource_id = 'i-12345'
         for cost_entry_date in (today, last_month):
-            bill = self.creator.create_cost_entry_bill(cost_entry_date)
+            bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=cost_entry_date)
             bill_ids.append(str(bill.id))
             cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
             product = self.creator.create_cost_entry_product('Compute Instance')

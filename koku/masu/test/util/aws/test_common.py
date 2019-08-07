@@ -266,7 +266,9 @@ class TestAWSUtils(MasuTestCase):
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(bill_date=start_date)
+                bill = creator.create_cost_entry_bill(
+                    provider_id=self.aws_provider.id, bill_date=start_date
+                )
                 expected_bill_ids.append(str(bill.id))
 
         bills = utils.get_bills_from_provider(
@@ -297,7 +299,9 @@ class TestAWSUtils(MasuTestCase):
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(bill_date=start_date)
+                bill = creator.create_cost_entry_bill(
+                    provider_id=self.aws_provider.id, bill_date=start_date
+                )
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
@@ -332,7 +336,9 @@ class TestAWSUtils(MasuTestCase):
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(bill_date=start_date)
+                bill = creator.create_cost_entry_bill(
+                    provider_id=self.aws_provider.id, bill_date=start_date
+                )
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
@@ -370,7 +376,9 @@ class TestAWSUtils(MasuTestCase):
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
                 print(start_date)
-                bill = creator.create_cost_entry_bill(bill_date=start_date)
+                bill = creator.create_cost_entry_bill(
+                    provider_id=self.aws_provider.id, bill_date=start_date
+                )
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
