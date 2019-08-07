@@ -23,13 +23,18 @@ import random
 import uuid
 from decimal import Decimal
 
+import django.apps
 from dateutil import relativedelta
+from django.utils import timezone
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
+from masu.database.report_db_accessor_base import ReportSchema
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.account_alias_accessor import AccountAliasAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
 
@@ -47,12 +52,15 @@ class ReportObjectCreator:
 
     fake = Faker()
 
-    def __init__(self, db_accessor, column_map, column_types):
+    def __init__(self, schema, column_map):
         """Initialize the report object creation helpler."""
-        self.db_accessor = db_accessor
-        self.schema = self.db_accessor.schema
+        self.schema = schema
         self.column_map = column_map
-        self.column_types = column_types
+
+        self.report_schema = ReportSchema(django.apps.apps.get_models(),
+                                          self.column_map)
+        self.column_types = self.report_schema.column_types
+
 
     def create_cost_entry(self, bill, entry_datetime=None):
         """Create a cost entry database object for test."""
@@ -69,7 +77,8 @@ class ReportObjectCreator:
             'interval_start': start_datetime,
             'interval_end': end_datetime
         }
-        return self.db_accessor.create_db_object(table_name, data)
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_bill(self, bill_date=None, provider_id=None):
         """Create a cost entry bill database object for test."""
@@ -79,21 +88,21 @@ class ReportObjectCreator:
         if provider_id:
             data['provider_id'] = provider_id
         if bill_date:
-            bill_start = bill_date.replace(day=1).date()
+            bill_start = self.make_datetime_aware(bill_date).replace(day=1).date()
             bill_end = bill_start + relativedelta.relativedelta(months=1)
 
             data['billing_period_start'] = bill_start
             data['billing_period_end'] = bill_end
 
-        return self.db_accessor.create_db_object(table_name, data)
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_pricing(self):
         """Create a cost entry pricing database object for test."""
         table_name = AWS_CUR_TABLE_MAP['pricing']
         data = self.create_columns_for_table(table_name)
-        row = self.db_accessor.create_db_object(table_name, data)
-        row.save()
-        return row
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_product(self, product_family=None):
         """Create a cost entry product database object for test."""
@@ -103,13 +112,15 @@ class ReportObjectCreator:
             'product_family': product_family if product_family else random.choice(AWS_PRODUCT_FAMILY)
         }
         data.update(prod_fam)
-        return self.db_accessor.create_db_object(table_name, data)
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_reservation(self, schema=None):
         """Create a cost entry reservation database object for test."""
         table_name = AWS_CUR_TABLE_MAP['reservation']
         data = self.create_columns_for_table(table_name)
-        return self.db_accessor.create_db_object(table_name, data)
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_cost_entry_line_item(
         self, bill, cost_entry, product, pricing, reservation, resource_id=None
@@ -133,8 +144,8 @@ class ReportObjectCreator:
         }
 
         data.update(extra_data)
-
-        return self.db_accessor.create_db_object(table_name, data)
+        with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_ocp_report_period(
         self, period_date=None, provider_id=None, cluster_id=None
@@ -142,7 +153,7 @@ class ReportObjectCreator:
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
-        period_start = self.fake.past_datetime().date().replace(day=1)
+        period_start = self.make_datetime_aware(self.fake.past_datetime()).date().replace(day=1)
         period_end = period_start + relativedelta.relativedelta(
             days=random.randint(1, 15)
         )
@@ -159,8 +170,8 @@ class ReportObjectCreator:
 
             data['report_period_start'] = period_start
             data['report_period_end'] = period_end
-
-        return self.db_accessor.create_db_object(table_name, data)
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_ocp_report(self, reporting_period, report_datetime=None):
         """Create an OCP reporting period database object for test."""
@@ -173,7 +184,8 @@ class ReportObjectCreator:
             start_datetime = self.fake.past_datetime(start_date='-60d')
         data['interval_start'] = start_datetime
         data['interval_end'] = start_datetime + relativedelta.relativedelta(hours=+1)
-        return self.db_accessor.create_db_object(table_name, data)
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_ocp_usage_line_item(self,
                                    report_period,
@@ -195,8 +207,8 @@ class ReportObjectCreator:
         data['report_id'] = report.id
         if null_cpu_usage:
             data['pod_usage_cpu_core_seconds'] = None
-
-        return self.db_accessor.create_db_object(table_name, data)
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_ocp_storage_line_item(self, report_period, report):
         """Create an OCP storage line item database object for test."""
@@ -209,8 +221,8 @@ class ReportObjectCreator:
 
         data['report_period_id'] = report_period.id
         data['report_id'] = report.id
-
-        return self.db_accessor.create_db_object(table_name, data)
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_columns_for_table(self, table):
         """Generate data for a table."""
@@ -233,7 +245,7 @@ class ReportObjectCreator:
                     'label_two': self.fake.pystr()[:8],
                 }
             elif col_type == 'DateTimeField':
-                data[column] = self.fake.past_datetime()
+                data[column] = self.make_datetime_aware(self.fake.past_datetime())
             elif col_type == 'DecimalField':
                 data[column] = self.fake.pydecimal(0, 7, positive=True)
             else:
@@ -260,6 +272,12 @@ class ReportObjectCreator:
         """Convert datetime string to datetime with AWS formatting."""
         return datetime.datetime.strptime(value, Config.AWS_DATETIME_STR_FORMAT)
 
+    def make_datetime_aware(self, dt):
+        """Add tzinfo to the datetime."""
+        if timezone.is_aware(dt):
+            return dt
+        return timezone.make_aware(dt)
+
     def create_cost_model(self, provider_uuid, source_type, rates):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['cost_model']
@@ -279,54 +297,48 @@ class ReportObjectCreator:
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
         provider_obj = ProviderDBAccessor(provider_uuid).get_provider()
         data = {'provider_uuid': provider_obj.uuid, 'cost_model_id': cost_model_obj.uuid}
-        cost_model_map_obj = self.db_accessor.create_db_object(cost_model_map, data)
-
-        return cost_model_obj
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(cost_model_map, data)
 
     def create_ocpawscostlineitem_project_daily_summary(self, account_id, schema):
         """Create an ocpawscostlineitem_project_daily_summary object for test."""
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
         data = self.create_columns_for_table(table_name)
-        row = self.db_accessor.create_db_object(table_name, data)
 
-        accessor = AccountAliasAccessor(account_id, schema)
-        with schema_context(schema):
+        with AccountAliasAccessor(account_id, schema) as accessor:
             account_alias = accessor._get_db_obj_query().first()
 
-            row.account_alias = account_alias
-            row.cost_entry_bill = self.create_cost_entry_bill()
-            row.namespace = self.fake.pystr()[:8]
-            row.pod = self.fake.pystr()[:8]
-            row.node = self.fake.pystr()[:8]
-            row.usage_start = self.fake.past_datetime()
-            row.usage_end = self.fake.past_datetime()
-            row.product_code = self.fake.pystr()[:8]
-            row.usage_account_id = self.fake.pystr()[:8]
-
-            row.save()
-
-        return row
+            data = {
+                'account_alias_id': account_alias.id,
+                'cost_entry_bill': self.create_cost_entry_bill(),
+                'namespace': self.fake.pystr()[:8],
+                'pod': self.fake.pystr()[:8],
+                'node': self.fake.pystr()[:8],
+                'usage_start': self.make_datetime_aware(self.fake.past_datetime()),
+                'usage_end': self.make_datetime_aware(self.fake.past_datetime()),
+                'product_code': self.fake.pystr()[:8],
+                'usage_account_id': self.fake.pystr()[:8]
+            }
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
     def create_awscostentrylineitem_daily_summary(self, account_id, schema):
         """Create an ocpawscostlineitem_project_daily_summary( object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
         data = self.create_columns_for_table(table_name)
 
-        row = self.db_accessor.create_db_object(table_name, data)
-
-        accessor = AccountAliasAccessor(account_id, schema)
-        with schema_context(schema):
+        with AccountAliasAccessor(account_id, schema) as accessor:
             account_alias = accessor._get_db_obj_query().first()
+            data = {
+                'account_alias_id': account_alias.id,
+                'cost_entry_bill': self.create_cost_entry_bill(),
+                'usage_start': self.make_datetime_aware(self.fake.past_datetime()),
+                'product_code': self.fake.pystr()[:8],
+                'usage_account_id': self.fake.pystr()[:8]
+            }
 
-            row.account_alias = account_alias
-            row.cost_entry_bill = self.create_cost_entry_bill()
-            row.usage_start = self.fake.past_datetime()
-            row.product_code = self.fake.pystr()[:8]
-            row.usage_account_id = self.fake.pystr()[:8]
-
-            row.save()
-
-        return row
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
 
 def map_django_field_type_to_python_type(field):
