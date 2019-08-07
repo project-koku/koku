@@ -33,6 +33,10 @@ Then project dependencies and a virtual environment can be created using ::
 
     pipenv install --dev
 
+If dependency installation fails, try using ::
+
+    pipenv install --dev --sequential
+
 To activate the virtual environment run ::
 
     pipenv shell
