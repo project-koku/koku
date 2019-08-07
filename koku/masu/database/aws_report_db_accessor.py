@@ -193,7 +193,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cost_entry_bill_ids=','.join(bill_ids)
+            cost_entry_bill_ids=','.join(bill_ids),
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
@@ -217,7 +218,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids)
+            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids),
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -241,6 +243,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_awstags_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
         self._commit_and_vacuum(table_name, agg_sql)
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
@@ -272,6 +275,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date, end_date=end_date,
             aws_where_clause=aws_where_clause,
-            ocp_where_clause=ocp_where_clause
+            ocp_where_clause=ocp_where_clause,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)

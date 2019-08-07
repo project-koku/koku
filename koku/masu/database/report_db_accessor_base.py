@@ -77,7 +77,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         self.report_schema = ReportSchema(django.apps.apps.get_models(),
                                           self.column_map)
         self._conn = connection
-        self._cursor = self._get_psycopg2_cursor()
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close connections."""
@@ -89,22 +88,18 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Return database precision for decimal values."""
         return f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
 
-    def _get_psycopg2_cursor(self):
-        """Get a cursor for the low level database connection."""
-        cursor = self._conn.cursor()
-        cursor.execute(f'SET search_path TO {self.schema}')
-        return cursor
-
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
-        self._cursor.execute(
-            f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
-        )
-        if drop_column:
-            self._cursor.execute(
-                f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(
+                f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
             )
+            if drop_column:
+                cursor.execute(
+                    f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
+                )
         return temp_table_name
 
     def create_new_temp_table(self, table_name, columns):
@@ -118,7 +113,9 @@ class ReportDBAccessorBase(KokuDBAccess):
         column_types = column_types.strip().rstrip(',')
         column_sql = '({})'.format(column_types)
         table_sql = base_sql + column_sql
-        self._cursor.execute(table_sql)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(table_sql)
 
         return temp_table_name
 
@@ -150,23 +147,25 @@ class ReportDBAccessorBase(KokuDBAccess):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        self._cursor.execute(update_sql)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(update_sql)
 
-        row_count = self._cursor.rowcount
-        if row_count > 0:
-            is_finalized_data = True
+            row_count = self._cursor.rowcount
+            if row_count > 0:
+                is_finalized_data = True
 
-        insert_sql = f"""
-            INSERT INTO {table_name} ({column_str})
-                SELECT {column_str}
-                FROM {temp_table_name}
-                WHERE {condition_column} IS NULL
-                ON CONFLICT DO NOTHING
-        """
-        self._cursor.execute(insert_sql)
+            insert_sql = f"""
+                INSERT INTO {table_name} ({column_str})
+                    SELECT {column_str}
+                    FROM {temp_table_name}
+                    WHERE {condition_column} IS NULL
+                    ON CONFLICT DO NOTHING
+            """
+            cursor.execute(insert_sql)
 
-        delete_sql = f'DELETE FROM {temp_table_name}'
-        self._cursor.execute(delete_sql)
+            delete_sql = f'DELETE FROM {temp_table_name}'
+            cursor.execute(delete_sql)
 
         return is_finalized_data
 
@@ -176,7 +175,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             old_isolation_level = connection.connection.isolation_level
             connection.connection.set_isolation_level(0)
             vacuum = f'VACUUM {table_name}'
-            self._cursor.execute(vacuum)
+            with connection.cursor() as cursor:
+                cursor.db.set_schema(self.schema)
+                cursor.execute(vacuum)
             connection.connection.set_isolation_level(old_isolation_level)
 
     # pylint: disable=too-many-arguments
@@ -191,13 +192,15 @@ class ReportDBAccessorBase(KokuDBAccess):
             null (str): How null is represented in the CSV. Default: ''
 
         """
-        self._cursor.copy_from(
-            file_obj,
-            table,
-            sep=sep,
-            columns=columns,
-            null=null
-        )
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.copy_from(
+                file_obj,
+                table,
+                sep=sep,
+                columns=columns,
+                null=null
+            )
 
     def close_connections(self, conn=None):
         """Close the low level database connection.
@@ -210,7 +213,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         if conn:
             conn.close()
         else:
-            self._cursor.close()
             self._conn.close()
 
     # pylint: disable=arguments-differ
@@ -285,7 +287,9 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-        self._cursor.execute(insert_sql, values)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(insert_sql, values)
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
@@ -330,7 +334,9 @@ class ReportDBAccessorBase(KokuDBAccess):
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {formatted_set}
         """
-        self._cursor.execute(insert_sql, values)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(insert_sql, values)
 
         data = {key: value for key, value in data.items()
                 if key in conflict_columns}
@@ -408,7 +414,8 @@ class ReportDBAccessorBase(KokuDBAccess):
                      table, start, end)
         else:
             LOG.info('Updating %s', table)
-
-        self._cursor.execute(sql)
-        self.vacuum_table(table)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(sql)
+            self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)

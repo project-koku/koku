@@ -20,6 +20,7 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import connection
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
@@ -71,10 +72,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        self._cursor.execute(upsert_sql)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(upsert_sql)
 
-        delete_sql = f'DELETE FROM {temp_table_name}'
-        self._cursor.execute(delete_sql)
+            delete_sql = f'DELETE FROM {temp_table_name}'
+            cursor.execute(delete_sql)
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
@@ -304,7 +307,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
@@ -326,10 +330,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         infra_sql = infra_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            schema=self.schema
         )
-        self._cursor.execute(infra_sql)
-        results = self._cursor.fetchall()
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(infra_sql)
+            results = cursor.fetchall()
 
         db_results = []
         for entry in results:
@@ -363,7 +370,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
@@ -386,7 +394,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         charge_line_sql = daily_charge_sql.decode('utf-8').format(
             cpu_temp=cpu_temp_table,
-            mem_temp=mem_temp_table
+            mem_temp=mem_temp_table,
+            schema=self.schema
         )
 
         self._commit_and_vacuum(table_name, charge_line_sql)
@@ -408,7 +417,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_ocp_storage_charge.sql'
         )
         charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            temp_table=temp_table_name
+            temp_table=temp_table_name,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, charge_line_sql)
 
@@ -433,7 +443,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date, cluster_id=cluster_id
+            end_date=end_date, cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -457,7 +468,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date, end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -489,7 +501,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 uuid=str(uuid.uuid4()).replace('-', '_'),
                 start_date=start_date,
                 end_date=end_date,
-                cluster_id=cluster_id
+                cluster_id=cluster_id,
+                schema=self.schema
             )
             self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -509,6 +522,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpusagepodlabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
 
@@ -521,6 +535,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumeclaimlabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
 
@@ -533,5 +548,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumelabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
