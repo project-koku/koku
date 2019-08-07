@@ -1064,7 +1064,7 @@ class ReportDBAccessorTest(MasuTestCase):
             bill_date=bill1_date, provider_id=self.aws_provider.id
         )
         bill2 = self.creator.create_cost_entry_bill(
-            bill_date=bill2_date, provider_id=self.aws_provider.id
+            provider_id=self.aws_provider.id, bill_date=bill2_date
         )
 
         bills = self.accessor.bills_for_provider_id(
