@@ -82,7 +82,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             self.fake_auth_credential,
             self.fake_bucket_name,
             'AWS-local',
-            1,
+            self.aws_provider_id,
         )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
@@ -90,7 +90,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': self.fake_bucket_name,
-                'provider_id': 1,
+                'provider_id': self.aws_provider_id,
             }
         )
 
