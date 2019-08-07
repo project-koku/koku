@@ -20,16 +20,18 @@
 # pylint: disable=unused-import
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
-from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
-from api.report.aws.view import (costs as aws_costs,
-                                 instance_type as aws_instance_type,
-                                 storage as aws_storage)
-from api.report.ocp.view import costs as openshift_costs, cpu, memory, volume
-from api.report.ocp_aws.view import (costs as openshift_aws_costs,
-                                     instance_type as openshift_aws_instance_type,
-                                     storage as openshift_aws_storage)
-from api.status.views import status
-from api.tags.aws.view import aws_tags
-from api.tags.ocp.view import ocp_tags as openshift_tags
-from api.tags.ocp_aws.views import ocp_aws_tags as openshift_aws_tags
+from api.report.aws.view import (AWSCostView,
+                                 AWSInstanceTypeView,
+                                 AWSStorageView)
+from api.report.ocp.view import (OCPCostView,
+                                 OCPCpuView,
+                                 OCPMemoryView,
+                                 OCPVolumeView)
+from api.report.ocp_aws.view import (OCPAWSCostView,
+                                     OCPAWSInstanceTypeView,
+                                     OCPAWSStorageView)
+from api.status.views import StatusView
+from api.tags.aws.view import AWSTagView
+from api.tags.ocp.view import OCPTagView
+from api.tags.ocp_aws.views import OCPAWSTagView

@@ -36,8 +36,8 @@ from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
 from api.report.view import get_tenant
+from koku.schema import KokuPaginatedSchema
 from .provider_manager import ProviderManager
-
 
 LOG = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
-    """Provider View .
+    """Provider View.
 
     A viewset that provides default `create()`, `retrieve()`,
     and `list()` actions.
@@ -92,10 +92,11 @@ class ProviderViewSet(mixins.CreateModelMixin,
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = ProviderFilter
+    schema = KokuPaginatedSchema()
 
     def get_serializer_class(self):
         """Return the appropriate serializer depending on user."""
-        if 'schema_name' in self.request.META.get('QUERY_STRING', ''):
+        if 'schema_name' in getattr(self.request, 'META', {}).get('QUERY_STRING', ''):
             return serializers.AdminProviderSerializer
         else:
             return serializers.ProviderSerializer
@@ -107,7 +108,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         by filtering against a `user` object in the request.
         """
         queryset = Provider.objects.none()
-        user = self.request.user
+        user = getattr(self.request, 'user', None)
         if user:
             try:
                 queryset = Provider.objects.filter(customer=user.customer)

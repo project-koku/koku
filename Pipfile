@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 aiokafka = "==0.5.1"
 django-environ = ">=0.4.0"
-djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
 boto3 = "==1.9.200"
 whitenoise = ">=3.3.0"
@@ -32,6 +31,8 @@ python-dateutil = "*"
 bs4 = "*"
 azure = "==4.0.0"
 azure-mgmt-costmanagement = "==0.1.0"
+uritemplate = "*"
+rest-framework = {editable = true,git = "https://github.com/encode/django-rest-framework.git",ref = "master"}
 
 [dev-packages]
 astroid = "==2.2.5"

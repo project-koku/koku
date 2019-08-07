@@ -16,20 +16,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS views."""
-
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
-from rest_framework.settings import api_settings
-
 from api.common.permissions.aws_access import AwsAccessPermission
-from api.report.view import _generic_report
+from api.report.view import ReportView
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def costs(request):
+class AWSCostView(ReportView):
     """Get cost data.
 
     @api {get} /cost-management/v1/reports/aws/costs/ Get cost data
@@ -114,13 +105,13 @@ def costs(request):
         6721340654404,2018-07,19356.197856632,USD
 
     """
-    return _generic_report(request, report='costs', provider='aws')
+
+    permission_classes = [AwsAccessPermission]
+    report = 'costs'
+    provider = 'aws'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def instance_type(request):
+class AWSInstanceTypeView(ReportView):
     """Get inventory data.
 
     @api {get} /cost-management/v1/reports/aws/instance-types/ Get inventory instance type data
@@ -240,13 +231,13 @@ def instance_type(request):
         8133889256380,2018-08-04,r4.large,10.0,Hrs
 
     """
-    return _generic_report(request, report='instance_type', provider='aws')
+
+    permission_classes = [AwsAccessPermission]
+    report = 'instance_type'
+    provider = 'aws'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def storage(request):
+class AWSStorageView(ReportView):
     """Get inventory storage data.
 
     @api {get} /cost-management/v1/reports/aws/storage/ Get inventory storage data
@@ -358,4 +349,7 @@ def storage(request):
         2415722664993,2018-08,2599.75765963921,GB-Mo
 
     """
-    return _generic_report(request, report='storage', provider='aws')
+
+    permission_classes = [AwsAccessPermission]
+    report = 'storage'
+    provider = 'aws'

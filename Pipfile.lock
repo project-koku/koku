@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4f885ad965f013b697c5c17208230416713bd8c827f86a04997bd05aaca86221"
+            "sha256": "ad0154733ca50d04e4f94d8e747bd1fe580a4008774a0433a2ea47fe3238bd3d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -89,10 +89,10 @@
         },
         "azure-datalake-store": {
             "hashes": [
-                "sha256:10696c76716762739e5e77f25c1268314786cf8e999d6d8366af7245c82fc660",
-                "sha256:5bc560ee108a1824e03ab926fbe5302b84c1e8d5742fa3a31e4cc0733ab58543"
+                "sha256:55bcbec99a35a52ea291518dadfd94c3b645e66d05ce927228289b93979ad3a5",
+                "sha256:d8e72b60b52b7875c23e386af6a90a2db7f580f75627aa5ffbda18e186180d39"
             ],
-            "version": "==0.0.46"
+            "version": "==0.0.47"
         },
         "azure-eventgrid": {
             "hashes": [
@@ -420,7 +420,7 @@
         },
         "azure-mgmt-network": {
             "hashes": [
-                "sha256:808a9927d24f73783463eceaadb3bf40e9836b3c3ce02275cd30847f8e6ab9c1",
+                "sha256:57965d5c5182bcbe4ef70c23319a2714a5f473c650e18078ac055ad12c70e913",
                 "sha256:c083f9da1af69ca8524d0a7e2f0235b025a628ad00308072c1e84662312a532a"
             ],
             "version": "==2.7.0"
@@ -655,10 +655,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:4ef7ab3e5632d55ae91be8a0d404cf586f955c2dca972a6f761de793ddc14ea1",
-                "sha256:d90d0299dde2b7514586f01f11954c4c6acca58f1508827408690b201ccce8ac"
+                "sha256:1a9b246b40a7694c6c1707c386e6dc00cd473647efd92aa8b5b812c8a223ff4d",
+                "sha256:7fa1ea16e11d8537dab675577e609b95d3cea6f5db005f3adc934afdae6b72bc"
             ],
-            "version": "==1.12.207"
+            "version": "==1.12.208"
         },
         "bs4": {
             "hashes": [
@@ -805,14 +805,6 @@
             ],
             "index": "pypi",
             "version": "==1.9.0"
-        },
-        "djangorestframework": {
-            "hashes": [
-                "sha256:42979bd5441bb4d8fd69d0f385024a114c3cae7df0f110600b718751250f6929",
-                "sha256:aedb48010ebfab9651aaab1df5fd3b4848eb4182afc909852a2110c24f89a359"
-            ],
-            "index": "pypi",
-            "version": "==3.10.2"
         },
         "djangorestframework-csv": {
             "hashes": [
@@ -1048,6 +1040,11 @@
             ],
             "version": "==1.2.0"
         },
+        "rest-framework": {
+            "editable": true,
+            "git": "https://github.com/encode/django-rest-framework.git",
+            "ref": "ec1b14174f8717337fc4402c7cea43f647e2586e"
+        },
         "s3transfer": {
             "hashes": [
                 "sha256:6efc926738a3cd576c2a79725fed9afde92378aa5c6a957e3af010cb019fac9d",
@@ -1081,6 +1078,15 @@
                 "sha256:018c08037d48649a0412063ff4eda26eaa81eff1546dbffa51fa5293276ff7fc"
             ],
             "version": "==0.14.1"
+        },
+        "uritemplate": {
+            "hashes": [
+                "sha256:01c69f4fe8ed503b2951bef85d996a9d22434d2431584b5b107b2981ff416fbd",
+                "sha256:1b9c467a940ce9fb9f50df819e8ddd14696f89b9a8cc87ac77952ba416e0a8fd",
+                "sha256:c02643cebe23fc8adb5e6becffe201185bf06c40bda5c0b4028a93f1527d011d"
+            ],
+            "index": "pypi",
+            "version": "==3.0.0"
         },
         "urllib3": {
             "hashes": [

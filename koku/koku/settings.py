@@ -403,3 +403,6 @@ CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
 BROKER_POOL_LIMIT = None
 CELERYD_CONCURRENCY = 2
 CELERYD_PREFETCH_MULTIPLIER = 1
+
+# Misc Config Values
+INSIGHTS_URI = os.getenv('INSIGHTS_URI', '/api/cost-management/v1')

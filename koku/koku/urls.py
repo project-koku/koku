@@ -24,6 +24,9 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
+from rest_framework.renderers import JSONOpenAPIRenderer
+
+from koku.schema import KokuGenerator, get_koku_schema_view
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX
 if API_PATH_PREFIX != '':
@@ -34,6 +37,14 @@ if API_PATH_PREFIX != '':
 
 # pylint: disable=invalid-name
 urlpatterns = [
+    path('{}v1/openapi.json'.format(API_PATH_PREFIX), get_koku_schema_view(
+        title='Cost Management',
+        renderer_classes=[JSONOpenAPIRenderer, ],
+        urlconfs=['cost_models.urls', 'api.urls'],
+        description='The API for Cost Management. You can find out more about Cost Management at '
+                    'https://github.com/project-koku/.',
+        generator_class=KokuGenerator
+    ), name='openapi-schema'),
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('api.urls')),
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('cost_models.urls')),
     path('', include('django_prometheus.urls')),

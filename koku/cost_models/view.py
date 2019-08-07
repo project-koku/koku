@@ -102,11 +102,14 @@ class CostModelViewSet(mixins.CreateModelMixin,
     filter_backends = (DjangoFilterBackend,)
     filterset_class = CostModelsFilter
 
-    def get_queryset(self):
+    def get_queryset(self):  # noqa: C901
         """Get a queryset.
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
+        if not hasattr(self.request, 'user'):
+            return CostModel.objects.none()
+
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if provider_uuid:

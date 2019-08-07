@@ -24,6 +24,7 @@ from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.views import APIView
 from tenant_schemas.utils import tenant_context
 
 from api.common.pagination import ReportPagination, ReportRankedPagination
@@ -42,6 +43,7 @@ from api.tags.serializers import (AWSTagsQueryParamSerializer,
                                   OCPAWSTagsQueryParamSerializer,
                                   OCPTagsQueryParamSerializer)
 from api.utils import UnitConverter
+from koku.schema import KokuReportSchema
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
                                            OCPStorageVolumeLabelSummary,
@@ -420,3 +422,36 @@ def _generic_report(request, provider, report):
     paginated_result = paginator.paginate_queryset(output, request)
     LOG.debug(f'DATA: {output}')
     return paginator.get_paginated_response(paginated_result)
+
+
+class ReportView(APIView):
+    """
+    A shared view for all koku reports.
+
+    This view maps the serializer based on self.provider and self.report.
+    It providers one GET endpoint for the reports.
+    """
+
+    schema = KokuReportSchema()
+
+    def get_serializer(self, *args, **kwargs):
+        """Return the mapped serializer instance."""
+        cm = ClassMapper()
+        serializer_class = cm.serializer(self.provider, self.report)
+
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(*args, **kwargs)
+
+    def get_serializer_context(self):
+        """Extra context provided to the serializer class."""
+        return {
+            'request': self.request,
+            'format': self.format_kwarg,
+            'view': self
+        }
+
+    def get(self, request):
+        """Get Report Data."""
+        return _generic_report(request,
+                               report=self.report,
+                               provider=self.provider)

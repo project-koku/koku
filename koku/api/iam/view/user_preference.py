@@ -23,6 +23,7 @@ from rest_framework.permissions import AllowAny
 import api.iam.models as models
 import api.iam.serializers as serializers
 from api.common.permissions.object_owner import IsObjectOwner
+from koku.schema import KokuPaginatedSchema
 
 
 class UserPreferenceViewSet(mixins.CreateModelMixin,
@@ -43,11 +44,12 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     permission_classes = (IsObjectOwner, AllowAny)
     filter_backends = (DjangoFilterBackend,)
     filter_fields = ('name',)
+    schema = KokuPaginatedSchema()
 
     def get_queryset(self):
         """Get a queryset that only displays the owner's preferences."""
         queryset = models.UserPreference.objects.none()
-        req_user = self.request.user
+        req_user = getattr(self.request, 'user', None)
         if req_user:
             queryset = self.queryset.filter(user=req_user)
         return queryset
@@ -55,9 +57,8 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
     def get_serializer_context(self):
         """Pass user attribute to serializer."""
         context = super().get_serializer_context()
-        req_user = self.request.user
-        if req_user:
-            context['user'] = req_user
+        if self.request and hasattr(self.request, 'user') and self.request.user:
+            context['user'] = self.request.user
         return context
 
     def _validate_user(self, user_id, uuid):

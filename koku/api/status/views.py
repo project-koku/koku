@@ -17,17 +17,14 @@
 
 """View for server status."""
 from rest_framework import permissions
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from api.status.models import Status
 from api.status.serializers import StatusSerializer
-from koku.rbac import RbacService
 
 
-@api_view(['GET', 'HEAD'])
-@permission_classes((permissions.AllowAny,))
-def status(request):
+class StatusView(APIView):
     """Provide the server status information.
 
     @api {get} /cost-management/v1/status/ Request server status
@@ -72,9 +69,18 @@ def status(request):
                 }
         }
     """
-    status_info = Status()
-    serializer = StatusSerializer(status_info)
-    server_info = serializer.data
-    server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
-    server_info['rbac_cache_ttl'] = RbacService().get_cache_ttl()
-    return Response(server_info)
+
+    permission_classes = [permissions.AllowAny]
+    serializer_class = StatusSerializer
+
+    def get_serializer(self):
+        """Return the serializer for status."""
+        return StatusSerializer()
+
+    def get(self, request):
+        """Return the server status."""
+        status_info = Status()
+        serializer = StatusSerializer(status_info)
+        server_info = serializer.data
+        server_info['server_address'] = request.META.get('HTTP_HOST', 'localhost')
+        return Response(server_info)

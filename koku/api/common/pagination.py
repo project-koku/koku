@@ -96,6 +96,47 @@ class StandardResultsSetPagination(LimitOffsetPagination):
             'data': data
         })
 
+    @staticmethod
+    def get_paginated_response_schema(data, meta=None):
+        """Return the pagination schema."""
+        schema = {
+            'type': 'object',
+            'properties': {
+                'meta': {
+                    'type': 'object',
+                    'properties': {
+                        'count': {
+                            'type': 'integer'
+                        },
+                    }
+                },
+                'links': {
+                    'type': 'object',
+                    'properties': {
+                        'first': {
+                            'type': 'string',
+                        },
+                        'next': {
+                            'type': 'string',
+                            'nullable': True,
+                        },
+                        'previous': {
+                            'type': 'string',
+                            'nullable': True,
+                        },
+                        'last': {
+                            'type': 'string',
+                        }
+                    }
+                },
+
+                'data': data,
+            },
+        }
+        if meta:
+            schema['properties']['meta'].update(meta)
+        return schema
+
 
 class ReportPagination(StandardResultsSetPagination):
     """A specialty paginator for report data."""

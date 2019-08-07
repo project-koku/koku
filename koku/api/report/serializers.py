@@ -325,16 +325,21 @@ class ParamSerializer(BaseSerializer):
         """
         for key, val in kwargs.items():
             data = {}
-            if issubclass(val, FilterSerializer):
-                data = self.initial_data.get('filter')
-            elif issubclass(val, OrderSerializer):
-                data = self.initial_data.get('order_by')
-            elif issubclass(val, GroupSerializer):
-                data = self.initial_data.get('group_by')
 
-            inst = val(required=False, tag_keys=self.tag_keys, data=data)
-            setattr(self, key, inst)
-            self.fields[key] = inst
+            # Check and make sure self.initial_data exists.
+            # This is needed because there are cases where initial_data does
+            # not exist (e.g. during schema generation).
+            if hasattr(self, 'initial_data'):
+                if issubclass(val, FilterSerializer):
+                    data = self.initial_data.get('filter')
+                elif issubclass(val, OrderSerializer):
+                    data = self.initial_data.get('order_by')
+                elif issubclass(val, GroupSerializer):
+                    data = self.initial_data.get('group_by')
+
+                inst = val(required=False, tag_keys=self.tag_keys, data=data)
+                setattr(self, key, inst)
+                self.fields[key] = inst
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.

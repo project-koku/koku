@@ -93,6 +93,21 @@ class StandardResultsSetPaginationTest(TestCase):
         link = paginator.get_previous_link()
         self.assertEqual(link, expected)
 
+    def get_paginated_response_schema(self):
+        """Test the returned pagination schema."""
+        data = {
+            'test_data': 'test'
+        }
+
+        meta = {
+            'additional_meta': 123
+        }
+        pagination_schema = \
+            StandardResultsSetPagination.get_paginated_response_schema(data, meta)
+
+        self.assertTrue('additional_meta' in pagination_schema['properties']['meta'])
+        self.assertTrue('test_data' in pagination_schema['properties']['data'])
+
 
 class ReportPaginationTest(TestCase):
     """Tests for report API pagination."""

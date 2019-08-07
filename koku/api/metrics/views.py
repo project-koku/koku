@@ -23,6 +23,7 @@ from rest_framework.permissions import AllowAny
 
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import CostModelMetricMapSerializer
+from koku.schema import KokuPaginatedSchema
 
 LOG = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
     queryset = CostModelMetricsMap.objects.all()
     serializer_class = CostModelMetricMapSerializer
     permission_classes = (AllowAny,)
+    schema = KokuPaginatedSchema()
 
     def get_queryset(self):
         """Get a queryset.
