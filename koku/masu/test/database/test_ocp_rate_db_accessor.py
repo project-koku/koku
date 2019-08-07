@@ -52,8 +52,6 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        if self.accessor._cursor.closed:
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         reporting_period = self.creator.create_ocp_report_period()
         report = self.creator.create_ocp_report(reporting_period)

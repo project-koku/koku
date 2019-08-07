@@ -72,12 +72,6 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        if self.accessor._conn.closed:
-            self.accessor._conn = self.accessor._db.connect()
-        if self.accessor._pg2_conn.closed:
-            self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
-        if self.accessor._cursor.closed:
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         self.provider_accessor = ProviderDBAccessor(
             provider_uuid=self.aws_test_provider_uuid

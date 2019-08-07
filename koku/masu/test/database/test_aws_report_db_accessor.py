@@ -148,10 +148,6 @@ class ReportDBAccessorTest(MasuTestCase):
         today = DateAccessor().today_with_timezone('UTC')
         billing_start = today.replace(day=1)
 
-        if self.accessor._cursor.closed:
-            self.accessor._conn.connect()
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
-
         self.cluster_id = 'testcluster'
 
         self.manifest_dict = {

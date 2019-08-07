@@ -25,6 +25,7 @@ import json
 import shutil
 import tempfile
 
+from dateutil import parser
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -82,15 +83,8 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.unknown_report = './koku/masu/test/data/test_cur.csv'
         cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
 
-        cls.ocp_processor = OCPReportProcessor(
-            schema_name=cls.schema,
-            report_path=cls.test_report,
-            compression=UNCOMPRESSED,
-            provider_id=cls.provider_id,
-        )
-
         cls.date_accessor = DateAccessor()
-        billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
+        cls.billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
             year=2018,
             month=6,
             day=1,
@@ -99,12 +93,7 @@ class OCPReportProcessorTest(MasuTestCase):
             second=0
         )
         cls.assembly_id = '1234'
-        cls.manifest_dict = {
-            'assembly_id': cls.assembly_id,
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': 1
-        }
+
         cls.manifest_accessor = ReportManifestDBAccessor()
 
         with ReportingCommonDBAccessor() as report_common_db:
@@ -127,16 +116,22 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.accessor.close_connections()
 
     def setUp(self):
-        """Set up each test."""
         super().setUp()
-        if self.accessor._cursor.closed:
-            self.accessor._conn.connect()
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
-
-    def setUp(self):
-        super().setUp()
+        self.manifest_dict = {
+            'assembly_id': self.assembly_id,
+            'billing_period_start_datetime': self.billing_start,
+            'num_total_files': 2,
+            'provider_id': self.ocp_provider.id
+        }
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
+
+        self.ocp_processor = OCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_id=self.ocp_provider.id,
+        )
 
     def tearDown(self):
         """Return the database to a pre-test state."""
@@ -578,7 +573,8 @@ class OCPReportProcessorTest(MasuTestCase):
         for item in file_list:
             path = '{}/{}'.format(insights_local_dir, item['file'])
             f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id, self.provider_id)
+            obj = self.manifest_accessor.get_manifest(self.assembly_id,
+                                                      self.ocp_provider.id)
             stats = ReportStatsDBAccessor(item['file'], obj.id)
             stats.update(last_completed_datetime=item['processed_date'])
             stats.commit()

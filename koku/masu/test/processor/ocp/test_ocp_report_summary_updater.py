@@ -66,9 +66,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        if self.accessor._cursor.closed:
-            self.accessor._conn.connect()
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         # with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
         #     self.provider = provider_accessor.get_provider()

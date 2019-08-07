@@ -56,9 +56,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        if self.accessor._cursor.closed:
-            self.accessor._conn.connect()
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
+
         self.cluster_id = 'testcluster'
 
         with ProviderDBAccessor(

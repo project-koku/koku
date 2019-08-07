@@ -77,12 +77,6 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        if self.accessor._conn.closed:
-            self.accessor._conn = self.accessor._db.connect()
-        if self.accessor._pg2_conn.closed:
-            self.accessor._pg2_conn = self.accessor._get_psycopg2_connection()
-        if self.accessor._cursor.closed:
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         today = DateAccessor().today_with_timezone('UTC')
         bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=today)

@@ -60,7 +60,6 @@ class OCPReportDBCleanerTest(MasuTestCase):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
         self.assertIsNotNone(self.accessor._conn)
-        self.assertIsNotNone(self.accessor._cursor)
 
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""
