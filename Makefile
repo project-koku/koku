@@ -150,7 +150,7 @@ gen-apidoc:
 	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates cost_models
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data

@@ -21,7 +21,7 @@ import random
 from datetime import timedelta
 
 from faker import Faker
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -58,7 +58,6 @@ class ProviderStatusTest(MasuTestCase):
 
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**self.test_status)
-            accessor.commit()
 
     def _setup_ready_status(self):
         """set status to READY state. """
@@ -71,7 +70,6 @@ class ProviderStatusTest(MasuTestCase):
         }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**ready_status)
-            accessor.commit()
 
     def test_set_status_success(self):
         """Test set_status()."""
@@ -146,7 +144,6 @@ class ProviderStatusTest(MasuTestCase):
         }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
-            accessor.commit()
 
         accessor = ProviderStatus(self.aws_test_provider_uuid)
         self.assertTrue(accessor.is_valid())
@@ -163,7 +160,6 @@ class ProviderStatusTest(MasuTestCase):
         }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
-            accessor.commit()
 
         accessor = ProviderStatus(self.aws_test_provider_uuid)
         self.assertFalse(accessor.is_valid())
@@ -180,7 +176,6 @@ class ProviderStatusTest(MasuTestCase):
         }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
-            accessor.commit()
 
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             self.assertFalse(accessor.is_valid())
@@ -198,7 +193,6 @@ class ProviderStatusTest(MasuTestCase):
         }
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
-            accessor.commit()
 
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             self.assertTrue(accessor.is_backing_off())
@@ -210,12 +204,12 @@ class ProviderStatusTest(MasuTestCase):
             'provider_id': self.provider_id,
             'status': ProviderStatusCode.WARNING,
             'last_message': self.FAKE.word(),
-            'timestamp': three_hours_ago,
+            'timestamp': str(three_hours_ago),
             'retries': 1,
         }
+
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             accessor.add(**status)
-            accessor.commit()
 
         with ProviderStatus(self.aws_test_provider_uuid) as accessor:
             self.assertFalse(accessor.is_backing_off())

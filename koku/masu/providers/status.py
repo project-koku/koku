@@ -94,8 +94,7 @@ class ProviderStatus(ProviderStatusAccessor):
             self._obj.last_message = str(error)
         else:
             self._obj.last_message = 'none'
-
-        self.commit()
+        self._obj.save()
 
     def set_error(self, error=None):
         """Update status to an error state.
