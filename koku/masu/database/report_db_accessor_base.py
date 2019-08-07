@@ -281,7 +281,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         columns_formatted = ', '.join(str(value) for value in data.keys())
         values = list(data.values())
         val_str = ','.join(['%s' for _ in data])
-        insert_sql = f"""INSERT INTO {table_name}({columns_formatted}) VALUES({val_str})"""
+        insert_sql = f"""INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES({val_str})"""
         if conflict_columns:
             conflict_columns_formatted = ', '.join(conflict_columns)
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
@@ -330,7 +330,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         conflict_columns_formatted = ', '.join(conflict_columns)
 
         insert_sql = f"""
-        INSERT INTO {table_name}({columns_formatted}) VALUES ({val_str})
+        INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES ({val_str})
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {formatted_set}
         """

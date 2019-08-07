@@ -166,7 +166,7 @@ class KokuDBAccess:
                 deleteme.delete()
 
 
-    def set_savepoint(self, func, *args, **kwargs):
+    def savepoint(self, func, *args, **kwargs):
         """Wrap a db access function in a savepoint block.
 
         Args:
