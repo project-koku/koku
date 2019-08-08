@@ -19,6 +19,8 @@
 import datetime
 from dateutil import relativedelta
 
+from tenant_schemas.utils import schema_context
+
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.processor.aws.aws_report_db_cleaner import (
@@ -75,18 +77,18 @@ class AWSReportDBCleanerTest(MasuTestCase):
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
         cleaner = AWSReportDBCleaner(self.schema)
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date == billing_period_start
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            cutoff_date = first_bill.billing_period_start
 
-        # Verify that data is cleared for a cutoff date == billing_period_start
-        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-        cutoff_date = first_bill.billing_period_start
-
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date)
 
@@ -99,11 +101,12 @@ class AWSReportDBCleanerTest(MasuTestCase):
             str(first_bill.billing_period_start),
         )
 
-        self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-        self.assertIsNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
     def test_purge_expired_report_data_before_date(self):
         """Test to remove report data before a provided date."""
@@ -113,32 +116,34 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
         cleaner = AWSReportDBCleaner(self.schema)
 
-        # Verify that data is not cleared for a cutoff date < billing_period_start
-        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-        cutoff_date = first_bill.billing_period_start
-        earlier_cutoff = cutoff_date.replace(day=15) + relativedelta.relativedelta(
-            months=-1
-        )
+        with schema_context(self.schema):
+            # Verify that data is not cleared for a cutoff date < billing_period_start
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            cutoff_date = first_bill.billing_period_start
+            earlier_cutoff = cutoff_date.replace(day=15) + relativedelta.relativedelta(
+                months=-1
+            )
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
         removed_data = cleaner.purge_expired_report_data(earlier_cutoff)
 
         self.assertEqual(len(removed_data), 0)
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+        with schema_context(self.schema):
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
     def test_purge_expired_report_data_after_date(self):
         """Test to remove report data after a provided date."""
@@ -148,19 +153,20 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
         cleaner = AWSReportDBCleaner(self.schema)
 
-        # Verify that data is cleared for a cutoff date > billing_period_start
-        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-        cutoff_date = first_bill.billing_period_start
-        later_date = cutoff_date + relativedelta.relativedelta(months=+1)
-        later_cutoff = later_date.replace(month=later_date.month, day=15)
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date > billing_period_start
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            cutoff_date = first_bill.billing_period_start
+            later_date = cutoff_date + relativedelta.relativedelta(months=+1)
+            later_cutoff = later_date.replace(month=later_date.month, day=15)
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
         removed_data = cleaner.purge_expired_report_data(later_cutoff)
 
@@ -172,12 +178,12 @@ class AWSReportDBCleanerTest(MasuTestCase):
             removed_data[0].get('billing_period_start'),
             str(first_bill.billing_period_start),
         )
-
-        self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-        self.assertIsNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
     def test_purge_expired_report_data_on_date_simulate(self):
         """Test to simulate removing report data on a provided date."""
@@ -188,16 +194,17 @@ class AWSReportDBCleanerTest(MasuTestCase):
         cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date == billing_period_start
-        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-        cutoff_date = first_bill.billing_period_start
+        with schema_context(self.schema):
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            cutoff_date = first_bill.billing_period_start
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
         removed_data = cleaner.purge_expired_report_data(cutoff_date, simulate=True)
 
@@ -210,13 +217,14 @@ class AWSReportDBCleanerTest(MasuTestCase):
             str(first_bill.billing_period_start),
         )
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+        with schema_context(self.schema):
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
     def test_purge_expired_report_data_for_provider(self):
         """Test that the provider_id deletes all data for the provider."""
@@ -226,19 +234,20 @@ class AWSReportDBCleanerTest(MasuTestCase):
 
         cleaner = AWSReportDBCleaner(self.schema)
 
-        # Verify that data is cleared for a cutoff date == billing_period_start
-        first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
-        cutoff_date = first_bill.billing_period_start
+        with schema_context(self.schema):
+            # Verify that data is cleared for a cutoff date == billing_period_start
+            first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
+            cutoff_date = first_bill.billing_period_start
 
-        self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(line_item_table_name).first()
-        )
-        self.assertIsNotNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+            self.assertIsNotNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(line_item_table_name).first()
+            )
+            self.assertIsNotNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
-        removed_data = cleaner.purge_expired_report_data(provider_id=1)
+        removed_data = cleaner.purge_expired_report_data(provider_id=self.aws_provider.id)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
@@ -249,11 +258,12 @@ class AWSReportDBCleanerTest(MasuTestCase):
             str(first_bill.billing_period_start),
         )
 
-        self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
-        self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
-        self.assertIsNone(
-            self.accessor._get_db_obj_query(cost_entry_table_name).first()
-        )
+        with schema_context(self.schema):
+            self.assertIsNone(self.accessor._get_db_obj_query(bill_table_name).first())
+            self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
+            self.assertIsNone(
+                self.accessor._get_db_obj_query(cost_entry_table_name).first()
+            )
 
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_id deletes all data for the provider."""
@@ -268,5 +278,5 @@ class AWSReportDBCleanerTest(MasuTestCase):
         cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
             removed_data = cleaner.purge_expired_report_data(
-                expired_date=now, provider_id=1
+                expired_date=now, provider_id=self.aws_provider.id
             )

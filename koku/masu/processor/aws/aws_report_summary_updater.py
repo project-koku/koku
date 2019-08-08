@@ -157,7 +157,6 @@ class AWSReportSummaryUpdater:
         finalized_datetime = bill.finalized_datetime
 
         is_done_processing = processed_files == total_files
-
         is_newly_finalized = False
         if finalized_datetime is not None:
             is_newly_finalized = finalized_datetime.date() == now_utc.date()

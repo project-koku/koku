@@ -24,6 +24,8 @@ from dateutil.relativedelta import relativedelta
 import logging
 from unittest.mock import patch, Mock
 
+from tenant_schemas.utils import schema_context
+
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -32,7 +34,6 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
-
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
@@ -101,9 +102,10 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
-        bill.summary_data_creation_datetime = start_date
-        self.accessor.commit()
+        with AWSReportDBAccessor('acct10001', self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.summary_data_creation_datetime = start_date
+            bill.save()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -145,8 +147,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -190,7 +192,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1,
+            'provider_id': self.aws_provider.id,
         }
         self.manifest_accessor.delete(self.manifest)
         self.manifest_accessor.commit()
@@ -211,7 +213,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.creator.create_cost_entry_bill(
             provider_id=self.provider.id, bill_date=billing_start
         )
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -261,7 +264,8 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -299,9 +303,10 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date
         bill_date = start_date.replace(day=1).date()
 
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
-        bill.finalized_datetime = start_date
-        self.accessor.commit()
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.finalized_datetime = start_date
+            self.accessor.commit()
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 
@@ -347,10 +352,10 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
-
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
-        bill.finalized_datetime = start_date
-        self.accessor.commit()
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.finalized_datetime = start_date
+            self.accessor.commit()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
@@ -385,9 +390,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
 
-        bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
-        bill.summary_data_updated_datetime = start_date
-        self.accessor.commit()
+
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.summary_data_updated_datetime = start_date
+            self.accessor.commit()
 
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
