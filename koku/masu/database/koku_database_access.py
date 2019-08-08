@@ -58,6 +58,7 @@ class KokuDBAccess:
                 transaction.savepoint_rollback(self._savepoint)
             else:
                 transaction.savepoint_commit(self._savepoint)
+            transaction.commit()
         get_connection().set_schema_to_public()
 
     # pylint: disable=no-self-use

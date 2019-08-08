@@ -97,23 +97,23 @@ class OCPReportSummaryUpdater:
                  '\n\tProvider: %s \n\tCluster: %s \n\tDates: %s - %s',
                  self._schema_name, self._provider.uuid, self._cluster_id,
                  start_date, end_date)
-        with schema_context(self._schema_name):
-            report_periods = None
-            with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-                report_periods = accessor.report_periods_for_provider_id(self._provider.id, start_date)
-                accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
-                accessor.populate_pod_label_summary_table()
-                accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
-                accessor.populate_volume_claim_label_summary_table()
-                accessor.populate_volume_label_summary_table()
 
-                for period in report_periods:
-                    if period.summary_data_creation_datetime is None:
-                        period.summary_data_creation_datetime = \
-                            self._date_accessor.today_with_timezone('UTC')
-                    period.summary_data_updated_datetime = \
+        report_periods = None
+        with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
+            report_periods = accessor.report_periods_for_provider_id(self._provider.id, start_date)
+            accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
+            accessor.populate_pod_label_summary_table()
+            accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
+            accessor.populate_volume_claim_label_summary_table()
+            accessor.populate_volume_label_summary_table()
+
+            for period in report_periods:
+                if period.summary_data_creation_datetime is None:
+                    period.summary_data_creation_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
-                    period.save()
+                period.summary_data_updated_datetime = \
+                    self._date_accessor.today_with_timezone('UTC')
+                period.save()
 
         return start_date, end_date
 

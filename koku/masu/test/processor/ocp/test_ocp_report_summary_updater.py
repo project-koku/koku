@@ -46,7 +46,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
 
-        cls.accessor = OCPReportDBAccessor('acct10001', cls.column_map)
+        cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
         cls.report_schema = cls.accessor.report_schema
 
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
@@ -90,7 +90,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
         self.updater = OCPReportSummaryUpdater(
-            'acct10001', self.provider, self.manifest
+            self.schema, self.provider, self.manifest
         )
 
     def tearDown(self):
@@ -168,7 +168,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             expected_start_date, expected_end_date, self.report_period.cluster_id
         )
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -230,7 +230,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             expected_start_date, expected_end_date, self.report_period.cluster_id
         )
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -269,7 +269,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.manifest.save()
 
         self.updater = OCPReportSummaryUpdater(
-            'acct10001', self.provider, self.manifest
+            self.schema, self.provider, self.manifest
         )
 
         start_date = self.date_accessor.today_with_timezone('UTC')
@@ -313,7 +313,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             expected_start_date, expected_end_date, self.report_period.cluster_id
         )
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -369,7 +369,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             expected_start_date, expected_end_date, self.report_period.cluster_id
         )
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
@@ -391,7 +391,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
     ):
         """Test that summary tables are properly run without a manifest."""
         # Create an updater that doesn't have a manifest
-        updater = OCPReportSummaryUpdater('acct10001', self.provider, None)
+        updater = OCPReportSummaryUpdater(self.schema, self.provider, None)
         start_date = DateAccessor().today_with_timezone('UTC')
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
@@ -425,7 +425,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             expected_start_date, expected_end_date, self.report_period.cluster_id
         )
 
-        with OCPReportDBAccessor('acct10001', self.column_map) as accessor:
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date)[0]
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertGreater(period.summary_data_updated_datetime, start_date)
