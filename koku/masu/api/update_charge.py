@@ -33,7 +33,6 @@ from masu.processor.tasks import update_charge_info
 LOG = logging.getLogger(__name__)
 
 
-# @application_route('/update_charge/', API_V1_ROUTES, methods=('GET',))
 @api_view(http_method_names=['GET', 'DELETE'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

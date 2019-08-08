@@ -32,7 +32,6 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import (remove_expired_data,
                                   update_all_summary_tables,
                                   update_summary_tables)
-from masu.util.blueprint import application_route
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = 'Report Data Task ID'
