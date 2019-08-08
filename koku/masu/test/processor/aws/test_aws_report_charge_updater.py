@@ -45,33 +45,25 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         cls.accessor = AWSReportDBAccessor('acct10001', cls.column_map)
 
         cls.report_schema = cls.accessor.report_schema
-        cls.session = cls.accessor._session
 
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values())
 
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         cls.date_accessor = DateAccessor()
-        billing_start = cls.date_accessor.today_with_timezone('UTC').replace(day=1)
-        cls.manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': 1,
-        }
         cls.manifest_accessor = ReportManifestDBAccessor()
-
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down the test class."""
-        cls.manifest_accessor.close_session()
-        cls.accessor.close_connections()
-        cls.accessor.close_session()
-        super().tearDownClass()
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
+
+        billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
+        self.manifest_dict = {
+            'assembly_id': '1234',
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 2,
+            'provider_id': self.aws_provider.id,
+        }
 
         self.provider_accessor = ProviderDBAccessor(
             provider_uuid=self.aws_test_provider_uuid
@@ -81,7 +73,7 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
             provider_uuid=self.aws_test_provider_uuid
         )
         self.updater = AWSReportChargeUpdater(
-            schema=self.test_schema,
+            schema=self.schema,
             provider_uuid=self.aws_test_provider_uuid,
             provider_id=provider_id,
         )
@@ -100,22 +92,6 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
-
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        super().tearDown()
-        # self.session.rollback()
-
-        for table_name in self.all_tables:
-            tables = self.accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.accessor._session.delete(table)
-        self.accessor.commit()
-
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
 
     def test_update_summary_charge_info(self):
         """Test to verify AWS derived cost summary is calculated."""

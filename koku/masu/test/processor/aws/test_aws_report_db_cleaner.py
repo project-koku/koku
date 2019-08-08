@@ -36,10 +36,11 @@ class AWSReportDBCleanerTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
         cls.accessor = AWSReportDBAccessor(
-            schema='acct10001', column_map=cls.column_map
+            schema=cls.schema, column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema
         cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
@@ -51,14 +52,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
             AWS_CUR_TABLE_MAP['reservation'],
         ]
 
-    @classmethod
-    def tearDownClass(cls):
-        """Close the DB session."""
-        cls.common_accessor.close_session()
-        cls.accessor.close_session()
-
     def setUp(self):
         """"Set up a test with database objects."""
+        super().setUp()
         bill_id = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
         cost_entry_id = self.creator.create_cost_entry(bill_id)
         product_id = self.creator.create_cost_entry_product()
@@ -68,22 +64,9 @@ class AWSReportDBCleanerTest(MasuTestCase):
             bill_id, cost_entry_id, product_id, pricing_id, reservation_id
         )
 
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        self.accessor._session.rollback()
-
-        for table_name in self.all_tables:
-            tables = self.accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.accessor._session.delete(table)
-        self.accessor.commit()
-
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
-        self.assertIsNotNone(self.accessor._session)
-        self.assertIsNotNone(self.accessor._conn)
-        self.assertIsNotNone(self.accessor._cursor)
 
     def test_purge_expired_report_data_on_date(self):
         """Test to remove report data on a provided date."""
@@ -91,7 +74,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -128,7 +111,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is not cleared for a cutoff date < billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -163,7 +146,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date > billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -202,7 +185,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -241,7 +224,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
 
         # Verify that data is cleared for a cutoff date == billing_period_start
         first_bill = self.accessor._get_db_obj_query(bill_table_name).first()
@@ -275,14 +258,14 @@ class AWSReportDBCleanerTest(MasuTestCase):
     def test_purge_expired_report_data_no_args(self):
         """Test that the provider_id deletes all data for the provider."""
 
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
             removed_data = cleaner.purge_expired_report_data()
 
     def test_purge_expired_report_data_both_args(self):
         """Test that the provider_id deletes all data for the provider."""
         now = datetime.datetime.utcnow()
-        cleaner = AWSReportDBCleaner('acct10001')
+        cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
             removed_data = cleaner.purge_expired_report_data(
                 expired_date=now, provider_id=1

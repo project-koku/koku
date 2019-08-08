@@ -30,15 +30,14 @@ import shutil
 import tempfile
 import psycopg2
 
-from sqlalchemy.sql.expression import delete
-from sqlalchemy.sql import func
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from tests.database.helpers import ReportObjectCreator
+from masu.test.database.helpers import ReportObjectCreator
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
@@ -52,6 +51,7 @@ class ProcessedReportTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
         cls.report = ProcessedReport()
 
     def test_remove_processed_rows(self):
@@ -77,27 +77,12 @@ class AWSReportProcessorTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
-        cls.test_report = './tests/data/test_cur.csv'
-        cls.test_report_gzip = './tests/data/test_cur.csv.gz'
-        cls.provider_id = 1
-        cls.processor = AWSReportProcessor(
-            schema_name='acct10001',
-            report_path=cls.test_report,
-            compression=UNCOMPRESSED,
-            provider_id=cls.provider_id,
-        )
+        super().setUpClass()
+        cls.test_report = './koku/masu/test/data/test_cur.csv'
+        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
+
 
         cls.date_accessor = DateAccessor()
-        billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
-            year=2018, month=6, day=1, hour=0, minute=0, second=0
-        )
-        cls.assembly_id = '1234'
-        cls.manifest_dict = {
-            'assembly_id': cls.assembly_id,
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': cls.provider_id,
-        }
         cls.manifest_accessor = ReportManifestDBAccessor()
 
         with ReportingCommonDBAccessor() as report_common_db:
@@ -113,38 +98,38 @@ class AWSReportProcessorTest(MasuTestCase):
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.manifest_accessor.close_session()
-        super().tearDownClass()
-
     def setUp(self):
         super().setUp()
-        self.accessor = AWSReportDBAccessor('acct10001', self.column_map)
+
+        self.processor = AWSReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_id=self.aws_provider.id,
+        )
+
+        billing_start = self.date_accessor.today_with_timezone('UTC').replace(
+            year=2018, month=6, day=1, hour=0, minute=0, second=0
+        )
+        self.assembly_id = '1234'
+        self.manifest_dict = {
+            'assembly_id': self.assembly_id,
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 2,
+            'provider_id': self.aws_provider.id,
+        }
+
+        self.accessor = AWSReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
-        self.session = self.accessor._session
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
 
     def tearDown(self):
         """Return the database to a pre-test state."""
-        self.session.rollback()
-
-        for table_name in self.report_tables:
-            self.accessor._cursor.execute(f'DELETE FROM {table_name}')
-        self.accessor._pg2_conn.commit()
+        super().tearDown()
 
         self.processor.processed_report.remove_processed_rows()
-
-        manifests = self.manifest_accessor._get_db_obj_query().all()
-        for manifest in manifests:
-            self.manifest_accessor.delete(manifest)
-        self.manifest_accessor.commit()
-
         self.processor.line_item_columns = None
-        self.accessor._session.rollback()
-        self.accessor.close_connections()
-        self.accessor.close_session()
 
     def test_initializer(self):
         """Test initializer."""
@@ -163,27 +148,28 @@ class AWSReportProcessorTest(MasuTestCase):
         """Assert that an error is raised for an invalid compression."""
         with self.assertRaises(MasuProcessingError):
             AWSReportProcessor(
-                schema_name='acct10001',
+                schema_name=self.schema,
                 report_path=self.test_report,
                 compression='unsupported',
-                provider_id=1,
+                provider_id=self.aws_provider.id,
             )
 
     def test_process_default(self):
         """Test the processing of an uncompressed file."""
         counts = {}
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=self.manifest.id,
         )
         report_db = self.accessor
         report_schema = report_db.report_schema
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
@@ -199,7 +185,8 @@ class AWSReportProcessorTest(MasuTestCase):
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
 
             if table_name in (
                 'reporting_awscostentryreservation',
@@ -214,23 +201,25 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test the processing of a gzip compressed file."""
         counts = {}
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report_gzip,
             compression=GZIP_COMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         report_db = self.accessor
         report_schema = report_db.report_schema
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         processor.process()
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
 
             if table_name in (
                 'reporting_awscostentryreservation',
@@ -245,10 +234,10 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that row duplicates are not inserted into the DB."""
         counts = {}
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         # Process for the first time
@@ -258,24 +247,27 @@ class AWSReportProcessorTest(MasuTestCase):
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         # Wipe stale data
-        self.accessor._get_db_obj_query(AWS_CUR_TABLE_MAP['line_item']).delete()
+        with schema_context(self.schema):
+            self.accessor._get_db_obj_query(AWS_CUR_TABLE_MAP['line_item']).delete()
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         # Process for the second time
         processor.process()
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
     def test_process_finalized_rows(self):
@@ -300,10 +292,10 @@ class AWSReportProcessorTest(MasuTestCase):
             writer.writerows(data)
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         # Process for the first time
@@ -313,31 +305,36 @@ class AWSReportProcessorTest(MasuTestCase):
 
         bill_table_name = AWS_CUR_TABLE_MAP['bill']
         bill_table = getattr(report_schema, bill_table_name)
-        bill = report_db._session.query(bill_table).first()
-        self.assertIsNone(bill.finalized_datetime)
+        with schema_context(self.schema):
+            bill = bill_table.objects.first()
+            self.assertIsNone(bill.finalized_datetime)
 
         table = getattr(report_schema, table_name)
-        orig_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            orig_count = table.objects.count()
 
         # Wipe stale data
-        self.accessor._get_db_obj_query(table_name).delete()
+        with schema_context(self.schema):
+            self.accessor._get_db_obj_query(table_name).delete()
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         # Process for the second time
         processor.process()
 
-        count = report_db._session.query(table).count()
-        self.assertTrue(count == orig_count)
-        count = report_db._session.query(table).filter(table.invoice_id != None).count()
-        self.assertTrue(count == orig_count)
+        with schema_context(self.schema):
+            count = table.objects.count()
+            self.assertTrue(count == orig_count)
+            count = table.objects.filter(invoice_id__isnull=False).count()
+            self.assertTrue(count == orig_count)
 
-        report_db._session.commit()
-        self.assertIsNotNone(bill.finalized_datetime)
+        with schema_context(self.schema):
+            bill = bill_table.objects.first()
+            self.assertIsNotNone(bill.finalized_datetime)
 
     def test_process_finalized_rows_small_batch_size(self):
         """Test that a finalized bill is processed properly on batch size."""
@@ -361,10 +358,10 @@ class AWSReportProcessorTest(MasuTestCase):
             writer.writerows(data)
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         # Process for the first time
@@ -374,32 +371,37 @@ class AWSReportProcessorTest(MasuTestCase):
 
         bill_table_name = AWS_CUR_TABLE_MAP['bill']
         bill_table = getattr(report_schema, bill_table_name)
-        bill = report_db._session.query(bill_table).first()
-        self.assertIsNone(bill.finalized_datetime)
+        with schema_context(self.schema):
+            bill = bill_table.objects.first()
+            self.assertIsNone(bill.finalized_datetime)
 
         table = getattr(report_schema, table_name)
-        orig_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            orig_count = table.objects.count()
 
         # Wipe stale data
-        self.accessor._get_db_obj_query(table_name).delete()
+        with schema_context(self.schema):
+            self.accessor._get_db_obj_query(table_name).delete()
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         processor._batch_size = 2
         # Process for the second time
         processor.process()
 
-        count = report_db._session.query(table).count()
-        self.assertTrue(count == orig_count)
-        count = report_db._session.query(table).filter(table.invoice_id != None).count()
-        self.assertTrue(count == orig_count)
+        with schema_context(self.schema):
+            count = table.objects.count()
+            self.assertTrue(count == orig_count)
+            count = table.objects.filter(invoice_id__isnull=False).count()
+            self.assertTrue(count == orig_count)
 
-        report_db._session.commit()
-        self.assertIsNotNone(bill.finalized_datetime)
+        with schema_context(self.schema):
+            bill = bill_table.objects.first()
+            self.assertIsNotNone(bill.finalized_datetime)
 
     def test_do_not_overwrite_finalized_bill_timestamp(self):
         """Test that a finalized bill timestamp does not get overwritten."""
@@ -421,10 +423,10 @@ class AWSReportProcessorTest(MasuTestCase):
             writer.writerows(data)
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         # Process for the first time
@@ -434,29 +436,28 @@ class AWSReportProcessorTest(MasuTestCase):
 
         bill_table_name = AWS_CUR_TABLE_MAP['bill']
         bill_table = getattr(report_schema, bill_table_name)
-        bill = report_db._session.query(bill_table).first()
+        with schema_context(self.schema):
+            bill = bill_table.objects.first()
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         # Process for the second time
         processor.process()
 
-        report_db._session.commit()
         finalized_datetime = bill.finalized_datetime
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         # Process for the third time to make sure the timestamp is the same
         processor.process()
-        report_db._session.commit()
         self.assertEqual(bill.finalized_datetime, finalized_datetime)
 
     def test_get_file_opener_default(self):
@@ -579,14 +580,14 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a cost entry bill id is returned."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
         self.assertIsNotNone(bill_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
-        provider_id = query.order_by(id_column.desc()).first().provider_id
+        id_in_db = query.order_by('-id').first().id
+        provider_id = query.order_by('-id').first().provider_id
 
         self.assertEqual(bill_id, id_in_db)
         self.assertIsNotNone(provider_id)
@@ -595,7 +596,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a cost entry bill id is returned from an existing bill."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
         query = self.accessor._get_db_obj_query(table_name)
@@ -613,7 +614,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a cost entry id is returned."""
         table_name = AWS_CUR_TABLE_MAP['cost_entry']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
 
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
 
@@ -625,7 +626,7 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(cost_entry_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(cost_entry_id, id_in_db)
 
@@ -690,7 +691,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a cost entry product id is returned."""
         table_name = AWS_CUR_TABLE_MAP['product']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
 
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
 
@@ -699,7 +700,7 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(product_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(product_id, id_in_db)
 
@@ -733,7 +734,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Test that a cost entry pricing id is returned."""
         table_name = AWS_CUR_TABLE_MAP['pricing']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
 
         pricing_id = self.processor._create_cost_entry_pricing(self.row, self.accessor)
 
@@ -742,7 +743,7 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(pricing_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(pricing_id, id_in_db)
 
@@ -781,7 +782,7 @@ class AWSReportProcessorTest(MasuTestCase):
 
         table_name = AWS_CUR_TABLE_MAP['reservation']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
+
 
         reservation_id = self.processor._create_cost_entry_reservation(
             row, self.accessor
@@ -792,7 +793,7 @@ class AWSReportProcessorTest(MasuTestCase):
         self.assertIsNotNone(reservation_id)
 
         query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(reservation_id, id_in_db)
 
@@ -806,7 +807,6 @@ class AWSReportProcessorTest(MasuTestCase):
 
         table_name = AWS_CUR_TABLE_MAP['reservation']
         table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
 
         reservation_id = self.processor._create_cost_entry_reservation(
             row, self.accessor
@@ -816,8 +816,9 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(reservation_id)
 
-        query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        with schema_context(self.schema):
+            query = self.accessor._get_db_obj_query(table_name)
+            id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(reservation_id, id_in_db)
 
@@ -831,7 +832,7 @@ class AWSReportProcessorTest(MasuTestCase):
 
         self.assertEqual(reservation_id, id_in_db)
 
-        db_row = query.filter_by(id=id_in_db).first()
+        db_row = query.filter(id=id_in_db).first()
         self.assertEqual(
             db_row.number_of_reservations, row['reservation/NumberOfReservations']
         )
@@ -895,11 +896,10 @@ class AWSReportProcessorTest(MasuTestCase):
         for item in file_list:
             path = '{}/{}'.format(cur_dir, item['file'])
             f = open(path, 'w')
-            obj = self.manifest_accessor.get_manifest(self.assembly_id, self.provider_id)
-            stats = ReportStatsDBAccessor(item['file'], obj.id)
-            stats.update(last_completed_datetime=item['processed_date'])
-            stats.commit()
-            stats.close_session()
+            obj = self.manifest_accessor.get_manifest(self.assembly_id,
+                                                      self.aws_provider.id)
+            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
+                stats.update(last_completed_datetime=item['processed_date'])
             f.close()
             if (
                 not item['file'].startswith(manifest_data.get('assemblyId'))
@@ -933,10 +933,10 @@ class AWSReportProcessorTest(MasuTestCase):
             writer.writerows(data)
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         result = processor._check_for_finalized_bill()
@@ -947,10 +947,10 @@ class AWSReportProcessorTest(MasuTestCase):
         """Verify that a file without invoice_id is not marked as finalzed."""
 
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
 
         result = processor._check_for_finalized_bill()
@@ -960,52 +960,56 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_delete_line_items_success(self):
         """Test that data is deleted before processing a manifest."""
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=self.manifest.id,
         )
         processor.process()
         result = processor._delete_line_items()
 
-        bills = self.accessor.get_cost_entry_bills()
-        for bill_id in bills.values():
-            line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-            self.assertTrue(result)
-            self.assertEqual(line_item_query.count(), 0)
+        with schema_context(self.schema):
+            bills = self.accessor.get_cost_entry_bills()
+            for bill_id in bills.values():
+                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+                self.assertTrue(result)
+                self.assertEqual(line_item_query.count(), 0)
 
     def test_delete_line_items_not_first_file_in_manifest(self):
         """Test that data is not deleted once a file has been processed."""
         self.manifest.num_processed_files = 1
+        self.manifest.save()
         self.manifest_accessor.commit()
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=self.manifest.id,
         )
         processor.process()
         result = processor._delete_line_items()
-        bills = self.accessor.get_cost_entry_bills()
-        for bill_id in bills.values():
-            line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-            self.assertFalse(result)
-            self.assertNotEqual(line_item_query.count(), 0)
+        with schema_context(self.schema):
+            bills = self.accessor.get_cost_entry_bills()
+            for bill_id in bills.values():
+                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+                self.assertFalse(result)
+                self.assertNotEqual(line_item_query.count(), 0)
 
     def test_delete_line_items_no_manifest(self):
         """Test that no data is deleted without a manifest id."""
         processor = AWSReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
         )
         processor.process()
         result = processor._delete_line_items()
-        bills = self.accessor.get_cost_entry_bills()
-        for bill_id in bills.values():
-            line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-            self.assertFalse(result)
-            self.assertNotEqual(line_item_query.count(), 0)
+        with schema_context(self.schema):
+            bills = self.accessor.get_cost_entry_bills()
+            for bill_id in bills.values():
+                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+                self.assertFalse(result)
+                self.assertNotEqual(line_item_query.count(), 0)
