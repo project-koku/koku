@@ -41,11 +41,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_initializer_aws(self):
         """Test to initializer for AWS"""
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -53,11 +53,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_initializer_aws_local(self):
         """Test to initializer for AWS-local"""
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AWS_LOCAL_SERVICE_PROVIDER,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -65,11 +65,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_initializer_ocp(self):
         """Test to initializer for OCP"""
         processor = ReportProcessor(
-            schema_name='acct10001',
-            report_path='./tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
+            schema_name=self.schema,
+            report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
             compression='PLAIN',
             provider=OPENSHIFT_CONTAINER_PLATFORM,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -77,11 +77,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_initializer_ocp_local(self):
         """Test to initializer for OCP-local"""
         processor = ReportProcessor(
-            schema_name='acct10001',
-            report_path='./tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
+            schema_name=self.schema,
+            report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
             compression='PLAIN',
             provider=OCP_LOCAL_SERVICE_PROVIDER,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -94,11 +94,11 @@ class ReportProcessorTest(MasuTestCase):
         """Test to initializer with error."""
         with self.assertRaises(ReportProcessorError):
             ReportProcessor(
-                schema_name='acct10001',
+                schema_name=self.schema,
                 report_path='/my/report/file',
                 compression='GZIP',
                 provider=AMAZON_WEB_SERVICES,
-                provider_id=1,
+                provider_id=self.aws_provider.id,
                 manifest_id=None,
             )
 
@@ -106,11 +106,11 @@ class ReportProcessorTest(MasuTestCase):
         """Test to initializer with invalid provider"""
         with self.assertRaises(ReportProcessorError):
             ReportProcessor(
-                schema_name='acct10001',
+                schema_name=self.schema,
                 report_path='/my/report/file',
                 compression='GZIP',
                 provider='unknown',
-                provider_id=1,
+                provider_id=self.aws_provider.id,
                 manifest_id=None,
             )
 
@@ -121,11 +121,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_aws_process(self, fake_process):
         """Test to process for AWS"""
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         try:
@@ -141,11 +141,11 @@ class ReportProcessorTest(MasuTestCase):
         """Test to process for AWS with processing error"""
 
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         with self.assertRaises(ReportProcessorError):
@@ -158,11 +158,11 @@ class ReportProcessorTest(MasuTestCase):
     def test_aws_remove_processed_files(self, fake_process):
         """Test to remove_processed_files for AWS"""
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         try:
@@ -178,11 +178,11 @@ class ReportProcessorTest(MasuTestCase):
         """Test to remove_processed_files for AWS with processing error"""
 
         processor = ReportProcessor(
-            schema_name='acct10001',
+            schema_name=self.schema,
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider.id,
             manifest_id=None,
         )
         with self.assertRaises(ReportProcessorError):

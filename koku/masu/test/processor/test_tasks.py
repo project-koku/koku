@@ -26,6 +26,8 @@ from unittest.mock import call, patch, Mock, ANY
 
 import faker
 from dateutil import relativedelta
+from django.db.models import Max, Min
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
@@ -236,7 +238,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality."""
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
-        schema_name = self.test_schema
+        schema_name = self.schema
         provider = 'AWS'
         provider_uuid = self.aws_test_provider_uuid
         report_dict = {
@@ -264,7 +266,7 @@ class ProcessReportFileTests(MasuTestCase):
         """Test the process_report_file functionality when exception is thrown."""
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
-        schema_name = self.test_schema
+        schema_name = self.schema
         provider = 'AWS'
         provider_uuid = self.aws_test_provider_uuid
         report_dict = {
@@ -294,7 +296,7 @@ class ProcessReportFileTests(MasuTestCase):
         mock_manifest_accessor.get_manifest_by_id.return_value = None
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
-        schema_name = self.test_schema
+        schema_name = self.schema
         provider = 'AWS'
         provider_uuid = self.aws_test_provider_uuid
         report_dict = {
@@ -335,7 +337,7 @@ class ProcessReportFileTests(MasuTestCase):
 
         report_meta = {}
         report_meta['start_date'] = str(DateAccessor().today())
-        report_meta['schema_name'] = self.test_schema
+        report_meta['schema_name'] = self.schema
         report_meta['provider_type'] = 'OCP'
         report_meta['provider_uuid'] = self.ocp_test_provider_uuid
         report_meta['manifest_id'] = 1
@@ -541,7 +543,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         logging.disable(logging.NOTSET)
         with self.assertLogs('masu.processor._tasks.remove_expired') as logger:
             remove_expired_data(
-                schema_name=self.test_schema, provider='AWS', simulate=True
+                schema_name=self.schema, provider='AWS', simulate=True
             )
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
@@ -558,27 +560,20 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         cls.all_tables = list(AWS_CUR_TABLE_MAP.values()) + list(
             OCP_REPORT_TABLE_MAP.values()
         )
-        report_common_db = ReportingCommonDBAccessor()
-        cls.column_map = report_common_db.column_map
-        report_common_db.close_session()
+        with ReportingCommonDBAccessor() as report_common_db:
+            cls.column_map = report_common_db.column_map
 
-    @classmethod
-    def tearDownClass(cls):
-        """Tear down the test class."""
-        super().tearDownClass()
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.schema_name = self.test_schema
         self.aws_accessor = AWSReportDBAccessor(
-            schema=self.schema_name, column_map=self.column_map
+            schema=self.schema, column_map=self.column_map
         )
         self.ocp_accessor = OCPReportDBAccessor(
-            schema=self.schema_name, column_map=self.column_map
+            schema=self.schema, column_map=self.column_map
         )
-
-        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
 
         # Populate some line item data so that the summary tables
         # have something to pull from
@@ -616,25 +611,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             for _ in range(25):
                 self.creator.create_ocp_usage_line_item(period, report)
 
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        for table_name in self.aws_tables:
-            tables = self.aws_accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.aws_accessor._session.delete(table)
-        self.aws_accessor.commit()
-        for table_name in self.ocp_tables:
-            tables = self.ocp_accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.ocp_accessor._session.delete(table)
-        self.ocp_accessor.commit()
-
-        self.aws_accessor._session.rollback()
-        self.aws_accessor.close_connections()
-        self.aws_accessor.close_session()
-        self.ocp_accessor.close_connections()
-        self.ocp_accessor.close_session()
-        super().tearDown()
 
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws(self, mock_charge_info):
@@ -648,19 +624,21 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             months=-1
         )
 
-        daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
-        summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
+        with schema_context(self.schema):
+            daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
+            summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
 
-        initial_daily_count = daily_query.count()
-        initial_summary_count = summary_query.count()
+            initial_daily_count = daily_query.count()
+            initial_summary_count = summary_query.count()
 
         self.assertEqual(initial_daily_count, 0)
         self.assertEqual(initial_summary_count, 0)
 
-        update_summary_tables(self.schema_name, provider, provider_aws_uuid, start_date)
+        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date)
 
-        self.assertNotEqual(daily_query.count(), initial_daily_count)
-        self.assertNotEqual(summary_query.count(), initial_summary_count)
+        with schema_context(self.schema):
+            self.assertNotEqual(daily_query.count(), initial_daily_count)
+            self.assertNotEqual(summary_query.count(), initial_summary_count)
 
     @patch('masu.processor.tasks.update_charge_info')
     def test_update_summary_tables_aws_end_date(self, mock_charge_info):
@@ -682,22 +660,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
         ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
 
-        # ce_start_date = (
-        #     self.aws_accessor._session.query(func.min(ce_table.interval_start))
-        #     .filter(ce_table.interval_start >= start_date)
-        #     .first()[0]
-        # )
-
-        ce_start_date = ce_table.objects\
-            .filter(interval_start >= start_date).first().interval_start
-        ce_start_date = ce_table.objects\
-            .filter(interval_start <= end_date).first().interval_start
-
-        # ce_end_date = (
-        #     self.aws_accessor._session.query(func.max(ce_table.interval_start))
-        #     .filter(ce_table.interval_start <= end_date)
-        #     .first()[0]
-        # )
+        with schema_context(self.schema):
+            ce_start_date = ce_table.objects\
+                .filter(interval_start__gte=start_date)\
+                .aggregate(Min('interval_start'))['interval_start__min']
+            ce_end_date = ce_table.objects\
+                .filter(interval_start__lte=end_date)\
+                .aggregate(Max('interval_start'))['interval_start__max']
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -710,19 +679,25 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
 
         update_summary_tables(
-            self.schema_name, provider, provider_aws_uuid, start_date, end_date
+            self.schema, provider, provider_aws_uuid, start_date, end_date
         )
 
-        result_start_date, result_end_date = self.aws_accessor._session.query(
-            func.min(daily_table.usage_start), func.max(daily_table.usage_end)
-        ).first()
+        with schema_context(self.schema):
+            daily_entry = daily_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_end')
+            )
+            result_start_date = daily_entry['usage_start__min']
+            result_end_date = daily_entry['usage_end__max']
 
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
 
-        result_start_date, result_end_date = self.aws_accessor._session.query(
-            func.min(summary_table.usage_start), func.max(summary_table.usage_end)
-        ).first()
+        with schema_context(self.schema):
+            summary_entry = summary_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_end')
+            )
+            result_start_date = summary_entry['usage_start__min']
+            result_end_date = summary_entry['usage_end__max']
 
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
@@ -752,17 +727,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             months=-1
         )
 
-        daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
+        with schema_context(self.schema):
+            daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
 
-        initial_daily_count = daily_query.count()
+            initial_daily_count = daily_query.count()
 
         self.assertEqual(initial_daily_count, 0)
-        update_summary_tables(self.schema_name, provider, provider_ocp_uuid, start_date)
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date)
 
-        self.assertNotEqual(daily_query.count(), initial_daily_count)
+        with schema_context(self.schema):
+            self.assertNotEqual(daily_query.count(), initial_daily_count)
 
         update_charge_info(
-            schema_name=self.test_schema, provider_uuid=provider_ocp_uuid
+            schema_name=self.schema, provider_uuid=provider_ocp_uuid
         )
 
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
@@ -772,30 +749,32 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         usage_period_qry = self.ocp_accessor.get_usage_period_query_by_provider(
             provider_obj.id
         )
-        cluster_id = usage_period_qry.first().cluster_id
+        with schema_context(self.schema):
+            cluster_id = usage_period_qry.first().cluster_id
 
-        items = self.ocp_accessor._get_db_obj_query(table_name).filter_by(
-            cluster_id=cluster_id
-        )
-        for item in items:
-            self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
-            self.assertIsNotNone(item.pod_charge_cpu_core_hours)
+            items = self.ocp_accessor._get_db_obj_query(table_name).filter(
+                cluster_id=cluster_id
+            )
+            for item in items:
+                self.assertIsNotNone(item.pod_charge_memory_gigabyte_hours)
+                self.assertIsNotNone(item.pod_charge_cpu_core_hours)
 
-        storage_daily_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
-        items = self.ocp_accessor._get_db_obj_query(storage_daily_name).filter_by(
-            cluster_id=cluster_id
-        )
-        for item in items:
-            self.assertIsNotNone(item.volume_request_storage_byte_seconds)
-            self.assertIsNotNone(item.persistentvolumeclaim_usage_byte_seconds)
+            storage_daily_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
-        storage_summary_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter_by(
-            cluster_id=cluster_id
-        )
-        for item in items:
-            self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
-            self.assertIsNotNone(item.persistentvolumeclaim_usage_gigabyte_months)
+            items = self.ocp_accessor._get_db_obj_query(storage_daily_name).filter(
+                cluster_id=cluster_id
+            )
+            for item in items:
+                self.assertIsNotNone(item.volume_request_storage_byte_seconds)
+                self.assertIsNotNone(item.persistentvolumeclaim_usage_byte_seconds)
+
+            storage_summary_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+            items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
+                cluster_id=cluster_id
+            )
+            for item in items:
+                self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
+                self.assertIsNotNone(item.persistentvolumeclaim_usage_gigabyte_months)
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
@@ -825,17 +804,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
         ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
-        ce_start_date = (
-            self.ocp_accessor._session.query(func.min(ce_table.interval_start))
-            .filter(ce_table.interval_start >= start_date)
-            .first()[0]
-        )
+        with schema_context(self.schema):
+            ce_start_date = ce_table.objects\
+                .filter(interval_start__gte=start_date)\
+                .aggregate(Min('interval_start'))['interval_start__min']
 
-        ce_end_date = (
-            self.ocp_accessor._session.query(func.max(ce_table.interval_start))
-            .filter(ce_table.interval_start <= end_date)
-            .first()[0]
-        )
+            ce_end_date = ce_table.objects\
+                .filter(interval_start__lte=end_date)\
+                .aggregate(Max('interval_start'))['interval_start__max']
 
         # The summary tables will only include dates where there is data
         expected_start_date = max(start_date, ce_start_date)
@@ -848,11 +824,14 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         )
 
         update_summary_tables(
-            self.schema_name, provider, provider_ocp_uuid, start_date, end_date
+            self.schema, provider, provider_ocp_uuid, start_date, end_date
         )
-        result_start_date, result_end_date = self.ocp_accessor._session.query(
-            func.min(daily_table.usage_start), func.max(daily_table.usage_end)
-        ).first()
+        with schema_context(self.schema):
+            daily_entry = daily_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_end')
+            )
+            result_start_date = daily_entry['usage_start__min']
+            result_end_date = daily_entry['usage_end__max']
 
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
@@ -860,7 +839,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     def test_update_charge_info_aws(self):
         """Test that update_charge_info is not called for AWS."""
         update_charge_info(
-            schema_name=self.test_schema, provider_uuid=self.aws_test_provider_uuid
+            schema_name=self.schema, provider_uuid=self.aws_test_provider_uuid
         )
         # FIXME: no asserts on test
 

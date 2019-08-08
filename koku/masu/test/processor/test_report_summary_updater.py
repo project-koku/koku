@@ -47,7 +47,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        cls.schema = 'acct10001'
         today = DateAccessor().today_with_timezone('UTC')
         cls.today = today.strftime('%Y-%m-%d')
         cls.tomorrow = (today + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
@@ -175,7 +174,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'num_processed_files': 2,
-            'provider_id': 2,
+            'provider_id': self.ocp_provider.id,
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
@@ -200,7 +199,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'num_processed_files': 1,
-            'provider_id': 2,
+            'provider_id': self.ocp_provider.id,
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
