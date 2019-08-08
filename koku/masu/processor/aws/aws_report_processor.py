@@ -148,7 +148,6 @@ class AWSReportProcessor(ReportProcessorBase):
 
                 if is_finalized_data:
                     report_db.mark_bill_as_finalized(bill_id)
-                    report_db.commit()
                 report_db.vacuum_table(AWS_CUR_TABLE_MAP['line_item'])
 
         LOG.info('Completed report processing for file: %s and schema: %s',

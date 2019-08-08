@@ -151,7 +151,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(update_sql)
 
-            row_count = self._cursor.rowcount
+            row_count = cursor.rowcount
             if row_count > 0:
                 is_finalized_data = True
 
@@ -318,11 +318,9 @@ class ReportDBAccessorBase(KokuDBAccess):
         """
         table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
-        set_data = {key: value for key, value in data.items()
-                    if key in set_columns}
-        formatted_set = ', '.join(
-            "{} = '{}'".format(key, str(value)) for key, value in set_data.items()
-        )
+
+        set_clause = ','.join([f'{column} = excluded.{column}'
+                               for column in set_columns])
 
         columns_formatted = ', '.join(str(value) for value in data.keys())
         values = list(data.values())
@@ -332,7 +330,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         insert_sql = f"""
         INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES ({val_str})
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
-         {formatted_set}
+         {set_clause}
         """
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
