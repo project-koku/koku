@@ -151,7 +151,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.db.set_schema(self.schema)
             cursor.execute(update_sql)
 
-            row_count = self._cursor.rowcount
+            row_count = cursor.rowcount
             if row_count > 0:
                 is_finalized_data = True
 
