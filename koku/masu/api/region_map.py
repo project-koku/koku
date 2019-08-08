@@ -28,7 +28,6 @@ from rest_framework.settings import api_settings
 
 from masu.util.aws.region_map import update_region_mapping
 
-# @application_route('/regionmap/', API_V1_ROUTES, methods=('GET',))
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

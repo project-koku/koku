@@ -29,7 +29,7 @@ URL = 'https://docs.aws.amazon.com/general/latest/gr/rande.html'
 
 def update_region_mapping():
     """Update the RegionMapping table with new data."""
-    from sqlalchemy.exc import IntegrityError
+    from django.db import IntegrityError
     from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
     data = json.loads(parse_page())

@@ -38,7 +38,6 @@ from masu.api import API_VERSION
 from masu.config import Config
 from masu.database.engine import DB_ENGINE
 from masu.external.date_accessor import DateAccessor
-from masu.util.blueprint import application_route
 
 from koku.celery import celery as celery_app
 

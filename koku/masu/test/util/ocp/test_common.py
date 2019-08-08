@@ -31,10 +31,10 @@ from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tests.database.helpers import ReportObjectCreator
+from masu.test.database.helpers import ReportObjectCreator
 from masu.exceptions import MasuConfigurationError, MasuProviderError
 
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class OCPUtilTests(MasuTestCase):
@@ -45,7 +45,7 @@ class OCPUtilTests(MasuTestCase):
         self.common_accessor = ReportingCommonDBAccessor()
         self.column_map = self.common_accessor.column_map
         self.accessor = OCPReportDBAccessor(
-            schema=self.test_schema, column_map=self.column_map
+            schema=self.schema, column_map=self.column_map
         )
         self.provider_accessor = ProviderDBAccessor(
             provider_uuid=self.ocp_test_provider_uuid
@@ -63,18 +63,6 @@ class OCPUtilTests(MasuTestCase):
         )
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
-
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        self.accessor._session.rollback()
-        for table_name in self.all_tables:
-            tables = self.accessor._get_db_obj_query(table_name).all()
-            for table in tables:
-                self.accessor._session.delete(table)
-        self.accessor.commit()
-        self.accessor.close_session()
-        self.provider_accessor.close_session()
-        self.common_accessor.close_session()
 
     def test_get_cluster_id_from_provider(self):
         """Test that the cluster ID is returned from OCP provider."""

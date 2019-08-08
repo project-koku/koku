@@ -31,7 +31,7 @@ from masu.external import (
 )
 import masu.util.common as common_utils
 
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class CommonUtilTests(MasuTestCase):

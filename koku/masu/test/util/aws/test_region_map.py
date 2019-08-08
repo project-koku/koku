@@ -46,6 +46,7 @@ class RegionMapTests(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         with open(TEST_HTML) as page:
             cls.test_data = page.read()
 

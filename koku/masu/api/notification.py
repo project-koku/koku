@@ -31,11 +31,9 @@ from masu.external.notification_handler import (NotificationHandler,
                                                 NotificationHandlerError,
                                                 NotificationHandlerFilter)
 from masu.processor.orchestrator import Orchestrator
-from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-# @application_route('/notification/', API_V1_ROUTES, methods=('POST',))
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

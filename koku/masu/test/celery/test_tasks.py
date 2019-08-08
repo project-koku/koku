@@ -1,7 +1,7 @@
 from datetime import datetime
 from unittest.mock import Mock, patch
 from masu.celery.tasks import check_report_updates, remove_expired_data
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class TestCeleryTasks(MasuTestCase):
