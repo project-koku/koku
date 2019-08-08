@@ -53,13 +53,15 @@ class KokuDBAccess:
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close session."""
+        connection = get_connection()
         with schema_context(self.schema):
             if exception_type:
                 transaction.savepoint_rollback(self._savepoint)
             else:
                 transaction.savepoint_commit(self._savepoint)
-            transaction.commit()
-        get_connection().set_schema_to_public()
+            if not connection.in_atomic_block:
+                transaction.commit()
+        connection.set_schema_to_public()
 
     # pylint: disable=no-self-use
     def close_session(self):
