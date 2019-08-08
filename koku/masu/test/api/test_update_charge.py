@@ -19,11 +19,13 @@
 
 from unittest.mock import patch
 from urllib.parse import urlencode
+from django.test import TestCase
+from django.urls import reverse
 
 from masu.test import MasuTestCase
 
 
-class UpdateChargeTest(MasuTestCase):
+class UpdateChargeTest(TestCase, MasuTestCase):
     """Test Cases for the update_charge endpoint."""
 
     @patch('masu.api.update_charge.update_charge_info')
@@ -33,15 +35,12 @@ class UpdateChargeTest(MasuTestCase):
             'schema': 'acct10001',
             'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e',
         }
-        query_string = urlencode(params)
         expected_key = 'Update Charge Task ID'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/update_charge/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('update_charge'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(params['schema'], params['provider_uuid'])
 
@@ -49,15 +48,13 @@ class UpdateChargeTest(MasuTestCase):
     def test_get_update_charge_schema_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {'provider_uuid': '3c6e687e-1a09-4a05-970c-2ccf44b0952e'}
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'provider_uuid and schema_name are required parameters.'
 
-        response = self.client.get('/api/v1/update_charge/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('update_charge'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -65,14 +62,12 @@ class UpdateChargeTest(MasuTestCase):
     def test_get_update_charge_provider_missing(self, mock_update):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {'schema': 'acct10001'}
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'provider_uuid and schema_name are required parameters.'
 
-        response = self.client.get('/api/v1/update_charge/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('update_charge'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)

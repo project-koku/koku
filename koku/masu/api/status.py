@@ -48,7 +48,6 @@ BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
 CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
 
 
-# @application_route('/status/', API_V1_ROUTES, methods=('GET',))
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

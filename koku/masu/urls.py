@@ -38,4 +38,4 @@ urlpatterns = [
     path('', include('django_prometheus.urls')),
 ]
 
-# urlpatterns += staticfiles_urlpatterns()
+urlpatterns += staticfiles_urlpatterns()

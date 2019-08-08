@@ -38,7 +38,6 @@ LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = 'Report Data Task ID'
 
 
-# @application_route('/report_data/', API_V1_ROUTES, methods=('GET',))
 @api_view(http_method_names=['GET', 'DELETE'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
