@@ -21,7 +21,9 @@ import boto3
 from unittest.mock import patch
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.external.accounts.labels.aws.aws_account_alias import AWSAccountAlias
-from tests import MasuTestCase
+from masu.test import MasuTestCase
+
+from tenant_schemas.utils import schema_context
 
 
 class AWSAccountAliasTest(MasuTestCase):
@@ -29,14 +31,14 @@ class AWSAccountAliasTest(MasuTestCase):
 
     def setUp(self):
         """Setup test case."""
+        super().setUp()
         self.account_id = '111111111111'
 
     def tearDown(self):
         """Teardown test case."""
         db_access = AccountAliasAccessor(self.account_id, 'acct10001')
-        db_access._get_db_obj_query().delete()
-        db_access.get_session().commit()
-        db_access.close_session()
+        with schema_context(self.schema):
+            db_access._get_db_obj_query().delete()
 
     def test_initializer(self):
         """Test AWSAccountAlias initializer."""

@@ -292,16 +292,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.info(stmt)
             return report_dict
 
-        manifest_id = self._process_manifest_db_record(
-            manifest_dict.get('assembly_id'),
-            manifest_dict.get('billing_start'),
-            manifest_dict.get('num_of_files')
-        )
+        if manifest_dict:
+            manifest_id = self._process_manifest_db_record(
+                manifest_dict.get('assembly_id'),
+                manifest_dict.get('billing_start'),
+                manifest_dict.get('num_of_files')
+            )
 
-        report_dict['manifest_id'] = manifest_id
-        report_dict['assembly_id'] = manifest.get('assemblyId')
-        report_dict['compression'] = self.report.get('Compression')
-        report_dict['files'] = manifest.get('reportKeys')
+            report_dict['manifest_id'] = manifest_id
+            report_dict['assembly_id'] = manifest.get('assemblyId')
+            report_dict['compression'] = self.report.get('Compression')
+            report_dict['files'] = manifest.get('reportKeys')
         return report_dict
 
     def get_local_file_for_report(self, report):

@@ -68,6 +68,7 @@ class MasuTestCase(TransactionTestCase):
         cls.aws_provider_resource_name = 'arn:aws:iam::111111111111:role/CostManagement'
         cls.ocp_provider_resource_name = 'my-ocp-cluster-1'
         cls.aws_test_billing_source = 'test-bucket'
+        cls.ocp_test_billing_source = None
         cls.aws_auth_provider_uuid = '7e4ec31b-7ced-4a17-9f7e-f77e9efa8fd6'
 
     @classmethod

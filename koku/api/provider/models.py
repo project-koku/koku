@@ -111,5 +111,5 @@ class ProviderStatus(models.Model):
                                  choices=STATES,
                                  default=0)
     last_message = models.CharField(max_length=256, null=False)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField()
     retries = models.IntegerField(null=False, default=0)

@@ -33,7 +33,7 @@ from masu.processor.orchestrator import Orchestrator
 LOG = logging.getLogger(__name__)
 
 
-@api_view(http_method_names=['GET'])
+@api_view(http_method_names=['GET', 'DELETE'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def expired_data(request):

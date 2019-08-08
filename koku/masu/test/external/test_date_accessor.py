@@ -24,7 +24,7 @@ from faker import Faker
 
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor, DateAccessorError
-from masu.tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class DateAccessorTest(MasuTestCase):

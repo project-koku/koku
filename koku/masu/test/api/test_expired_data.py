@@ -19,12 +19,14 @@
 
 from unittest.mock import patch
 
+from django.test import TestCase
+
 from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 
 
-class ExpiredDataTest(MasuTestCase):
+class ExpiredDataTest(MasuTestCase, TestCase):
     """Test Cases for the expired_data endpoint."""
 
     @patch.object(Orchestrator, 'remove_expired_report_data')
@@ -39,10 +41,9 @@ class ExpiredDataTest(MasuTestCase):
         expected_key = 'Async jobs for expired data removal (simulated)'
         mock_orchestrator.return_value = mock_response
         response = self.client.get('/api/v1/expired_data/')
-        body = response.json
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))
 
@@ -60,9 +61,8 @@ class ExpiredDataTest(MasuTestCase):
         mock_orchestrator.return_value = mock_response
 
         response = self.client.delete('/api/v1/expired_data/')
-        body = response.json
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertIn(str(mock_response), body.get(expected_key))

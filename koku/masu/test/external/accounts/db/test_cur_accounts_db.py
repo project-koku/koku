@@ -19,14 +19,11 @@
 
 from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class CURAccountsDBTest(MasuTestCase):
     """Test Cases for the CURAccountsDB object."""
-
-    def setUp(self):
-        pass
 
     def test_get_accounts_from_source(self):
         """Test to get all accounts"""
