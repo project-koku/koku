@@ -33,9 +33,7 @@ from os import path
 from dateutil import parser
 
 from masu.config import Config
-from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase

@@ -24,17 +24,22 @@ import json
 import logging
 from os import listdir, path
 
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import clear_temp_directory
-from tenant_schemas.utils import schema_context
-from reporting.provider.aws.models import AWSCostEntryBill, AWSCostEntry, AWSCostEntryProduct, AWSCostEntryPricing, AWSCostEntryReservation, AWSCostEntryLineItem
+from reporting.provider.aws.models import (AWSCostEntryBill,
+                                           AWSCostEntry,
+                                           AWSCostEntryProduct,
+                                           AWSCostEntryPricing,
+                                           AWSCostEntryReservation,
+                                           AWSCostEntryLineItem)
 
 LOG = logging.getLogger(__name__)
 

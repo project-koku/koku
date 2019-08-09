@@ -114,8 +114,6 @@ def get_report_files(customer_name,
     except ReportProcessorError as processing_error:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(processing_error))
-    except Exception as error:
-        LOG.error(str(error))
 
     return reports_to_summarize
 

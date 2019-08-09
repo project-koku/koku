@@ -18,9 +18,10 @@
 
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -78,52 +79,52 @@ class OCPReportDBCleaner():
                     if not simulate:
                         qty = accessor.get_item_query_report_period_id(report_period_id).delete()
                         LOG.info('Removing %s usage period line items for usage period id %s',
-                                qty, report_period_id)
+                                 qty, report_period_id)
 
                         qty = accessor.get_daily_usage_query_for_clusterid(cluster_id).delete()
                         LOG.info('Removing %s usage daily items for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                         qty = accessor.get_summary_usage_query_for_clusterid(cluster_id).delete()
                         LOG.info('Removing %s usage summary items for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                         qty = accessor.get_cost_summary_for_clusterid(cluster_id).delete()
                         LOG.info('Removing %s cost summary items for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                         qty = accessor.get_storage_item_query_report_period_id(report_period_id).\
                             delete()
                         LOG.info('Removing %s storage line items for usage period id %s',
-                                qty, report_period_id)
+                                 qty, report_period_id)
 
                         qty = accessor.get_daily_storage_item_query_cluster_id(cluster_id).\
                             delete()
                         LOG.info('Removing %s storage dailyitems for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                         qty = accessor.get_storage_summary_query_cluster_id(cluster_id).\
                             delete()
                         LOG.info('Removing %s storage summary for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                         qty = accessor.get_report_query_report_period_id(report_period_id).delete()
                         LOG.info('Removing %s usage period items for usage period id %s',
-                                qty, report_period_id)
+                                 qty, report_period_id)
 
                         qty = accessor.get_ocp_aws_summary_query_for_cluster_id(cluster_id).delete()
                         LOG.info('Removing %s OCP-on-AWS summary items for cluster id %s',
-                                qty, cluster_id)
-
+                                 qty, cluster_id)
+                        # pylint: disable=line-too-long
                         qty = accessor.get_ocp_aws_project_summary_query_for_cluster_id(cluster_id).\
                             delete()
                         LOG.info('Removing %s OCP-on-AWS project summary items for cluster id %s',
-                                qty, cluster_id)
+                                 qty, cluster_id)
 
                     LOG.info('Report data removed for usage period ID: %s with interval start: %s',
-                            report_period_id, removed_usage_start_period)
+                             report_period_id, removed_usage_start_period)
                     removed_items.append({'usage_period_id': report_period_id,
-                                        'interval_start': str(removed_usage_start_period)})
+                                          'interval_start': str(removed_usage_start_period)})
 
                 if not simulate:
                     usage_period_objs.delete()

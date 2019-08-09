@@ -19,14 +19,14 @@
 
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
-from masu.util.ocp.common import get_cluster_id_from_provider
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -138,10 +138,10 @@ class OCPCloudReportSummaryUpdater:
             # OpenShift on AWS
             with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 LOG.info('Updating OpenShift on AWS summary table for '
-                            '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
-                            '\n\tCluster ID: %s, AWS Bill IDs: %s',
-                            self._schema_name, self._provider.uuid,
-                            start_date, end_date, cluster_id, str(aws_bill_ids))
+                         '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s'
+                         '\n\tCluster ID: %s, AWS Bill IDs: %s',
+                         self._schema_name, self._provider.uuid,
+                         start_date, end_date, cluster_id, str(aws_bill_ids))
                 accessor.populate_ocp_on_aws_cost_daily_summary(
                     start_date,
                     end_date,
@@ -155,6 +155,6 @@ class OCPCloudReportSummaryUpdater:
         # cluster is tied to a cloud provider
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
             LOG.info('Updating OpenShift on OCP cost summary table for'
-                    '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
-                    self._schema_name, self._provider.uuid, start_date, end_date)
+                     '\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s',
+                     self._schema_name, self._provider.uuid, start_date, end_date)
             accessor.populate_cost_summary_table(cluster_id, start_date, end_date)

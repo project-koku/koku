@@ -18,9 +18,10 @@
 
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -77,32 +78,34 @@ class AWSReportDBCleaner():
                     if not simulate:
                         del_count = accessor.get_ocp_aws_summary_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s OCP-on-AWS summary items for bill id %s',
-                                del_count, bill_id)
+                                 del_count, bill_id)
 
                         del_count = accessor.get_ocp_aws_project_summary_query_for_billid(bill_id).\
                             delete()
                         LOG.info('Removing %s OCP-on-AWS project summary items for bill id %s',
-                                del_count, bill_id)
+                                 del_count, bill_id)
 
                         del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
-                        LOG.info('Removing %s cost entry line items for bill id %s', del_count, bill_id)
+                        LOG.info('Removing %s cost entry line items for bill id %s',
+                                 del_count, bill_id)
 
                         del_count = accessor.get_daily_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s cost entry daily items for bill id %s',
-                                del_count, bill_id)
+                                 del_count, bill_id)
 
                         del_count = accessor.get_summary_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s cost entry summary items for bill id %s',
-                                del_count, bill_id)
+                                 del_count, bill_id)
 
                         del_count = accessor.get_cost_entry_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s cost entry items for bill id %s',
-                                del_count, bill_id)
+                                 del_count, bill_id)
 
                     LOG.info('Report data removed for Account Payer ID: %s with billing period: %s',
-                            removed_payer_account_id, removed_billing_period_start)
+                             removed_payer_account_id, removed_billing_period_start)
                     removed_items.append({'account_payer_id': removed_payer_account_id,
-                                        'billing_period_start': str(removed_billing_period_start)})
+                                          'billing_period_start':
+                                              str(removed_billing_period_start)})
 
                 if not simulate:
                     bill_objects.delete()

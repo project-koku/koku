@@ -18,11 +18,12 @@
 import calendar
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -67,8 +68,8 @@ class AWSReportSummaryUpdater:
             bill_ids = [str(bill.id) for bill in bills]
 
         LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
-                '\n\tProvider: %s \n\tDates: %s - %s',
-                self._schema_name, self._provider.uuid, start_date, end_date)
+                 '\n\tProvider: %s \n\tDates: %s - %s',
+                 self._schema_name, self._provider.uuid, start_date, end_date)
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
 
@@ -100,8 +101,8 @@ class AWSReportSummaryUpdater:
             # Need these bills on the session to update dates after processing
             bills = accessor.bills_for_provider_id(self._provider.id, start_date)
             LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
-                    '\n\tProvider: %s \n\tDates: %s - %s',
-                    self._schema_name, self._provider.uuid, start_date, end_date)
+                     '\n\tProvider: %s \n\tDates: %s - %s',
+                     self._schema_name, self._provider.uuid, start_date, end_date)
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
