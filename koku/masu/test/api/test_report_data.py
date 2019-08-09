@@ -24,7 +24,6 @@ from urllib.parse import urlencode
 from masu.test import MasuTestCase
 from django.test import TestCase
 from django.urls import reverse
-
 from django.test.utils import override_settings
 
 @override_settings(ROOT_URLCONF='masu.urls')

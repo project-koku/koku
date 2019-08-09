@@ -19,9 +19,10 @@
 import json
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from django.test import TestCase
 
-
+@override_settings(ROOT_URLCONF='masu.urls')
 class NotificationAPIViewTest(TestCase):
     """Test Cases for the notification API."""
 

@@ -19,10 +19,10 @@
 from unittest.mock import patch
 
 from django.test import TestCase
-
+from django.test.utils import override_settings
 from masu.test.util.aws.test_region_map import MockResponse, TEST_HTML
 
-
+@override_settings(ROOT_URLCONF='masu.urls')
 class RegionMapAPIViewTest(TestCase):
     """Test Cases for the Region Map API."""
 

@@ -20,12 +20,14 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 
 
+@override_settings(ROOT_URLCONF='masu.urls')
 class ExpiredDataTest(MasuTestCase, TestCase):
     """Test Cases for the expired_data endpoint."""
 

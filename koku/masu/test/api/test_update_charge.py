@@ -21,10 +21,11 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 from django.test import TestCase
 from django.urls import reverse
+from django.test.utils import override_settings
 
 from masu.test import MasuTestCase
 
-
+@override_settings(ROOT_URLCONF='masu.urls')
 class UpdateChargeTest(TestCase, MasuTestCase):
     """Test Cases for the update_charge endpoint."""
 
