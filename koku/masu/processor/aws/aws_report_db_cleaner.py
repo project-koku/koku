@@ -109,5 +109,5 @@ class AWSReportDBCleaner():
 
                 if not simulate:
                     bill_objects.delete()
-                    accessor.commit()
+
         return removed_items

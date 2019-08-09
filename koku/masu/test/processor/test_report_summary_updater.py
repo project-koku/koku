@@ -178,18 +178,11 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
-            accessor.commit()
-            manifest_id = manifest.id
+        manifest_id = manifest.id
         updater = ReportSummaryUpdater(
             self.schema, self.ocp_test_provider_uuid, manifest_id
         )
         self.assertTrue(updater.manifest_is_ready())
-
-        with ReportManifestDBAccessor() as accessor:
-            manifests = accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                accessor.delete(manifest)
-            accessor.commit()
 
     def test_manifest_is_ready_is_not_ready(self):
         """Test that False is returned when a manifest is not ready to process."""
@@ -203,17 +196,10 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
-            accessor.commit()
-            manifest_id = manifest.id
+        manifest_id = manifest.id
         updater = ReportSummaryUpdater(
             self.schema, self.ocp_test_provider_uuid, manifest_id
         )
 
         # manifest_is_ready is now unconditionally returning True, so summary is expected.
         self.assertTrue(updater.manifest_is_ready())
-
-        with ReportManifestDBAccessor() as accessor:
-            manifests = accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                accessor.delete(manifest)
-            accessor.commit()

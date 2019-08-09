@@ -256,7 +256,6 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc.process.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
-        mock_stats_acc.commit.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
         shutil.rmtree(report_dir)
 
@@ -283,7 +282,6 @@ class ProcessReportFileTests(MasuTestCase):
 
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_not_called()
-        mock_stats_acc.commit.assert_called()
         shutil.rmtree(report_dir)
 
     @patch('masu.processor._tasks.process.ReportProcessor')
@@ -314,7 +312,6 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc.process.assert_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
-        mock_stats_acc.commit.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_not_called()
         shutil.rmtree(report_dir)
 
