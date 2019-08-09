@@ -40,7 +40,8 @@ def update_region_mapping():
             try:
                 accessor.add('region_mapping', {'region': key, 'region_name': val})
             except IntegrityError:
-                LOG.warning(f'Duplicate entry in DB: "{key}" - "{val}"')
+                warn_msg = f'Duplicate entry in DB: "{key}" - "{val}"'
+                LOG.warning(warn_msg)
         accessor.commit()
     return True
 
@@ -66,13 +67,13 @@ def get_region_map(data):
 
 def _filter_region_string(string):
     """Transform strings for edge cases."""
-    BLACKLIST = ['--Global--', 'n/a']
-    STRIP_CHARS = '* '
+    blacklist = ['--Global--', 'n/a']
+    strip_chars = '* '
 
-    if not string or string in BLACKLIST:
+    if not string or string in blacklist:
         return None
 
-    return string.strip(STRIP_CHARS)
+    return string.strip(strip_chars)
 
 
 def map_table(table):
@@ -106,10 +107,10 @@ def parse_page():
     soup = bs4.BeautifulSoup(resp.text, 'html.parser')
 
     data = {}
-    for el in soup.find_all('h2', id=re.compile(r'_region')):
-        service_name = el.text
+    for element in soup.find_all('h2', id=re.compile(r'_region')):
+        service_name = element.text
 
-        for sib in el.next_siblings:
+        for sib in element.next_siblings:
             # limit traversal, don't overlap the next sibling
             if isinstance(sib, bs4.element.Tag) and sib.name == 'h2':
                 break
@@ -124,10 +125,6 @@ def parse_page():
                     re.search('single endpoint', str(sib)):
                 data[service_name] = [{'Endpoint': sib.string.strip()}]
 
-    LOG.debug(f'Parsed AWS Endpoints page: {data}')
+    dbg_msg = f'Parsed AWS Endpoints page: {data}'
+    LOG.debug(dbg_msg)
     return json.dumps(data)
-
-
-if '__main__' in __name__:
-    """Runnable as a script."""
-    print(parse_page())
