@@ -147,9 +147,12 @@ class ReportDBAccessorBase(KokuDBAccess):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(update_sql)
+            cursor.db.commit()
 
             row_count = cursor.rowcount
             if row_count > 0:
@@ -166,6 +169,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
             delete_sql = f'DELETE FROM {temp_table_name}'
             cursor.execute(delete_sql)
+            cursor.db.commit()
 
         return is_finalized_data
 
@@ -192,6 +196,8 @@ class ReportDBAccessorBase(KokuDBAccess):
             null (str): How null is represented in the CSV. Default: ''
 
         """
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.copy_from(
@@ -201,6 +207,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 columns=columns,
                 null=null
             )
+            cursor.db.commit()
 
     def close_connections(self, conn=None):
         """Close the low level database connection.
@@ -288,9 +295,12 @@ class ReportDBAccessorBase(KokuDBAccess):
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
+            cursor.db.commit()
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
@@ -333,9 +343,12 @@ class ReportDBAccessorBase(KokuDBAccess):
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
          {set_clause}
         """
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(insert_sql, values)
+            cursor.db.commit()
 
         data = {key: value for key, value in data.items()
                 if key in conflict_columns}
