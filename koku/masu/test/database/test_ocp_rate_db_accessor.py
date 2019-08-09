@@ -28,11 +28,6 @@ from masu.test.database.helpers import ReportObjectCreator
 class OCPRateDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPRateDBAccessor object."""
 
-    def run(self, result=None):
-        """Run the tests with the correct schema context."""
-        with schema_context(self.schema):
-            super().run(result)
-
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
@@ -93,7 +88,6 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
-        self.assertIsNotNone(self.accessor._cursor)
 
     def test_get_rates(self):
         """Test get rates."""
