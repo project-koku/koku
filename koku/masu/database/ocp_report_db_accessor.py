@@ -22,11 +22,15 @@ import uuid
 from dateutil.parser import parse
 from django.db import connection
 
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport, OCPUsageLineItemDailySummary, OCPStorageLineItemDailySummary
-from tenant_schemas.utils import schema_context
+from reporting.provider.ocp.models import (OCPUsageReportPeriod,
+                                           OCPUsageReport,
+                                           OCPUsageLineItemDailySummary,
+                                           OCPStorageLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
 
@@ -218,7 +222,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Get all usage period objects."""
         periods = []
         with schema_context(self.schema):
-            periods = OCPUsageReportPeriod.objects.values('id', 'cluster_id', 'report_period_start', 'provider_id')
+            periods = OCPUsageReportPeriod.objects.values('id', 'cluster_id',
+                                                          'report_period_start', 'provider_id')
             return_value = {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
                             for p in periods}
             return return_value
@@ -228,7 +233,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             reports = OCPUsageReport.objects.all()
             return {(entry.report_period_id,
-                    entry.interval_start.strftime(self._datetime_format)): entry.id
+                     entry.interval_start.strftime(self._datetime_format)): entry.id
                     for entry in reports}
 
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
@@ -276,6 +281,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         table = OCPStorageLineItemDailySummary
         with schema_context(self.schema):
             reports = self._get_reports(table, cluster_id)
+            # pylint: disable=line-too-long
             return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, cluster_id=None):

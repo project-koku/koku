@@ -119,7 +119,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def merge_temp_table(self, table_name, temp_table_name, columns,
                          condition_column, conflict_columns):
         """INSERT temp table rows into the primary table specified.
@@ -255,8 +255,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         with schema_context(self.schema):
             model_object = table(**data)
             model_object.save()
-            return  model_object
-
+            return model_object
 
     def insert_on_conflict_do_nothing(self,
                                       table,
@@ -281,7 +280,9 @@ class ReportDBAccessorBase(KokuDBAccess):
         columns_formatted = ', '.join(str(value) for value in data.keys())
         values = list(data.values())
         val_str = ','.join(['%s' for _ in data])
-        insert_sql = f"""INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES({val_str})"""
+        insert_sql = f"""
+            INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES({val_str})
+            """
         if conflict_columns:
             conflict_columns_formatted = ', '.join(conflict_columns)
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'

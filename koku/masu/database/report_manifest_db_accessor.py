@@ -15,10 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from tenant_schemas.utils import schema_context
+
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
-from tenant_schemas.utils import schema_context
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -74,6 +75,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
         return super().add(**kwargs)
 
+    # pylint: disable=no-self-use
     def get_last_report_completed_datetime(self, manifest_id):
         """Get the most recent report processing completion time for a manifest."""
         result = CostUsageReportStatus.objects.\
