@@ -136,10 +136,7 @@ class KokuDBAccess:
         """
         with schema_context(self.schema):
             new_entry = self._table.objects.create(**kwargs)
-            if use_savepoint:
-                self.savepoint(new_entry.save)
-            else:
-                new_entry.save()
+            new_entry.save()
             return new_entry
 
     def commit(self):
@@ -169,10 +166,7 @@ class KokuDBAccess:
         else:
             deleteme = self._obj
         with schema_context(self.schema):
-            if use_savepoint:
-                self.savepoint(deleteme.delete)
-            else:
-                deleteme.delete()
+            deleteme.delete()
 
     def savepoint(self, func, *args, **kwargs):
         """Wrap a db access function in a savepoint block.
