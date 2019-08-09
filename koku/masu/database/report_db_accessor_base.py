@@ -22,7 +22,7 @@ from decimal import Decimal, InvalidOperation
 
 import django.apps
 
-from django.db import connection
+from django.db import connection, transaction
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -412,8 +412,12 @@ class ReportDBAccessorBase(KokuDBAccess):
                      table, start, end)
         else:
             LOG.info('Updating %s', table)
+
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             cursor.execute(sql)
+            cursor.db.commit()
             self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)
