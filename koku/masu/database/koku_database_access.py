@@ -19,8 +19,8 @@
 import logging
 
 from django.db import transaction
-from django.db.transaction import Atomic, commit, get_connection, savepoint as django_savepoint, savepoint_commit, savepoint_rollback
-
+from django.db.transaction import get_connection, savepoint_commit, savepoint_rollback
+from django.db.transaction import savepoint as django_savepoint
 from django.db import IntegrityError
 from tenant_schemas.utils import schema_context
 
@@ -173,7 +173,6 @@ class KokuDBAccess:
                 self.savepoint(deleteme.delete)
             else:
                 deleteme.delete()
-
 
     def savepoint(self, func, *args, **kwargs):
         """Wrap a db access function in a savepoint block.

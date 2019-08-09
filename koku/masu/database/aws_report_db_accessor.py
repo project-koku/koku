@@ -21,12 +21,20 @@ import uuid
 
 from dateutil.parser import parse
 
+from tenant_schemas.utils import schema_context
+
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.aws.models import AWSCostEntryBill, AWSCostEntry, AWSCostEntryProduct, AWSCostEntryPricing, AWSCostEntryReservation, AWSCostEntryLineItem, AWSCostEntryLineItemDaily, AWSCostEntryLineItemDailySummary
-from tenant_schemas.utils import schema_context
+from reporting.provider.aws.models import (AWSCostEntryBill,
+                                           AWSCostEntry,
+                                           AWSCostEntryProduct,
+                                           AWSCostEntryPricing,
+                                           AWSCostEntryReservation,
+                                           AWSCostEntryLineItem,
+                                           AWSCostEntryLineItemDaily,
+                                           AWSCostEntryLineItemDailySummary)
 
 LOG = logging.getLogger(__name__)
 
@@ -55,7 +63,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             columns = ['id', 'bill_type', 'payer_account_id', 'billing_period_start', 'provider_id']
             bills = self._get_db_obj_query(table_name).values(*columns)
             return {(bill['bill_type'], bill['payer_account_id'],
-                    bill['billing_period_start'], bill['provider_id']): bill['id']
+                     bill['billing_period_start'], bill['provider_id']): bill['id']
                     for bill in bills}
 
     def get_cost_entry_bills_by_date(self, start_date):

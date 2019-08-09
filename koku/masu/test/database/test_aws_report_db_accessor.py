@@ -555,11 +555,6 @@ class ReportDBAccessorTest(MasuTestCase):
 
         for key, value in cleaned_data.items():
             column_type = column_types[key]
-            if column_types[key] == 'DateTimeField':
-                #TODO; datetime is being returned in data now?
-                value = self.creator.stringify_datetime(value)
-                #value = self.creator.datetimeify_string(value)
-
             type = map_django_field_type_to_python_type(column_type)
             self.assertIsInstance(value, type)
 

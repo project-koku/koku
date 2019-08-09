@@ -20,6 +20,7 @@ from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.util.aws.common import (get_account_alias_from_role_arn,
                                   get_account_names_by_organization)
 
+
 # pylint: disable=too-few-public-methods
 class AWSAccountAlias():
     """AWS account alias resolver."""

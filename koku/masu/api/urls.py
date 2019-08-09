@@ -18,8 +18,6 @@ from django.conf.urls import url
 
 from masu.api.views import (download_report,
                             expired_data,
-                            post_notification,
-                            update_region_map,
                             report_data,
                             get_status,
                             update_charge)

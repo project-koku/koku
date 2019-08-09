@@ -17,7 +17,6 @@
 
 """Configuration loader for Masu application."""
 
-import datetime
 import logging
 import os
 

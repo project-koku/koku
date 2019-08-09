@@ -71,6 +71,7 @@ def ingest_method_for_provider(provider):
     }
     return ingest_map.get(provider)
 
+
 def clear_temp_directory(report_path, current_assembly_id, prefix=None):
     """Remove temporary files from masu temp directory."""
     files = listdir(report_path)
