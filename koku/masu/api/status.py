@@ -25,18 +25,15 @@ import subprocess
 import sys
 
 import psycopg2
-from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
 from rest_framework.permissions import AllowAny
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from masu.api import API_VERSION
 from masu.config import Config
-from masu.database.engine import DB_ENGINE
 from masu.external.date_accessor import DateAccessor
 
 from koku.celery import celery as celery_app
@@ -57,7 +54,6 @@ def get_status(request):
 
     app_status = ApplicationStatus()
     response = {
-        # 'connection_pool': DB_ENGINE.pool.status(),
         'api_version': app_status.api_version,
         'celery_status': app_status.celery_status,
         'commit': app_status.commit,
