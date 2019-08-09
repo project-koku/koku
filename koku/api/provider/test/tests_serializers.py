@@ -131,6 +131,28 @@ class ProviderSerializerTest(IamTestCase):
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
             ProviderSerializer(data=provider, context=self.request_context)
 
+    def test_create_provider_with_credentials_and_data_source(self):
+        """Test creating a provider with data_source field instead of bucket."""
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'credentials': {'one': 'two', 'three': 'four'}
+                    },
+                    'billing_source': {
+                        'data_source': {'foo': 'bar'}
+                    }}
+        instance = None
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
 
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""

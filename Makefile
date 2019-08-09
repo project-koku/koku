@@ -150,7 +150,7 @@ gen-apidoc:
 	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates cost_models
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
@@ -395,7 +395,7 @@ oc-login-dev:
 
 oc-make-migrations: oc-forward-ports
 	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 	$(MAKE) oc-stop-forwarding-ports
 
 oc-reinit: oc-delete-all oc-create-koku
