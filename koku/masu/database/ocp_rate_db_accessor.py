@@ -55,9 +55,7 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
             cursor.execute(query_sql)
             results = cursor.fetchall()
 
-        #TODO: Check if this is correct
-        #return results[0][0] if len(results) == 1 else None
-        return results[0][0] if results else None
+        return results[0][0] if len(results) == 1 else None
 
     def _make_rate_by_metric_map(self):
         """Convert the rates JSON list to a dict keyed on metric."""

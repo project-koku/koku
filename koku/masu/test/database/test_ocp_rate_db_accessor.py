@@ -73,18 +73,6 @@ class OCPRateDBAccessorTest(MasuTestCase):
         # Reset the rate map in the accessor
         self.accessor.rates = self.accessor._make_rate_by_metric_map()
 
-    def tearDown(self):
-        """Return the database to a pre-test state."""
-        #TODO figure out what's needed here now that we don't have a session
-        pass
-        # self.accessor._session.rollback()
-
-        # for table_name in self.all_tables:
-        #     tables = self.accessor._get_db_obj_query(table_name).all()
-        #     for table in tables:
-        #         self.accessor._session.delete(table)
-        # self.accessor.commit()
-
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
