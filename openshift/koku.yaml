@@ -36,12 +36,16 @@ objects:
       targetPort: 8080
     selector:
       name: ${NAME}
+
 - apiVersion: v1
   kind: ImageStream
   metadata:
     name: ${NAME}
     annotations:
       description: "Keeps track of changes in the application image"
+  spec:
+    lookupPolicy:
+      local: true
 
 - apiVersion: v1
   kind: BuildConfig
@@ -149,14 +153,104 @@ objects:
           name: ${NAME}
         name: ${NAME}
       spec:
-        containers:
-        - name: ${NAME}
+        initContainers:
+        - name: ${NAME}-init
           image: ${NAME}
+          imagePullPolicy: Always
           volumeMounts:
           - name: ssl-cert
             mountPath: /etc/ssl/certs
             readOnly: true
           env:
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: ${NAME}-secret
+                  optional: false
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+          command:
+          - /bin/bash
+          - -c
+          - sleep 30 &&
+            echo "Begin Migration ..." &&
+            scl enable rh-python36 "/opt/app-root/src/koku/manage.py migrate_schemas --noinput" &&
+            echo "Migration Completed" &&
+            sleep 5
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
+        containers:
+        - name: ${NAME}
+          image: ${NAMESPACE}/${NAME}:latest
+          imagePullPolicy: Always
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
+          env:
+            - name: DISABLE_MIGRATE
+              value: "true"
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:

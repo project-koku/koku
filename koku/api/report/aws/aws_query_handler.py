@@ -23,6 +23,7 @@ from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.report.access_utils import update_query_parameters_for_aws
+from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
 
 EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
@@ -50,12 +51,27 @@ class AWSReportQueryHandler(ReportQueryHandler):
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
-        if not kwargs.get('provider'):
-            kwargs['provider'] = 'AWS'
+        provider = 'AWS'
+
+        self._initialize_kwargs(kwargs)
+
         if kwargs.get('access'):
-            query_parameters = update_query_parameters_for_aws(query_parameters, kwargs.get('access'))
-        super().__init__(query_parameters, url_data,
-                         tenant, **kwargs)
+            query_parameters = update_query_parameters_for_aws(query_parameters,
+                                                               kwargs.get('access'))
+
+        # do not override mapper if its already set
+        try:
+            getattr(self, '_mapper')
+        except AttributeError:
+            self._mapper = AWSProviderMap(provider=provider,
+                                          report_type=kwargs.get('report_type'))
+
+        self.group_by_options = self._mapper.provider_map.get('group_by_options')
+        self.query_parameters = query_parameters
+        self.url_data = url_data
+        self._limit = self.get_query_param_data('filter', 'limit')
+
+        super().__init__(query_parameters, tenant, **kwargs)
 
     @property
     def annotations(self):

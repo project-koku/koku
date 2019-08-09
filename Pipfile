@@ -1,18 +1,16 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
-
 
 [packages]
 aiokafka = "==0.5.1"
 django-environ = ">=0.4.0"
 djangorestframework = ">=3.8.0"
 gunicorn = ">=19.7.0"
-boto3 = "==1.9.197"
+boto3 = "==1.9.200"
 whitenoise = ">=3.3.0"
-Django = "==2.2.3"
+Django = "==2.2.4"
 psycopg2-binary = ">=2.7.0"
 psutil = "==5.6.2"
 drf-nested-routers = ">=0.90.0"
@@ -23,7 +21,7 @@ django-cors-headers = "==3.0.2"
 querystring-parser = ">=1.2.3"
 djangorestframework-csv = "==2.1.0"
 pint = "==0.9"
-pytz = "==2019.1"
+pytz = "==2019.2"
 django-prometheus = "==1.0.15"
 prometheus-client = "==0.7.1"
 django-redis = "==4.10.0"
@@ -33,9 +31,7 @@ celery = "~=4.3.0"
 python-dateutil = "*"
 bs4 = "*"
 
-
 [dev-packages]
-
 astroid = "==2.2.5"
 pylint = "==2.3.1"
 sphinx-rtd-theme = ">=0.3.0"
@@ -46,10 +42,9 @@ codecov = ">=2.0.0"
 requests-mock = "==1.6.0"
 faker = ">=0.8.14"
 pylint-django = "==2.0.11"
-pydocstyle = "~=3.0.0"
+pydocstyle = "==4.0.0"
 flake8-docstrings = "*"
-
+pyyaml = "*"
 
 [requires]
-
 python_version = "3.6"

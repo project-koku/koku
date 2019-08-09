@@ -30,6 +30,7 @@ LOG = logging.getLogger(__name__)
 WILDCARD = '*'
 
 
+# pylint: disable=abstract-method, too-many-ancestors
 class TruncMonthString(TruncMonth):
     """Class to handle string formated day truncation."""
 
@@ -39,6 +40,7 @@ class TruncMonthString(TruncMonth):
         return value.strftime('%Y-%m')
 
 
+# pylint: disable=abstract-method, too-many-ancestors
 class TruncDayString(TruncDay):
     """Class to handle string formated day truncation."""
 
@@ -48,24 +50,21 @@ class TruncDayString(TruncDay):
         return value.strftime('%Y-%m-%d')
 
 
-class QueryHandler(object):
+class QueryHandler:
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters, url_data,
+    def __init__(self, query_parameters,
                  tenant, default_ordering, **kwargs):
         """Establish query handler.
 
         Args:
             query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
             default_ordering (String) default ordering of response items
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
-        self.query_parameters = query_parameters
-        self.url_data = url_data
         self.tenant = tenant
         self.default_ordering = default_ordering
         self.kwargs = kwargs

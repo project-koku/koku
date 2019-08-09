@@ -1442,9 +1442,10 @@ class ReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
                                         self.tenant,
                                         **{'accept_type': 'text/csv',
-                                            'report_type': 'costs'})
+                                           'report_type': 'costs'})
         query_output = handler.execute_query()
         data = query_output.get('data')
+
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
@@ -1452,7 +1453,7 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 3)
+        self.assertEqual(len(data[0].get('accounts')), 3)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)

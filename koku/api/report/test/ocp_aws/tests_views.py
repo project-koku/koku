@@ -166,6 +166,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
+
         dates = sorted([item.get('date') for item in data.get('data')])
         self.assertEqual(dates[0], expected_date)
 

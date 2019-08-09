@@ -23,7 +23,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.report.access_utils import update_query_parameters_for_openshift
 from api.report.aws.aws_query_handler import AWSReportQueryHandler
-from api.report.queries import ProviderMap
+from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 
 
 class OCPAWSReportQueryHandler(AWSReportQueryHandler):
@@ -40,18 +40,27 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         provider = 'OCP_AWS'
+        self._initialize_kwargs(kwargs)
         if kwargs.get('access'):
-            query_parameters = update_query_parameters_for_openshift(query_parameters, kwargs.get('access'))
-        super().__init__(query_parameters, url_data, tenant,
-                         provider=provider, **kwargs)
+            query_parameters = update_query_parameters_for_openshift(query_parameters,
+                                                                     kwargs.get('access'))
+
+        self._mapper = OCPAWSProviderMap(provider=provider,
+                                         report_type=kwargs.get('report_type'))
+        self.group_by_options = self._mapper.provider_map.get('group_by_options')
+        self.query_parameters = query_parameters
+        self.url_data = url_data
+        self._limit = self.get_query_param_data('filter', 'limit')
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
         if (group_by and group_by[0] == 'project') or \
                 'project' in self.query_parameters.get('filter', {}).keys():
-            self._report_type = self._report_type + '_by_project'
-            self._mapper = ProviderMap(provider=provider,
-                                       report_type=self._report_type)
+            self._report_type = kwargs.get('report_type') + '_by_project'
+            self._mapper = OCPAWSProviderMap(provider=provider,
+                                             report_type=self._report_type)
+
+        super().__init__(query_parameters, url_data, tenant, **kwargs)
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.

@@ -60,7 +60,7 @@ RUN source scl_source enable rh-python36 ${NODEJS_SCL} && \
     chown -R 1001:0 ${APP_ROOT} && \
     fix-permissions ${APP_ROOT} -P && \
     rpm-file-permissions && \
-    $STI_SCRIPTS_PATH/assemble
+    $STI_SCRIPTS_PATH/assemble || true
 
 USER 1001
 

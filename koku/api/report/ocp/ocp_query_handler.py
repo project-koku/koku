@@ -24,7 +24,8 @@ from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
 from api.report.access_utils import update_query_parameters_for_openshift
-from api.report.queries import ProviderMap, ReportQueryHandler
+from api.report.ocp.provider_map import OCPProviderMap
+from api.report.queries import ReportQueryHandler
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -41,19 +42,28 @@ class OCPReportQueryHandler(ReportQueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
         """
         provider = 'OCP'
-        kwargs['provider'] = provider
+        self._initialize_kwargs(kwargs)
         if kwargs.get('access'):
-            query_parameters = update_query_parameters_for_openshift(query_parameters, kwargs.get('access'))
-        super().__init__(query_parameters, url_data,
-                         tenant, **kwargs)
+            query_parameters = update_query_parameters_for_openshift(query_parameters,
+                                                                     kwargs.get('access'))
+
+        self._mapper = OCPProviderMap(provider=provider,
+                                      report_type=kwargs.get('report_type'))
+        self.group_by_options = self._mapper.provider_map.get('group_by_options')
+        self.query_parameters = query_parameters
+        self.url_data = url_data
+        self._limit = self.get_query_param_data('filter', 'limit')
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
-        if (group_by and 'project' in group_by or 'project' in self.query_parameters.get('filter', {}).keys()) \
-                and self._report_type == 'costs':
-            self._report_type = self._report_type + '_by_project'
-            self._mapper = ProviderMap(provider=provider,
-                                       report_type=self._report_type)
+        if (group_by and 'project' in group_by
+                or 'project' in self.query_parameters.get('filter', {}).keys()) \
+                and kwargs.get('report_type') == 'costs':
+            self._report_type = kwargs.get('report_type') + '_by_project'
+            self._mapper = OCPProviderMap(provider=provider,
+                                          report_type=self._report_type)
+
+        super().__init__(query_parameters, tenant, **kwargs)
 
     @property
     def annotations(self):
