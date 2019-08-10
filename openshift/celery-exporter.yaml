@@ -102,7 +102,7 @@ objects:
           - ${NAME}-celery-exporter
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
       type: ImageChange
 
 parameters:

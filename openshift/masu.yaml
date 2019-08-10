@@ -6,18 +6,18 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: masu-flask-template
+  name: masu-template
   annotations:
     openshift.io/display-name: "Masu"
     description: "App and API for data ingestion engine for Koku"
-    tags: "python,flask"
+    tags: "python,django"
     iconClass: "icon-python"
     openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
     openshift.io/provider-display-name: "Red Hat, Inc."
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
-  template: koku-masu-flask
+  template: koku-masu
 objects:
 - kind: Service
   apiVersion: v1
@@ -28,7 +28,7 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '9100'
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
   spec:
     ports:
     - name: 8080-tcp
@@ -40,7 +40,7 @@ objects:
       protocol: TCP
       targetPort: 9100
     selector:
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
 - kind: BuildConfig
   apiVersion: v1
   metadata:
@@ -48,15 +48,15 @@ objects:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
     labels:
-      name: ${NAME}-masu-flask
-    name: ${NAME}-masu-flask
+      name: ${NAME}-masu
+    name: ${NAME}-masu
   spec:
     failedBuildsHistoryLimit: 1
     successfulBuildsHistoryLimit: 2
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}-masu-flask:latest
+        name: ${NAME}-masu:latest
     resources:
       requests:
         memory: ${BUILD_MEMORY_REQUEST}
@@ -71,6 +71,10 @@ objects:
     strategy:
       sourceStrategy:
         env:
+          - name: DISABLE_MIGRATE
+            value: True
+          - name: MASU
+            value: True
           - name: PIP_INDEX_URL
             value: ${PIP_INDEX_URL}
           - name: PIPENV_PYPI_MIRROR
@@ -112,11 +116,11 @@ objects:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
   spec:
     replicas: 1
     selector:
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
     resources:
       requests:
         cpu: ${CPU_REQUEST}
@@ -130,12 +134,12 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          name: ${NAME}-masu-flask
-        name: ${NAME}-masu-flask
+          name: ${NAME}-masu
+        name: ${NAME}-masu
       spec:
         containers:
-        - name: ${NAME}-masu-flask
-          image: ${NAME}-masu-flask
+        - name: ${NAME}-masu
+          image: ${NAME}-masu
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -148,12 +152,6 @@ objects:
                 secretKeyRef:
                   key: database-password
                   name: ${NAME}-db
-                  optional: false
-            - name: MASU_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: masu-secret-key
-                  name: ${NAME}-masu
                   optional: false
             - name: DATABASE_ENGINE
               valueFrom:
@@ -324,26 +322,16 @@ objects:
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-masu-flask
+          - ${NAME}-masu
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
       type: ImageChange
-
-- kind: ImageStream
-  apiVersion: v1
-  metadata:
-    name: ${NAME}-masu-flask
-    annotations:
-      description: "Keeps track of changes in the application image"
-  spec:
-    lookupPolicy:
-      local: true
 
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
     namespace: ${NAMESPACE}
   spec:
     maxReplicas: 3
@@ -351,7 +339,7 @@ objects:
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
     targetCPUUtilizationPercentage: 90
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
@@ -413,7 +401,7 @@ parameters:
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
   required: true
-  value: https://github.com/project-koku/masu.git
+  value: https://github.com/project-koku/koku.git
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference

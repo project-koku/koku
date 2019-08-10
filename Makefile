@@ -280,9 +280,9 @@ oc-create-listener:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu-flask dc/$(NAME)-masu-flask'
-oc-create-masu: OC_PARAMETER_FILE := masu-flask.env
-oc-create-masu: OC_TEMPLATE_FILE := masu-flask.yaml
+oc-create-masu: OC_OBJECT := 'bc/$(NAME)-masu dc/$(NAME)-masu'
+oc-create-masu: OC_PARAMETER_FILE := masu.env
+oc-create-masu: OC_TEMPLATE_FILE := masu.yaml
 oc-create-masu: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-masu:
 	$(OC_PARAMS) $(MAKE) oc-create-imagestream
@@ -299,7 +299,7 @@ oc-create-rabbitmq:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-route: OC_OBJECT := 'route/koku route/koku-masu-flask'
+oc-create-route: OC_OBJECT := 'route/koku route/koku-masu'
 oc-create-route: OC_PARAMETER_FILE := route.env
 oc-create-route: OC_TEMPLATE_FILE := route.yaml
 oc-create-route: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
@@ -352,7 +352,7 @@ oc-delete-listener:
 	oc delete all -n $(NAMESPACE) -l template=koku-masu-listener
 
 oc-delete-masu:
-	oc delete all -n $(NAMESPACE) -l template=koku-masu-flask
+	oc delete all -n $(NAMESPACE) -l template=koku-masu
 
 oc-delete-rabbitmq:
 	oc delete all -n $(NAMESPACE) -l template=rabbitmq

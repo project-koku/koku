@@ -52,7 +52,7 @@ objects:
             - -c
             - >
               PYTHONPATH=. scl enable rh-python36 --
-              celery -A masu.celery.worker beat -l $LOG_LEVEL
+              celery --pidfile=/opt/celeryd.pid -A koku beat -l $LOG_LEVEL
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -183,7 +183,7 @@ objects:
           - ${NAME}-scheduler
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
       type: ImageChange
 
 parameters:
