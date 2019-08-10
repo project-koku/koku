@@ -67,7 +67,7 @@ objects:
       spec:
         containers:
         - name: ${NAME}-listener
-          image: ${NAME}-masu-flask
+          image: ${NAME}
           imagePullPolicy: Always
           ports:
           - containerPort: ${{LISTENER_PORT}}
@@ -77,7 +77,7 @@ objects:
             - -c
             - >
               PYTHONPATH=. scl enable rh-python36 --
-              python masu/listener/run.py
+              python koku/manage.py listener
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -208,7 +208,7 @@ objects:
           - ${NAME}-listener
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
           namespace: ${NAMESPACE}
       type: ImageChange
 

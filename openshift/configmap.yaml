@@ -185,7 +185,7 @@ parameters:
   displayName: Masu host
   name: MASU_HOST
   required: true
-  value: koku-masu-flask.koku.svc.cluster.local
+  value: koku-masu.koku.svc.cluster.local
 - description: Port number for Masu service
   displayName: Masu port
   name: MASU_PORT

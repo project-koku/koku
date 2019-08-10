@@ -65,7 +65,7 @@ objects:
       spec:
         containers:
         - name: ${NAME}-worker
-          image: ${NAME}-masu-flask
+          image: ${NAME}
           imagePullPolicy: Always
           ports:
           - containerPort: ${{WORKER_PORT}}
@@ -75,7 +75,7 @@ objects:
             - -c
             - >
               PYTHONPATH=. scl enable rh-python36 --
-              celery -A masu.celery.worker worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+              celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
           env:
             - name: DATABASE_USER
               valueFrom:
@@ -266,7 +266,7 @@ objects:
           - ${NAME}-worker
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
           namespace: ${NAMESPACE}
       type: ImageChange
 
