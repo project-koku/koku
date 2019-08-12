@@ -378,7 +378,7 @@ oc-login-dev:
 
 oc-make-migrations: oc-forward-ports
 	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 	$(MAKE) oc-stop-forwarding-ports
 
 oc-reinit: oc-delete-all oc-create-koku
