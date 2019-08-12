@@ -47,14 +47,14 @@ class ProviderAuthentication(models.Model):
         constraints = [
             # NOT (provider_resource_name IS NULL AND credentials IS NULL)
             CheckConstraint(
-                check=~models.Q(models.Q(provider_resource_name__is=None) \
-                                & models.Q(credentials__is=None)),
+                check=~models.Q(models.Q(provider_resource_name=None) \
+                                & models.Q(credentials={})),
                 name='credentials_and_resource_name_both_null'
             ),
             # NOT (provider_resource_name IS NOT NULL AND credentials IS NOT NULL)
             CheckConstraint(
-                check=~models.Q(~models.Q(provider_resource_name__is=None) \
-                                & ~models.Q(credentials__is=None)),
+                check=~models.Q(~models.Q(provider_resource_name=None) \
+                                & ~models.Q(credentials={})),
                 name='credentials_and_resource_name_both_not_null'
             ),
         ]
@@ -82,17 +82,18 @@ class ProviderBillingSource(models.Model):
         constraints = [
             # NOT (bucket IS NULL AND data_source IS NULL)
             CheckConstraint(
-                check=~models.Q(models.Q(bucket__is=None) \
-                               & models.Q(data_source__is=None)),
+                check=~models.Q(models.Q(bucket=None) \
+                                & models.Q(data_source={})),
                 name='bucket_and_data_sourcce_both_null'
             ),
             # NOT (bucket IS NOT NULL AND data_source IS NOT NULL)
             CheckConstraint(
-                check=~models.Q(~models.Q(bucket__is=None) \
-                               & ~models.Q(data_source__is=None)),
-                name='bucket_and_data_sourcce_both_null'
+                check=~models.Q(~models.Q(bucket=None) \
+                                & ~models.Q(data_source={})),
+                name='bucket_and_data_sourcce_both_not_null'
             ),
         ]
+
 
 class Provider(models.Model):
     """A Koku Provider.

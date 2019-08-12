@@ -19,8 +19,8 @@ import logging
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
-from rest_framework import serializers
 from providers.provider_access import ProviderAccessor
+from rest_framework import serializers
 
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
@@ -48,9 +48,9 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     # XXX: This field is DEPRECATED;
     # XXX: the credentials field should be used instead.
     provider_resource_name = serializers.CharField(
-        required=True, allow_null=True, allow_blank=True)
+        required=False, allow_null=True, allow_blank=True)
 
-    credentials = serializers.JSONField()
+    credentials = serializers.JSONField(allow_null=True, required=False)
 
     # pylint: disable=too-few-public-methods
     class Meta:
@@ -67,10 +67,10 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     # XXX: This field is DEPRECATED
     # XXX: the data_source field should be used instead.
-    bucket = serializers.CharField(max_length=63, required=True,
-                                   allow_null=False, allow_blank=True)
+    bucket = serializers.CharField(max_length=63, required=False,
+                                   allow_null=True, allow_blank=True)
 
-    data_source = serializers.JSONField()
+    data_source = serializers.JSONField(allow_null=True, required=False)
 
     # pylint: disable=too-few-public-methods
     class Meta:

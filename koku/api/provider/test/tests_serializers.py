@@ -128,7 +128,9 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': bucket_name
                     }}
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', side_effect=serializers.ValidationError):
+        with patch.object(ProviderAccessor,
+                          'cost_usage_source_ready',
+                          side_effect=serializers.ValidationError):
             ProviderSerializer(data=provider, context=self.request_context)
 
     def test_create_provider_with_credentials_and_data_source(self):
@@ -152,6 +154,46 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsInstance(instance.uuid, uuid.UUID)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
+
+    def test_create_provider_with_credentials_and_provider_resource_name(self):
+        """Test creating a provider with credentials and provider_resource_name fields should fail."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'credentials': {'one': 'two', 'three': 'four'},
+                        'provider_resource_name': iam_arn
+                    },
+                    'billing_source': {
+                        'data_source': {'foo': 'bar'}
+                    }}
+
+        request = self.request_context['request']
+        request.user.customer = None
+        serializer = ProviderSerializer(data=provider, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            with self.assertRaises(serializers.ValidationError):
+                serializer.save()
+
+    def test_create_provider_with_bucket_and_data_source(self):
+        """Test creating a provider with data_source and bucket fields should fail."""
+        bucket_name = 'my_s3_bucket'
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'credentials': {'one': 'two', 'three': 'four'}
+                    },
+                    'billing_source': {
+                        'data_source': {'foo': 'bar'},
+                        'bucket': bucket_name
+                    }}
+
+        request = self.request_context['request']
+        request.user.customer = None
+        serializer = ProviderSerializer(data=provider, context=self.request_context)
+        if serializer.is_valid(raise_exception=True):
+            with self.assertRaises(serializers.ValidationError):
+                serializer.save()
 
 
 class AdminProviderSerializerTest(IamTestCase):
