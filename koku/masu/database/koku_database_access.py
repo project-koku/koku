@@ -59,7 +59,7 @@ class KokuDBAccess:
         """Context manager close session."""
         connection = get_connection()
         with schema_context(self.schema):
-            if len(KokuDBAccess._savepoints) > 0:
+            if KokuDBAccess._savepoints:
                 if exception_type:
                     transaction.savepoint_rollback(KokuDBAccess._savepoints.pop())
                 else:
@@ -122,12 +122,11 @@ class KokuDBAccess:
         with schema_context(self.schema):
             return self._get_db_obj_query().exists()
 
-    def add(self, use_savepoint=True, **kwargs):
+    def add(self, **kwargs):
         """
         Add a new row to this table.
 
         Args:
-            use_savepoint (bool) whether a transaction savepoint should be used
             kwargs (Dictionary): Fields containing table attributes.
 
         Returns:
@@ -151,13 +150,12 @@ class KokuDBAccess:
         with schema_context(self.schema):
             transaction.commit()
 
-    def delete(self, obj=None, use_savepoint=True):
+    def delete(self, obj=None):
         """
         Delete our object from the database.
 
         Args:
             obj (object) model object to delete
-            use_savepoint (bool) whether a transaction savepoint should be used
         Returns:
             None
         """
