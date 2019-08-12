@@ -48,6 +48,7 @@ def get_assume_role_session(arn, session='MasuSession'):
         client = session.client('sqs')
 
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+
     """
     client = boto3.client('sts')
     response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
@@ -65,6 +66,7 @@ def get_cur_report_definitions(role_arn, session=None):
 
     Args:
         role_arn     (String) RoleARN for AWS session
+
     """
     if not session:
         session = get_assume_role_session(role_arn)

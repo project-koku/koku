@@ -39,6 +39,7 @@ class AWSReportChargeUpdater:
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._provider_id = provider_id
         self._provider_uuid = provider_uuid

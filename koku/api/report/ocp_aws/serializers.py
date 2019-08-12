@@ -63,6 +63,7 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if group_by field inputs are invalid
+
         """
         validate_field(self, 'group_by', OCPAWSGroupBySerializer, value,
                        tag_keys=self.tag_keys)
@@ -77,6 +78,7 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if order_by field inputs are invalid
+
         """
         super().validate_order_by(value)
         validate_field(self, 'order_by', OCPAWSOrderBySerializer, value)
@@ -91,6 +93,7 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter field inputs are invalid
+
         """
         validate_field(self, 'filter', OCPAWSFilterSerializer, value,
                        tag_keys=self.tag_keys)

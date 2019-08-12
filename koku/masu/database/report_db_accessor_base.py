@@ -70,6 +70,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+
         """
         super().__init__(schema)
         self.column_map = column_map

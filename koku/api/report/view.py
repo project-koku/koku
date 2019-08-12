@@ -199,6 +199,7 @@ def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwa
     Returns:
         (Boolean): True if query params are valid, False otherwise
         (Dict): Dictionary parsed from query params string
+
     """
     try:
         query_params = parser.parse(url_data)

@@ -31,6 +31,7 @@ class AccountAliasAccessor(KokuDBAccess):
         Args:
             account_id   (String) account id
             schema       (String) database schema (i.e. public or customer tenant value)
+
         """
         super().__init__(schema)
         self._account_id = account_id
@@ -51,6 +52,7 @@ class AccountAliasAccessor(KokuDBAccess):
             None
         Returns:
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
+
         """
         return super()._get_db_obj_query(account_id=self._account_id)
 

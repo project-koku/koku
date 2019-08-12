@@ -25,6 +25,7 @@ def create_engine():
     Returns:
         (sqlalchemy.engine.base.Engine): "SQLAlchemy engine object",
         (sqlalchemy.sql.schema.MetaData): "SQLAlchemy engine metadata"
+
     """
     return None  # noqa
 

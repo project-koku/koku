@@ -110,6 +110,7 @@ class RegionMapping(models.Model):
     example:
       "Region Name": "EU (London)"
       "Region": "eu-west-2"
+
     """
 
     class Meta:

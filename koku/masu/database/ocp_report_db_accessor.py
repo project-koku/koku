@@ -44,6 +44,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+
         """
         super().__init__(schema, column_map)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT

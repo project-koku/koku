@@ -55,4 +55,4 @@ def post_notification(request):
         orchestrator = Orchestrator(notified_billing_source)
         orchestrator.prepare()
 
-    return ("", 204)
+    return ('', 204)

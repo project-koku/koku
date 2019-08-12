@@ -60,7 +60,6 @@ class TagQueryHandler(QueryHandler):
         type = (str) [optional] the type of tagging information, used for filtering
 
     Example:
-
         MyCoolTagHandler(TagQueryHandler):
             data_sources = [{'db_table': MyFirstTagModel,
                              'db_column': 'awesome_tags',
@@ -85,6 +84,7 @@ class TagQueryHandler(QueryHandler):
             kwargs    (Dict): A dictionary for internal query alteration based on path
             db_table  (String): Database table name containing tags
             db_column (String): Database column name containing tags
+
         """
         if default_ordering is None:
             default_ordering = self._DEFAULT_ORDERING

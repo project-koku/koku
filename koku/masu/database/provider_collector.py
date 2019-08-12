@@ -29,6 +29,7 @@ class ProviderCollector(KokuDBAccess):
 
         Args:
             schema         (String) database schema (i.e. public or customer tenant value)
+
         """
         super().__init__(schema)
         self._table = Provider
@@ -42,6 +43,7 @@ class ProviderCollector(KokuDBAccess):
             None
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+
         """
         objs = self._table.objects.all()
         return objs
@@ -54,6 +56,7 @@ class ProviderCollector(KokuDBAccess):
             None
         Returns:
             ([sqlalchemy.ext.automap.api_provider]): ["Provider1", "Provider2"]
+
         """
         providers = []
         objs = self._get_db_obj_query()
