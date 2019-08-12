@@ -29,7 +29,6 @@ from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -45,28 +44,40 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Authentication model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    provider_resource_name = serializers.CharField(
-        required=True, allow_null=True, allow_blank=True)
 
+    # XXX: This field is DEPRECATED;
+    # XXX: the credentials field should be used instead.
+    provider_resource_name = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True)
+
+    credentials = serializers.JSONField(allow_null=True, required=False)
+
+    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderAuthentication
-        fields = ('uuid', 'provider_resource_name')
+        fields = ('uuid', 'provider_resource_name', 'credentials')
 
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
     uuid = serializers.UUIDField(read_only=True)
-    bucket = serializers.CharField(max_length=63, required=True,
-                                   allow_null=False, allow_blank=True)
 
+    # XXX: This field is DEPRECATED
+    # XXX: the data_source field should be used instead.
+    bucket = serializers.CharField(max_length=63, required=False,
+                                   allow_null=True, allow_blank=True)
+
+    data_source = serializers.JSONField(allow_null=True, required=False)
+
+    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
         model = ProviderBillingSource
-        fields = ('uuid', 'bucket')
+        fields = ('uuid', 'bucket', 'data_source')
 
 
 class ProviderSerializer(serializers.ModelSerializer):
@@ -82,6 +93,7 @@ class ProviderSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
 
+    # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
 
@@ -107,19 +119,28 @@ class ProviderSerializer(serializers.ModelSerializer):
             key = 'created_by'
             message = 'Requesting user could not be found.'
             raise serializers.ValidationError(error_obj(key, message))
+
         if 'billing_source' in validated_data:
             billing_source = validated_data.pop('billing_source')
             bucket = billing_source.get('bucket')
+            data_source = billing_source.get('data_source', {})
         else:
             # Because of a unique together constraint, this is done
             # to allow for this field to be non-required for OCP
             # but will still have a blank no-op entry in the DB
             billing_source = {'bucket': ''}
+            data_source = None
+
         authentication = validated_data.pop('authentication')
         provider_resource_name = authentication.get('provider_resource_name')
+        credentials = authentication.get('credentials')
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
-        interface.cost_usage_source_ready(provider_resource_name, bucket)
+
+        if credentials and data_source:
+            interface.cost_usage_source_ready(credentials, data_source)
+        else:
+            interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
 
