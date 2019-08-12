@@ -19,7 +19,7 @@ import logging
 from unittest import mock
 from unittest.mock import patch
 
-import psycopg2
+from django.db import connection, OperationalError
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus
@@ -27,12 +27,6 @@ from koku.metrics import DatabaseStatus
 
 class DatabaseStatusTest(IamTestCase):
     """Test DatabaseStatus object."""
-
-    def test_constructor(self):
-        """Test DatabaseStatus constructor."""
-        dbs = DatabaseStatus()
-        self.assertIsNotNone(dbs.uri)
-        self.assertRegex(dbs.uri, r"\w+://\w+:[a-zA-Z0-9\']*@\w+:\d+/\w+")
 
     @patch('koku.metrics.DatabaseStatus.query', return_value=True)
     def test_schema_size(self, mock_status):
@@ -59,20 +53,13 @@ class DatabaseStatusTest(IamTestCase):
         result = dbs.query(test_query)
         self.assertEqual(result, expected)
 
-    @mock.patch('psycopg2.connect')
-    def test_query_exception(self, mock_connect):
+    def test_query_exception(self):
         """Test _query() when an exception is thrown."""
         logging.disable(0)
-
-        # Because of psycopg2's chained method design, we need to chain mocks...
-        # result of psycopg2.connect()
-        mock_con = mock_connect.return_value
-        # result of con.cursor()
-        mock_cur = mock_con.cursor.return_value
-        # result of cur.execute()
-        mock_cur.execute.side_effect = psycopg2.OperationalError('test exception')
-
-        test_query = 'SELECT count(*) from now()'
-        with self.assertLogs(level=logging.WARNING):
+        with mock.patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
+            mock_cursor = mock_cursor.return_value.__enter__.return_value
+            mock_cursor.execute.side_effect = OperationalError('test exception')
+            test_query = 'SELECT count(*) from now()'
             dbs = DatabaseStatus()
-            dbs.query(test_query)
+            with self.assertLogs(level=logging.WARNING):
+                dbs.query(test_query)
