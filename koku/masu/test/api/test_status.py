@@ -22,13 +22,13 @@ import os
 import re
 from collections import namedtuple
 from datetime import datetime
-from django.test import TestCase
-from django.test.utils import override_settings
-
 from subprocess import CompletedProcess, PIPE
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
-import psycopg2
+from django.db import InterfaceError
+from django.test import TestCase
+from django.test.utils import override_settings
+
 
 from masu.api import API_VERSION
 from masu.api.status import (
@@ -250,13 +250,15 @@ class StatusAPITest(TestCase):
                     results = expected.search(line)
             self.assertIsNotNone(results)
 
-    @patch('masu.api.status.psycopg2.connect', side_effect=psycopg2.InterfaceError)
-    def test_database_status_fail(self, mock_psql):
+    def test_database_status_fail(self):
         """test that fetching database handles errors."""
         expected = 'WARNING:masu.api.status:Unable to connect to DB: '
-        with self.assertLogs('masu.api.status', level='INFO') as logger:
-            ApplicationStatus().startup()
-            self.assertIn(expected, logger.output)
+        with patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
+            mock_cursor = mock_cursor.return_value.__enter__.return_value
+            mock_cursor.execute.side_effect = InterfaceError()
+            with self.assertLogs('masu.api.status', level='INFO') as logger:
+                ApplicationStatus().startup()
+                self.assertIn(expected, logger.output)
 
     def disablefornowtest_liveness(self):
         """Test the liveness response."""

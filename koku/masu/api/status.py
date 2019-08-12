@@ -24,7 +24,11 @@ import socket
 import subprocess
 import sys
 
-import psycopg2
+from django.db import (InterfaceError,
+                       NotSupportedError,
+                       OperationalError,
+                       ProgrammingError,
+                       connection)
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
@@ -141,23 +145,22 @@ class ApplicationStatus():
         :returns: A dict of db connection info.
         """
         try:
-            with psycopg2.connect(Config.SQLALCHEMY_DATABASE_URI) as conn:
-                curs = conn.cursor()
-                curs.execute(
+            with connection.cursor() as cursor:
+                cursor.execute(
                     """
                     SELECT datname AS database,
                         numbackends as database_connections
                     FROM pg_stat_database
                     """
                 )
-                raw = curs.fetchall()
+                raw = cursor.fetchall()
 
                 # get pg_stat_database column names
-                names = [desc[0] for desc in curs.description]
-        except (psycopg2.InterfaceError,
-                psycopg2.NotSupportedError,
-                psycopg2.OperationalError,
-                psycopg2.ProgrammingError) as exc:
+                names = [desc[0] for desc in cursor.description]
+        except (InterfaceError,
+                NotSupportedError,
+                OperationalError,
+                ProgrammingError) as exc:
             LOG.warning('Unable to connect to DB: %s', str(exc))
             return {'ERROR': str(exc)}
 
