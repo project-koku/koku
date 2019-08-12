@@ -11,15 +11,16 @@ from celery.schedules import crontab
 from celery.signals import after_setup_logger
 from .env import ENVIRONMENT
 
+from . import database
 
 LOGGER = logging.getLogger(__name__)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'koku.settings')
 
 LOGGER.info('Starting celery.')
-# Django setup is required *before* Celery app can start correctly.
-django.setup()
-LOGGER.info('Django setup.')
+# Setup the database for use in Celery
+database.config()
+LOGGER.info('Database configured.')
 
 celery = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
 celery.config_from_object('django.conf:settings', namespace='CELERY')
