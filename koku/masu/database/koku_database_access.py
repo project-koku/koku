@@ -18,10 +18,10 @@
 
 import logging
 
+from django.db import IntegrityError
 from django.db import transaction
 from django.db.transaction import get_connection, savepoint_commit, savepoint_rollback
 from django.db.transaction import savepoint as django_savepoint
-from django.db import IntegrityError
 from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)

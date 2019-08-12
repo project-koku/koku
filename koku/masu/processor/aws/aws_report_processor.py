@@ -34,12 +34,12 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import clear_temp_directory
-from reporting.provider.aws.models import (AWSCostEntryBill,
-                                           AWSCostEntry,
-                                           AWSCostEntryProduct,
+from reporting.provider.aws.models import (AWSCostEntry,
+                                           AWSCostEntryBill,
+                                           AWSCostEntryLineItem,
                                            AWSCostEntryPricing,
-                                           AWSCostEntryReservation,
-                                           AWSCostEntryLineItem)
+                                           AWSCostEntryProduct,
+                                           AWSCostEntryReservation)
 
 LOG = logging.getLogger(__name__)
 

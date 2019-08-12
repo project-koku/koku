@@ -20,12 +20,12 @@
 import calendar
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.ocp.common import get_cluster_id_from_provider
-
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 

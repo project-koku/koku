@@ -21,7 +21,6 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import django.apps
-
 from django.db import connection, transaction
 from tenant_schemas.utils import schema_context
 

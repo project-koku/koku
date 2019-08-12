@@ -20,21 +20,20 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
-
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.aws.models import (AWSCostEntryBill,
-                                           AWSCostEntry,
-                                           AWSCostEntryProduct,
-                                           AWSCostEntryPricing,
-                                           AWSCostEntryReservation,
+from reporting.provider.aws.models import (AWSCostEntry,
+                                           AWSCostEntryBill,
                                            AWSCostEntryLineItem,
                                            AWSCostEntryLineItemDaily,
-                                           AWSCostEntryLineItemDailySummary)
+                                           AWSCostEntryLineItemDailySummary,
+                                           AWSCostEntryPricing,
+                                           AWSCostEntryProduct,
+                                           AWSCostEntryReservation)
 
 LOG = logging.getLogger(__name__)
 
