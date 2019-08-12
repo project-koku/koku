@@ -33,15 +33,15 @@ from masu.processor.orchestrator import Orchestrator
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def post_notification(request):
     """Packages response for class-based view."""
     header_list = request.headers.to_wsgi_list()
-    body = request.data.decode("utf-8")
-    logger.debug("Received Header: %s", str(request.headers))
-    logger.debug("Received Body: %s", str(body))
+    body = request.data.decode('utf-8')
+    logger.debug('Received Header: %s', str(request.headers))
+    logger.debug('Received Body: %s', str(body))
     notified_billing_source = None
     try:
         handler = NotificationHandler(header_list, body)
