@@ -24,11 +24,11 @@ import socket
 import subprocess
 import sys
 
-from django.db import (connection,
-                       InterfaceError,
+from django.db import (InterfaceError,
                        NotSupportedError,
                        OperationalError,
-                       ProgrammingError)
+                       ProgrammingError,
+                       connection)
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
