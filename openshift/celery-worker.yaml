@@ -74,7 +74,7 @@ objects:
             - /bin/bash
             - -c
             - >
-              PYTHONPATH=. scl enable rh-python36 --
+              PYTHONPATH=./koku scl enable rh-python36 --
               celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
           env:
             - name: DATABASE_USER
@@ -89,18 +89,12 @@ objects:
                   key: database-password
                   name: ${NAME}-db
                   optional: false
-            - name: DATABASE_CA_CERT
+            - name: DATABASE_SERVICE_CERT
               valueFrom:
                 secretKeyRef:
                   key: database-client-cert
                   name: ${NAME}-db
                   optional: true
-            - name: MASU_SECRET_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: masu-secret-key
-                  name: ${NAME}-masu
-                  optional: false
             - name: DATABASE_ENGINE
               valueFrom:
                 configMapKeyRef:
@@ -112,18 +106,6 @@ objects:
                 configMapKeyRef:
                   name: ${NAME}-db
                   key: database-name
-                  optional: false
-            - name: DATABASE_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-db
-                  key: database-host
-                  optional: false
-            - name: DATABASE_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-db
-                  key: database-port
                   optional: false
             - name: RABBITMQ_HOST
               valueFrom:
@@ -239,6 +221,90 @@ objects:
                   key: cloudwatch-log-group
                   name: ${NAME}-aws
                   optional: true
+            - name: DJANGO_SETTINGS_MODULE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: django_settings_module
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
           resources:
             requests:
               cpu: ${CPU_REQUEST}
@@ -249,6 +315,15 @@ objects:
           volumeMounts:
           - mountPath: /var/tmp/masu/
             name: ${NAME}-worker-data
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
     volumeClaimTemplates:
     - metadata:
         name: ${NAME}-worker-data
