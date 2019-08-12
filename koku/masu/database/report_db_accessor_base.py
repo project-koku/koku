@@ -119,7 +119,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments
     def merge_temp_table(self, table_name, temp_table_name, columns,
                          condition_column, conflict_columns):
         """INSERT temp table rows into the primary table specified.
@@ -133,7 +133,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             (None)
 
         """
-        is_finalized_data = False
         column_str = ','.join(columns)
         conflict_col_str = ','.join(conflict_columns)
 
@@ -154,10 +153,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             cursor.execute(update_sql)
             cursor.db.commit()
 
-            row_count = cursor.rowcount
-            if row_count > 0:
-                is_finalized_data = True
-
             insert_sql = f"""
                 INSERT INTO {table_name} ({column_str})
                     SELECT {column_str}
@@ -170,8 +165,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             delete_sql = f'DELETE FROM {temp_table_name}'
             cursor.execute(delete_sql)
             cursor.db.commit()
-
-        return is_finalized_data
 
     def vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
