@@ -41,75 +41,7 @@ objects:
       targetPort: 9100
     selector:
       name: ${NAME}-masu
-- kind: BuildConfig
-  apiVersion: v1
-  metadata:
-    annotations:
-      description: Defines how to build the application
-      template.alpha.openshift.io/wait-for-ready: "true"
-    labels:
-      name: ${NAME}-masu
-    name: ${NAME}-masu
-  spec:
-    failedBuildsHistoryLimit: 1
-    successfulBuildsHistoryLimit: 2
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}-masu:latest
-    resources:
-      requests:
-        memory: ${BUILD_MEMORY_REQUEST}
-      limits:
-        memory: ${BUILD_MEMORY_LIMIT}
-    source:
-      contextDir: ${CONTEXT_DIR}
-      git:
-        ref: ${SOURCE_REPOSITORY_REF}
-        uri: ${SOURCE_REPOSITORY_URL}
-      type: Git
-    strategy:
-      sourceStrategy:
-        env:
-          - name: DISABLE_MIGRATE
-            value: True
-          - name: MASU
-            value: True
-          - name: PIP_INDEX_URL
-            value: ${PIP_INDEX_URL}
-          - name: PIPENV_PYPI_MIRROR
-            value: ${PIPENV_PYPI_MIRROR}
-          - name: ENABLE_PIPENV
-            value: "true"
-          - name: UPGRADE_PIP_TO_LATEST
-            value: ""
-          - name: APP_CONFIG
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-config
-                optional: false
-          - name: APP_HOME
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-home
-          - name: APP_MODULE
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-module
-        from:
-          kind: ImageStreamTag
-          name: python-36-centos7:latest
-          namespace: ${NAMESPACE}
-    triggers:
-    - type: ConfigChange
-    - imageChange: {}
-      type: ImageChange
-    - github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
-      type: GitHub
+
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
@@ -141,6 +73,10 @@ objects:
         - name: ${NAME}-masu
           image: ${NAME}-masu
           env:
+            - name: DISABLE_MIGRATE
+              value: "true"
+            - name: MASU
+              value: "true"
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
@@ -152,6 +88,18 @@ objects:
                 secretKeyRef:
                   key: database-password
                   name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: ${NAME}-secret
                   optional: false
             - name: DATABASE_ENGINE
               valueFrom:
@@ -165,18 +113,84 @@ objects:
                   name: ${NAME}-db
                   key: database-name
                   optional: false
-            - name: DATABASE_HOST
+            - name: DATABASE_SERVICE_NAME
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
                   key: database-host
                   optional: false
-            - name: DATABASE_PORT
+            - name: POSTGRES_SQL_SERVICE_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: ${NAME}-db
+                  name: koku-db
                   key: database-port
                   optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
             - name: RABBITMQ_HOST
               valueFrom:
                 configMapKeyRef:
@@ -260,7 +274,7 @@ objects:
             - name: NAMESPACE
               valueFrom:
                 configMapKeyRef:
-                  name: masu-app
+                  name: ${NAME}-app
                   key: app-namespace
                   optional: true
             - name: CW_AWS_ACCESS_KEY_ID
@@ -317,6 +331,15 @@ objects:
             limits:
               cpu: ${CPU_LIMIT}
               memory: ${MEMORY_LIMIT}
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
     triggers:
     - type: ConfigChange
     - imageChangeParams:
@@ -417,3 +440,6 @@ parameters:
   displayName: Application Hostname
   name: APPLICATION_DOMAIN
   required: false
+- displayName: API path prefix
+  value: '/api'
+  name: API_PATH_PREFIX
