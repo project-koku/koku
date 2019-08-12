@@ -1,17 +1,14 @@
 """Celery configuration for the Koku project."""
+import datetime
 import logging
 import os
-import datetime
 
-import django
-from django.apps import apps
-from django.conf import settings
 from celery import Celery
 from celery.schedules import crontab
-from celery.signals import after_setup_logger
-from .env import ENVIRONMENT
+from django.conf import settings
 
 from . import database
+from .env import ENVIRONMENT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +19,7 @@ LOGGER.info('Starting celery.')
 database.config()
 LOGGER.info('Database configured.')
 
-celery = Celery('koku', broker=django.conf.settings.CELERY_BROKER_URL)
+celery = Celery('koku', broker=settings.CELERY_BROKER_URL)
 celery.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')
@@ -51,10 +48,10 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
     hour, minute = cleaning_time.split(':')
 
     remove_expired_data_def = {'task': 'masu.celery.tasks.remove_expired_data',
-                                'schedule': crontab(hour=int(hour),
-                                                    minute=int(minute),
-                                                    day_of_month=cleaning_day),
-                                'args': []}
+                               'schedule': crontab(hour=int(hour),
+                                                   minute=int(minute),
+                                                   day_of_month=cleaning_day),
+                               'args': []}
     celery.conf.beat_schedule['remove-expired-data'] = remove_expired_data_def
 
 celery.autodiscover_tasks()
