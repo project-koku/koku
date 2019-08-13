@@ -141,9 +141,9 @@ objects:
     strategy:
       type: Rolling
       rollingParams:
-        updatePeriodSeconds: 20
-        intervalSeconds: 120
-        timeoutSeconds: 600
+        updatePeriodSeconds: 5
+        intervalSeconds: 10
+        timeoutSeconds: 120
         maxSurge: 25%
         maxUnavailable: 25%
     template:
@@ -219,11 +219,7 @@ objects:
           command:
           - /bin/bash
           - -c
-          - sleep 30 &&
-            echo "Begin Migration ..." &&
-            scl enable rh-python36 "/opt/app-root/src/koku/manage.py migrate_schemas --noinput" &&
-            echo "Migration Completed" &&
-            sleep 5
+          - ${HOME}/scripts/run_migrations.sh
           resources:
             requests:
               cpu: ${CPU_REQUEST}
@@ -481,7 +477,7 @@ objects:
               path: ${API_PATH_PREFIX}/v1/status/
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 60
+            initialDelaySeconds: 15
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 3
@@ -493,7 +489,7 @@ objects:
               path: ${API_PATH_PREFIX}/v1/status/
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 50
+            initialDelaySeconds: 10
             periodSeconds: 10
             successThreshold: 1
             failureThreshold: 3
