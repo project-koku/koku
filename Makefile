@@ -252,7 +252,7 @@ oc-create-imagestream:
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
 oc-create-koku-api: OC_OBJECT := 'bc/$(NAME) dc/$(NAME)'
-oc-create-koku-api: OC_PARAMETER_FILE := $(NAME).env
+oc-create-koku-api: OC_PARAMETER_FILE := $(NAME)-api.env
 oc-create-koku-api: OC_TEMPLATE_FILE := $(NAME).yaml
 oc-create-koku-api: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
 oc-create-koku-api:
