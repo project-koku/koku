@@ -20,8 +20,7 @@ from unittest.mock import Mock, patch
 from django.core.exceptions import PermissionDenied
 
 from api.iam.models import Customer, Tenant, User
-from api.iam.serializers import (UserSerializer,
-                                 create_schema_name)
+from api.iam.serializers import (UserSerializer)
 from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import (HttpResponseUnauthorizedRequest,
                              IdentityHeaderMiddleware,
@@ -34,11 +33,6 @@ class KokuTenantMiddlewareTest(IamTestCase):
     def setUp(self):
         """Set up middleware tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.schema_name = create_schema_name(self.customer['account_id'])
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
         request = self.request_context['request']
         request.path = '/api/v1/providers/'
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
@@ -75,12 +69,6 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def setUp(self):
         """Set up middleware tests."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.schema_name = create_schema_name(self.customer['account_id'])
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data,
-                                                            create_customer=False)
         self.request = self.request_context['request']
         self.request.path = '/api/v1/providers/'
         self.request.META['QUERY_STRING'] = ''
@@ -98,7 +86,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, 'user'))
-        customer = Customer.objects.get(account_id=self.customer['account_id'])
+        customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data['username'])
         self.assertIsNotNone(user)
@@ -108,7 +96,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_process_no_customer(self):
         """Test that the customer, tenant and user are not created."""
         customer = self._create_customer_data()
-        account_id = customer['account_id']
+        account_id = '12345'
         del customer['account_id']
         request_context = self._create_request_context(customer,
                                                        self.user_data,
@@ -138,7 +126,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware = IdentityHeaderMiddleware()
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, 'user'))
-        customer = Customer.objects.get(account_id=self.customer['account_id'])
+        customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data['username'])
         self.assertIsNotNone(user)
