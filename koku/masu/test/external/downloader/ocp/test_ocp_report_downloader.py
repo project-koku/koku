@@ -31,7 +31,7 @@ from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.external.report_downloader import ReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 DATA_DIR = Config.TMP_DIR
 REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
@@ -46,6 +46,7 @@ class OCPReportDownloaderTest(MasuTestCase):
     fake = Faker()
 
     def setUp(self):
+        super().setUp()
         self.fake_customer_name = CUSTOMER_NAME
         self.fake_report_name = 'ocp-report'
         self.cluster_id = 'my-ocp-cluster-1'
@@ -55,13 +56,13 @@ class OCPReportDownloaderTest(MasuTestCase):
         )
         os.makedirs(report_path, exist_ok=True)
 
-        test_file_path = './tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        test_file_path = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
         self.test_file_path = os.path.join(
             report_path, os.path.basename(test_file_path)
         )
         shutil.copyfile(test_file_path, os.path.join(report_path, self.test_file_path))
 
-        test_manifest_path = './tests/data/ocp/manifest.json'
+        test_manifest_path = './koku/masu/test/data/ocp/manifest.json'
         self.test_manifest_path = os.path.join(
             report_path, os.path.basename(test_manifest_path)
         )
@@ -70,7 +71,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         )
 
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name, self.cluster_id, None, 'OCP', 1
+            self.fake_customer_name, self.cluster_id, None, 'OCP', self.ocp_provider_id
         )
 
         self.ocp_report_downloader = OCPReportDownloader(
@@ -83,6 +84,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         )
 
     def tearDown(self):
+        super().tearDown()
         shutil.rmtree(REPORTS_DIR, ignore_errors=True)
 
     def test_download_bucket(self):

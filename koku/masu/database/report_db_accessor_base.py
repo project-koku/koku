@@ -21,7 +21,8 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import django.apps
-from django.db import connection
+from django.db import connection, transaction
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
@@ -69,12 +70,13 @@ class ReportDBAccessorBase(KokuDBAccess):
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+
         """
         super().__init__(schema)
         self.column_map = column_map
         self.report_schema = ReportSchema(django.apps.apps.get_models(),
                                           self.column_map)
-        self._cursor = self._get_psycopg2_cursor()
+        self._conn = connection
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close connections."""
@@ -86,22 +88,18 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Return database precision for decimal values."""
         return f'0E-{Config.REPORTING_DECIMAL_PRECISION}'
 
-    def _get_psycopg2_cursor(self):
-        """Get a cursor for the low level database connection."""
-        cursor = connection.cursor()
-        cursor.execute(f'SET search_path TO {self.schema}')
-        return cursor
-
     def create_temp_table(self, table_name, drop_column=None):
         """Create a temporary table and return the table name."""
         temp_table_name = table_name + '_' + str(uuid.uuid4()).replace('-', '_')
-        self._cursor.execute(
-            f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
-        )
-        if drop_column:
-            self._cursor.execute(
-                f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(
+                f'CREATE TEMPORARY TABLE {temp_table_name} (LIKE {table_name})'
             )
+            if drop_column:
+                cursor.execute(
+                    f'ALTER TABLE {temp_table_name} DROP COLUMN {drop_column}'
+                )
         return temp_table_name
 
     def create_new_temp_table(self, table_name, columns):
@@ -115,7 +113,9 @@ class ReportDBAccessorBase(KokuDBAccess):
         column_types = column_types.strip().rstrip(',')
         column_sql = '({})'.format(column_types)
         table_sql = base_sql + column_sql
-        self._cursor.execute(table_sql)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(table_sql)
 
         return temp_table_name
 
@@ -133,7 +133,6 @@ class ReportDBAccessorBase(KokuDBAccess):
             (None)
 
         """
-        is_finalized_data = False
         column_str = ','.join(columns)
         conflict_col_str = ','.join(conflict_columns)
 
@@ -147,34 +146,36 @@ class ReportDBAccessorBase(KokuDBAccess):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        self._cursor.execute(update_sql)
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(update_sql)
+            cursor.db.commit()
 
-        row_count = self._cursor.rowcount
-        if row_count > 0:
-            is_finalized_data = True
+            insert_sql = f"""
+                INSERT INTO {table_name} ({column_str})
+                    SELECT {column_str}
+                    FROM {temp_table_name}
+                    WHERE {condition_column} IS NULL
+                    ON CONFLICT DO NOTHING
+            """
+            cursor.execute(insert_sql)
 
-        insert_sql = f"""
-            INSERT INTO {table_name} ({column_str})
-                SELECT {column_str}
-                FROM {temp_table_name}
-                WHERE {condition_column} IS NULL
-                ON CONFLICT DO NOTHING
-        """
-        self._cursor.execute(insert_sql)
-
-        delete_sql = f'DELETE FROM {temp_table_name}'
-        self._cursor.execute(delete_sql)
-        self.vacuum_table(temp_table_name)
-
-        return is_finalized_data
+            delete_sql = f'DELETE FROM {temp_table_name}'
+            cursor.execute(delete_sql)
+            cursor.db.commit()
 
     def vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
-        old_isolation_level = connection.connection.isolation_level
-        connection.connection.set_isolation_level(0)
-        vacuum = f'VACUUM {self.schema}.{table_name}'
-        self._cursor.execute(vacuum)
-        connection.connection.set_isolation_level(old_isolation_level)
+        with schema_context(self.schema):
+            old_isolation_level = connection.connection.isolation_level
+            connection.connection.set_isolation_level(0)
+            vacuum = f'VACUUM {table_name}'
+            with connection.cursor() as cursor:
+                cursor.db.set_schema(self.schema)
+                cursor.execute(vacuum)
+            connection.connection.set_isolation_level(old_isolation_level)
 
     # pylint: disable=too-many-arguments
     def bulk_insert_rows(self, file_obj, table, columns, sep='\t', null=''):
@@ -188,13 +189,18 @@ class ReportDBAccessorBase(KokuDBAccess):
             null (str): How null is represented in the CSV. Default: ''
 
         """
-        self._cursor.copy_from(
-            file_obj,
-            table,
-            sep=sep,
-            columns=columns,
-            null=null
-        )
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.copy_from(
+                file_obj,
+                table,
+                sep=sep,
+                columns=columns,
+                null=null
+            )
+            cursor.db.commit()
 
     def close_connections(self, conn=None):
         """Close the low level database connection.
@@ -207,7 +213,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         if conn:
             conn.close()
         else:
-            self._cursor.close()
+            self._conn.close()
 
     # pylint: disable=arguments-differ
     def _get_db_obj_query(self, table, columns=None):
@@ -225,11 +231,12 @@ class ReportDBAccessorBase(KokuDBAccess):
         if isinstance(table, str):
             table = getattr(self.report_schema, table)
 
-        query = table.objects.all()
-        if columns:
-            query = query.values(*columns)
-
-        return query
+        with schema_context(self.schema):
+            if columns:
+                query = table.objects.values(*columns)
+            else:
+                query = table.objects.all()
+            return query
 
     def create_db_object(self, table_name, data):
         """Instantiate a populated database object.
@@ -245,10 +252,13 @@ class ReportDBAccessorBase(KokuDBAccess):
         table = getattr(self.report_schema, table_name)
         data = self.clean_data(data, table_name)
 
-        return table(**data)
+        with schema_context(self.schema):
+            model_object = table(**data)
+            model_object.save()
+            return model_object
 
     def insert_on_conflict_do_nothing(self,
-                                      table_name,
+                                      table,
                                       data,
                                       conflict_columns=None):
         """Write an INSERT statement with an ON CONFLICT clause.
@@ -265,27 +275,33 @@ class ReportDBAccessorBase(KokuDBAccess):
             (str): The id of the inserted row
 
         """
+        table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
         columns_formatted = ', '.join(str(value) for value in data.keys())
-        data_formatted = ', '.join("'{}'".format(str(value)) for value in data.values())
-        insert_sql = f"""INSERT INTO {table_name}({columns_formatted}) VALUES({data_formatted})"""
-
+        values = list(data.values())
+        val_str = ','.join(['%s' for _ in data])
+        insert_sql = f"""
+            INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES({val_str})
+            """
         if conflict_columns:
             conflict_columns_formatted = ', '.join(conflict_columns)
             insert_sql = insert_sql + f' ON CONFLICT ({conflict_columns_formatted}) DO NOTHING;'
         else:
             insert_sql = insert_sql + ' ON CONFLICT DO NOTHING;'
-
-        self._cursor.execute(insert_sql)
-
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(insert_sql, values)
+            cursor.db.commit()
         if conflict_columns:
             data = {key: value for key, value in data.items()
                     if key in conflict_columns}
 
-        return self._get_primary_key(table_name, data)
+        return self._get_primary_key(table, data)
 
     def insert_on_conflict_do_update(self,
-                                     table_name,
+                                     table,
                                      data,
                                      conflict_columns,
                                      set_columns):
@@ -304,23 +320,28 @@ class ReportDBAccessorBase(KokuDBAccess):
             (str): The id of the inserted row
 
         """
+        table_name = table()._meta.db_table
         data = self.clean_data(data, table_name)
-        set_data = {key: value for key, value in data.items()
-                    if key in set_columns}
-        formatted_set = ', '.join(
-            "{} = '{}'".format(key, str(value)) for key, value in set_data.items()
-        )
+
+        set_clause = ','.join([f'{column} = excluded.{column}'
+                               for column in set_columns])
 
         columns_formatted = ', '.join(str(value) for value in data.keys())
-        data_formatted = ', '.join("'{}'".format(str(value)) for value in data.values())
+        values = list(data.values())
+        val_str = ','.join(['%s' for _ in data])
         conflict_columns_formatted = ', '.join(conflict_columns)
 
         insert_sql = f"""
-        INSERT INTO {table_name}({columns_formatted}) VALUES ({data_formatted})
+        INSERT INTO {self.schema}.{table_name}({columns_formatted}) VALUES ({val_str})
          ON CONFLICT ({conflict_columns_formatted}) DO UPDATE SET
-         {formatted_set}
+         {set_clause}
         """
-        self._cursor.execute(insert_sql)
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(insert_sql, values)
+            cursor.db.commit()
 
         data = {key: value for key, value in data.items()
                 if key in conflict_columns}
@@ -329,26 +350,17 @@ class ReportDBAccessorBase(KokuDBAccess):
 
     def _get_primary_key(self, table_name, data):
         """Return the row id for a specific object."""
-        query = self._get_db_obj_query(table_name)
-        query = query.filter(**data)
-        try:
-            row_id = query.first().id
-        except AttributeError as err:
-            LOG.error('Row in %s does not exist in database.', table_name)
-            LOG.error('Failed row data: %s', data)
-            raise err
-        else:
-            return row_id
-
-    # pylint: disable=no-self-use
-    def flush_db_object(self, table):
-        """Commit a table row to the database.
-
-        Args:
-            table (Table): A SQLAlchemy mapped table object
-
-        """
-        table.save()
+        with schema_context(self.schema):
+            query = self._get_db_obj_query(table_name)
+            query = query.filter(**data)
+            try:
+                row_id = query.first().id
+            except AttributeError as err:
+                LOG.error('Row in %s does not exist in database.', table_name)
+                LOG.error('Failed row data: %s', data)
+                raise err
+            else:
+                return row_id
 
     def clean_data(self, data, table_name):
         """Clean data for insertion into database.
@@ -408,6 +420,11 @@ class ReportDBAccessorBase(KokuDBAccess):
         else:
             LOG.info('Updating %s', table)
 
-        self._cursor.execute(sql)
-        self.vacuum_table(table)
+        if KokuDBAccess._savepoints:
+            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(sql)
+            cursor.db.commit()
+            self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)

@@ -22,17 +22,24 @@ import gzip
 import io
 import json
 import logging
-from os import listdir, path, remove
+from os import listdir, path
+
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import extract_uuids_from_string
+from masu.util.common import clear_temp_directory
+from reporting.provider.aws.models import (AWSCostEntry,
+                                           AWSCostEntryBill,
+                                           AWSCostEntryLineItem,
+                                           AWSCostEntryPricing,
+                                           AWSCostEntryProduct,
+                                           AWSCostEntryReservation)
 
 LOG = logging.getLogger(__name__)
 
@@ -148,6 +155,7 @@ class AWSReportProcessor(ReportProcessorBase):
                     report_db.mark_bill_as_finalized(bill_id)
                     report_db.commit()
                 report_db.vacuum_table(AWS_CUR_TABLE_MAP['line_item'])
+                report_db.commit()
 
         LOG.info('Completed report processing for file: %s and schema: %s',
                  self._report_name, self._schema_name)
@@ -169,40 +177,23 @@ class AWSReportProcessor(ReportProcessorBase):
             invoice_id = row.get('bill/InvoiceId')
             return invoice_id is not None and invoice_id != ''
 
-    # pylint: disable=too-many-locals
-    def remove_temp_cur_files(self, report_path, manifest_id):
-        """Remove temporary cost usage report files."""
-        files = listdir(report_path)
-
-        LOG.info('Cleaning up temporary report files for %s', self._report_name)
-        victim_list = []
+    # pylint: disable=no-self-use
+    def remove_temp_cur_files(self, report_path):
+        """Remove temporary report files."""
+        LOG.info('Cleaning up temporary report files for %s', report_path)
         current_assembly_id = None
+        files = listdir(report_path)
         for file in files:
             file_path = '{}/{}'.format(report_path, file)
             if file.endswith('Manifest.json'):
                 with open(file_path, 'r') as manifest_file_handle:
                     manifest_json = json.load(manifest_file_handle)
                     current_assembly_id = manifest_json.get('assemblyId')
-            else:
-                with ReportStatsDBAccessor(file, manifest_id) as stats:
-                    completed_date = stats.get_last_completed_datetime()
-                    if completed_date:
-                        assembly_id = extract_uuids_from_string(file).pop()
-
-                        victim_list.append({'file': file_path,
-                                            'completed_date': completed_date,
-                                            'assemblyId': assembly_id})
 
         removed_files = []
-        for victim in victim_list:
-            if victim['assemblyId'] != current_assembly_id:
-                try:
-                    LOG.info('Removing %s, completed processing on date %s',
-                             victim['file'], victim['completed_date'])
-                    remove(victim['file'])
-                    removed_files.append(victim['file'])
-                except FileNotFoundError:
-                    LOG.warning('Unable to locate file: %s', victim['file'])
+        if current_assembly_id:
+            removed_files = clear_temp_directory(report_path, current_assembly_id)
+
         return removed_files
 
     # pylint: disable=inconsistent-return-statements, no-self-use
@@ -254,11 +245,11 @@ class AWSReportProcessor(ReportProcessorBase):
 
         with AWSReportDBAccessor(self._schema_name, self.column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
-            bills = bills.filter_by(billing_period_start=bill_date).all()
-            for bill in bills:
-                line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
-                line_item_query.delete()
-                accessor.commit()
+            bills = bills.filter(billing_period_start=bill_date).all()
+            with schema_context(self._schema_name):
+                for bill in bills:
+                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    line_item_query.delete()
 
         return True
 
@@ -361,7 +352,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-        table_name = AWS_CUR_TABLE_MAP['bill']
+        table_name = AWSCostEntryBill
         start_date = row.get('bill/BillingPeriodStartDate')
         bill_type = row.get('bill/BillType')
         payer_account_id = row.get('bill/PayerAccountId')
@@ -373,7 +364,7 @@ class AWSReportProcessor(ReportProcessorBase):
         if key in self.existing_bill_map:
             return self.existing_bill_map[key]
 
-        data = self._get_data_for_table(row, table_name)
+        data = self._get_data_for_table(row, table_name._meta.db_table)
 
         data['provider_id'] = self._provider_id
 
@@ -399,7 +390,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (str): The DB id of the cost entry object
 
         """
-        table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        table_name = AWSCostEntry
         interval = row.get('identity/TimeInterval')
         start, end = self._get_cost_entry_time_interval(interval)
 
@@ -447,11 +438,11 @@ class AWSReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        table_name = AWS_CUR_TABLE_MAP['line_item']
-        data = self._get_data_for_table(row, table_name)
+        table_name = AWSCostEntryLineItem
+        data = self._get_data_for_table(row, table_name._meta.db_table)
         data = report_db_accesor.clean_data(
             data,
-            table_name
+            table_name._meta.db_table
         )
 
         data['tags'] = self._process_tags(row)
@@ -476,7 +467,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (str): The DB id of the pricing object
 
         """
-        table_name = AWS_CUR_TABLE_MAP['pricing']
+        table_name = AWSCostEntryPricing
 
         term = row.get('pricing/term') if row.get('pricing/term') else 'None'
         unit = row.get('pricing/unit') if row.get('pricing/unit') else 'None'
@@ -490,7 +481,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(
             row,
-            table_name
+            table_name._meta.db_table
         )
         value_set = set(data.values())
         if value_set == {''}:
@@ -514,7 +505,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        table_name = AWS_CUR_TABLE_MAP['product']
+        table_name = AWSCostEntryProduct
         sku = row.get('product/sku')
         product_name = row.get('product/ProductName')
         region = row.get('product/region')
@@ -528,19 +519,17 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(
             row,
-            table_name
+            table_name._meta.db_table
         )
         value_set = set(data.values())
         if value_set == {''}:
             return
-
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
             conflict_columns=['sku', 'product_name', 'region']
         )
         self.processed_report.products[key] = product_id
-
         return product_id
 
     def _create_cost_entry_reservation(self, row, report_db_accessor):
@@ -553,7 +542,7 @@ class AWSReportProcessor(ReportProcessorBase):
             (str): The DB id of the reservation object
 
         """
-        table_name = AWS_CUR_TABLE_MAP['reservation']
+        table_name = AWSCostEntryReservation
         arn = row.get('reservation/ReservationARN')
         line_item_type = row.get('lineItem/LineItemType', '').lower()
         reservation_id = None
@@ -566,7 +555,7 @@ class AWSReportProcessor(ReportProcessorBase):
         if reservation_id is None or line_item_type == 'rifee':
             data = self._get_data_for_table(
                 row,
-                table_name
+                table_name._meta.db_table
             )
             value_set = set(data.values())
             if value_set == {''}:
@@ -599,6 +588,7 @@ class AWSReportProcessor(ReportProcessorBase):
         product_id = self._create_cost_entry_product(row, report_db_accesor)
         pricing_id = self._create_cost_entry_pricing(row, report_db_accesor)
         reservation_id = self._create_cost_entry_reservation(row, report_db_accesor)
+
         self._create_cost_entry_line_item(
             row,
             cost_entry_id,

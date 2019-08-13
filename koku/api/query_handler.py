@@ -62,6 +62,7 @@ class QueryHandler:
             tenant    (String): the tenant to use to access CUR data
             default_ordering (String) default ordering of response items
             kwargs    (Dict): A dictionary for internal query alteration based on path
+
         """
         LOG.debug(f'Query Params: {query_parameters}')
 
@@ -132,6 +133,7 @@ class QueryHandler:
             in_list (List[String]): List of strings to check for wildcard
         Return:
             (Boolean): if wildcard is present in list
+
         """
         if not in_list:
             return False
@@ -229,6 +231,7 @@ class QueryHandler:
             key     (String): the key to obtain from the dictionar data
         Returns:
             (Object): The value found with the given key or the default value
+
         """
         value = default
         if self.check_query_params(dictkey, key):

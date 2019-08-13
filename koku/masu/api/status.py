@@ -24,33 +24,39 @@ import socket
 import subprocess
 import sys
 
-import psycopg2
-from flask import jsonify, request
+from django.db import (InterfaceError,
+                       NotSupportedError,
+                       OperationalError,
+                       ProgrammingError,
+                       connection)
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
+from koku.celery import CELERY as celery_app
 from masu.api import API_VERSION
-from masu.celery import celery as celery_app
 from masu.config import Config
-from masu.database.engine import DB_ENGINE
 from masu.external.date_accessor import DateAccessor
-from masu.util.blueprint import application_route
 
 LOG = logging.getLogger(__name__)
-
-API_V1_ROUTES = {}
 
 BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
 CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
 
 
-@application_route('/status/', API_V1_ROUTES, methods=('GET',))
-def get_status():
+@api_view(http_method_names=['GET'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def get_status(request):
     """Packages response for class-based view."""
-    if 'liveness' in request.args:
-        return jsonify({'alive': True})
+    if 'liveness' in request.query_params:
+        return Response({'alive': True})
 
     app_status = ApplicationStatus()
     response = {
-        'connection_pool': DB_ENGINE.pool.status(),
         'api_version': app_status.api_version,
         'celery_status': app_status.celery_status,
         'commit': app_status.commit,
@@ -61,7 +67,7 @@ def get_status():
         'platform_info': app_status.platform_info,
         'python_version': app_status.python_version
     }
-    return jsonify(response)
+    return Response(response)
 
 
 # pylint: disable=too-few-public-methods, no-self-use
@@ -139,23 +145,22 @@ class ApplicationStatus():
         :returns: A dict of db connection info.
         """
         try:
-            with psycopg2.connect(Config.SQLALCHEMY_DATABASE_URI) as conn:
-                curs = conn.cursor()
-                curs.execute(
+            with connection.cursor() as cursor:
+                cursor.execute(
                     """
                     SELECT datname AS database,
                         numbackends as database_connections
                     FROM pg_stat_database
                     """
                 )
-                raw = curs.fetchall()
+                raw = cursor.fetchall()
 
                 # get pg_stat_database column names
-                names = [desc[0] for desc in curs.description]
-        except (psycopg2.InterfaceError,
-                psycopg2.NotSupportedError,
-                psycopg2.OperationalError,
-                psycopg2.ProgrammingError) as exc:
+                names = [desc[0] for desc in cursor.description]
+        except (InterfaceError,
+                NotSupportedError,
+                OperationalError,
+                ProgrammingError) as exc:
             LOG.warning('Unable to connect to DB: %s', str(exc))
             return {'ERROR': str(exc)}
 

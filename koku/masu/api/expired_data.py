@@ -19,18 +19,23 @@
 
 import logging
 
-from flask import jsonify, request
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from masu.config import Config
 from masu.processor.orchestrator import Orchestrator
-from masu.util.blueprint import application_route
 
-API_V1_ROUTES = {}
-LOG = logging.getLogger('gunicorn.error')  # https://stackoverflow.com/a/34437443
+LOG = logging.getLogger(__name__)
 
 
-@application_route('/expired_data/', API_V1_ROUTES, methods=('GET', 'DELETE'))
-def expired_data():
+@api_view(http_method_names=['GET', 'DELETE'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def expired_data(request):
     """Return expired data."""
     simulate = True
     if request.method == 'DELETE' and Config.DEBUG:
@@ -42,4 +47,4 @@ def expired_data():
     response_key = 'Async jobs for expired data removal'
     if simulate:
         response_key = response_key + ' (simulated)'
-    return jsonify({response_key: str(async_delete_results)})
+    return Response({response_key: str(async_delete_results)})

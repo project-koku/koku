@@ -30,7 +30,7 @@ from masu.processor.report_charge_updater import (
     ReportChargeUpdater,
     ReportChargeUpdaterError,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportChargeUpdaterTest(MasuTestCase):

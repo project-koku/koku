@@ -19,26 +19,32 @@
 
 import logging
 
-from flask import jsonify, request
+from rest_framework import status
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from masu.processor.tasks import update_charge_info
-from masu.util.blueprint import application_route
 
-API_V1_ROUTES = {}
-LOG = logging.getLogger('gunicorn.error')  # https://stackoverflow.com/a/34437443
+LOG = logging.getLogger(__name__)
 
 
-@application_route('/update_charge/', API_V1_ROUTES, methods=('GET',))
-def update_charge():
+@api_view(http_method_names=['GET', 'DELETE'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def update_charge(request):
     """Update report summary tables in the database."""
-    params = request.args
+    params = request.query_params
 
     provider_uuid = params.get('provider_uuid')
     schema_name = params.get('schema')
 
     if provider_uuid is None or schema_name is None:
         errmsg = 'provider_uuid and schema_name are required parameters.'
-        return jsonify({'Error': errmsg}), 400
+        return Response({'Error': errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     LOG.info('Calling update_charge_info async task.')
 
@@ -47,4 +53,4 @@ def update_charge():
         provider_uuid,
     )
 
-    return jsonify({'Update Charge Task ID': str(async_result)})
+    return Response({'Update Charge Task ID': str(async_result)})

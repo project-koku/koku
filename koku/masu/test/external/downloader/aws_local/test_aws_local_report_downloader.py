@@ -16,7 +16,6 @@
 #
 
 """Test the Local Report Downloader."""
-
 import os.path
 import random
 import shutil
@@ -36,8 +35,8 @@ from masu.external.downloader.aws_local.aws_local_report_downloader import (
 )
 from masu.external.report_downloader import ReportDownloader
 from masu.external import AWS_REGIONS
-from tests import MasuTestCase
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -57,6 +56,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.fake_customer_name = CUSTOMER_NAME
         cls.fake_report_name = 'koku-local'
 
@@ -72,8 +72,9 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
     def setUp(self):
         """Set up each test."""
+        super().setUp()
         self.fake_bucket_name = tempfile.mkdtemp()
-        mytar = TarFile.open('./tests/data/test_local_bucket.tar.gz')
+        mytar = TarFile.open('./koku/masu/test/data/test_local_bucket.tar.gz')
         mytar.extractall(path=self.fake_bucket_name)
         os.makedirs(DATA_DIR, exist_ok=True)
         self.report_downloader = ReportDownloader(
@@ -81,7 +82,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
             self.fake_auth_credential,
             self.fake_bucket_name,
             'AWS-local',
-            1,
+            self.aws_provider_id,
         )
 
         self.aws_local_report_downloader = AWSLocalReportDownloader(
@@ -89,7 +90,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.fake_auth_credential,
                 'bucket': self.fake_bucket_name,
-                'provider_id': 1,
+                'provider_id': self.aws_provider_id,
             }
         )
 
@@ -139,7 +140,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def test_download_bucket_with_prefix(self):
         """Test to verify that basic report downloading works."""
         fake_bucket = tempfile.mkdtemp()
-        mytar = TarFile.open('./tests/data/test_local_bucket_prefix.tar.gz')
+        mytar = TarFile.open('./koku/masu/test/data/test_local_bucket_prefix.tar.gz')
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=8, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):
@@ -148,7 +149,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                 self.fake_auth_credential,
                 fake_bucket,
                 'AWS-local',
-                1,
+                self.aws_provider_id,
             )
             # Names from test report .gz file
             report_downloader.download_report(test_report_date)
@@ -219,7 +220,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
     def test_download_missing_month(self):
         """Test to verify that downloading a non-existant month throws proper exception."""
         fake_bucket = tempfile.mkdtemp()
-        mytar = TarFile.open('./tests/data/test_local_bucket_prefix.tar.gz')
+        mytar = TarFile.open('./koku/masu/test/data/test_local_bucket_prefix.tar.gz')
         mytar.extractall(fake_bucket)
         test_report_date = datetime(year=2018, month=7, day=7)
         with patch.object(DateAccessor, 'today', return_value=test_report_date):

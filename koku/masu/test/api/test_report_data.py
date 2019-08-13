@@ -22,9 +22,12 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 from masu.test import MasuTestCase
+from django.test import TestCase
+from django.urls import reverse
+from django.test.utils import override_settings
 
-
-class ReportDataTests(MasuTestCase):
+@override_settings(ROOT_URLCONF='masu.urls')
+class ReportDataTests(MasuTestCase, TestCase):
     """Test Cases for the report_data endpoint."""
 
     @patch('masu.api.report_data.update_summary_tables')
@@ -36,15 +39,12 @@ class ReportDataTests(MasuTestCase):
             'start_date': start_date,
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
         }
-        query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(
             params['schema'],
@@ -62,16 +62,13 @@ class ReportDataTests(MasuTestCase):
             'start_date': start_date,
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
         }
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'schema is a required parameter.'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -80,18 +77,16 @@ class ReportDataTests(MasuTestCase):
         """Test GET report_data endpoint returns a 400 for missing provider_uuid."""
         start_date = datetime.date.today()
         params = {'start_date': start_date, 'schema': 'acct10001'}
-        query_string = urlencode(params)
+
         expected_key = 'Error'
         expected_message = (
             'provider_uuid or provider_type must be supplied as a parameter.'
         )
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -104,16 +99,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132ddd',
         }
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'Unable to determine provider type.'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -124,16 +116,13 @@ class ReportDataTests(MasuTestCase):
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
         }
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'start_date is a required parameter.'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -147,18 +136,15 @@ class ReportDataTests(MasuTestCase):
             'provider_type': 'OCP',
             'start_date': start_date,
         }
-        query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = (
             'provider_uuid and provider_type have mismatched provider types.'
         )
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -173,15 +159,12 @@ class ReportDataTests(MasuTestCase):
             'start_date': start_date,
             'end_date': end_date,
         }
-        query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(
             params['schema'],
@@ -202,15 +185,12 @@ class ReportDataTests(MasuTestCase):
             'start_date': start_date,
             'end_date': end_date,
         }
-        query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(
             params['schema'],
@@ -225,15 +205,12 @@ class ReportDataTests(MasuTestCase):
         """Test GET report_data endpoint with provider_uuid=*."""
         start_date = datetime.date.today()
         params = {'provider_uuid': '*', 'start_date': start_date}
-        query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.get('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        response = self.client.get(reverse('report_data'), params)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(str(params['start_date']), None)
 
@@ -249,12 +226,11 @@ class ReportDataTests(MasuTestCase):
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_remove.delay.assert_called_with(
             params['schema'],
@@ -275,12 +251,11 @@ class ReportDataTests(MasuTestCase):
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_remove.delay.assert_called_with(
             params['schema'],
@@ -296,12 +271,11 @@ class ReportDataTests(MasuTestCase):
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
-        # self.client.get()
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         mock_remove.delay.assert_called_with(
             params['schema'], params['provider'], False, str(params['provider_id'])
@@ -315,11 +289,11 @@ class ReportDataTests(MasuTestCase):
         expected_key = 'Error'
         expected_message = 'schema is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -331,11 +305,11 @@ class ReportDataTests(MasuTestCase):
         expected_key = 'Error'
         expected_message = 'provider is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
@@ -347,10 +321,10 @@ class ReportDataTests(MasuTestCase):
         expected_key = 'Error'
         expected_message = 'provider_id is a required parameter.'
 
-        response = self.client.delete('/api/v1/report_data/', query_string=query_string)
-        body = response.json
+        url = reverse('report_data') + '?' + query_string
+        response = self.client.delete(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)

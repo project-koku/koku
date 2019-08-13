@@ -44,6 +44,7 @@ class ReportChargeUpdater:
         Args:
             customer_schema (str): Schema name for given customer.
             provider_uuid (str): The provider uuid.
+
         """
         self._schema = customer_schema
         self._provider_uuid = provider_uuid

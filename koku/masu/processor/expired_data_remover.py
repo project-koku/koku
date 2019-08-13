@@ -60,6 +60,7 @@ class ExpiredDataRemover():
         Args:
             customer_schema (String): Schema name for given customer.
             num_of_months_to_keep (Int): Number of months to retain in database.
+
         """
         self._schema = customer_schema
         self._provider = provider

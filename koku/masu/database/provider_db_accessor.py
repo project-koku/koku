@@ -33,6 +33,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Args:
             provider_uuid  (String) the uuid of the provider
             auth_id        (String) provider authentication database id
+
         """
         super().__init__('public')
         self._uuid = provider_uuid
@@ -48,6 +49,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+
         """
         query = self._table.objects.all()
         if self._auth_id:
@@ -69,6 +71,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "UUID v4",
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
+
         """
         obj = self._get_db_obj_query().first()
         return str(obj.uuid) if obj else None
@@ -82,6 +85,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "Provider Name assigned by the customer",
                     example: "Test Provider"
+
         """
         obj = self._get_db_obj_query().first()
         return obj.name if obj else None
@@ -95,6 +99,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "Provider type.  Cloud backend name",
                     example: "AWS"
+
         """
         obj = self._get_db_obj_query().first()
         return obj.type if obj else None
@@ -108,6 +113,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "Provider Resource Name.  i.e. AWS: RoleARN",
                     example: "arn:aws:iam::111111111111:role/CostManagement"
+
         """
         obj = self._get_db_obj_query().first()
         authentication_id = obj.authentication_id
@@ -124,6 +130,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
                     example: "my-s3-cur-bucket"
+
         """
         obj = self._get_db_obj_query().first()
         billing_source_id = obj.billing_source_id
@@ -139,6 +146,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             (Boolean): "True if a report has been processed for the provider.",
+
         """
         obj = self._get_db_obj_query().first()
         return obj.setup_complete if obj else None
@@ -151,6 +159,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             None
+
         """
         obj = self._get_db_obj_query().first()
         obj.setup_complete = True
@@ -165,6 +174,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "UUID v4",
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
+
         """
         obj = self._get_db_obj_query().first()
         customer_id = obj.customer_id
@@ -181,6 +191,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (String): "Name of the customer",
                     example: "Customer 1 Inc."
+
         """
         return self.get_schema()
 
@@ -192,6 +203,7 @@ class ProviderDBAccessor(KokuDBAccess):
             None
         Returns:
             (String): "Name of the database schema",
+
         """
         obj = self._get_db_obj_query().first()
         customer_id = obj.customer_id

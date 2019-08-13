@@ -28,16 +28,18 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from os import listdir, path, remove
+from os import path
+
+from dateutil import parser
 
 from masu.config import Config
-from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import extract_uuids_from_string
+from masu.util.common import clear_temp_directory
+from masu.util.ocp.common import month_date_range
+from reporting.provider.ocp.models import OCPStorageLineItem, OCPUsageLineItem, OCPUsageReport, OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 
@@ -131,39 +133,33 @@ class OCPReportProcessor():
         """Process report file."""
         return self._processor.process()
 
-    def remove_temp_cur_files(self, report_path, manifest_id):
+    def remove_temp_cur_files(self, report_path):
         """Remove temporary report files."""
-        files = listdir(report_path)
-
         LOG.info('Cleaning up temporary report files for %s', report_path)
-        victim_list = []
-        current_assembly_id = None
-        for file in files:
-            file_path = '{}/{}'.format(report_path, file)
-            if file.endswith('manifest.json'):
-                with open(file_path, 'r') as manifest_file_handle:
-                    manifest_json = json.load(manifest_file_handle)
-                    current_assembly_id = manifest_json.get('uuid')
-            else:
-                with ReportStatsDBAccessor(file, manifest_id) as stats:
-                    completed_date = stats.get_last_completed_datetime()
-                    if completed_date:
-                        assembly_id = extract_uuids_from_string(file).pop()
 
-                        victim_list.append({'file': file_path,
-                                            'completed_date': completed_date,
-                                            'uuid': assembly_id})
+        manifest_path = '{}/{}'.format(report_path, 'manifest.json')
+        current_assembly_id = None
+        cluster_id = None
+        payload_date = None
+        month_range = None
+        with open(manifest_path, 'r') as manifest_file_handle:
+            manifest_json = json.load(manifest_file_handle)
+            current_assembly_id = manifest_json.get('uuid')
+            cluster_id = manifest_json.get('cluster_id')
+            payload_date = manifest_json.get('date')
+            if payload_date:
+                month_range = month_date_range(parser.parse(payload_date))
 
         removed_files = []
-        for victim in victim_list:
-            if victim['uuid'] != current_assembly_id:
-                try:
-                    LOG.info('Removing %s, completed processing on date %s',
-                             victim['file'], victim['completed_date'])
-                    remove(victim['file'])
-                    removed_files.append(victim['file'])
-                except FileNotFoundError:
-                    LOG.warning('Unable to locate file: %s', victim['file'])
+        if current_assembly_id:
+            removed_files = clear_temp_directory(report_path, current_assembly_id)
+
+        if current_assembly_id and cluster_id and month_range:
+            report_prefix = '{}_'.format(month_range)
+            insights_local_path = '{}/{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR,
+                                                    cluster_id, month_range)
+            clear_temp_directory(insights_local_path, current_assembly_id, report_prefix)
+
         return removed_files
 
 
@@ -221,7 +217,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (dict): The data from the row keyed on the DB table's column names
 
         """
-        column_map = self.column_map[table_name]
+        column_map = self.column_map[table_name._meta.db_table]
 
         return {column_map[key]: value
                 for key, value in row.items()
@@ -238,7 +234,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (str): The DB id of the report object
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['report']
+        table_name = OCPUsageReport
         start = datetime.strptime(row.get('interval_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('interval_end'), Config.OCP_DATETIME_STR_FORMAT)
 
@@ -275,7 +271,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             (str): The DB id of the report period object
 
         """
-        table_name = OCP_REPORT_TABLE_MAP['report_period']
+        table_name = OCPUsageReportPeriod
         start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
 
@@ -350,10 +346,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
         columns = tuple(self.processed_report.line_items[0].keys())
         csv_file = self._write_processed_rows_to_csv()
 
-        # This will commit all pricing, products, and reservations
-        # on the session
-        report_db_accessor.commit()
-
         report_db_accessor.bulk_insert_rows(
             csv_file,
             temp_table,
@@ -375,31 +367,27 @@ class OCPReportProcessorBase(ReportProcessorBase):
         """
         row_count = 0
         opener, mode = self._get_file_opener(self._compression)
-
         with opener(self._report_path, mode) as f:
             with OCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 temp_table = report_db.create_temp_table(
-                    self.table_name,
+                    self.table_name._meta.db_table,
                     drop_column='id'
                 )
-
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     report_period_id = self._create_report_period(row, self._cluster_id, report_db)
                     report_id = self._create_report(row, report_period_id, report_db)
-                    self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
 
+                    self._create_usage_report_line_item(row, report_period_id, report_id, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         self._save_to_db(temp_table, report_db)
-
                         report_db.merge_temp_table(
-                            self.table_name,
+                            self.table_name._meta.db_table,
                             temp_table,
                             self.line_item_columns,
                             self.line_item_conflict_columns
                         )
-
                         LOG.info('Saving report rows %d to %d for %s', row_count,
                                  row_count + len(self.processed_report.line_items),
                                  self._report_name)
@@ -409,14 +397,12 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
                 if self.processed_report.line_items:
                     self._save_to_db(temp_table, report_db)
-
                     report_db.merge_temp_table(
-                        self.table_name,
+                        self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
                         self.line_item_conflict_columns
                     )
-
                     LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
@@ -446,7 +432,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             compression=compression,
             provider_id=provider_id
         )
-        self.table_name = OCP_REPORT_TABLE_MAP['line_item']
+        self.table_name = OCPUsageLineItem()
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
@@ -467,20 +453,18 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 
         """
         data = self._get_data_for_table(row, self.table_name)
-
         pod_label_str = ''
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
 
         data = report_db_accessor.clean_data(
             data,
-            self.table_name
+            self.table_name._meta.db_table
         )
 
         data['report_period_id'] = report_period_id
         data['report_id'] = report_id
         data['pod_labels'] = self._process_pod_labels(pod_label_str)
-
         # Deduplicate potential repeated rows in data
         key = tuple(data.get(column)
                     for column in self.line_item_conflict_columns)
@@ -518,7 +502,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             compression=compression,
             provider_id=provider_id
         )
-        self.table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
+        self.table_name = OCPStorageLineItem()
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_path, self._schema_name)
 
@@ -550,7 +534,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
 
         data = report_db_accessor.clean_data(
             data,
-            self.table_name
+            self.table_name._meta.db_table
         )
 
         data['report_period_id'] = report_period_id

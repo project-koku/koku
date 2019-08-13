@@ -41,17 +41,17 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_providers()
             for provider in all_providers:
-                if provider_uuid and provider.uuid != provider_uuid:
+                if provider_uuid and str(provider.uuid) != provider_uuid:
                     continue
                 account = {
-                    'authentication': provider.api_providerauthentication.provider_resource_name,
-                    'customer_name': provider.api_customer.schema_name,
+                    'authentication': provider.authentication.provider_resource_name,
+                    'customer_name': provider.customer.schema_name,
                     'billing_source': None,
                     'provider_type': provider.type,
-                    'schema_name': provider.api_customer.schema_name,
+                    'schema_name': provider.customer.schema_name,
                     'provider_uuid': provider.uuid
                 }
-                if provider.api_providerbillingsource:
-                    account['billing_source'] = provider.api_providerbillingsource.bucket
+                if provider.billing_source:
+                    account['billing_source'] = provider.billing_source.bucket
                 accounts.append(account)
         return accounts

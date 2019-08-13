@@ -60,6 +60,7 @@ class FilterSerializer(serializers.Serializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter inputs are invalid
+
         """
         handle_invalid_fields(self, data)
 
@@ -144,6 +145,7 @@ class TagsQueryParamSerializer(serializers.Serializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if field inputs are invalid
+
         """
         handle_invalid_fields(self, data)
         return data
@@ -163,6 +165,7 @@ class OCPTagsQueryParamSerializer(TagsQueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter field inputs are invalid
+
         """
         validate_field(self, 'filter', OCPFilterSerializer, value)
         return value
@@ -182,6 +185,7 @@ class AWSTagsQueryParamSerializer(TagsQueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter field inputs are invalid
+
         """
         validate_field(self, 'filter', AWSFilterSerializer, value)
         return value

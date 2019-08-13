@@ -21,7 +21,6 @@ from masu.config import Config
 from masu.exceptions import CURAccountsInterfaceError
 from masu.external import POLL_INGEST
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
-from masu.external.accounts.network.cur_accounts_network import CURAccountsNetwork
 from masu.util import common as utils
 from masu.util.ocp import common as ocp_utils
 
@@ -58,9 +57,6 @@ class AccountsAccessor:
         """
         if self.source_type == 'db':
             return CURAccountsDB()
-
-        if self.source_type == 'network':
-            return CURAccountsNetwork()
 
         return None
 

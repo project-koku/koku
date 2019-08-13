@@ -20,10 +20,16 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import connection
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from reporting.provider.ocp.models import (OCPStorageLineItemDailySummary,
+                                           OCPUsageLineItemDailySummary,
+                                           OCPUsageReport,
+                                           OCPUsageReportPeriod)
 
 LOG = logging.getLogger(__name__)
 
@@ -38,6 +44,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+
         """
         super().__init__(schema, column_map)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
@@ -69,199 +76,220 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        self._cursor.execute(upsert_sql)
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(upsert_sql)
 
-        delete_sql = f'DELETE FROM {temp_table_name}'
-        self._cursor.execute(delete_sql)
-        self.vacuum_table(temp_table_name)
+            delete_sql = f'DELETE FROM {temp_table_name}'
+            cursor.execute(delete_sql)
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
         table_name = OCP_REPORT_TABLE_MAP['report']
 
-        return self._get_db_obj_query(table_name)\
-            .order_by('-interval_start')\
-            .first()
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .order_by('-interval_start')\
+                .first()
 
     def get_current_usage_period(self):
         """Get the most recent usage report period object."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
-        return self._get_db_obj_query(table_name)\
-            .order_by('-report_period_start')\
-            .first()
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .order_by('-report_period_start')\
+                .first()
 
     def get_usage_periods_by_date(self, start_date):
         """Return all report period entries for the specified start date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        return self._get_db_obj_query(table_name)\
-            .filter(report_period_start=start_date)\
-            .all()
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .filter(report_period_start=start_date)\
+                .all()
 
     def get_usage_period_before_date(self, date):
         """Get the usage report period objects before provided date."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
 
-        base_query = self._get_db_obj_query(table_name)
-        usage_period_query = base_query.filter(report_period_start__lte=date)
-        return usage_period_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            usage_period_query = base_query.filter(report_period_start__lte=date)
+            return usage_period_query
 
     # pylint: disable=invalid-name
     def get_usage_period_query_by_provider(self, provider_id):
         """Return all report periods for the specified provider."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        return self._get_db_obj_query(table_name)\
-            .filter(provider_id=provider_id)
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .filter(provider_id=provider_id)
 
     def report_periods_for_provider_id(self, provider_id, start_date=None):
         """Return all report periods for provider_id on date."""
         report_periods = self.get_usage_period_query_by_provider(provider_id)
+        with schema_context(self.schema):
+            if start_date:
+                report_date = parse(start_date).replace(day=1)
+                report_periods = report_periods.filter(
+                    report_period_start=report_date
+                ).all()
 
-        if start_date:
-            report_date = parse(start_date).replace(day=1)
-            report_periods = report_periods.filter(
-                report_period_start=report_date
-            ).all()
-
-        return report_periods
+            return report_periods
 
     def get_lineitem_query_for_reportid(self, query_report_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
-        base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(report_id=query_report_id)
-        return line_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(report_id=query_report_id)
+            return line_item_query
 
     def get_daily_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report daily item for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
-
-        base_query = self._get_db_obj_query(table_name)
-        daily_usage_query = base_query.filter(cluster_id=cluster_identifier)
-        return daily_usage_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            daily_usage_query = base_query.filter(cluster_id=cluster_identifier)
+            return daily_usage_query
 
     def get_summary_usage_query_for_clusterid(self, cluster_identifier):
         """Get the usage report summary for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        base_query = self._get_db_obj_query(table_name)
-        summary_usage_query = base_query.filter(cluster_id=cluster_identifier)
-        return summary_usage_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_usage_query = base_query.filter(cluster_id=cluster_identifier)
+            return summary_usage_query
 
     def get_item_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
-        base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(report_period_id=report_period_id)
-        return line_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(report_period_id=report_period_id)
+            return line_item_query
 
     def get_storage_item_query_report_period_id(self, report_period_id):
         """Get the storage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
-        base_query = self._get_db_obj_query(table_name)
-        line_item_query = base_query.filter(report_period_id=report_period_id)
-        return line_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(report_period_id=report_period_id)
+            return line_item_query
 
     def get_daily_storage_item_query_cluster_id(self, cluster_identifier):
         """Get the daily storage report line item for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
-        base_query = self._get_db_obj_query(table_name)
-        daily_item_query = base_query.filter(cluster_id=cluster_identifier)
-        return daily_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            daily_item_query = base_query.filter(cluster_id=cluster_identifier)
+            return daily_item_query
 
     def get_storage_summary_query_cluster_id(self, cluster_identifier):
         """Get the storage report summary for a cluster id query."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        base_query = self._get_db_obj_query(table_name)
-        daily_item_query = base_query.filter(cluster_id=cluster_identifier)
-        return daily_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            daily_item_query = base_query.filter(cluster_id=cluster_identifier)
+            return daily_item_query
 
     def get_ocp_aws_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report summary item for a given cluster id query."""
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
-        base_query = self._get_db_obj_query(table_name)
-        summary_item_query = base_query.filter(cluster_id=cluster_identifier)
-        return summary_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cluster_id=cluster_identifier)
+            return summary_item_query
 
     def get_ocp_aws_project_summary_query_for_cluster_id(self, cluster_identifier):
         """Get the OCP-on-AWS report project summary item for a given cluster id query."""
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_project_daily_summary']
-        base_query = self._get_db_obj_query(table_name)
-        summary_item_query = base_query.filter(cluster_id=cluster_identifier)
-        return summary_item_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cluster_id=cluster_identifier)
+            return summary_item_query
 
     def get_report_query_report_period_id(self, report_period_id):
         """Get the usage report line item for a report id query."""
         table_name = OCP_REPORT_TABLE_MAP['report']
-        base_query = self._get_db_obj_query(table_name)
-        usage_report_query = base_query.filter(report_period_id=report_period_id)
-        return usage_report_query
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            usage_report_query = base_query.filter(report_period_id=report_period_id)
+            return usage_report_query
 
     def get_report_periods(self):
         """Get all usage period objects."""
-        table_name = OCP_REPORT_TABLE_MAP['report_period']
-
-        columns = ['id', 'cluster_id', 'report_period_start', 'provider_id']
-        periods = self._get_db_obj_query(table_name, columns=columns).all()
-        return {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
-                for p in periods}
+        periods = []
+        with schema_context(self.schema):
+            periods = OCPUsageReportPeriod.objects.values('id', 'cluster_id',
+                                                          'report_period_start', 'provider_id')
+            return_value = {(p['cluster_id'], p['report_period_start'], p['provider_id']): p['id']
+                            for p in periods}
+            return return_value
 
     def get_reports(self):
         """Make a mapping of reports by time."""
-        table_name = OCP_REPORT_TABLE_MAP['report']
-
-        reports = self._get_db_obj_query(table_name).all()
-
-        return {(entry.report_period_id,
-                 entry.interval_start.strftime(self._datetime_format)): entry.id
-                for entry in reports}
+        with schema_context(self.schema):
+            reports = OCPUsageReport.objects.all()
+            return {(entry.report_period_id,
+                     entry.interval_start.strftime(self._datetime_format)): entry.id
+                    for entry in reports}
 
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        if cluster_id:
-            reports = self._get_db_obj_query(table_name).filter(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table_name).all()
-        return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
+        table = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            if cluster_id:
+                reports = self._get_db_obj_query(table).filter(cluster_id=cluster_id)
+            else:
+                reports = self._get_db_obj_query(table).all()
+            return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
     def _get_reports(self, table, cluster_id=None):
         """Return requested reports from given table."""
-        if cluster_id:
-            reports = self._get_db_obj_query(table).filter(cluster_id=cluster_id)
-        else:
-            reports = self._get_db_obj_query(table).all()
-        return reports
+        with schema_context(self.schema):
+            if cluster_id:
+                reports = self._get_db_obj_query(table).filter(cluster_id=cluster_id)
+            else:
+                reports = self._get_db_obj_query(table).all()
+            return reports
 
     def get_pod_request_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod request hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
+        table = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table, cluster_id)
+            return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
 
     def get_pod_usage_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_usage hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
+        table = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table, cluster_id)
+            return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
 
     def get_pod_request_memory_gigabyte_hours(self, cluster_id=None):
         """Make a mapping of memory_request_hours."""
-        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
+        table = OCPUsageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table, cluster_id)
+            return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
 
     def get_persistentvolumeclaim_usage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
+        table = OCPStorageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table, cluster_id)
+            # pylint: disable=line-too-long
+            return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
 
     def get_volume_request_storage_gigabyte_months(self, cluster_id=None):
         """Make a mapping of volume_request_storage_gigabyte_months."""
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
-        reports = self._get_reports(table_name, cluster_id)
-        return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
+        table = OCPStorageLineItemDailySummary
+        with schema_context(self.schema):
+            reports = self._get_reports(table, cluster_id)
+            return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
 
     def populate_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -285,9 +313,46 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+
+    def get_ocp_infrastructure_map(self, start_date, end_date):
+        """Get the OCP on infrastructure map.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        infra_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_ocpinfrastructure_provider_map.sql'
+        )
+        infra_sql = infra_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date,
+            schema=self.schema
+        )
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(infra_sql)
+            results = cursor.fetchall()
+
+        db_results = []
+        for entry in results:
+            db_dict = {}
+            db_dict['aws_uuid'] = entry[0]
+            db_dict['ocp_uuid'] = entry[1]
+            db_dict['cluster_id'] = entry[2]
+            db_results.append(db_dict)
+
+        return db_results
 
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
         """Populate the daily storage aggregate of line items table.
@@ -311,7 +376,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
@@ -334,7 +400,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         )
         charge_line_sql = daily_charge_sql.decode('utf-8').format(
             cpu_temp=cpu_temp_table,
-            mem_temp=mem_temp_table
+            mem_temp=mem_temp_table,
+            schema=self.schema
         )
 
         self._commit_and_vacuum(table_name, charge_line_sql)
@@ -356,7 +423,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_ocp_storage_charge.sql'
         )
         charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            temp_table=temp_table_name
+            temp_table=temp_table_name,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, charge_line_sql)
 
@@ -381,7 +449,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date, cluster_id=cluster_id
+            end_date=end_date, cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -405,7 +474,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date, end_date=end_date,
-            cluster_id=cluster_id
+            cluster_id=cluster_id,
+            schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -437,7 +507,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 uuid=str(uuid.uuid4()).replace('-', '_'),
                 start_date=start_date,
                 end_date=end_date,
-                cluster_id=cluster_id
+                cluster_id=cluster_id,
+                schema=self.schema
             )
             self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
 
@@ -457,6 +528,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpusagepodlabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
 
@@ -469,6 +541,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumeclaimlabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
 
@@ -481,5 +554,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumelabel_summary.sql'
         )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)

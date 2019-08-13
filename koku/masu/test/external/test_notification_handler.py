@@ -23,14 +23,15 @@ from masu.external.notification_handler import (
     NotificationHandler,
     NotificationHandlerError,
 )
-import tests.external.notifications.helpers.sns_helpers as sns_helper
-from tests import MasuTestCase
+import masu.test.external.notifications.helpers.sns_helpers as sns_helper
+from masu.test import MasuTestCase
 
 
 class NotificationHandlerTest(MasuTestCase):
     """Test Cases for the NotificationHandler object."""
 
     def setUp(self):
+        super().setUp()
         self.notification_headers = list(sns_helper.sns_notification_headers)
         self.notification_body_dict = dict(sns_helper.sns_notification_body_dict)
 

@@ -15,10 +15,11 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Report manifest database accessor for cost usage reports."""
+from tenant_schemas.utils import schema_context
 
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
-from reporting_common.models import CostUsageReportManifest
+from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
 
 class ReportManifestDBAccessor(KokuDBAccess):
@@ -39,13 +40,15 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def get_manifest_by_id(self, manifest_id):
         """Get the manifest by id."""
-        query = self._get_db_obj_query()
-        return query.filter(id=manifest_id).first()
+        with schema_context(self._schema):
+            query = self._get_db_obj_query()
+            return query.filter(id=manifest_id).first()
 
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         manifest.manifest_updated_datetime = \
             self.date_accessor.today_with_timezone('UTC')
+        manifest.save()
 
     # pylint: disable=arguments-differ
     def add(self, **kwargs):
@@ -71,3 +74,26 @@ class ReportManifestDBAccessor(KokuDBAccess):
             kwargs['num_processed_files'] = 0
 
         return super().add(**kwargs)
+
+    # pylint: disable=no-self-use
+    def get_last_report_completed_datetime(self, manifest_id):
+        """Get the most recent report processing completion time for a manifest."""
+        result = CostUsageReportStatus.objects.\
+            filter(manifest_id=manifest_id).order_by('last_completed_datetime').first()
+        return result.last_completed_datetime
+
+    def reset_manifest(self, manifest_id):
+        """Return the manifest to a state as if it had not been processed.
+
+        This sets the number of processed files to zero and
+        nullifies the started and completed times on the reports.
+        """
+        manifest = self.get_manifest_by_id(manifest_id)
+        manifest.num_processed_files = 0
+        manifest.save()
+
+        files = CostUsageReportStatus.objects.filter(id=manifest_id).all()
+        for file in files:
+            file.last_completed_datetime = None
+            file.last_started_datetime = None
+            file.save()

@@ -81,6 +81,7 @@ INSTALLED_APPS = [
 
     # local apps
     'api',
+    'masu',
     'reporting',
     'reporting_common',
     'cost_models',
@@ -89,6 +90,7 @@ INSTALLED_APPS = [
 SHARED_APPS = (
     'tenant_schemas',
     'api',
+    'masu',
     'reporting_common',
     'django.contrib.contenttypes',
     'django.contrib.auth',
@@ -125,8 +127,10 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.AllowAllUsersModelBackend',
 ]
 
-
+MASU = ENVIRONMENT.bool('MASU', default=False)
 ROOT_URLCONF = 'koku.urls'
+if MASU:
+    ROOT_URLCONF = 'masu.urls'
 
 TEMPLATES = [
     {
@@ -332,6 +336,11 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'masu': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
+
     },
 }
 
@@ -379,13 +388,17 @@ if len(sys.argv) > 1 and sys.argv[1] == 'test':
 MASU_SERVICE_HOST = ENVIRONMENT.get_value('MASU_SERVICE_HOST',
                                           default='localhost')
 MASU_SERVICE_PORT = ENVIRONMENT.get_value('MASU_SERVICE_PORT',
-                                          default='5000')
-MASU_BASE_URL = 'http://{}:{}/'.format(MASU_SERVICE_HOST, MASU_SERVICE_PORT)
+                                          default='8000')
+MASU_BASE_URL = 'http://{}:{}'.format(MASU_SERVICE_HOST, MASU_SERVICE_PORT)
 
-MASU_API_REPORT_DATA = 'api/v1/report_data/'
+MASU_API_REPORT_DATA = '{}/v1/report_data/'.format(API_PATH_PREFIX)
 
 # AMQP Message Broker
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
 
 CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
+CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
+BROKER_POOL_LIMIT = None
+CELERYD_CONCURRENCY = 2
+CELERYD_PREFETCH_MULTIPLIER = 1

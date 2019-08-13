@@ -19,6 +19,7 @@
 # pylint: disable=unused-import
 from api.status.models import Status
 from api.iam.models import Customer, Tenant, User, UserPreference
+from api.metrics.models import CostModelMetricsMap
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)

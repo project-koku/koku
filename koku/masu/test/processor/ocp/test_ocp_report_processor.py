@@ -19,34 +19,40 @@
 import csv
 import copy
 import datetime
+import os
 import gzip
 import json
 import shutil
 import tempfile
 
-from sqlalchemy.sql.expression import delete
+from dateutil import parser
+from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_report_processor import (
     OCPReportProcessor,
     OCPReportProcessorError,
     OCPReportTypes,
     ProcessedOCPReport,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 from unittest.mock import patch
+from masu.util.ocp.common import month_date_range
 
 
 class ProcessedOCPReportTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
         cls.report = ProcessedOCPReport()
 
     def test_remove_processed_rows(self):
@@ -68,27 +74,33 @@ class OCPReportProcessorTest(MasuTestCase):
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
+        super().setUpClass()
         # These test reports should be replaced with OCP reports once processor is impelmented.
-        cls.test_report = './tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
+        cls.test_report = './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv'
         cls.storage_report = (
-            './tests/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
+            './koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_storage.csv'
         )
-        cls.unknown_report = './tests/data/test_cur.csv'
-        cls.test_report_gzip = './tests/data/test_cur.csv.gz'
+        cls.unknown_report = './koku/masu/test/data/test_cur.csv'
+        cls.test_report_gzip = './koku/masu/test/data/test_cur.csv.gz'
 
-        cls.ocp_processor = OCPReportProcessor(
-            schema_name='acct10001',
-            report_path=cls.test_report,
-            compression=UNCOMPRESSED,
-            provider_id=1,
+        cls.date_accessor = DateAccessor()
+        cls.billing_start = cls.date_accessor.today_with_timezone('UTC').replace(
+            year=2018,
+            month=6,
+            day=1,
+            hour=0,
+            minute=0,
+            second=0
         )
+        cls.assembly_id = '1234'
+
+        cls.manifest_accessor = ReportManifestDBAccessor()
 
         with ReportingCommonDBAccessor() as report_common_db:
             cls.column_map = report_common_db.column_map
 
-        cls.accessor = OCPReportDBAccessor('acct10001', cls.column_map)
+        cls.accessor = OCPReportDBAccessor(cls.schema, cls.column_map)
         cls.report_schema = cls.accessor.report_schema
-        cls.session = cls.accessor._session
 
         _report_tables = copy.deepcopy(OCP_REPORT_TABLE_MAP)
         cls.report_tables = list(_report_tables.values())
@@ -100,19 +112,31 @@ class OCPReportProcessorTest(MasuTestCase):
 
     @classmethod
     def tearDownClass(cls):
+        super().tearDownClass()
         cls.accessor.close_connections()
-        cls.accessor.close_session()
+
+    def setUp(self):
+        super().setUp()
+        self.manifest_dict = {
+            'assembly_id': self.assembly_id,
+            'billing_period_start_datetime': self.billing_start,
+            'num_total_files': 2,
+            'provider_id': self.ocp_provider.id
+        }
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.commit()
+
+        self.ocp_processor = OCPReportProcessor(
+            schema_name=self.schema,
+            report_path=self.test_report,
+            compression=UNCOMPRESSED,
+            provider_id=self.ocp_provider.id,
+        )
 
     def tearDown(self):
         """Return the database to a pre-test state."""
-        self.session.rollback()
-
-        for table_name in self.report_tables:
-            self.accessor._cursor.execute(f'DELETE FROM {table_name}')
-        self.accessor._pg2_conn.commit()
-
+        super().tearDown()
         self.ocp_processor._processor.processed_report.remove_processed_rows()
-
         self.ocp_processor._processor.line_item_columns = None
 
     def test_initializer(self):
@@ -169,13 +193,15 @@ class OCPReportProcessorTest(MasuTestCase):
         report_schema = report_db.report_schema
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         processor.process()
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             if table_name not in (
                 'reporting_ocpusagelineitem_daily',
                 'reporting_ocpusagelineitem_daily_summary',
@@ -196,13 +222,15 @@ class OCPReportProcessorTest(MasuTestCase):
             report_schema = report_db.report_schema
             for table_name in self.report_tables:
                 table = getattr(report_schema, table_name)
-                count = report_db._session.query(table).count()
+                with schema_context(self.schema):
+                    count = table.objects.count()
                 counts[table_name] = count
 
             processor.process()
             for table_name in self.report_tables:
                 table = getattr(report_schema, table_name)
-                count = report_db._session.query(table).count()
+                with schema_context(self.schema):
+                    count = table.objects.count()
                 if table_name not in (
                     'reporting_ocpusagelineitem_daily',
                     'reporting_ocpusagelineitem_daily_summary',
@@ -227,7 +255,8 @@ class OCPReportProcessorTest(MasuTestCase):
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         processor = OCPReportProcessor(
@@ -240,7 +269,8 @@ class OCPReportProcessorTest(MasuTestCase):
         processor.process()
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
     def test_process_duplicate_rows_same_file(self):
@@ -275,7 +305,8 @@ class OCPReportProcessorTest(MasuTestCase):
         report_schema = report_db.report_schema
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         table = getattr(report_schema, table_name)
-        count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            count = table.objects.count()
         self.assertEqual(count, expected_count)
 
     def test_get_file_opener_default(self):
@@ -345,17 +376,17 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_create_report_period(self):
         """Test that a report period id is returned."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
-        table = getattr(self.report_schema, table_name)
-        id_column = getattr(table, 'id')
         cluster_id = '12345'
-        report_period_id = self.ocp_processor._processor._create_report_period(
-            self.row, cluster_id, self.accessor
-        )
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            report_period_id = self.ocp_processor._processor._create_report_period(
+                self.row, cluster_id, accessor
+            )
 
         self.assertIsNotNone(report_period_id)
 
-        query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+        with schema_context(self.schema):
+            query = self.accessor._get_db_obj_query(table_name)
+            id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(report_period_id, id_in_db)
 
@@ -365,19 +396,20 @@ class OCPReportProcessorTest(MasuTestCase):
         table = getattr(self.report_schema, table_name)
         id_column = getattr(table, 'id')
         cluster_id = '12345'
-        report_period_id = self.ocp_processor._processor._create_report_period(
-            self.row, cluster_id, self.accessor
-        )
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            report_period_id = self.ocp_processor._processor._create_report_period(
+                self.row, cluster_id, accessor
 
-        report_id = self.ocp_processor._processor._create_report(
-            self.row, report_period_id, self.accessor
-        )
-        self.accessor.commit()
+            )
 
-        self.assertIsNotNone(report_id)
+            report_id = self.ocp_processor._processor._create_report(
+                self.row, report_period_id, accessor
+            )
 
-        query = self.accessor._get_db_obj_query(table_name)
-        id_in_db = query.order_by(id_column.desc()).first().id
+            self.assertIsNotNone(report_id)
+
+            query = accessor._get_db_obj_query(table_name)
+            id_in_db = query.order_by('-id').first().id
 
         self.assertEqual(report_id, id_in_db)
 
@@ -450,18 +482,19 @@ class OCPReportProcessorTest(MasuTestCase):
             compression=UNCOMPRESSED,
             provider_id=1,
         )
-        report_period_id = storage_processor._processor._create_report_period(
-            self.row, cluster_id, self.accessor
-        )
-        report_id = storage_processor._processor._create_report(
-            self.row, report_period_id, self.accessor
-        )
-        row = copy.deepcopy(self.row)
-        del row['pod_labels']
+        with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
+            report_period_id = storage_processor._processor._create_report_period(
+                self.row, cluster_id, accessor
+            )
+            report_id = storage_processor._processor._create_report(
+                self.row, report_period_id, accessor
+            )
+            row = copy.deepcopy(self.row)
+            del row['pod_labels']
 
-        storage_processor._processor._create_usage_report_line_item(
-            row, report_period_id, report_id, self.accessor
-        )
+            storage_processor._processor._create_usage_report_line_item(
+                row, report_period_id, report_id, accessor
+            )
 
         line_item = None
         if storage_processor._processor.processed_report.line_items:
@@ -505,8 +538,11 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_remove_temp_cur_files(self):
         """Test to remove temporary usage report files."""
         insights_local_dir = tempfile.mkdtemp()
-
-        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5"}
+        cluster_id = 'my-ocp-cluster'
+        manifest_date = "2018-05-01"
+        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
+                         "cluster_id": cluster_id,
+                         "date": manifest_date}
         manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
         with open(manifest, 'w') as outfile:
             json.dump(manifest_data, outfile)
@@ -537,7 +573,9 @@ class OCPReportProcessorTest(MasuTestCase):
         for item in file_list:
             path = '{}/{}'.format(insights_local_dir, item['file'])
             f = open(path, 'w')
-            stats = ReportStatsDBAccessor(item['file'], None)
+            obj = self.manifest_accessor.get_manifest(self.assembly_id,
+                                                      self.ocp_provider.id)
+            stats = ReportStatsDBAccessor(item['file'], obj.id)
             stats.update(last_completed_datetime=item['processed_date'])
             stats.commit()
             stats.close_session()
@@ -547,10 +585,29 @@ class OCPReportProcessorTest(MasuTestCase):
                 and item['processed_date']
             ):
                 expected_delete_list.append(path)
+        fake_dir = tempfile.mkdtemp()
+        with patch.object(Config, 'INSIGHTS_LOCAL_REPORT_DIR', fake_dir):
+            destination_dir = '{}/{}/{}'.format(fake_dir,
+                                                cluster_id,
+                                                month_date_range(parser.parse(manifest_date)))
+            os.makedirs(destination_dir, exist_ok=True)
+            removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
+            self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
+            shutil.rmtree(insights_local_dir)
+            shutil.rmtree(fake_dir)
 
-        removed_files = self.ocp_processor.remove_temp_cur_files(
-            insights_local_dir, manifest_id=None
-        )
+    def test_remove_temp_cur_files_missing_manifest(self):
+        """Test to remove temporary usage report files with missing uuid in manifest."""
+        insights_local_dir = tempfile.mkdtemp()
+        cluster_id = 'my-ocp-cluster'
+        manifest_data = {"uuid": "6e019de5-a41d-4cdb-b9a0-99bfba9a9cb5",
+                         "cluster_id": cluster_id}
+        manifest = '{}/{}'.format(insights_local_dir, 'manifest.json')
+        with open(manifest, 'w') as outfile:
+            json.dump(manifest_data, outfile)
+
+        expected_delete_list = []
+        removed_files = self.ocp_processor.remove_temp_cur_files(insights_local_dir)
         self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
         shutil.rmtree(insights_local_dir)
 
@@ -587,11 +644,13 @@ class OCPReportProcessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
         report_schema = report_db.report_schema
         table = getattr(report_schema, table_name)
-        before_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            before_count = table.objects.count()
 
         processor.process()
 
-        after_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            after_count = table.objects.count()
         self.assertGreater(after_count, before_count)
 
     def test_process_storage_duplicates(self):
@@ -612,7 +671,8 @@ class OCPReportProcessorTest(MasuTestCase):
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             counts[table_name] = count
 
         processor = OCPReportProcessor(
@@ -625,7 +685,8 @@ class OCPReportProcessorTest(MasuTestCase):
         processor.process()
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
-            count = report_db._session.query(table).count()
+            with schema_context(self.schema):
+                count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
     def test_process_usage_and_storage_default(self):
@@ -641,11 +702,13 @@ class OCPReportProcessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
         report_schema = report_db.report_schema
         table = getattr(report_schema, table_name)
-        storage_before_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            storage_before_count = table.objects.count()
 
         storage_processor.process()
 
-        storage_after_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            storage_after_count = table.objects.count()
         self.assertGreater(storage_after_count, storage_before_count)
 
         processor = OCPReportProcessor(
@@ -659,9 +722,11 @@ class OCPReportProcessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['line_item']
         report_schema = report_db.report_schema
         table = getattr(report_schema, table_name)
-        before_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            before_count = table.objects.count()
 
         processor.process()
 
-        after_count = report_db._session.query(table).count()
+        with schema_context(self.schema):
+            after_count = table.objects.count()
         self.assertGreater(after_count, before_count)

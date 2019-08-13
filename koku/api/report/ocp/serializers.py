@@ -96,6 +96,7 @@ class FilterSerializer(BaseFilterSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter inputs are invalid
+
         """
         super().validate(data)
 
@@ -128,6 +129,7 @@ class OCPQueryParamSerializer(ParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if field inputs are invalid
+
         """
         super().validate(data)
         error = {}
@@ -145,6 +147,7 @@ class OCPQueryParamSerializer(ParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if group_by field inputs are invalid
+
         """
         validate_field(self, 'group_by', GroupBySerializer, value,
                        tag_keys=self.tag_keys)
@@ -159,6 +162,7 @@ class OCPQueryParamSerializer(ParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter field inputs are invalid
+
         """
         validate_field(self, 'filter', FilterSerializer, value,
                        tag_keys=self.tag_keys)
@@ -219,6 +223,7 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if order_by field inputs are invalid
+
         """
         super().validate_order_by(value)
         validate_field(self, 'order_by', InventoryOrderBySerializer, value)
@@ -259,6 +264,7 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if order_by field inputs are invalid
+
         """
         super().validate_order_by(value)
         validate_field(self, 'order_by', OrderBySerializer, value)

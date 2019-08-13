@@ -101,7 +101,6 @@ def get_local_file_name(file_path):
     filename = file_path.split('/')[-1]
     date_range = file_path.split('/')[-2]
     local_file_name = f'{date_range}_{filename}'
-
     return local_file_name
 
 

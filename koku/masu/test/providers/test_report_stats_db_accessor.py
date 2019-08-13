@@ -18,61 +18,57 @@
 """Test the ReportStatsDBAccessor utility object."""
 
 from datetime import datetime
+from dateutil import parser
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportStatsDBAccessorTest(MasuTestCase):
     """Test Cases for the ReportStatsDBAccessor object."""
 
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         """Set up the test class."""
+        super().setUp()
         billing_start = datetime.utcnow().replace(day=1)
         manifest_dict = {
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1,
+            'provider_id': self.aws_provider_id,
         }
-        cls.manifest_accessor = ReportManifestDBAccessor()
+        self.manifest_accessor = ReportManifestDBAccessor()
 
-        manifest = cls.manifest_accessor.add(manifest_dict)
-        cls.manifest_accessor.commit()
-        cls.manifest_id = manifest.id
+        manifest = self.manifest_accessor.add(**manifest_dict)
+        self.manifest_accessor.commit()
+        self.manifest_id = manifest.id
 
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         """Tear down the test class."""
-        manifests = cls.manifest_accessor._get_db_obj_query().all()
+        manifests = self.manifest_accessor._get_db_obj_query().all()
         for manifest in manifests:
-            cls.manifest_accessor.delete(manifest)
-        cls.manifest_accessor.commit()
-        cls.manifest_accessor.close_session()
+            self.manifest_accessor.delete(manifest)
+        self.manifest_accessor.commit()
+        self.manifest_accessor.close_session()
 
     def test_initializer(self):
         """Test Initializer"""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
-        self.assertIsNotNone(saver._session)
-
-        saver.delete()
-        saver.commit()
-        saver.close_session()
+        self.assertIsNotNone(saver._obj)
 
     def test_initializer_preexisting_report(self):
         """Test getting a new accessor stats on a preexisting report."""
         saver = ReportStatsDBAccessor('myreport', self.manifest_id)
         saver.update(
             cursor_position=33,
-            last_completed_datetime='1/1/2011 11:11:11',
-            last_started_datetime='2/2/22 22:22:22',
+            last_completed_datetime='2011-1-1 11:11:11',
+            last_started_datetime='2022-2-2 22:22:22',
             etag='myetag',
         )
         saver.commit()
 
-        self.assertIsNotNone(saver._session)
+        self.assertIsNotNone(saver._obj)
 
         # Get another accessor for the same report and verify we get back the right information.
         saver2 = ReportStatsDBAccessor('myreport', self.manifest_id)
@@ -87,10 +83,6 @@ class ReportStatsDBAccessorTest(MasuTestCase):
 
         self.assertEqual(saver.get_etag(), 'myetag')
 
-        saver.delete()
-        saver.commit()
-        saver.close_session()
-        saver2.close_session()
 
     def test_add_remove(self):
         """Test basic add/remove logic."""
@@ -117,13 +109,12 @@ class ReportStatsDBAccessorTest(MasuTestCase):
 
         saver.update(
             cursor_position=33,
-            last_completed_datetime='1/1/2011 11:11:11',
-            last_started_datetime='2/2/22 22:22:22',
+            last_completed_datetime=parser.parse('2011-1-1 11:11:11'),
+            last_started_datetime=parser.parse('2022-2-2 22:22:22'),
             etag='myetag',
         )
         saver.commit()
 
-        self.assertEqual(saver.get_cursor_position(), 33)
         last_completed = saver.get_last_completed_datetime()
         self.assertEqual(last_completed.year, 2011)
         self.assertEqual(last_completed.month, 1)
@@ -140,15 +131,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
         self.assertEqual(last_started.minute, 22)
         self.assertEqual(last_started.second, 22)
 
-        saver.set_cursor_position(42)
-        saver.commit()
-
-        self.assertEqual(saver.get_cursor_position(), 42)
         self.assertEqual(saver.get_etag(), 'myetag')
-
-        saver.update(cursor_position=100)
-        saver.commit()
-        self.assertEqual(saver.get_cursor_position(), 100)
 
         saver.delete()
         saver.commit()
