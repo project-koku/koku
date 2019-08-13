@@ -31,14 +31,14 @@ objects:
 - kind: Route
   apiVersion: v1
   metadata:
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
   spec:
     host: ${APPLICATION_DOMAIN}
     port:
       targetPort: 8080-tcp
     to:
       kind: Service
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
 
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
