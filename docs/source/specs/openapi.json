@@ -1973,24 +1973,35 @@
             },
             "ProviderAuthenticationIn": {
                 "required": [
-                    "provider_resource_name"
+                    "provider_resource_name",
+                    "credentials"
                 ],
                 "properties": {
                     "provider_resource_name": {
                         "type": "string",
                         "example": "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/CostData"
+                    },
+                    "credentials": {
+                        "type": "object",
+                        "example": {"subscription_id": "f695f74f-36a4-4112-9fe6-74415fac75a2",
+                                    "tenant_id": "319d4d72-7ddc-45d0-9d63-a2db0a36e048",
+                                    "client_id": "ce26bd50-2e5a-4eb7-9504-a05a79568e25",
+                                    "client_secret": "abc123" }
                     }
                 }
             },
             "ProviderBillingSourceIn": {
                 "required": [
-                    "bucket"
+                    "bucket",
+                    "data_source"
                 ],
                 "properties": {
                     "bucket": {
                         "type": "string",
                         "example": "cost_s3"
-                    }
+                    },
+                    "data_source": { "resource_group": "My Resource Group 1",
+                                     "storage_account": "My Storage Account 2"
                 }
             },
             "Provider": {

@@ -46,7 +46,6 @@ class DatabaseStatus():
             ]
 
         """
-
         query_interval = datetime.now() - timedelta(minutes=5)
         if self._last_query and \
                 self._last_query < query_interval:
