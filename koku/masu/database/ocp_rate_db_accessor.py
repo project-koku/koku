@@ -36,6 +36,7 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
             provider_uuid (str): Provider uuid
+
         """
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid

@@ -116,6 +116,7 @@ class DateHelper():
             in_date    (DateTime) input datetime
         Returns:
             (DateTime): First of the next month
+
         """
         num_days = self.days_in_month(in_date)
         dt_next_month = in_date.replace(day=num_days, hour=0, minute=0,
@@ -129,6 +130,7 @@ class DateHelper():
             in_date    (DateTime) input datetime
         Returns:
             (DateTime): First of the previous month
+
         """
         dt_prev_month = in_date.replace(day=1, hour=0, minute=0,
                                         second=0, microsecond=0) - self.one_day
@@ -142,6 +144,7 @@ class DateHelper():
             n_days     (integer) number of days in the past
         Returns:
             (DateTime): A day n days in the past
+
         """
         midnight = in_date.replace(hour=0, minute=0, second=0, microsecond=0)
         n_days = midnight - datetime.timedelta(days=n_days)
@@ -155,6 +158,7 @@ class DateHelper():
             end_date      (DateTime) ending datetime
         Returns:
             (List[DateTime]): A list of days from the start date to end date
+
         """
         end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -169,6 +173,7 @@ class DateHelper():
             end_date      (DateTime) ending datetime
         Returns:
             (List[DateTime]): A list of months from the start date to end date
+
         """
         months = []
         dt_first = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -239,7 +244,6 @@ class UnitConverter:
             (pint.Quantity): A quantity with both magnitude and unit
 
         Example:
-
             >>> uc = UnitConverter()
             >>> result = uc.covert_quantity(1.2, 'gigabyte', 'byte')
             >>> result

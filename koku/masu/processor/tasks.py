@@ -25,6 +25,7 @@ import os
 from celery.utils.log import get_task_logger
 
 import masu.prometheus_stats as worker_stats
+from koku.celery import CELERY as celery
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.external.date_accessor import DateAccessor

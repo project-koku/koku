@@ -41,6 +41,7 @@ class QueryFilter(UserDict):
             parameter (object) - A valid query target, e.g. a list or datetime
             composition_key(str) - A key used for composing filters on different fields into an OR
             logical_operator (str) - 'and' or 'or'
+
         """
         super().__init__(table=table, field=field, operation=operation,
                          parameter=parameter)
@@ -115,6 +116,7 @@ class QueryFilterCollection(object):
 
         Args:
             filters (list) a list of QueryFilter instances.
+
         """
         if filters is None:
             self._filters = list()    # a list of QueryFilter objects
@@ -212,6 +214,7 @@ class QueryFilterCollection(object):
 
         Args:
             key (int) the index of the QueryFilter to return.
+
         """
         return self._filters[key]
 
@@ -265,7 +268,6 @@ class QueryFilterCollection(object):
             search (dict) A dictionary of filter parameters to search for.
 
         Example:
-
             These examples are in order of least-specific (most likely to have
             more than one result) to most-specific (most likely to have exactly
             one result).

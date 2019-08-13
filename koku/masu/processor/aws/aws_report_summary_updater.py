@@ -37,6 +37,7 @@ class AWSReportSummaryUpdater:
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._schema_name = schema
         self._provider = provider

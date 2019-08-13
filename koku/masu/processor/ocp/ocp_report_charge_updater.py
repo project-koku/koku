@@ -45,6 +45,7 @@ class OCPReportChargeUpdater:
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._schema = schema
         with ReportingCommonDBAccessor() as reporting_common:

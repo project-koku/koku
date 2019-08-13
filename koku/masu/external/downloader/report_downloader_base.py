@@ -40,6 +40,7 @@ class ReportDownloaderBase():
 
         Args:
             download_path (String) filesystem path to store downloaded files
+
         """
         if download_path:
             self.download_path = download_path

@@ -33,7 +33,7 @@ from masu.processor.orchestrator import Orchestrator
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def post_notification(request):

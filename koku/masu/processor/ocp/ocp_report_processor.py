@@ -39,8 +39,7 @@ from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import clear_temp_directory
 from masu.util.ocp.common import month_date_range
-
-from reporting.provider.ocp.models import OCPUsageReportPeriod, OCPUsageReport, OCPUsageLineItem, OCPStorageLineItem
+from reporting.provider.ocp.models import OCPStorageLineItem, OCPUsageLineItem, OCPUsageReport, OCPUsageReportPeriod
 
 LOG = logging.getLogger(__name__)
 

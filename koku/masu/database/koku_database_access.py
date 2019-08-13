@@ -18,10 +18,10 @@
 
 import logging
 
+from django.db import IntegrityError
 from django.db import transaction
 from django.db.transaction import get_connection, savepoint_commit, savepoint_rollback
 from django.db.transaction import savepoint as django_savepoint
-from django.db import IntegrityError
 from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ class KokuDBAccess:
 
         Args:
             schema       (String) database schema (i.e. public or customer tenant value)
+
         """
         self.schema = schema
 
@@ -103,6 +104,7 @@ class KokuDBAccess:
             None
         Returns:
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
+
         """
         with schema_context(self.schema):
             queryset = self._table.objects.all()
@@ -118,6 +120,7 @@ class KokuDBAccess:
             None
         Returns:
             (Boolean): "True/False",
+
         """
         with schema_context(self.schema):
             return self._get_db_obj_query().exists()
@@ -146,6 +149,7 @@ class KokuDBAccess:
             None
         Returns:
             None
+
         """
         with schema_context(self.schema):
             transaction.commit()
@@ -158,6 +162,7 @@ class KokuDBAccess:
             obj (object) model object to delete
         Returns:
             None
+
         """
         if obj:
             deleteme = obj

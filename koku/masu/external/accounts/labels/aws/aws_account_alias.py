@@ -31,6 +31,7 @@ class AWSAccountAlias():
 
         Args:
             role_arn (String): AWS IAM RoleArn.
+
         """
         self._role_arn = role_arn
         self._schema = schema_name
@@ -43,6 +44,7 @@ class AWSAccountAlias():
             None
         Returns:
             (String, String) Account ID, Account Alias
+
         """
         account_id, account_alias = get_account_alias_from_role_arn(self._role_arn)
         with AccountAliasAccessor(account_id, self._schema) as alias_accessor:

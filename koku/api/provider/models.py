@@ -19,7 +19,9 @@
 from uuid import uuid4
 
 from django.conf import settings
+from django.contrib.postgres.fields import JSONField
 from django.db import models
+from django.db.models.constraints import CheckConstraint
 
 
 class ProviderAuthentication(models.Model):
@@ -30,8 +32,32 @@ class ProviderAuthentication(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
+
+    # XXX: This field is DEPRECATED
+    # XXX: the credentials field should be used instead.
     # Ex: AWS ARN for cross-acount role access
-    provider_resource_name = models.TextField(null=False, unique=True)
+    provider_resource_name = models.TextField(null=True, unique=True)
+
+    credentials = JSONField(null=True, default=dict)
+
+    # pylint: disable=too-few-public-methods
+    class Meta:
+        """Meta class."""
+        # The goal is to ensure that exactly one field is not null.
+        constraints = [
+            # NOT (provider_resource_name IS NULL AND credentials IS NULL)
+            CheckConstraint(
+                check=~models.Q(models.Q(provider_resource_name=None) \
+                                & models.Q(credentials={})),
+                name='credentials_and_resource_name_both_null'
+            ),
+            # NOT (provider_resource_name IS NOT NULL AND credentials IS NOT NULL)
+            CheckConstraint(
+                check=~models.Q(~models.Q(provider_resource_name=None) \
+                                & ~models.Q(credentials={})),
+                name='credentials_and_resource_name_both_not_null'
+            ),
+        ]
 
 
 class ProviderBillingSource(models.Model):
@@ -42,7 +68,31 @@ class ProviderBillingSource(models.Model):
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
-    bucket = models.CharField(max_length=63, null=False)
+
+    # XXX: This field is DEPRECATED
+    # XXX: the data_source field should be used instead.
+    bucket = models.CharField(max_length=63, null=True)
+
+    data_source = JSONField(null=True, default=dict)
+
+    # pylint: disable=too-few-public-methods
+    class Meta:
+        """Meta class."""
+        # The goal is to ensure that exactly one field is not null.
+        constraints = [
+            # NOT (bucket IS NULL AND data_source IS NULL)
+            CheckConstraint(
+                check=~models.Q(models.Q(bucket=None) \
+                                & models.Q(data_source={})),
+                name='bucket_and_data_sourcce_both_null'
+            ),
+            # NOT (bucket IS NOT NULL AND data_source IS NOT NULL)
+            CheckConstraint(
+                check=~models.Q(~models.Q(bucket=None) \
+                                & ~models.Q(data_source={})),
+                name='bucket_and_data_sourcce_both_not_null'
+            ),
+        ]
 
 
 class Provider(models.Model):
@@ -51,6 +101,7 @@ class Provider(models.Model):
     Used for modeling cost providers like AWS Accounts.
     """
 
+    # pylint: disable=too-few-public-methods
     class Meta:
         """Meta for Provider."""
 
@@ -59,16 +110,20 @@ class Provider(models.Model):
 
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
+    PROVIDER_AZURE = 'AZURE'
+
     if settings.DEBUG:
         PROVIDER_AWS_LOCAL = 'AWS-local'
         PROVIDER_OCP_LOCAL = 'OCP-local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
+                            (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
                             (PROVIDER_OCP_LOCAL, PROVIDER_OCP_LOCAL),)
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
-                            (PROVIDER_OCP, PROVIDER_OCP),)
+                            (PROVIDER_OCP, PROVIDER_OCP),
+                            (PROVIDER_AZURE, PROVIDER_AZURE))
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)

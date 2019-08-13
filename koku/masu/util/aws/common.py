@@ -23,13 +23,13 @@ import re
 import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER
 from masu.util import common as utils
-from tenant_schemas.utils import schema_context
 
 LOG = logging.getLogger(__name__)
 
@@ -48,14 +48,15 @@ def get_assume_role_session(arn, session="MasuSession"):
         client = session.client('sqs')
 
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+
     """
     client = boto3.client("sts")
     response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
     return boto3.Session(
-        aws_access_key_id=response["Credentials"]["AccessKeyId"],
-        aws_secret_access_key=response["Credentials"]["SecretAccessKey"],
-        aws_session_token=response["Credentials"]["SessionToken"],
-        region_name="us-east-1",
+        aws_access_key_id=response['Credentials']['AccessKeyId'],
+        aws_secret_access_key=response['Credentials']['SecretAccessKey'],
+        aws_session_token=response['Credentials']['SessionToken'],
+        region_name='us-east-1',
     )
 
 
@@ -65,6 +66,7 @@ def get_cur_report_definitions(role_arn, session=None):
 
     Args:
         role_arn     (String) RoleARN for AWS session
+
     """
     if not session:
         session = get_assume_role_session(role_arn)
@@ -110,8 +112,8 @@ def month_date_range(for_date_time):
     """
     start_month = for_date_time.replace(day=1, second=1, microsecond=1)
     end_month = start_month + relativedelta(months=+1)
-    timeformat = "%Y%m%d"
-    return "{}-{}".format(
+    timeformat = '%Y%m%d'
+    return '{}-{}'.format(
         start_month.strftime(timeformat), end_month.strftime(timeformat)
     )
 
@@ -157,7 +159,7 @@ def get_local_file_name(cur_key):
     s3_filename = cur_key.split("/")[-1]
     assembly_id = get_assembly_id_from_cur_key(cur_key)
     local_file_name = (
-        f"{assembly_id}-{s3_filename}" if assembly_id else f"{s3_filename}"
+        f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
     )
 
     return local_file_name
@@ -205,20 +207,20 @@ def get_account_names_by_organization(role_arn, session=None):
     """
     if not session:
         session = get_assume_role_session(role_arn)
-    org_client = session.client("organizations")
+    org_client = session.client('organizations')
     all_accounts = []
     try:
-        paginator = org_client.get_paginator("list_accounts")
+        paginator = org_client.get_paginator('list_accounts')
         response_iterator = paginator.paginate()
         for response in response_iterator:
-            accounts = response.get("Accounts", [])
+            accounts = response.get('Accounts', [])
             for account in accounts:
-                account_id = account.get("Id")
-                name = account.get("Name")
-                all_accounts.append({"id": account_id, "name": name})
+                account_id = account.get('Id')
+                name = account.get('Name')
+                all_accounts.append({'id': account_id, 'name': name})
     except ClientError as err:
         LOG.info(
-            "Unable to list accounts using organization API.  Reason: %s", str(err)
+            'Unable to list accounts using organization API.  Reason: %s', str(err)
         )
 
     return all_accounts
@@ -255,7 +257,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         provider = provider_accessor.get_provider()
 
     if provider.type not in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-        err_msg = "Provider UUID is not an AWS type.  It is {}".format(provider.type)
+        err_msg = 'Provider UUID is not an AWS type.  It is {}'.format(provider.type)
         LOG.warning(err_msg)
         return []
 
@@ -297,10 +299,10 @@ class AwsArn:
     """
 
     arn_regex = re.compile(
-        r"^arn:(?P<partition>\w+):(?P<service>\w+):"
-        r"(?P<region>\w+(?:-\w+)+)?:"
-        r"(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)"
-        r"(?P<resource_separator>[:/])?(?P<resource>.*)"
+        r'^arn:(?P<partition>\w+):(?P<service>\w+):'
+        r'(?P<region>\w+(?:-\w+)+)?:'
+        r'(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)'
+        r'(?P<resource_separator>[:/])?(?P<resource>.*)'
     )
 
     partition = None

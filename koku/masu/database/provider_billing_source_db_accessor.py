@@ -29,6 +29,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         Args:
             billing_source_id  (String) the billing source unique database id
             schema             (String) database schema (i.e. public or customer tenant value)
+
         """
         super().__init__(schema)
         self._billing_source_id = billing_source_id
@@ -43,6 +44,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
             None
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+
         """
         query = self._table.objects.filter(id=self._billing_source_id)
         return query
@@ -56,6 +58,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         Returns:
             (String): "UUID v4",
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
+
         """
         obj = self._get_db_obj_query().first()
         return str(obj.uuid) if obj else None
@@ -69,6 +72,7 @@ class ProviderBillingSourceDBAccessor(KokuDBAccess):
         Returns:
             (String): "Identifier for cost usage report.  i.e. AWS: S3 Bucket",
                     example: "my-s3-cur-bucket"
+
         """
         obj = self._get_db_obj_query().first()
         bucket = obj.bucket if obj else None

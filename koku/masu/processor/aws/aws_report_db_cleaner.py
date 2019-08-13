@@ -39,6 +39,7 @@ class AWSReportDBCleaner():
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._schema = schema
 

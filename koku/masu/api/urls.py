@@ -18,8 +18,8 @@ from django.conf.urls import url
 
 from masu.api.views import (download_report,
                             expired_data,
-                            report_data,
                             get_status,
+                            report_data,
                             update_charge)
 
 # # pylint: disable=invalid-name

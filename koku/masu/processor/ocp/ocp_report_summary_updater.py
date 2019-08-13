@@ -20,6 +20,8 @@
 import calendar
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -38,6 +40,7 @@ class OCPReportSummaryUpdater:
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._schema_name = schema
         self._provider = provider

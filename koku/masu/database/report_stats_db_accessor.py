@@ -32,6 +32,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             report_name    (String) CUR report file name
             provider_id    (String) the database id of the provider
             schema         (String) database schema (i.e. public or customer tenant value)
+
         """
         super().__init__(schema)
         self._manifest_id = manifest_id
@@ -67,6 +68,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             (sqlalchemy.orm.query.Query): "SELECT public.api_customer.group_ptr_id ..."
+
         """
         return super()._get_db_obj_query(report_name=self._report_name,
                                          manifest_id=self._manifest_id)
@@ -89,6 +91,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             (DateTime): Time stamp for last completed date/time.
+
         """
         return self._obj.last_completed_datetime
 
@@ -100,6 +103,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             (DateTime): Time stamp for last started date/time.
+
         """
         return self._obj.last_started_datetime
 
@@ -111,6 +115,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             None
+
         """
         self._obj.last_started_datetime = DateAccessor().today_with_timezone('UTC')
         self._obj.save()
@@ -123,6 +128,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             None
+
         """
         self._obj.last_completed_datetime = DateAccessor().today_with_timezone('UTC')
         self._obj.save()
@@ -135,6 +141,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
             None
         Returns:
             last_completed_datetime (String): MD5 hash of object.
+
         """
         return self._obj.etag
 

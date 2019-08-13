@@ -22,10 +22,10 @@
 
 from celery.utils.log import get_task_logger
 
+from koku.celery import CELERY as celery
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 
-from koku.celery import celery
 
 LOG = get_task_logger(__name__)
 

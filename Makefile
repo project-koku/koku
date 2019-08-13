@@ -47,6 +47,7 @@ Please use \`make <target>' where <target> is one of:
   lint                     run linting against the project
 
 --- Commands using local services ---
+  create-test-customer     create a test customer and tenant in the database
   collect-static           collect static files to host
   gen-apidoc               create api documentation
   make-migrations          make migrations for the database
@@ -126,9 +127,12 @@ html:
 lint:
 	tox -e lint
 
-# FIXME: may need updating after masu is fully merged.
-create-masu-test-db:
-	$(TOPDIR)/tests/create_db.sh
+create-test-customer: run-migrations
+	sleep 1
+	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
+	sleep 5
+	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
@@ -374,7 +378,7 @@ oc-login-dev:
 
 oc-make-migrations: oc-forward-ports
 	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 	$(MAKE) oc-stop-forwarding-ports
 
 oc-reinit: oc-delete-all oc-create-koku
@@ -416,6 +420,7 @@ docker-rabbit:
 docker-reinitdb: docker-down remove-db docker-up-db
 	sleep 5
 	$(MAKE) run-migrations
+	$(MAKE) create-test-customer
 
 docker-shell:
 	docker-compose run --service-ports koku-server

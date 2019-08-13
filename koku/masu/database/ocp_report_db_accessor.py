@@ -21,16 +21,15 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import connection
-
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
-from reporting.provider.ocp.models import (OCPUsageReportPeriod,
-                                           OCPUsageReport,
+from reporting.provider.ocp.models import (OCPStorageLineItemDailySummary,
                                            OCPUsageLineItemDailySummary,
-                                           OCPStorageLineItemDailySummary)
+                                           OCPUsageReport,
+                                           OCPUsageReportPeriod)
 
 LOG = logging.getLogger(__name__)
 
@@ -45,6 +44,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         Args:
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
+
         """
         super().__init__(schema, column_map)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
