@@ -29,18 +29,6 @@ objects:
     database-host: ${DATABASE_HOST}
     database-port: ${DATABASE_PORT}
 
-# masu application config
-- kind: ConfigMap
-  apiVersion: v1
-  metadata:
-    name: masu-app
-  data:
-    # masu
-    app-config: /opt/app-root/src/masu/gunicorn.py
-    app-home: /opt/app-root/src/masu
-    app-module: masu.__init__:create_app()
-    app-namespace: ${NAMESPACE}
-
 # koku application config
 - kind: ConfigMap
   apiVersion: v1
@@ -53,6 +41,7 @@ objects:
     app-namespace: ${NAMESPACE}
     app-domain: project-koku.com
     api-path-prefix: ${API_PATH_PREFIX}
+    django_settings_module: koku.settings
 
     # (temporary) can be removed after koku/masu merge
     masu-host: ${MASU_HOST}
@@ -185,7 +174,7 @@ parameters:
   displayName: Masu host
   name: MASU_HOST
   required: true
-  value: koku-masu-flask.koku.svc.cluster.local
+  value: koku-masu.koku.svc.cluster.local
 - description: Port number for Masu service
   displayName: Masu port
   name: MASU_PORT
