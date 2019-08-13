@@ -25,6 +25,7 @@ from api.models import Tenant
 
 LOG = logging.getLogger(__name__)
 
+
 class KokuTestRunner(DiscoverRunner):
     """Koku Test Runner for Unit Tests."""
 

@@ -23,9 +23,9 @@ from django.db import connection
 from django.test import TestCase
 from faker import Faker
 
-from ..models import Customer, Tenant
-from ..serializers import create_schema_name
-from ...common import RH_IDENTITY_HEADER
+from api.common import RH_IDENTITY_HEADER
+from api.iam.serializers import create_schema_name
+from api.models import Customer, Tenant
 from koku.koku_test_runner import KokuTestRunner
 
 

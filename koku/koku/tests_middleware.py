@@ -20,8 +20,7 @@ from unittest.mock import Mock, patch
 from django.core.exceptions import PermissionDenied
 
 from api.iam.models import Customer, Tenant, User
-from api.iam.serializers import (UserSerializer,
-                                 create_schema_name)
+from api.iam.serializers import (UserSerializer)
 from api.iam.test.iam_test_case import IamTestCase
 from koku.middleware import (HttpResponseUnauthorizedRequest,
                              IdentityHeaderMiddleware,
