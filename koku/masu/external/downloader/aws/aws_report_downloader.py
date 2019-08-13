@@ -100,6 +100,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             raise MasuProviderError('Cost and Usage Report definition not found.')
 
         self.report = report.pop()
+        LOG.info('REPORT: %s', str(self.report))
         self.s3_client = session.client('s3')
 
     @property
@@ -228,7 +229,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = f'{DATA_DIR}/{self.customer_name}/aws/{self.bucket}'
 
         local_s3_filename = utils.get_local_file_name(key)
-        LOG.info('Local S3 filename: %s', local_s3_filename)
+        LOG.info('KEY: %s Local S3 filename: %s', str(key), local_s3_filename)
         full_file_path = f'{directory_path}/{local_s3_filename}'
 
         # Make sure the data directory exists

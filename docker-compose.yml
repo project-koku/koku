@@ -146,6 +146,13 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
+        - AZURE_USERNAME
+        - AZURE_PASSWORD
+        - AZURE_TENANT_ID
+        - AZURE_CLIENT_ID
+        - AZURE_CLIENT_SECRET
+        - AZURE_SUBSCRIPTION_ID
+        - REGION
       privileged: true
       volumes:
         - '.:/koku'
