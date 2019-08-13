@@ -209,6 +209,30 @@ class AzureService:
             raise AzureCostReportNotFound(message)
         return latest_report
 
+    def get_cost_export_for_date(self,
+                                 billing_period,
+                                 resource_group_name,
+                                 storage_account_name,
+                                 container_name,
+                                 export_name):
+        """Get the latest cost export file from given storage account container."""
+        latest_report = None
+        cloud_storage_account = self._get_cloud_storage_account(resource_group_name,
+                                                                storage_account_name,
+                                                                container_name)
+        blockblob_service = cloud_storage_account.create_block_blob_service()
+        blob_list = blockblob_service.list_blobs(container_name)
+        for blob in blob_list:
+            if blob.name.startswith(export_name) and not latest_report:
+                latest_report = blob
+            elif blob.name.startswith(export_name) and billing_period in blob.name:
+                latest_report = blob
+        if not latest_report:
+            message = f'No cost report with prefix {export_name} found in ' \
+            f'storage account {storage_account_name} with container {container_name}.'
+            raise AzureCostReportNotFound(message)
+        return latest_report
+
     def download_latest_cost_export(self,
                                     resource_group_name,
                                     storage_account_name,
