@@ -108,6 +108,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """Set the AWS manifest date format."""
         return '%Y%m%dT000000.000Z'
 
+    #TODO: Move this to AWS downloader
     def _check_size(self, s3key, check_inflate=False):
         """Check the size of an S3 file.
 

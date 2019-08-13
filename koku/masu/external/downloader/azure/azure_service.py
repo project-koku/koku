@@ -233,6 +233,30 @@ class AzureService:
             raise AzureCostReportNotFound(message)
         return latest_report
 
+    def get_cost_export_for_key(self,
+                                 key,
+                                 resource_group_name,
+                                 storage_account_name,
+                                 container_name,
+                                 export_name):
+        """Get the latest cost export file from given storage account container."""
+        latest_report = None
+        cloud_storage_account = self._get_cloud_storage_account(resource_group_name,
+                                                                storage_account_name,
+                                                                container_name)
+        blockblob_service = cloud_storage_account.create_block_blob_service()
+        blob_list = blockblob_service.list_blobs(container_name)
+        for blob in blob_list:
+            if blob.name.startswith(export_name) and not latest_report:
+                latest_report = blob
+            elif blob.name.startswith(export_name) and key == blob.name:
+                latest_report = blob
+        if not latest_report:
+            message = f'No cost report with prefix {export_name} found in ' \
+            f'storage account {storage_account_name} with container {container_name}.'
+            raise AzureCostReportNotFound(message)
+        return latest_report
+
     def download_latest_cost_export(self,
                                     resource_group_name,
                                     storage_account_name,
@@ -246,6 +270,28 @@ class AzureService:
         blockblob_service = cloud_storage_account.create_block_blob_service()
         latest = self.get_latest_cost_export(
             resource_group_name, storage_account_name, container_name, export_name)
+
+        file_path = destination
+        if not destination:
+            temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
+            file_path = temp_file.name
+        blockblob_service.get_blob_to_path(container_name, latest.name, file_path)
+        return file_path
+
+    def download_cost_export(self,
+                             key,
+                             resource_group_name,
+                             storage_account_name,
+                             container_name,
+                             export_name,
+                             destination=None):
+        """Download the latest cost export file from a given storage container."""
+        cloud_storage_account = self._get_cloud_storage_account(resource_group_name,
+                                                                storage_account_name,
+                                                                container_name)
+        blockblob_service = cloud_storage_account.create_block_blob_service()
+        latest = self.get_cost_export_for_key(
+            key, resource_group_name, storage_account_name, container_name, export_name)
 
         file_path = destination
         if not destination:
