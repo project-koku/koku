@@ -39,7 +39,7 @@ class CustomerSerializerTest(IamTestCase):
     def test_create_customer(self):
         """Test creating a customer."""
         # create the customers
-        customer = self._create_customer_data()
+        customer = self.create_mock_customer_data()
         instance = None
         serializer = CustomerSerializer(data=customer)
         if serializer.is_valid(raise_exception=True):
@@ -58,7 +58,8 @@ class AdminCustomerSerializerTest(IamTestCase):
 
     def test_schema_name_present(self):
         """Test that the serializer contains schema_name."""
-        serializer = AdminCustomerSerializer(data=self._create_customer_data())
+        customer = self.create_mock_customer_data()
+        serializer = AdminCustomerSerializer(data=customer)
         serializer.is_valid()
         serializer.save()
         expected_schema_name = create_schema_name(serializer.data.get('account_id'))
@@ -122,10 +123,6 @@ class UserPreferenceSerializerTest(IamTestCase):
             {'currency': settings.KOKU_DEFAULT_CURRENCY},
             {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
             {'locale': settings.KOKU_DEFAULT_LOCALE}]
-        self.user_data = self._create_user_data()
-        customer_data = self._create_customer_data()
-        self.request_context = self._create_request_context(customer_data,
-                                                            self.user_data)
 
     def test_user_preference_defaults(self):
         """Test that defaults are set for new users."""

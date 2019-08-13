@@ -202,10 +202,6 @@ class AdminProviderSerializerTest(IamTestCase):
     def setUp(self):
         """Create test case objects."""
         super().setUp()
-        self.user_data = self._create_user_data()
-        self.customer = self._create_customer_data()
-        self.request_context = self._create_request_context(self.customer,
-                                                            self.user_data)
         request = self.request_context['request']
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
@@ -232,7 +228,7 @@ class AdminProviderSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-        account = self.customer['account_id']
+        account = self.customer.account_id
         expected_schema_name = create_schema_name(account)
         schema_name = serializer.data['customer'].get('schema_name')
         self.assertIsNotNone(schema_name)
