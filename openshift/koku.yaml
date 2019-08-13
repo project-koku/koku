@@ -216,6 +216,18 @@ objects:
                   name: koku-db
                   key: database-port
                   optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
           command:
           - /bin/bash
           - -c
