@@ -301,10 +301,30 @@ objects:
                   key: cloudwatch-log-group
                   name: ${NAME}-aws
                   optional: true
+            - name: POD_CPU_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.cpu
+            - name: POD_CPU_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.cpu
+            - name: POD_MEMORY_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: requests.memory
+            - name: POD_MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}
+                  resource: limits.memory
           livenessProbe:
             failureThreshold: 3
             httpGet:
-              path: /api/v1/status/?liveness
+              path: ${API_PATH_PREFIX}/v1/status/?liveness
               port: 8080
               scheme: HTTP
             initialDelaySeconds: 5
@@ -316,13 +336,13 @@ objects:
               protocol: TCP
           readinessProbe:
             httpGet:
-              path: /api/v1/status/
+              path: ${API_PATH_PREFIX}/v1/status/
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 30
-            periodSeconds: 60
+            initialDelaySeconds: 10
+            periodSeconds: 10
             successThreshold: 1
-            failureThreshold: 3
+            failureThreshold: 6
             timeoutSeconds: 10
           resources:
             requests:
