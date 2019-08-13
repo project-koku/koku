@@ -34,7 +34,9 @@ Then project dependencies and a virtual environment can be created using ::
     pipenv install --dev
 
 **Note for Mac OSX users**
-    psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+
+psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+
 
     brew install openssl
     brew unlink openssl && brew link openssl --force
