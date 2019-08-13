@@ -6,18 +6,18 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: masu-flask-template
+  name: masu-template
   annotations:
     openshift.io/display-name: "Masu"
     description: "App and API for data ingestion engine for Koku"
-    tags: "python,flask"
+    tags: "python,django"
     iconClass: "icon-python"
     openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
     openshift.io/provider-display-name: "Red Hat, Inc."
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
-  template: koku-masu-flask
+  template: koku-masu
 objects:
 - kind: Service
   apiVersion: v1
@@ -28,7 +28,7 @@ objects:
       prometheus.io/scrape: 'true'
       prometheus.io/path: /metrics
       prometheus.io/port: '9100'
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
   spec:
     ports:
     - name: 8080-tcp
@@ -40,83 +40,19 @@ objects:
       protocol: TCP
       targetPort: 9100
     selector:
-      name: ${NAME}-masu-flask
-- kind: BuildConfig
-  apiVersion: v1
-  metadata:
-    annotations:
-      description: Defines how to build the application
-      template.alpha.openshift.io/wait-for-ready: "true"
-    labels:
-      name: ${NAME}-masu-flask
-    name: ${NAME}-masu-flask
-  spec:
-    failedBuildsHistoryLimit: 1
-    successfulBuildsHistoryLimit: 2
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${NAME}-masu-flask:latest
-    resources:
-      requests:
-        memory: ${BUILD_MEMORY_REQUEST}
-      limits:
-        memory: ${BUILD_MEMORY_LIMIT}
-    source:
-      contextDir: ${CONTEXT_DIR}
-      git:
-        ref: ${SOURCE_REPOSITORY_REF}
-        uri: ${SOURCE_REPOSITORY_URL}
-      type: Git
-    strategy:
-      sourceStrategy:
-        env:
-          - name: PIP_INDEX_URL
-            value: ${PIP_INDEX_URL}
-          - name: PIPENV_PYPI_MIRROR
-            value: ${PIPENV_PYPI_MIRROR}
-          - name: ENABLE_PIPENV
-            value: "true"
-          - name: UPGRADE_PIP_TO_LATEST
-            value: ""
-          - name: APP_CONFIG
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-config
-                optional: false
-          - name: APP_HOME
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-home
-          - name: APP_MODULE
-            valueFrom:
-              configMapKeyRef:
-                name: masu-app
-                key: app-module
-        from:
-          kind: ImageStreamTag
-          name: python-36-centos7:latest
-          namespace: ${NAMESPACE}
-    triggers:
-    - type: ConfigChange
-    - imageChange: {}
-      type: ImageChange
-    - github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
-      type: GitHub
+      name: ${NAME}-masu
+
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
   spec:
     replicas: 1
     selector:
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
     resources:
       requests:
         cpu: ${CPU_REQUEST}
@@ -130,13 +66,17 @@ objects:
       metadata:
         labels:
           app: ${NAME}
-          name: ${NAME}-masu-flask
-        name: ${NAME}-masu-flask
+          name: ${NAME}-masu
+        name: ${NAME}-masu
       spec:
         containers:
-        - name: ${NAME}-masu-flask
-          image: ${NAME}-masu-flask
+        - name: ${NAME}-masu
+          image: ${NAME}-masu
           env:
+            - name: DISABLE_MIGRATE
+              value: "true"
+            - name: MASU
+              value: "true"
             - name: DATABASE_USER
               valueFrom:
                 secretKeyRef:
@@ -149,11 +89,17 @@ objects:
                   key: database-password
                   name: ${NAME}-db
                   optional: false
-            - name: MASU_SECRET_KEY
+            - name: DATABASE_SERVICE_CERT
               valueFrom:
                 secretKeyRef:
-                  key: masu-secret-key
-                  name: ${NAME}-masu
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: ${NAME}-secret
                   optional: false
             - name: DATABASE_ENGINE
               valueFrom:
@@ -167,18 +113,84 @@ objects:
                   name: ${NAME}-db
                   key: database-name
                   optional: false
-            - name: DATABASE_HOST
+            - name: DATABASE_SERVICE_NAME
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
                   key: database-host
                   optional: false
-            - name: DATABASE_PORT
+            - name: POSTGRES_SQL_SERVICE_PORT
               valueFrom:
                 configMapKeyRef:
-                  name: ${NAME}-db
+                  name: koku-db
                   key: database-port
                   optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
             - name: RABBITMQ_HOST
               valueFrom:
                 configMapKeyRef:
@@ -262,7 +274,7 @@ objects:
             - name: NAMESPACE
               valueFrom:
                 configMapKeyRef:
-                  name: masu-app
+                  name: ${NAME}-app
                   key: app-namespace
                   optional: true
             - name: CW_AWS_ACCESS_KEY_ID
@@ -319,31 +331,30 @@ objects:
             limits:
               cpu: ${CPU_LIMIT}
               memory: ${MEMORY_LIMIT}
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
     triggers:
     - type: ConfigChange
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-masu-flask
+          - ${NAME}-masu
         from:
           kind: ImageStreamTag
-          name: ${NAME}-masu-flask:latest
+          name: ${NAME}:latest
       type: ImageChange
-
-- kind: ImageStream
-  apiVersion: v1
-  metadata:
-    name: ${NAME}-masu-flask
-    annotations:
-      description: "Keeps track of changes in the application image"
-  spec:
-    lookupPolicy:
-      local: true
 
 - apiVersion: autoscaling/v1
   kind: HorizontalPodAutoscaler
   metadata:
-    name: ${NAME}-masu-flask
+    name: ${NAME}-masu
     namespace: ${NAMESPACE}
   spec:
     maxReplicas: 3
@@ -351,7 +362,7 @@ objects:
     scaleTargetRef:
       apiVersion: apps.openshift.io/v1
       kind: DeploymentConfig
-      name: ${NAME}-masu-flask
+      name: ${NAME}-masu
     targetCPUUtilizationPercentage: 90
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
@@ -413,7 +424,7 @@ parameters:
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
   required: true
-  value: https://github.com/project-koku/masu.git
+  value: https://github.com/project-koku/koku.git
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference
@@ -429,3 +440,6 @@ parameters:
   displayName: Application Hostname
   name: APPLICATION_DOMAIN
   required: false
+- displayName: API path prefix
+  value: '/api'
+  name: API_PATH_PREFIX
