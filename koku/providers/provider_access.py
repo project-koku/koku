@@ -20,6 +20,7 @@ import logging
 
 from providers.aws.aws_provider import AWSProvider
 from providers.aws_local.aws_local_provider import AWSLocalProvider
+from providers.azure.azure_provider import AzureProvider
 from providers.ocp.ocp_provider import OCPProvider
 from providers.ocp_local.ocp_local_provider import OCPLocalProvider
 
@@ -66,6 +67,8 @@ class ProviderAccessor:
             return AWSProvider()
         elif service_name == 'AWS-local':
             return AWSLocalProvider()
+        elif service_name == 'AZURE':
+            return AzureProvider()
         elif service_name == 'OCP-local':
             return OCPLocalProvider()
         elif service_name == 'OCP':
