@@ -33,11 +33,14 @@ Then project dependencies and a virtual environment can be created using ::
 
     pipenv install --dev
 
-Note for Mac OSX users: psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed ::
+**Note for Mac OSX users**
+    psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
 
     brew install openssl
     brew unlink openssl && brew link openssl --force
+
     `/usr/local/opt/openssl/bin` should be appended to the PATH environment variable
+
     The following environment variables can be set in the koku repo's .env file
         LDFLAGS="-L/usr/local/opt/openssl/lib"
         CPPFLAGS="-I/usr/local/opt/openssl/include"
