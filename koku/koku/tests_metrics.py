@@ -19,7 +19,7 @@ import logging
 from unittest import mock
 from unittest.mock import patch
 
-from django.db import connection, OperationalError
+from django.db import OperationalError
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.metrics import DatabaseStatus

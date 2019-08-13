@@ -20,10 +20,8 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-from django.db import connection, OperationalError, InterfaceError
+from django.db import InterfaceError, OperationalError, connection
 from prometheus_client import Gauge
-
-from koku import database
 
 LOG = logging.getLogger(__name__)
 PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
@@ -71,7 +69,6 @@ class DatabaseStatus():
         if not rows:
             LOG.error('Query failed to return results.')
             return []
-
 
         # get column names
         names = [desc[0] for desc in cursor.description]
