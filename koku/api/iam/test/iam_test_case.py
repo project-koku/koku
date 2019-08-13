@@ -26,6 +26,7 @@ from faker import Faker
 from ..models import Customer, Tenant
 from ..serializers import create_schema_name
 from ...common import RH_IDENTITY_HEADER
+from koku.koku_test_runner import KokuTestRunner
 
 
 class IamTestCase(TestCase):
@@ -45,7 +46,7 @@ class IamTestCase(TestCase):
             cls.user_data
         )
         cls.schema_name = cls.customer_data.get('schema_name')
-        cls.tenant = Tenant(schema_name=cls.schema_name)
+        cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema_name)[0]
         cls.tenant.save()
         cls.headers = cls.request_context['request'].META
 
@@ -53,14 +54,14 @@ class IamTestCase(TestCase):
     def tearDownClass(cls):
         """Tear down the class."""
         connection.set_schema_to_public()
-        cls.tenant.delete()
+        # cls.tenant.delete()
         super().tearDownClass()
 
     @classmethod
     def _create_customer_data(cls):
         """Create customer data."""
-        account = cls.fake.ean8()
-        schema = f'acct{account}'
+        account = KokuTestRunner.account
+        schema = KokuTestRunner.schema
         customer = {'account_id': account,
                     'schema_name': schema}
         return customer
@@ -85,10 +86,10 @@ class IamTestCase(TestCase):
         """
         connection.set_schema_to_public()
         schema_name = create_schema_name(account)
-        customer = Customer(account_id=account, schema_name=schema_name)
+        customer = Customer.objects.get_or_create(account_id=account, schema_name=schema_name)[0]
         customer.save()
         if create_tenant:
-            tenant = Tenant(schema_name=schema_name)
+            tenant = Tenant.objects.get_or_create(schema_name=schema_name)[0]
             tenant.save()
         return customer
 
@@ -125,3 +126,11 @@ class IamTestCase(TestCase):
         request.user = user_data['username']
         request_context = {'request': request}
         return request_context
+
+    def create_mock_customer_data(self):
+        """Create randomized data for a customer test."""
+        account = self.fake.ean8()
+        schema = f'acct{account}'
+        customer = {'account_id': account,
+                    'schema_name': schema}
+        return customer

@@ -155,7 +155,7 @@ class ProviderViewTest(IamTestCase):
         iam_arn2 = 'arn:aws:s3:::a_s3_bucket'
         bucket_name2 = 'a_s3_bucket'
         self.create_provider(bucket_name1, iam_arn1)
-        request_context = self._create_request_context(self._create_customer_data(),
+        request_context = self._create_request_context(self.create_mock_customer_data(),
                                                        self._create_user_data())
         headers = request_context['request'].META
         self.create_provider(bucket_name2, iam_arn2, headers)
@@ -232,7 +232,7 @@ class ProviderViewTest(IamTestCase):
         provider_uuid = provider_result.get('uuid')
         self.assertIsNotNone(provider_uuid)
         url = reverse('provider-detail', args=[provider_uuid])
-        request_context = self._create_request_context(self._create_customer_data(),
+        request_context = self._create_request_context(self.create_mock_customer_data(),
                                                        self._create_user_data())
         headers = request_context['request'].META
         client = APIClient()
