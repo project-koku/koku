@@ -59,11 +59,6 @@ class OCPReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        print('UPDATE SUMMARY TABLES, Start: %s End: %s', str(start_date), str(end_date))
-        if not start_date:
-            print('START DATE IS NONE')
-        if not end_date:
-            print('END DATE IS NONE')
         start_date, end_date = self._get_sql_inputs(
             start_date,
             end_date
