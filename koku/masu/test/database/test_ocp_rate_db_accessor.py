@@ -28,11 +28,6 @@ from masu.test.database.helpers import ReportObjectCreator
 class OCPRateDBAccessorTest(MasuTestCase):
     """Test Cases for the OCPRateDBAccessor object."""
 
-    def run(self, result=None):
-        """Run the tests with the correct schema context."""
-        with schema_context(self.schema):
-            super().run(result)
-
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
@@ -46,16 +41,12 @@ class OCPRateDBAccessorTest(MasuTestCase):
             column_map=cls.column_map
         )
         cls.report_schema = cls.accessor.report_schema
-        cls.creator = ReportObjectCreator(
-            cls.accessor, cls.column_map, cls.report_schema.column_types
-        )
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
         cls.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        if self.accessor._cursor.closed:
-            self.accessor._cursor = self.accessor._get_psycopg2_cursor()
 
         reporting_period = self.creator.create_ocp_report_period()
         report = self.creator.create_ocp_report(reporting_period)
@@ -85,7 +76,6 @@ class OCPRateDBAccessorTest(MasuTestCase):
     def test_initializer(self):
         """Test initializer."""
         self.assertIsNotNone(self.report_schema)
-        self.assertIsNotNone(self.accessor._cursor)
 
     def test_get_rates(self):
         """Test get rates."""

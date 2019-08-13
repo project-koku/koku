@@ -23,14 +23,13 @@ import re
 import boto3
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from tenant_schemas.utils import schema_context
 
-from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER
 from masu.util import common as utils
-
 
 LOG = logging.getLogger(__name__)
 
@@ -49,6 +48,7 @@ def get_assume_role_session(arn, session='MasuSession'):
         client = session.client('sqs')
 
     See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
+
     """
     client = boto3.client('sts')
     response = client.assume_role(RoleArn=str(arn), RoleSessionName=session)
@@ -56,7 +56,8 @@ def get_assume_role_session(arn, session='MasuSession'):
         aws_access_key_id=response['Credentials']['AccessKeyId'],
         aws_secret_access_key=response['Credentials']['SecretAccessKey'],
         aws_session_token=response['Credentials']['SessionToken'],
-        region_name='us-east-1')
+        region_name='us-east-1',
+    )
 
 
 def get_cur_report_definitions(role_arn, session=None):
@@ -65,6 +66,7 @@ def get_cur_report_definitions(role_arn, session=None):
 
     Args:
         role_arn     (String) RoleARN for AWS session
+
     """
     if not session:
         session = get_assume_role_session(role_arn)
@@ -111,8 +113,9 @@ def month_date_range(for_date_time):
     start_month = for_date_time.replace(day=1, second=1, microsecond=1)
     end_month = start_month + relativedelta(months=+1)
     timeformat = '%Y%m%d'
-    return '{}-{}'.format(start_month.strftime(timeformat),
-                          end_month.strftime(timeformat))
+    return '{}-{}'.format(
+        start_month.strftime(timeformat), end_month.strftime(timeformat)
+    )
 
 
 def get_assembly_id_from_cur_key(key):
@@ -155,7 +158,9 @@ def get_local_file_name(cur_key):
     """
     s3_filename = cur_key.split('/')[-1]
     assembly_id = get_assembly_id_from_cur_key(cur_key)
-    local_file_name = f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
+    local_file_name = (
+        f'{assembly_id}-{s3_filename}' if assembly_id else f'{s3_filename}'
+    )
 
     return local_file_name
 
@@ -189,6 +194,38 @@ def get_account_alias_from_role_arn(role_arn, session=None):
     return (account_id, alias)
 
 
+def get_account_names_by_organization(role_arn, session=None):
+    """
+    Get account ID for given RoleARN.
+
+    Args:
+        role_arn     (String) AWS IAM RoleARN
+
+    Returns:
+        (list): Dictionaries of accounts with id, name keys
+
+    """
+    if not session:
+        session = get_assume_role_session(role_arn)
+    org_client = session.client('organizations')
+    all_accounts = []
+    try:
+        paginator = org_client.get_paginator('list_accounts')
+        response_iterator = paginator.paginate()
+        for response in response_iterator:
+            accounts = response.get('Accounts', [])
+            for account in accounts:
+                account_id = account.get('Id')
+                name = account.get('Name')
+                all_accounts.append({'id': account_id, 'name': name})
+    except ClientError as err:
+        LOG.info(
+            'Unable to list accounts using organization API.  Reason: %s', str(err)
+        )
+
+    return all_accounts
+
+
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
     Return the AWS bill IDs given a provider UUID.
@@ -220,20 +257,18 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         provider = provider_accessor.get_provider()
 
     if provider.type not in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-        err_msg = 'Provider UUID is not an AWS type.  It is {}'.\
-            format(provider.type)
+        err_msg = 'Provider UUID is not an AWS type.  It is {}'.format(provider.type)
         LOG.warning(err_msg)
         return []
 
     with AWSReportDBAccessor(schema, column_map) as report_accessor:
-        bill_table_name = AWS_CUR_TABLE_MAP['bill']
-        bill_obj = getattr(report_accessor.report_schema, bill_table_name)
-        bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
-        if start_date:
-            bills = bills.filter(bill_obj.billing_period_start >= start_date)
-        if end_date:
-            bills = bills.filter(bill_obj.billing_period_start <= end_date)
-        bills = bills.all()
+        with schema_context(schema):
+            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            if start_date:
+                bills = bills.filter(billing_period_start__gte=start_date)
+            if end_date:
+                bills = bills.filter(billing_period_start__lte=end_date)
+            bills = bills.all()
 
     return bills
 
@@ -263,10 +298,12 @@ class AwsArn:
 
     """
 
-    arn_regex = re.compile(r'^arn:(?P<partition>\w+):(?P<service>\w+):'
-                           r'(?P<region>\w+(?:-\w+)+)?:'
-                           r'(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)'
-                           r'(?P<resource_separator>[:/])?(?P<resource>.*)')
+    arn_regex = re.compile(
+        r'^arn:(?P<partition>\w+):(?P<service>\w+):'
+        r'(?P<region>\w+(?:-\w+)+)?:'
+        r'(?P<account_id>\d{12})?:(?P<resource_type>[^:/]+)'
+        r'(?P<resource_separator>[:/])?(?P<resource>.*)'
+    )
 
     partition = None
     service = None

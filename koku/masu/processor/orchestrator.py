@@ -44,6 +44,7 @@ class Orchestrator():
 
         Args:
             billing_source (String): Individual account to retrieve.
+
         """
         self._accounts, self._polling_accounts = self.get_accounts(billing_source)
 

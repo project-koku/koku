@@ -47,7 +47,7 @@ Please use \`make <target>' where <target> is one of:
   lint                     run linting against the project
 
 --- Commands using local services ---
-  create-test-db-file      create a Postgres DB dump file for Masu
+  create-test-customer     create a test customer and tenant in the database
   collect-static           collect static files to host
   gen-apidoc               create api documentation
   make-migrations          make migrations for the database
@@ -86,7 +86,6 @@ Please use \`make <target>' where <target> is one of:
   oc-create-route              create routes for Koku APIs
   oc-create-secret             create Secrets
   oc-create-worker             create Celery worker pod
-  oc-create-test-db-file       create a Postgres DB dump file for Masu
   oc-delete-all                delete most Openshift objects without a cluster restart
   oc-delete-celery-worker      delete the Celery worker pod
   oc-delete-configmap          delete the ConfigMaps
@@ -128,16 +127,11 @@ html:
 lint:
 	tox -e lint
 
-# FIXME: may need updating after masu is fully merged.
-create-masu-test-db:
-	$(TOPDIR)/tests/create_db.sh
-
-create-test-db-file: run-migrations
+create-test-customer: run-migrations
 	sleep 1
 	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
 	sleep 5
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
-	PGPASSWORD=$(DATABASE_PASSWORD) pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql || echo "WARNING: pg_dump failed unexpectedly!"
 	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
 
 collect-static:
@@ -150,7 +144,7 @@ gen-apidoc:
 	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates cost_models
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data
@@ -324,17 +318,6 @@ oc-create-secret: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PAR
 oc-create-secret:
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-test-db-file: oc-run-migrations
-	sleep 1
-	make oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) runserver > /dev/null 2>&1 &
-	sleep 5
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --bypass-api
-	pg_dump -d $(DATABASE_NAME) -h $(POSTGRES_SQL_SERVICE_HOST) -p $(POSTGRES_SQL_SERVICE_PORT) -U $(DATABASE_USER) > test.sql
-	kill -HUP $$(ps -eo pid,command | grep "manage.py runserver" | grep -v grep | awk '{print $$1}')
-	$(MAKE) oc-stop-forwarding-ports
-
 oc-delete-all:
 	oc delete all -l app=koku
 
@@ -395,7 +378,7 @@ oc-login-dev:
 
 oc-make-migrations: oc-forward-ports
 	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common rates
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 	$(MAKE) oc-stop-forwarding-ports
 
 oc-reinit: oc-delete-all oc-create-koku
@@ -437,7 +420,7 @@ docker-rabbit:
 docker-reinitdb: docker-down remove-db docker-up-db
 	sleep 5
 	$(MAKE) run-migrations
-	$(MAKE) create-test-db-file
+	$(MAKE) create-test-customer
 
 docker-shell:
 	docker-compose run --service-ports koku-server

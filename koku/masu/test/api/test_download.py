@@ -16,16 +16,25 @@
 #
 
 """Test the download endpoint view."""
-
+import os
 from unittest.mock import patch
 
+from django.urls import reverse
+from django.test import TestCase
+from django.test.utils import override_settings
+
 from celery.result import AsyncResult
+from api.iam.models import Tenant
 
 from masu.test import MasuTestCase
 
-
-class DownloadAPIViewTest(MasuTestCase):
+@override_settings(ROOT_URLCONF='masu.urls')
+class DownloadAPIViewTest(TestCase):
     """Test Cases for the Download API."""
+    def setUp(self):
+        """Create test case setup."""
+        super().setUp()
+        Tenant.objects.get_or_create(schema_name='public')
 
     @patch(
         'masu.celery.tasks.check_report_updates.delay',
@@ -33,10 +42,9 @@ class DownloadAPIViewTest(MasuTestCase):
     )
     def test_download(self, file_list):
         """Test the download endpoint."""
-        response = self.client.get('/api/v1/download/')
-        body = response.json
+        url = reverse('report_download')
+        response = self.client.get(url)
+        body = response.json()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers['Content-Type'], 'application/json')
-
         self.assertIn('Download Request Task ID', body)

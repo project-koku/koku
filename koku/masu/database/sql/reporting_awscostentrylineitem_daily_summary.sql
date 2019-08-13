@@ -34,12 +34,12 @@ CREATE TEMPORARY TABLE aws_tag_summary_{uuid} AS (
                 cost_entry_pricing_id,
                 key,
                 value
-            FROM reporting_awscostentrylineitem_daily AS li,
+            FROM {schema}.reporting_awscostentrylineitem_daily AS li,
                 jsonb_each_text(li.tags) tags
         ) li
-        JOIN reporting_awscostentryproduct AS p
+        JOIN {schema}.reporting_awscostentryproduct AS p
             ON li.cost_entry_product_id = p.id
-        LEFT JOIN reporting_awscostentrypricing as pr
+        LEFT JOIN {schema}.reporting_awscostentrypricing as pr
             ON li.cost_entry_pricing_id = pr.id
         WHERE date(li.usage_start) >= '{start_date}'
             AND date(li.usage_start) <= '{end_date}'
@@ -100,12 +100,12 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
             max(li.public_on_demand_rate) as public_on_demand_rate,
             array_agg(DISTINCT li.resource_id) as resource_ids,
             count(DISTINCT li.resource_id) as resource_count
-        FROM reporting_awscostentrylineitem_daily AS li
-        JOIN reporting_awscostentryproduct AS p
+        FROM {schema}.reporting_awscostentrylineitem_daily AS li
+        JOIN {schema}.reporting_awscostentryproduct AS p
             ON li.cost_entry_product_id = p.id
-        LEFT JOIN reporting_awscostentrypricing as pr
+        LEFT JOIN {schema}.reporting_awscostentrypricing as pr
             ON li.cost_entry_pricing_id = pr.id
-        LEFT JOIN reporting_awsaccountalias AS aa
+        LEFT JOIN {schema}.reporting_awsaccountalias AS aa
             ON li.usage_account_id = aa.account_id
         WHERE date(li.usage_start) >= '{start_date}'
             AND date(li.usage_start) <= '{end_date}'
@@ -159,14 +159,14 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
 ;
 
 -- -- Clear out old entries first
-DELETE FROM reporting_awscostentrylineitem_daily_summary
+DELETE FROM {schema}.reporting_awscostentrylineitem_daily_summary
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
     AND cost_entry_bill_id IN ({cost_entry_bill_ids})
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO reporting_awscostentrylineitem_daily_summary (
+INSERT INTO {schema}.reporting_awscostentrylineitem_daily_summary (
     cost_entry_bill_id,
     usage_start,
     usage_end,

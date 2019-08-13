@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,14 +14,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Celery worker entry-point."""
-from masu import create_app
-from masu.celery import celery, update_celery_config
-from masu.prometheus_stats import initialize_prometheus_exporter
 
-
-MASU = create_app()
-MASU.app_context().push()
-update_celery_config(celery, MASU)
-
-initialize_prometheus_exporter()
+"""API views for import organization"""
+# flake8: noqa
+# pylint: disable=unused-import
+from masu.api.download import download_report
+from masu.api.expired_data import expired_data
+from masu.api.notification import post_notification
+from masu.api.region_map import update_region_map
+from masu.api.report_data import report_data
+from masu.api.status import get_status
+from masu.api.update_charge import update_charge

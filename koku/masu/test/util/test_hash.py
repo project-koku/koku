@@ -27,7 +27,7 @@ from decimal import Decimal
 from masu.exceptions import HasherError
 from masu.util.hash import Hasher
 
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class HasherUtilTests(MasuTestCase):

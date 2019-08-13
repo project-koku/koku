@@ -14,17 +14,21 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Masu listener entry-point."""
+"""Listener entry point."""
+import logging
 
-from masu import create_app
-from masu.celery import celery, update_celery_config
+from django.core.management.base import BaseCommand
+
 from masu.external.kafka_msg_handler import initialize_kafka_handler
-from masu.prometheus_stats import initialize_prometheus_exporter
 
-initialize_prometheus_exporter()
+LOG = logging.getLogger(__name__)
 
-MASU = create_app()
-MASU.app_context().push()
-update_celery_config(celery, MASU)
 
-initialize_kafka_handler()
+class Command(BaseCommand):
+    """Django command to launch listener."""
+
+    def handle(self, *args, **kwargs):
+        """Initialize listener."""
+        LOG.info('Starting Kafka handler')
+        LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
+        initialize_kafka_handler()

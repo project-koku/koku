@@ -76,7 +76,7 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
         return column_map
 
-    def add(self, table, fields, use_savepoint=True):
+    def add(self, table, fields):
         """
         Add a new row to the database.
 
@@ -90,5 +90,3 @@ class ReportingCommonDBAccessor(KokuDBAccess):
 
         """
         getattr(self, f'_{table.lower()}').create(**fields)
-        if use_savepoint:
-            self.savepoint(self.add, table=table, field=fields)

@@ -87,6 +87,7 @@ def extract_header(request, header):
         header(str): The header to decode
     Returns:
         JWT(dict): Identity dictionary
+
     """
     rh_auth_header = request.META[header]
     decoded_rh_auth = b64decode(rh_auth_header)

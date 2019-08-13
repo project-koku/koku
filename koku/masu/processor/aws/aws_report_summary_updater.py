@@ -18,6 +18,8 @@
 import calendar
 import logging
 
+from tenant_schemas.utils import schema_context
+
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -35,6 +37,7 @@ class AWSReportSummaryUpdater:
 
         Args:
             schema (str): The customer schema to associate with
+
         """
         self._schema_name = schema
         self._provider = provider
@@ -61,7 +64,9 @@ class AWSReportSummaryUpdater:
             start_date,
             end_date
         )
-        bill_ids = [str(bill.id) for bill in bills]
+        bill_ids = []
+        with schema_context(self._schema_name):
+            bill_ids = [str(bill.id) for bill in bills]
 
         LOG.info('Updating AWS report daily tables for \n\tSchema: %s'
                  '\n\tProvider: %s \n\tDates: %s - %s',
@@ -89,7 +94,9 @@ class AWSReportSummaryUpdater:
             start_date,
             end_date
         )
-        bill_ids = [str(bill.id) for bill in bills]
+        bill_ids = []
+        with schema_context(self._schema_name):
+            bill_ids = [str(bill.id) for bill in bills]
 
         with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             # Need these bills on the session to update dates after processing
@@ -97,15 +104,18 @@ class AWSReportSummaryUpdater:
             LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
                      '\n\tProvider: %s \n\tDates: %s - %s',
                      self._schema_name, self._provider.uuid, start_date, end_date)
+        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
+        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_tags_summary_table()
-
-            for bill in bills:
-                if bill.summary_data_creation_datetime is None:
-                    bill.summary_data_creation_datetime = \
+            with schema_context(self._schema_name):
+                for bill in bills:
+                    if bill.summary_data_creation_datetime is None:
+                        bill.summary_data_creation_datetime = \
+                            self._date_accessor.today_with_timezone('UTC')
+                    bill.summary_data_updated_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
-                bill.summary_data_updated_datetime = \
-                    self._date_accessor.today_with_timezone('UTC')
+                    bill.save()
 
             accessor.commit()
         return start_date, end_date
@@ -120,11 +130,13 @@ class AWSReportSummaryUpdater:
                 bills = accessor.get_cost_entry_bills_query_by_provider(
                     self._provider.id
                 )
-                bills = bills.filter_by(billing_period_start=bill_date).all()
+                bills = bills.filter(billing_period_start=bill_date).all()
 
-                do_month_update = self._determine_if_full_summary_update_needed(
-                    bills[0]
-                )
+                do_month_update = False
+                with schema_context(self._schema_name):
+                    do_month_update = self._determine_if_full_summary_update_needed(
+                        bills[0]
+                    )
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(
                         bill_date.year,
@@ -135,7 +147,7 @@ class AWSReportSummaryUpdater:
                     end_date = end_date.strftime('%Y-%m-%d')
                     LOG.info('Overriding start and end date to process full month.')
 
-            return start_date, end_date
+        return start_date, end_date
 
     def _determine_if_full_summary_update_needed(self, bill):
         """Decide whether to update summary tables for full billing period."""
@@ -147,7 +159,6 @@ class AWSReportSummaryUpdater:
         finalized_datetime = bill.finalized_datetime
 
         is_done_processing = processed_files == total_files
-
         is_newly_finalized = False
         if finalized_datetime is not None:
             is_newly_finalized = finalized_datetime.date() == now_utc.date()

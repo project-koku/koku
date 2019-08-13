@@ -34,6 +34,7 @@ def handle_invalid_fields(this, data):
         (Dict): Validated data
     Raises:
         (ValidationError): if field inputs are invalid
+
     """
     unknown_keys = None
     if hasattr(this, 'initial_data'):
@@ -58,6 +59,7 @@ def validate_field(this, field, serializer_cls, value, **kwargs):
         (Dict): Validated value
     Raises:
         (ValidationError): if field inputs are invalid
+
     """
     field_param = this.initial_data.get(field)
 
@@ -121,6 +123,7 @@ class StringOrListField(serializers.ListField):
             data    (String or List): data to be converted
         Returns:
             (List): Transformed data
+
         """
         list_data = data
         if isinstance(data, str):
@@ -160,6 +163,7 @@ class BaseSerializer(serializers.Serializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if field inputs are invalid
+
         """
         handle_invalid_fields(self, data)
         return data
@@ -233,6 +237,7 @@ class FilterSerializer(BaseSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if filter inputs are invalid
+
         """
         handle_invalid_fields(self, data)
         resolution = data.get('resolution')
@@ -340,6 +345,7 @@ class ParamSerializer(BaseSerializer):
             (Dict): Validated data
         Raises:
             (ValidationError): if order_by field inputs are invalid
+
         """
         error = {}
 

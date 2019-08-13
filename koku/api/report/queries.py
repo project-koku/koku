@@ -49,6 +49,7 @@ class ReportQueryHandler(QueryHandler):
             url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
+
         """
         LOG.debug(f'Query Params: {query_parameters}')
         self._accept_type = None
@@ -139,6 +140,7 @@ class ReportQueryHandler(QueryHandler):
             filters (QueryFilterCollection): collection of query filters
         Returns:
             (QueryFilterCollection): populated collection of query filters
+
         """
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get('filters')
@@ -396,6 +398,7 @@ class ReportQueryHandler(QueryHandler):
             data    (List): list of query results
         Returns:
             (Dict): dictionary of grouped query results or the original data
+
         """
         group_by_list_len = len(group_by_list)
         if group_index >= group_by_list_len:
@@ -583,6 +586,7 @@ class ReportQueryHandler(QueryHandler):
             data_list (List(Dict)): List of ranked data points from the same bucket
         Returns:
             List(Dict): List of data points meeting the rank criteria
+
         """
         rank_limited_data = OrderedDict()
         date_grouped_data = self.date_group_data(data_list)

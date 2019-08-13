@@ -31,8 +31,8 @@ from masu.external.downloader.aws.aws_report_downloader import (
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
-from tests import MasuTestCase
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 
 class FakeDownloader:

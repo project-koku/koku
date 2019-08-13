@@ -28,6 +28,7 @@ from masu.database.provider_status_accessor import (
     ProviderStatusCode,
 )
 from masu.exceptions import MasuProviderError
+from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
 
 
@@ -39,6 +40,8 @@ class ProviderStatusAccessorTest(MasuTestCase):
     def setUp(self):
         """Test set up."""
         super().setUp()
+
+        self.date_accessor = DateAccessor()
 
         with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
@@ -55,6 +58,7 @@ class ProviderStatusAccessorTest(MasuTestCase):
             'status': random.choice(list(ProviderStatusCode)),
             'last_message': self.FAKE.word(),
             'retries': random.randint(0, 10),
+            'timestamp': self.date_accessor.today_with_timezone('UTC')
         }
 
         with ProviderStatusAccessor(self.aws_test_provider_uuid) as accessor:
