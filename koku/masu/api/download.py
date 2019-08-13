@@ -19,18 +19,22 @@
 
 import logging
 
-from flask import jsonify
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 
 from masu.celery.tasks import check_report_updates
-from masu.util.blueprint import application_route
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-API_V1_ROUTES = {}
 
-
-@application_route('/download/', API_V1_ROUTES, methods=('GET',))
-def download_report():
+@api_view(http_method_names=['GET'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def download_report(request):
     """Return download file async task ID."""
     async_download_result = check_report_updates.delay()
-    return jsonify({'Download Request Task ID': str(async_download_result)})
+    return Response({'Download Request Task ID': str(async_download_result)})

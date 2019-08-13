@@ -26,15 +26,16 @@ from masu.external.notifications.aws.aws_notification_handler import (
 from masu.external.notifications.notification_interface import (
     NotificationInterfaceFilter,
 )
-import tests.external.notifications.helpers.sns_helpers as sns_helper
+import masu.test.external.notifications.helpers.sns_helpers as sns_helper
 
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class AWSNotificationHandlerTest(MasuTestCase):
     """Test Cases for AWSNotificationHandler."""
 
     def setUp(self):
+        super().setUp()
         self.confirm_headers = list(sns_helper.sns_subscription_confirm_headers)
         self.confirm_body_dict = dict(sns_helper.sns_subscription_confirm_body_dict)
         self.notification_headers = list(sns_helper.sns_notification_headers)

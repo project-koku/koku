@@ -40,6 +40,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             url_data        (String): URL string to provide order information
             tenant    (String): the tenant to use to access CUR data
             kwargs    (Dict): A dictionary for internal query alteration based on path
+
         """
         provider = 'OCP'
         self._initialize_kwargs(kwargs)

@@ -25,7 +25,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{uuid} AS (
             86400 *
             extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
             * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months
-    FROM reporting_ocpstoragelineitem_daily AS li
+    FROM {schema}.reporting_ocpstoragelineitem_daily AS li
     WHERE usage_start >= '{start_date}'
         AND usage_start <= '{end_date}'
         AND cluster_id = '{cluster_id}'
@@ -33,14 +33,14 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM reporting_ocpstoragelineitem_daily_summary
+DELETE FROM {schema}.reporting_ocpstoragelineitem_daily_summary
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
     AND cluster_id = '{cluster_id}'
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO reporting_ocpstoragelineitem_daily_summary (
+INSERT INTO {schema}.reporting_ocpstoragelineitem_daily_summary (
     cluster_id,
     cluster_alias,
     namespace,

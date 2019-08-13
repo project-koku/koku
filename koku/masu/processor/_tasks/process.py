@@ -66,33 +66,29 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     LOG.info(mem_msg)
 
     file_name = report_path.split('/')[-1]
-
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_started_datetime()
-        stats_recorder.commit()
-
-        processor = ReportProcessor(schema_name=schema_name,
-                                    report_path=report_path,
-                                    compression=compression,
-                                    provider=provider,
-                                    provider_id=provider_id,
-                                    manifest_id=manifest_id)
-        processor.process()
+    processor = ReportProcessor(schema_name=schema_name,
+                                report_path=report_path,
+                                compression=compression,
+                                provider=provider,
+                                provider_id=provider_id,
+                                manifest_id=manifest_id)
+    processor.process()
+    with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:
         stats_recorder.log_last_completed_datetime()
-        stats_recorder.commit()
 
     with ReportManifestDBAccessor() as manifest_accesor:
         manifest = manifest_accesor.get_manifest_by_id(manifest_id)
         if manifest:
             manifest.num_processed_files += 1
+            manifest.save()
             manifest_accesor.mark_manifest_as_updated(manifest)
-            manifest_accesor.commit()
         else:
             LOG.error('Unable to find manifest for ID: %s, file %s', manifest_id, file_name)
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         provider_accessor.setup_complete()
-        provider_accessor.commit()
 
     files = processor.remove_processed_files(path.dirname(report_path))
     LOG.info('Temporary files removed: %s', str(files))

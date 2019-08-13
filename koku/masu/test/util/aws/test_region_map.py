@@ -21,12 +21,12 @@ import json
 import logging
 from unittest.mock import patch
 
-from sqlalchemy.exc import IntegrityError
+from django.db import IntegrityError
 
 import masu.util.aws.region_map as rmap
 from masu.test import MasuTestCase
 
-TEST_HTML = './tests/data/test_region_page.html'
+TEST_HTML = './koku/masu/test/data/test_region_page.html'
 LOG = logging.getLogger(__name__)
 
 
@@ -46,6 +46,7 @@ class RegionMapTests(MasuTestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         with open(TEST_HTML) as page:
             cls.test_data = page.read()
 

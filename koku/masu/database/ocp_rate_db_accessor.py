@@ -18,6 +18,8 @@
 
 import logging
 
+from django.db import connection
+
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 LOG = logging.getLogger(__name__)
@@ -34,6 +36,7 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
             schema (str): The customer schema to associate with
             column_map (dict): A mapping of report columns to database columns
             provider_uuid (str): Provider uuid
+
         """
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid
@@ -49,8 +52,9 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
                 ON cost_model_table.uuid = map.cost_model_id
             WHERE map.provider_uuid = '{self.provider_uuid}'
             """
-        self._cursor.execute(query_sql)
-        results = self._cursor.fetchall()
+        with connection.cursor() as cursor:
+            cursor.execute(query_sql)
+            results = cursor.fetchall()
 
         return results[0][0] if len(results) == 1 else None
 

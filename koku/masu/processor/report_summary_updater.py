@@ -51,6 +51,7 @@ class ReportSummaryUpdater:
         Args:
             customer_schema (str): Schema name for given customer.
             provider (str): The provider type.
+
         """
         self._schema = customer_schema
         self._provider_uuid = provider_uuid

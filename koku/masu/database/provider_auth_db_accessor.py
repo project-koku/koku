@@ -30,6 +30,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Args:
             auth_id                      (String) the provider authentication unique database id
             provider_resource_name       (String) the provider resource name
+
         """
         super().__init__('public')
         self._auth_id = auth_id
@@ -45,6 +46,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
             None
         Returns:
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
+
         """
         if self._auth_id and not self._provider_resource_name:
             query = self._table.objects.filter(id=self._auth_id)
@@ -65,6 +67,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
             None
         Returns:
             (Integer): "1",
+
         """
         auth_obj = self._get_db_obj_query().first()
         return auth_obj.id if auth_obj else None
@@ -78,6 +81,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Returns:
             (String): "UUID v4",
                     example: "edf94475-235e-4b64-ba18-0b81f2de9c9e"
+
         """
         obj = self._get_db_obj_query().first()
         return obj.uuid
@@ -91,6 +95,7 @@ class ProviderAuthDBAccessor(KokuDBAccess):
         Returns:
             (String): "Provider Resource Name.  i.e. AWS: RoleARN",
                     example: "arn:aws:iam::111111111111:role/CostManagement"
+
         """
         obj = self._get_db_obj_query().first()
         return obj.provider_resource_name

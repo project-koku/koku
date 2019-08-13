@@ -28,13 +28,63 @@ services:
         - REDIS_HOST=${REDIS_HOST-redis}
         - REDIS_PORT=${REDIS_PORT-6379}
         - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
-        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-5000}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - RBAC_CACHE_TTL
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
       privileged: true
       ports:
           - 8000:8000
+      volumes:
+        - '.:/koku/'
+      links:
+        - db
+        - koku-rabbit
+        - masu-server
+      depends_on:
+        - db
+
+  masu-server:
+      container_name: masu_server
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku
+      entrypoint:
+        - /koku/run_internal.sh
+      environment:
+        - MASU=True
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DJANGO_READ_DOT_ENV_FILE=True
+        - DEVELOPMENT=${DEVELOPMENT-True}
+        - DJANGO_DEBUG=${DJANGO_DEBUG-True}
+        - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
+        - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
+        - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
+        - REDIS_HOST=${REDIS_HOST-redis}
+        - REDIS_PORT=${REDIS_PORT-6379}
+        - MASU_SERVICE_HOST=${MASU_SERVICE_HOST-masu-server}
+        - MASU_SERVICE_PORT=${MASU_SERVICE_PORT-8000}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - RBAC_CACHE_TTL
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+      privileged: true
+      ports:
+          - 5000:8000
       volumes:
         - '.:/koku/'
       links:
@@ -78,8 +128,11 @@ services:
           context: .
           dockerfile: Dockerfile-env
       working_dir: /koku/koku
-      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info']
+      entrypoint: ['celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,remove_expired,reporting,process']
+
       environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
         - DATABASE_SERVICE_NAME=POSTGRES_SQL
         - DATABASE_ENGINE=postgresql
         - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -91,6 +144,90 @@ services:
         - RABBITMQ_PORT=5672
         - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+      privileged: true
+      volumes:
+        - '.:/koku'
+        # - '~/aws_local:/tmp/local_bucket'
+        # - '~/aws_local_0:/tmp/local_bucket_0'
+        # - '~/aws_local_1:/tmp/local_bucket_1'
+        # - '~/aws_local_2:/tmp/local_bucket_2'
+        # - '~/aws_local_3:/tmp/local_bucket_3'
+        # - '~/insights_local:/var/tmp/insights_local'
+      links:
+          - koku-rabbit
+      depends_on:
+          - koku-rabbit
+
+  koku-listener:
+      container_name: koku_listener
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/
+      entrypoint: ['python', 'koku/manage.py', 'listener']
+      environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - DATABASE_HOST=db
+        - DATABASE_PORT=5432
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - MASU_SECRET_KEY=abc
+        - INSIGHTS_KAFKA_HOST=kafka
+        - INSIGHTS_KAFKA_PORT=29092
+        - KAFKA_CONNECT=True
+        - prometheus_multiproc_dir=/tmp
+        - MASU_DATE_OVERRIDE
+        - MASU_DEBUG
+        - LOG_LEVEL=INFO
+        - INITIAL_INGEST_NUM_MONTHS=1
+        - PYTHONPATH=/koku/koku
+      privileged: true
+      ports:
+          - "9988:9999"
+      volumes:
+        - '.:/koku'
+      links:
+        - db
+        - koku-rabbit
+      depends_on:
+        - db
+        - koku-rabbit
+
+  koku-beat:
+      container_name: koku_beat
+      hostname: koku_beat
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/koku
+      entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+
+      environment:
+        - AWS_ACCESS_KEY_ID
+        - AWS_SECRET_ACCESS_KEY
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+        - RABBITMQ_PORT=5672
+        - LOG_LEVEL=INFO
+        - DJANGO_SETTINGS_MODULE=koku.settings
+        - MASU_SECRET_KEY=abc
+        - prometheus_multiproc_dir=/tmp
+        - SCHEDULE_REPORT_CHECKS=True
+        - SCHEDULE_CHECK_INTERVAL=10000000
       privileged: true
       volumes:
         - '.:/koku'
@@ -99,32 +236,6 @@ services:
       depends_on:
           - koku-rabbit
 
-  koku-beat:
-    container_name: koku_beat
-    hostname: koku_beat
-    build:
-        context: .
-        dockerfile: Dockerfile-env
-    working_dir: /koku/koku
-    entrypoint: ['celery', '-A', 'koku', 'beat', '-l', 'info']
-    environment:
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - LOG_LEVEL=INFO
-        - DJANGO_SETTINGS_MODULE=koku.settings
-    privileged: true
-    volumes:
-      - .:/koku
-    depends_on:
-      - db
-      - koku-rabbit
 
 networks:
   default:

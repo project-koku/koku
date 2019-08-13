@@ -9,10 +9,10 @@ CREATE TEMPORARY TABLE ocp_cluster_capacity_{uuid} AS (
             ur.interval_start,
             max(li.node_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
             max(li.node_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
-        FROM reporting_ocpusagelineitem AS li
-        JOIN reporting_ocpusagereport AS ur
+        FROM {schema}.reporting_ocpusagelineitem AS li
+        JOIN {schema}.reporting_ocpusagereport AS ur
             ON li.report_id = ur.id
-        JOIN reporting_ocpusagereportperiod AS rp
+        JOIN {schema}.reporting_ocpusagereportperiod AS rp
             ON li.report_period_id = rp.id
         WHERE date(ur.interval_start) >= '{start_date}'
             AND date(ur.interval_start) <= '{end_date}'
@@ -54,12 +54,12 @@ CREATE TEMPORARY TABLE ocp_daily_labels_{uuid} AS (
                 pod,
                 key,
                 value
-            FROM reporting_ocpusagelineitem AS li,
+            FROM {schema}.reporting_ocpusagelineitem AS li,
                 jsonb_each_text(li.pod_labels) labels
         ) li
-        JOIN reporting_ocpusagereport AS ur
+        JOIN {schema}.reporting_ocpusagereport AS ur
             ON li.report_id = ur.id
-        JOIN reporting_ocpusagereportperiod AS rp
+        JOIN {schema}.reporting_ocpusagereportperiod AS rp
             ON li.report_period_id = rp.id
         WHERE date(ur.interval_start) >= '{start_date}'
             AND date(ur.interval_start) <= '{end_date}'
@@ -107,10 +107,10 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
         max(oc.total_capacity_cpu_core_seconds) as total_capacity_cpu_core_seconds,
         max(oc.total_capacity_memory_byte_seconds) as total_capacity_memory_byte_seconds,
         count(ur.interval_start) * 3600 as total_seconds
-    FROM reporting_ocpusagelineitem AS li
-    JOIN reporting_ocpusagereport AS ur
+    FROM {schema}.reporting_ocpusagelineitem AS li
+    JOIN {schema}.reporting_ocpusagereport AS ur
         ON li.report_id = ur.id
-    JOIN reporting_ocpusagereportperiod AS rp
+    JOIN {schema}.reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
     JOIN ocp_cluster_capacity_{uuid} AS cc
         ON rp.cluster_id = cc.cluster_id
@@ -137,14 +137,14 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM reporting_ocpusagelineitem_daily
+DELETE FROM {schema}.reporting_ocpusagelineitem_daily
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
     AND cluster_id = '{cluster_id}'
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO reporting_ocpusagelineitem_daily (
+INSERT INTO {schema}.reporting_ocpusagelineitem_daily (
     cluster_id,
     cluster_alias,
     usage_start,

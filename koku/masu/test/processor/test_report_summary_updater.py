@@ -37,7 +37,7 @@ from masu.processor.report_summary_updater import (
     ReportSummaryUpdater,
     ReportSummaryUpdaterError,
 )
-from tests import MasuTestCase
+from masu.test import MasuTestCase
 
 
 class ReportSummaryUpdaterTest(MasuTestCase):
@@ -47,7 +47,6 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     def setUpClass(cls):
         """Set up the test class."""
         super().setUpClass()
-        cls.schema = 'acct10001'
         today = DateAccessor().today_with_timezone('UTC')
         cls.today = today.strftime('%Y-%m-%d')
         cls.tomorrow = (today + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
@@ -175,22 +174,15 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'num_processed_files': 2,
-            'provider_id': 2,
+            'provider_id': self.ocp_provider.id,
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
-            accessor.commit()
-            manifest_id = manifest.id
+        manifest_id = manifest.id
         updater = ReportSummaryUpdater(
             self.schema, self.ocp_test_provider_uuid, manifest_id
         )
         self.assertTrue(updater.manifest_is_ready())
-
-        with ReportManifestDBAccessor() as accessor:
-            manifests = accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                accessor.delete(manifest)
-            accessor.commit()
 
     def test_manifest_is_ready_is_not_ready(self):
         """Test that False is returned when a manifest is not ready to process."""
@@ -200,21 +192,14 @@ class ReportSummaryUpdaterTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'num_processed_files': 1,
-            'provider_id': 2,
+            'provider_id': self.ocp_provider.id,
         }
         with ReportManifestDBAccessor() as accessor:
             manifest = accessor.add(**manifest_dict)
-            accessor.commit()
-            manifest_id = manifest.id
+        manifest_id = manifest.id
         updater = ReportSummaryUpdater(
             self.schema, self.ocp_test_provider_uuid, manifest_id
         )
 
         # manifest_is_ready is now unconditionally returning True, so summary is expected.
         self.assertTrue(updater.manifest_is_ready())
-
-        with ReportManifestDBAccessor() as accessor:
-            manifests = accessor._get_db_obj_query().all()
-            for manifest in manifests:
-                accessor.delete(manifest)
-            accessor.commit()

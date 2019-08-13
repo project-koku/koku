@@ -27,8 +27,8 @@ from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
-from tests import MasuTestCase
-from tests.external.downloader.aws import fake_arn
+from masu.test import MasuTestCase
+from masu.test.external.downloader.aws import fake_arn
 
 
 class FakeDownloader:
@@ -83,7 +83,7 @@ class OrchestratorTest(MasuTestCase):
                 self.assertEqual(
                     account.get('billing_source'), self.aws_test_billing_source
                 )
-                self.assertEqual(account.get('customer_name'), self.test_schema)
+                self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:
                 self.assertEqual(
                     account.get('authentication'), self.ocp_provider_resource_name
@@ -91,7 +91,7 @@ class OrchestratorTest(MasuTestCase):
                 self.assertEqual(
                     account.get('billing_source'), self.ocp_test_billing_source
                 )
-                self.assertEqual(account.get('customer_name'), self.test_schema)
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
 
@@ -106,7 +106,7 @@ class OrchestratorTest(MasuTestCase):
                 self.assertEqual(
                     account.get('billing_source'), self.aws_test_billing_source
                 )
-                self.assertEqual(account.get('customer_name'), self.test_schema)
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
 

@@ -12,7 +12,7 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         0::decimal AS persistentvolumeclaim_charge_gb_month,
         0::decimal as infra_cost,
         0::decimal as project_infra_cost
-    FROM reporting_ocpusagelineitem_daily_summary as usageli
+    FROM {schema}.reporting_ocpusagelineitem_daily_summary as usageli
     WHERE date(usageli.usage_start) >= '{start_date}'
         AND date(usageli.usage_start) <= '{end_date}'
         AND usageli.cluster_id = '{cluster_id}'
@@ -32,7 +32,7 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0::decimal) AS persistentvolumeclaim_charge_gb_month,
         0::decimal as infra_cost,
         0::decimal as project_infra_cost
-    FROM reporting_ocpstoragelineitem_daily_summary as storageli
+    FROM {schema}.reporting_ocpstoragelineitem_daily_summary as storageli
     WHERE date(storageli.usage_start) >= '{start_date}'
         AND date(storageli.usage_start) <= '{end_date}'
         AND storageli.cluster_id = '{cluster_id}'
@@ -52,7 +52,7 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         0::decimal AS persistentvolumeclaim_charge_gb_month,
         ocp_aws.unblended_cost AS infra_cost,
         ocp_aws.pod_cost AS project_infra_cost
-    FROM reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    FROM {schema}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
     WHERE date(ocp_aws.usage_start) >= '{start_date}'
         AND date(ocp_aws.usage_start) <= '{end_date}'
         AND ocp_aws.cluster_id = '{cluster_id}'
@@ -60,14 +60,14 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM reporting_ocpcosts_summary
+DELETE FROM {schema}.reporting_ocpcosts_summary
 WHERE date(usage_start) >= '{start_date}'
     AND date(usage_start) <= '{end_date}'
     AND cluster_id = '{cluster_id}'
 ;
 
 -- Populate the ocp costs summary table
-INSERT INTO reporting_ocpcosts_summary (
+INSERT INTO {schema}.reporting_ocpcosts_summary (
     cluster_id,
     cluster_alias,
     namespace,

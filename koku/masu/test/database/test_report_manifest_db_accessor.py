@@ -42,6 +42,7 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
     def tearDown(self):
         """Tear down the test class."""
+        super().tearDown()
         with schema_context(self.schema):
             manifests = self.manifest_accessor._get_db_obj_query().all()
             for manifest in manifests:

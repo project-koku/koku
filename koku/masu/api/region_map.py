@@ -17,15 +17,18 @@
 
 """View endpoint for updating region mapping."""
 
-from flask import jsonify
+from rest_framework.decorators import api_view, permission_classes, renderer_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
+
 
 from masu.util.aws.region_map import update_region_mapping
-from masu.util.blueprint import application_route
-
-API_V1_ROUTES = {}
 
 
-@application_route('/regionmap/', API_V1_ROUTES, methods=('GET',))
-def update_region_map():
+@api_view(http_method_names=['GET'])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def update_region_map(request):
     """Return download file async task ID."""
-    return jsonify(update_region_mapping())
+    return Response(update_region_mapping())
