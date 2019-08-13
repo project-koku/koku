@@ -123,10 +123,6 @@ class UserPreferenceSerializerTest(IamTestCase):
             {'currency': settings.KOKU_DEFAULT_CURRENCY},
             {'timezone': settings.KOKU_DEFAULT_TIMEZONE},
             {'locale': settings.KOKU_DEFAULT_LOCALE}]
-        # self.user_data = self._create_user_data()
-        # customer_data = self._create_customer_data()
-        # self.request_context = self._create_request_context(customer_data,
-        #                                                     self.user_data)
 
     def test_user_preference_defaults(self):
         """Test that defaults are set for new users."""
