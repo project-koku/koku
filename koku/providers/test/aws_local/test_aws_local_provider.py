@@ -20,7 +20,7 @@ import os
 import tempfile
 
 from django.test import TestCase
-from providers.aws_local.aws_local_provider import AWSLocalProvider
+from providers.aws_local.provider import AWSLocalProvider
 from rest_framework.exceptions import ValidationError
 
 
