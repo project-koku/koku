@@ -144,14 +144,14 @@ In order to host the docs locally you need to collect the static files ::
 
   make collect-static
 
-Now start the server with as described above and point your browser to **http://127.0.0.1:8000/apidoc/index.html**.
-
 Server
 ^^^^^^
 
-To run a local dev Django server you can use ::
+Generate the API documentation and collect the static files. To run a local dev Django server, use ::
 
     make serve
+
+Now point a browser to **http://127.0.0.1:8000/apidoc/index.html**.
 
 Testing and Linting
 -------------------
