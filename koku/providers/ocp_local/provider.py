@@ -20,7 +20,7 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from ..ocp.ocp_provider import OCPProvider
+from ..ocp.provider import OCPProvider
 
 LOG = logging.getLogger(__name__)
 
