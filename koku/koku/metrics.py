@@ -20,10 +20,8 @@ import logging
 import time
 from datetime import datetime, timedelta
 
-import psycopg2
+from django.db import InterfaceError, OperationalError, connection
 from prometheus_client import Gauge
-
-from koku import database
 
 LOG = logging.getLogger(__name__)
 PGSQL_GAUGE = Gauge('postgresql_schema_size_bytes',
@@ -37,13 +35,6 @@ class DatabaseStatus():
     _last_result = None
     _last_query = None
 
-    def __init__(self):
-        """Constructor."""
-        cfg = database.config()
-        if cfg.get('ENGINE') == 'tenant_schemas.postgresql_backend':
-            cfg['ENGINE'] = 'postgresql'
-        self.uri = '{ENGINE}://{USER}:{PASSWORD}@{HOST}:{PORT}/{NAME}'.format(**cfg)
-
     def query(self, query):
         """Execute a SQL query, format the results.
 
@@ -55,6 +46,7 @@ class DatabaseStatus():
             ]
 
         """
+
         query_interval = datetime.now() - timedelta(minutes=5)
         if self._last_query and \
                 self._last_query < query_interval:
@@ -64,11 +56,10 @@ class DatabaseStatus():
         rows = None
         while retries < 3:
             try:
-                connection = psycopg2.connect(self.uri)
-                cursor = connection.cursor()
-                cursor.execute(query)
-                rows = cursor.fetchall()
-            except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+                with connection.cursor() as cursor:
+                    cursor.execute(query)
+                    rows = cursor.fetchall()
+            except (OperationalError, InterfaceError) as exc:
                 LOG.warning(exc)
                 retries += 1
                 time.sleep(2)
@@ -88,7 +79,6 @@ class DatabaseStatus():
         self._last_result = result
         self._last_query = datetime.now()
 
-        connection.close()
         return result
 
     def collect(self):
