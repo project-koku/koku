@@ -23,12 +23,12 @@ from botocore.exceptions import ClientError
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
-from providers.aws.aws_provider import (AWSProvider,
-                                        _check_cost_report_access,
-                                        _check_s3_access,
-                                        _get_configured_sns_topics,
-                                        _get_sts_access,
-                                        error_obj)
+from providers.aws.provider import (AWSProvider,
+                                    _check_cost_report_access,
+                                    _check_s3_access,
+                                    _get_configured_sns_topics,
+                                    _get_sts_access,
+                                    error_obj)
 from rest_framework.exceptions import ValidationError
 
 FAKE = Faker()

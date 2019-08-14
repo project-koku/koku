@@ -17,7 +17,7 @@
 """Tests the OCPLocalProvider implementation for the Koku interface."""
 
 from django.test import TestCase
-from providers.ocp_local.ocp_local_provider import OCPLocalProvider
+from providers.ocp_local.provider import OCPLocalProvider
 from rest_framework.exceptions import ValidationError
 
 
