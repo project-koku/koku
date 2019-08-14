@@ -103,13 +103,6 @@ If a docker container running Postgres is not feasible, it is possible to run Po
 
     make run-migrations
 
-Server
-^^^^^^
-
-To run a local dev Django server you can use ::
-
-    make serve
-
 API Documentation Generation
 ----------------------------
 
@@ -124,6 +117,13 @@ In order to host the docs locally you need to collect the static files ::
   make collect-static
 
 Now start the server with as described above and point your browser to **http://127.0.0.1:8000/apidoc/index.html**.
+
+Server
+^^^^^^
+
+To run a local dev Django server you can use ::
+
+    make serve
 
 Testing and Linting
 -------------------
