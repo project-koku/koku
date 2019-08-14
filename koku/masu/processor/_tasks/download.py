@@ -74,8 +74,8 @@ def _get_report_files(customer_name,
             ' customer_name: {},'
             ' provider: {},'
             ' number_of_months: {}')
-    log_statement = stmt.format(authentication,
-                                billing_source,
+    log_statement = stmt.format(str(authentication),
+                                str(billing_source),
                                 customer_name,
                                 provider_type,
                                 number_of_months)

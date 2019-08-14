@@ -153,6 +153,7 @@ services:
         - AZURE_CLIENT_SECRET
         - AZURE_SUBSCRIPTION_ID
         - REGION
+        - INITIAL_INGEST_NUM_MONTHS=2
       privileged: true
       volumes:
         - '.:/koku'

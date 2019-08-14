@@ -59,7 +59,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     empty_manifest = {'reportKeys': []}
 
-    def __init__(self, customer_name, auth_credential, bucket, report_name=None, **kwargs):
+    def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
         Constructor.
 
@@ -73,10 +73,21 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-        self.resource_group_name = auth_credential.get('resource_group_name') #'RG1'
-        self.storage_account_name = auth_credential.get('storage_account_name') #'mysa1'
-        self.container_name = bucket #'output'
-        self.export_name = report_name #'cost/costreport'
+        management_reports = AzureService().list_cost_management_export()
+        if not report_name:
+            report_names = []
+            for report in management_reports.value:
+                report_names.append(report.name)
+            if report_names:
+                report_name = report_names[0]
+
+        self.resource_group_name = auth_credential.get('resource_group_name')
+        self.storage_account_name = auth_credential.get('storage_account_name')
+        #self.container_name = billing_source.get('container')
+        self.container_name = AzureService().list_containers(self.resource_group_name, self.storage_account_name)[0]
+        #self.directory = billing_source.get('directory')
+        self.directory = AzureService().list_directories(self.container_name, self.resource_group_name, self.storage_account_name)[0]
+        self.export_name = report_name
 
     def _get_report_path(self, date_time):
         """
@@ -91,7 +102,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         report_date_range = utils.month_date_range(date_time)
-        return '{}/{}'.format(self.export_name,
+        return '{}/{}/{}'.format(self.directory, self.export_name,
                               report_date_range)
 
     def _get_manifest(self, date_time):
@@ -106,11 +117,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         billing_period_range = self._get_report_path(date_time)
-        blob = AzureService().get_cost_export_for_date(billing_period_range,
-                                                       self.resource_group_name,
-                                                       self.storage_account_name,
-                                                       self.container_name,
-                                                       self.export_name)
+        blob = AzureService().get_latest_cost_export_for_date(billing_period_range, self.resource_group_name,
+                                                              self.storage_account_name, self.container_name)
         report_name = blob.name
         manifest = {}
         manifest['uuid'] = ''
@@ -120,7 +128,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
-        
+
         return manifest
 
     def get_report_context_for_date(self, date_time):
@@ -145,9 +153,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_id = None
         if manifest != {}:
             manifest_dict = self._prepare_db_manifest_record(manifest)
-            # should_download = self.check_if_manifest_should_be_downloaded(
-            #     manifest_dict.get('assembly_id')
-            # )
+            should_download = self.check_if_manifest_should_be_downloaded(
+                manifest_dict.get('assembly_id')
+            )
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
@@ -195,26 +203,22 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             'num_of_files': num_of_files
         }
 
-    def get_local_file_for_report(self, report):
-        pass
+    @staticmethod
+    def get_local_file_for_report(report):
+        """Get full path for local report file."""
+        return utils.get_local_file_name(report)
 
     def download_file(self, key, stored_etag=None):
-        s3_filename = key.split('/')[-1]
         directory_path = f'{DATA_DIR}/{self.customer_name}/azure/{self.container_name}'
 
         local_filename = utils.get_local_file_name(key)
-        LOG.info('KEY: %s Local filename: %s', str(key), local_filename)
         full_file_path = f'{directory_path}/{local_filename}'
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
-        etag = None
         try:
-            blob = AzureService().get_cost_export_for_key(key,
-                                                          self.resource_group_name,
-                                                          self.storage_account_name,
-                                                          self.container_name,
-                                                          self.export_name)
+            blob = AzureService().get_cost_export_for_key(key, self.resource_group_name, self.storage_account_name,
+                                                          self.container_name)
             etag = blob.properties.etag
         except Exception as ex:
             log_msg = 'Error when downloading Azure report for key: %s. Error %s'.format(key, str(ex))
@@ -223,11 +227,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
-            blob = AzureService().download_cost_export(key,
-                                                       self.resource_group_name,
-                                                       self.storage_account_name,
-                                                       self.container_name,
-                                                       self.export_name,
-                                                       destination=full_file_path)
+            blob = AzureService().download_cost_export(key, self.resource_group_name, self.storage_account_name,
+                                                       self.container_name, destination=full_file_path)
         LOG.info('Returning full_file_path: %s, etag: %s', full_file_path, etag)
         return full_file_path, etag

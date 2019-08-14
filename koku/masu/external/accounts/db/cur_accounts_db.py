@@ -24,6 +24,21 @@ from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 class CURAccountsDB(CURAccountsInterface):
     """Provider interface defnition."""
 
+    def get_authentication(self, provider):
+        if provider.authentication.provider_resource_name:
+            return provider.authentication.provider_resource_name
+        elif provider.authentication.credentials:
+            return provider.authentication.credentials
+        return None
+
+    def get_billing_source(self, provider):
+        if provider.billing_source:
+            if provider.billing_source.bucket:
+                return provider.billing_source.bucket
+            elif provider.billing_source.data_source:
+                return provider.billing_source.data_source
+        return None
+
     def get_accounts_from_source(self, provider_uuid=None):
         """
         Retrieve all accounts from the Koku database.
@@ -44,14 +59,12 @@ class CURAccountsDB(CURAccountsInterface):
                 if provider_uuid and str(provider.uuid) != provider_uuid:
                     continue
                 account = {
-                    'authentication': provider.authentication.provider_resource_name,
+                    'authentication': self.get_authentication(provider),
                     'customer_name': provider.customer.schema_name,
-                    'billing_source': None,
+                    'billing_source': self.get_billing_source(provider),
                     'provider_type': provider.type,
                     'schema_name': provider.customer.schema_name,
                     'provider_uuid': provider.uuid
                 }
-                if provider.billing_source:
-                    account['billing_source'] = provider.billing_source.bucket
                 accounts.append(account)
         return accounts

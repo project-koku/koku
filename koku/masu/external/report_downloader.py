@@ -23,6 +23,7 @@ from dateutil.relativedelta import relativedelta
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
+                           AZURE,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
@@ -88,10 +89,10 @@ class ReportDownloader:
                                             report_name=self.report_name,
                                             provider_id=self.provider_id)
 
-        if self.provider_type == AWS_LOCAL_SERVICE_PROVIDER:
+        if self.provider_type == AZURE:
             return AzureReportDownloader(customer_name=self.customer_name,
                                          auth_credential=self.credential,
-                                         bucket=self.cur_source,
+                                         billing_source=self.cur_source,
                                          report_name=self.report_name,
                                          provider_id=self.provider_id)
 
