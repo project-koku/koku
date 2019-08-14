@@ -26,23 +26,24 @@ Prerequisites
 * Node.js
 * apiDoc
 
-**For Mac OSX**
+For Mac OSX
+^^^^^^^^^^^
 
-`Install Docker for Mac`_
+    `Install Docker for Mac`_
 
-`Install brew`_
+    `Install brew`_
 
-Install PostgreSQL ::
+    Install PostgreSQL: ::
 
-    brew install postgresql
+        brew install postgresql
 
-Install Node.js ::
+    Install Node.js: ::
 
-    brew install node
+        brew install node
 
-Install apiDoc ::
+    Install apiDoc: ::
 
-    npm install apidoc -g
+        npm install apidoc -g
 
 
 Development
