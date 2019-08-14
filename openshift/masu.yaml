@@ -304,22 +304,22 @@ objects:
             - name: POD_CPU_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-masu
                   resource: requests.cpu
             - name: POD_CPU_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-masu
                   resource: limits.cpu
             - name: POD_MEMORY_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-masu
                   resource: requests.memory
             - name: POD_MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}
+                  containerName: ${NAME}-masu
                   resource: limits.memory
           livenessProbe:
             failureThreshold: 3
