@@ -17,6 +17,7 @@
 """API models for import organization."""
 # flake8: noqa
 # pylint: disable=unused-import
+from api.dataexport.models import DataExportRequest
 from api.status.models import Status
 from api.iam.models import Customer, Tenant, User, UserPreference
 from api.metrics.models import CostModelMetricsMap
