@@ -21,17 +21,10 @@
 # resolved.
 
 import datetime
-import json
 import logging
 import os
-import shutil
-import struct
-
-import boto3
-from botocore.exceptions import ClientError
 
 from masu.config import Config
-from masu.exceptions import MasuProviderError
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
@@ -81,12 +74,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if report_names:
                 report_name = report_names[0]
 
-        self.resource_group_name = auth_credential.get('resource_group_name')
+        self.resource_group_name = billing_source.get('resource_group_name')
         self.storage_account_name = auth_credential.get('storage_account_name')
-        #self.container_name = billing_source.get('container')
+        # There can be multiple report names, containers or directories.  For now we are just grabbing the first one.
+        # We would need a new UI mechanism for the user to specify a specific container or directory.
         self.container_name = AzureService().list_containers(self.resource_group_name, self.storage_account_name)[0]
-        #self.directory = billing_source.get('directory')
-        self.directory = AzureService().list_directories(self.container_name, self.resource_group_name, self.storage_account_name)[0]
+        self.directory = AzureService().list_directories(self.container_name,
+                                                         self.resource_group_name,
+                                                         self.storage_account_name)[0]
         self.export_name = report_name
 
     def _get_report_path(self, date_time):
