@@ -20,7 +20,7 @@ import logging
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
-from ..aws.aws_provider import AWSProvider
+from ..aws.provider import AWSProvider
 
 LOG = logging.getLogger(__name__)
 
