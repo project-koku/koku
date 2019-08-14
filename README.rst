@@ -8,7 +8,7 @@ Koku README
 About
 ~~~~~
 
-Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
 Full documentation is available through readthedocs_.
 
@@ -16,7 +16,35 @@ Full documentation is available through readthedocs_.
 Getting Started
 ===============
 
-This is a Python project developed using Python 3.6. Make sure you have at least this version installed.
+This project is developed using Python 3.6. Make sure you have at least this version installed.
+
+Prerequisites
+-------------
+
+* Docker
+* PostgreSQL
+* Node.js
+* apiDoc
+
+For Mac OSX
+^^^^^^^^^^^
+
+    `Install Docker for Mac`_
+
+    `Install brew`_
+
+    Install PostgreSQL: ::
+
+        brew install postgresql
+
+    Install Node.js: ::
+
+        brew install node
+
+    Install apiDoc: ::
+
+        npm install apidoc -g
+
 
 Development
 ===========
@@ -103,13 +131,6 @@ If a docker container running Postgres is not feasible, it is possible to run Po
 
     make run-migrations
 
-Server
-^^^^^^
-
-To run a local dev Django server you can use ::
-
-    make serve
-
 API Documentation Generation
 ----------------------------
 
@@ -123,7 +144,14 @@ In order to host the docs locally you need to collect the static files ::
 
   make collect-static
 
-Now start the server with as described above and point your browser to **http://127.0.0.1:8000/apidoc/index.html**.
+Server
+^^^^^^
+
+Generate the API documentation and collect the static files. To run a local dev Django server, use ::
+
+    make serve
+
+Now point a browser to **http://127.0.0.1:8000/apidoc/index.html**.
 
 Testing and Linting
 -------------------
@@ -148,6 +176,8 @@ Contributing
 Please refer to Contributing_.
 
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
+.. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
+.. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
 .. _`Install APIDoc`: http://apidocjs.com/#install
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
