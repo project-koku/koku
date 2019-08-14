@@ -62,7 +62,7 @@ class AWSProviderTestCase(TestCase):
         error = error_obj(test_key, test_message)
         self.assertEqual(error, expected)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_get_sts_access(self, mock_boto3_client):
         """Test _get_sts_access success."""
         expected_access_key = FAKE.md5()
@@ -90,7 +90,7 @@ class AWSProviderTestCase(TestCase):
         self.assertEquals(credentials.get('aws_session_token'),
                           expected_session_token)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_get_sts_access_fail(self, mock_boto3_client):
         """Test _get_sts_access fail."""
         logging.disable(logging.NOTSET)
@@ -107,7 +107,7 @@ class AWSProviderTestCase(TestCase):
             self.assertIsNone(credentials.get('aws_secret_access_key'))
             self.assertIsNone(credentials.get('aws_session_token'))
 
-    @patch('providers.aws.aws_provider.boto3.resource')
+    @patch('providers.aws.provider.boto3.resource')
     def test_check_s3_access(self, mock_boto3_resource):
         """Test _check_s3_access success."""
         s3_resource = Mock()
@@ -116,7 +116,7 @@ class AWSProviderTestCase(TestCase):
         s3_exists = _check_s3_access('bucket', {})
         self.assertTrue(s3_exists)
 
-    @patch('providers.aws.aws_provider.boto3.resource')
+    @patch('providers.aws.provider.boto3.resource')
     def test_check_s3_access_fail(self, mock_boto3_resource):
         """Test _check_s3_access fail."""
         s3_resource = Mock()
@@ -125,7 +125,7 @@ class AWSProviderTestCase(TestCase):
         s3_exists = _check_s3_access('bucket', {})
         self.assertFalse(s3_exists)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_get_configured_sns_topics(self, mock_boto3_client):
         """Test _get_configured_sns_topics success."""
         expected_topics = ['t1', 't2']
@@ -139,7 +139,7 @@ class AWSProviderTestCase(TestCase):
         topics = _get_configured_sns_topics('bucket', {})
         self.assertEqual(topics, expected_topics)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_get_configured_sns_topics_empty(self, mock_boto3_client):
         """Test _get_configured_sns_topics no topic configuration."""
         expected_topics = []
@@ -150,7 +150,7 @@ class AWSProviderTestCase(TestCase):
         topics = _get_configured_sns_topics('bucket', {})
         self.assertEqual(topics, expected_topics)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_get_configured_sns_topics_fail(self, mock_boto3_client):
         """Test _get_configured_sns_topics fail."""
         expected_topics = []
@@ -160,7 +160,7 @@ class AWSProviderTestCase(TestCase):
         topics = _get_configured_sns_topics('bucket', {})
         self.assertEqual(topics, expected_topics)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_check_cost_report_access(self, mock_boto3_client):
         """Test _check_cost_report_access success."""
         s3_client = Mock()
@@ -192,7 +192,7 @@ class AWSProviderTestCase(TestCase):
         except Exception as exc:
             self.fail(exc)
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_check_cost_report_access_fail(self, mock_boto3_client):
         """Test _check_cost_report_access fail."""
         s3_client = Mock()
@@ -205,14 +205,14 @@ class AWSProviderTestCase(TestCase):
                                        'aws_session_token': FAKE.md5()},
                                       bucket='wrongbucket')
 
-    @patch('providers.aws.aws_provider._get_sts_access',
+    @patch('providers.aws.provider._get_sts_access',
            return_value=dict(aws_access_key_id=FAKE.md5(),
                              aws_secret_access_key=FAKE.md5(),
                              aws_session_token=FAKE.md5()))
-    @patch('providers.aws.aws_provider._check_s3_access', return_value=True)
-    @patch('providers.aws.aws_provider._check_org_access', return_value=True)
-    @patch('providers.aws.aws_provider._check_cost_report_access', return_value=True)
-    @patch('providers.aws.aws_provider._get_configured_sns_topics', return_value=['t1'])
+    @patch('providers.aws.provider._check_s3_access', return_value=True)
+    @patch('providers.aws.provider._check_org_access', return_value=True)
+    @patch('providers.aws.provider._check_cost_report_access', return_value=True)
+    @patch('providers.aws.provider._get_configured_sns_topics', return_value=['t1'])
     def test_cost_usage_source_is_reachable(self,
                                             mock_get_sts_access,
                                             mock_check_s3_access,
@@ -232,7 +232,7 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(None, 'bucket_name')
 
-    @patch('providers.aws.aws_provider._get_sts_access',
+    @patch('providers.aws.provider._get_sts_access',
            return_value=dict(aws_access_key_id=None,
                              aws_secret_access_key=None,
                              aws_session_token=None))
@@ -243,7 +243,7 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable('iam_arn', 'bucket_name')
 
-    @patch('providers.aws.aws_provider._get_sts_access',
+    @patch('providers.aws.provider._get_sts_access',
            return_value=dict(aws_access_key_id=FAKE.md5(),
                              aws_secret_access_key=FAKE.md5(),
                              aws_session_token=FAKE.md5()))
@@ -254,12 +254,12 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable('iam_arn', None)
 
-    @patch('providers.aws.aws_provider._get_sts_access',
+    @patch('providers.aws.provider._get_sts_access',
            return_value=dict(aws_access_key_id=FAKE.md5(),
                              aws_secret_access_key=FAKE.md5(),
                              aws_session_token=FAKE.md5()))
-    @patch('providers.aws.aws_provider._check_s3_access', return_value=False)
-    @patch('providers.aws.aws_provider._check_org_access', return_value=True)
+    @patch('providers.aws.provider._check_s3_access', return_value=False)
+    @patch('providers.aws.provider._check_org_access', return_value=True)
     def test_cost_usage_source_is_reachable_no_bucket_exists(self,
                                                              mock_get_sts_access,
                                                              mock_check_s3_access,
@@ -269,13 +269,13 @@ class AWSProviderTestCase(TestCase):
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable('iam_arn', 'bucket_name')
 
-    @patch('providers.aws.aws_provider._get_sts_access',
+    @patch('providers.aws.provider._get_sts_access',
            return_value=dict(aws_access_key_id=FAKE.md5(),
                              aws_secret_access_key=FAKE.md5(),
                              aws_session_token=FAKE.md5()))
-    @patch('providers.aws.aws_provider._check_s3_access', return_value=True)
-    @patch('providers.aws.aws_provider._check_cost_report_access', return_value=True)
-    @patch('providers.aws.aws_provider._get_configured_sns_topics', return_value=[])
+    @patch('providers.aws.provider._check_s3_access', return_value=True)
+    @patch('providers.aws.provider._check_cost_report_access', return_value=True)
+    @patch('providers.aws.provider._get_configured_sns_topics', return_value=[])
     def test_cost_usage_source_is_reachable_no_topics(self,
                                                       mock_get_sts_access,
                                                       mock_check_s3_access,
@@ -288,7 +288,7 @@ class AWSProviderTestCase(TestCase):
         except Exception:
             self.fail('Unexpected Error')
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_cur_has_resourceids(self, mock_boto3_client):
         """Test that a CUR with resource IDs succeeds."""
         bucket = FAKE.word()
@@ -322,7 +322,7 @@ class AWSProviderTestCase(TestCase):
         except Exception as exc:
             self.fail(str(exc))
 
-    @patch('providers.aws.aws_provider.boto3.client')
+    @patch('providers.aws.provider.boto3.client')
     def test_cur_without_resourceids(self, mock_boto3_client):
         """Test that a CUR without resource IDs raises ValidationError."""
         bucket = FAKE.word()
