@@ -8,7 +8,7 @@ Koku README
 About
 ~~~~~
 
-Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
+Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
 Full documentation is available through readthedocs_.
 
@@ -16,7 +16,34 @@ Full documentation is available through readthedocs_.
 Getting Started
 ===============
 
-This is a Python project developed using Python 3.6. Make sure you have at least this version installed.
+This project is developed using Python 3.6. Make sure you have at least this version installed.
+
+Prerequisites
+-------------
+
+* Docker
+* PostgreSQL
+* Node.js
+* apiDoc
+
+**For Mac OSX**
+
+`Install Docker for Mac`_
+
+`Install brew`_
+
+Install PostgreSQL ::
+
+    brew install postgresql
+
+Install Node.js ::
+
+    brew install node
+
+Install apiDoc ::
+
+    npm install apidoc -g
+
 
 Development
 ===========
@@ -148,6 +175,8 @@ Contributing
 Please refer to Contributing_.
 
 .. _readthedocs: http://koku.readthedocs.io/en/latest/
+.. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
+.. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
 .. _`Install APIDoc`: http://apidocjs.com/#install
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
