@@ -71,6 +71,7 @@ class ProviderDeleteException(APIException):
 
     def __init__(self):
         """Initialize with status code 500."""
+        super().__init__()
         self.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         self.detail = {'detail': force_text(self.default_detail)}
 
@@ -159,6 +160,42 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 "billing_source": {
                         "uuid": "7347c1af-220c-4148-b52b-65e314f24999",
                         "bucket": "cost_s3"
+                    },
+                "customer": {
+                    "uuid": "600562e7-d7d7-4516-8522-410e72792daf",
+                    "name": "My Tech Company",
+                    "owner": {
+                        "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                        "username": "smithj",
+                        "email": "smithj@mytechco.com"
+                    },
+                    "date_created": "2018-05-09T18:17:29.386Z"
+                },
+                "created_by": {
+                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1c",
+                    "username": "smithj",
+                    "email": "smithj@mytechco.com"
+                }
+            }
+        @apiSuccessExample {json} Success-Response:
+            HTTP/1.1 201 CREATED
+            {
+                "uuid": "9002b1db-0bf9-48bb-bd2a-9dc0c8e2742a",
+                "name": "My Company Azure staging",
+                "authentication": {
+                        "uuid": "00dde2ed-91cc-401e-89ca-1d5e848ae3a6",
+                        'credentials': {
+                            'subscription_id': 'f695f74f-36a4-4112-9fe6-74415fac75a2',
+                            'tenant_id': '319d4d72-7ddc-45d0-9d63-a2db0a36e048',
+                            'client_id': 'ce26bd50-2e5a-4eb7-9504-a05a79568e25',
+                            'client_secret': 'abc123'
+                        }
+                    },
+                "billing_source": {
+                        "uuid": "7347c1af-220c-4148-b52b-65e314f24999",
+                        "data_source": { 'resource_group': 'My Resource Group 1',
+                                         'storage_account': 'My Storage Account 2'
+                        }
                     },
                 "customer": {
                     "uuid": "600562e7-d7d7-4516-8522-410e72792daf",

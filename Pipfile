@@ -30,6 +30,8 @@ celery = "~=4.3.0"
 celery-prometheus-exporter = "==1.7.0"
 python-dateutil = "*"
 bs4 = "*"
+azure = "==4.0.0"
+azure-mgmt-costmanagement = "==0.1.0"
 
 [dev-packages]
 astroid = "==2.2.5"

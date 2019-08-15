@@ -51,10 +51,10 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='providerbillingsource',
-            constraint=models.CheckConstraint(check=models.Q(models.Q(('bucket', None), ('data_source', {})), _negated=True), name='bucket_and_data_sourcce_both_null'),
+            constraint=models.CheckConstraint(check=models.Q(models.Q(('bucket', None), ('data_source', {})), _negated=True), name='bucket_and_data_source_both_null'),
         ),
         migrations.AddConstraint(
             model_name='providerbillingsource',
-            constraint=models.CheckConstraint(check=models.Q(models.Q(models.Q(_negated=True, bucket=None), models.Q(_negated=True, data_source={})), _negated=True), name='bucket_and_data_sourcce_both_not_null'),
+            constraint=models.CheckConstraint(check=models.Q(models.Q(models.Q(_negated=True, bucket=None), models.Q(_negated=True, data_source={})), _negated=True), name='bucket_and_data_source_both_not_null'),
         ),
     ]
