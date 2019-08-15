@@ -43,6 +43,7 @@ class ProviderAuthentication(models.Model):
     # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
+
         # The goal is to ensure that exactly one field is not null.
         constraints = [
             # NOT (provider_resource_name IS NULL AND credentials IS NULL)
@@ -78,19 +79,20 @@ class ProviderBillingSource(models.Model):
     # pylint: disable=too-few-public-methods
     class Meta:
         """Meta class."""
+
         # The goal is to ensure that exactly one field is not null.
         constraints = [
             # NOT (bucket IS NULL AND data_source IS NULL)
             CheckConstraint(
                 check=~models.Q(models.Q(bucket=None) \
                                 & models.Q(data_source={})),
-                name='bucket_and_data_sourcce_both_null'
+                name='bucket_and_data_source_both_null'
             ),
             # NOT (bucket IS NOT NULL AND data_source IS NOT NULL)
             CheckConstraint(
                 check=~models.Q(~models.Q(bucket=None) \
                                 & ~models.Q(data_source={})),
-                name='bucket_and_data_sourcce_both_not_null'
+                name='bucket_and_data_source_both_not_null'
             ),
         ]
 

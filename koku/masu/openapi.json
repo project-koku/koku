@@ -1,0 +1,469 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+      "version": "1.0.0",
+      "title": "Cost Management Admin",
+      "license": {
+        "name": "AGPL-3.0",
+        "url": "https://opensource.org/licenses/AGPL-3.0"
+      }
+    },
+    "tags": [
+      {
+        "name": "Download",
+        "description": "Operations about report downloads"
+      },
+      {
+        "name": "Expired Data",
+        "description": "Operations about removing expired data"
+      },
+      {
+        "name": "Report Data",
+        "description": "Operations about summarizing report data"
+      },
+      {
+        "name": "Update Charge",
+        "description": "Operations about updating derived cost"
+      },
+      {
+        "name": "Status",
+        "description": "Operations about status"
+      }
+    ],
+    "paths": {
+      "/download/": {
+        "get": {
+          "summary": "Download reports",
+          "operationId": "getDownload",
+          "description": "Return download file async task ID.",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "The celery task ID of the download task",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/DownloadGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Download"
+          ]
+        },
+        "parameters": []
+      },
+      "/expired_data/": {
+        "get": {
+          "operationId": "getExpiredData",
+          "description": "Return simulated expired data.",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "Simulate the deletion expired data",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ExpiredDataGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Expired Data"
+          ]
+        },
+        "delete": {
+          "operationId": "deleteExpiredData",
+          "description": "Return expired data.",
+          "parameters": [],
+          "responses": {
+            "204": {
+              "description": "Delete expired data",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ExpiredDataDeleteResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Expired Data"
+          ]
+        },
+        "parameters": []
+      },
+      "/report_data/": {
+        "get": {
+          "operationId": "getReportData",
+          "description": "Update report summary tables in the database.",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            },
+            {
+              "name": "provider_type",
+              "in": "query",
+              "description": "The provider type",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "example": "AWS"
+              }
+            },
+            {
+              "name": "schema",
+              "in": "query",
+              "description": "The database schema",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "example": "acct12345"
+              }
+            },
+            {
+              "name": "start_date",
+              "in": "query",
+              "description": "The date to begin summarizing",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "example": "2019-01-01"
+              }
+            },
+            {
+              "name": "end_date",
+              "in": "query",
+              "description": "The date to end summarizing",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "example": "2019-12-31"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Data summary task has been queued",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ReportDataGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Report Data"
+          ]
+        },
+        "delete": {
+          "operationId": "deleteReportData",
+          "description": "Delete report summary tables in the database.",
+          "parameters": [
+            {
+              "name": "provider_id",
+              "in": "query",
+              "description": "The provider database ID",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": 1
+              }
+            },
+            {
+              "name": "provider",
+              "in": "query",
+              "description": "The provider type",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "AWS"
+              }
+            },
+            {
+              "name": "schema",
+              "in": "query",
+              "description": "The database schema",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "acct12345"
+              }
+            },
+            {
+              "name": "simulate",
+              "in": "query",
+              "description": "Whether to actually delete",
+              "required": false,
+              "schema": {
+                "type": "boolean",
+                "example": true
+              }
+            },
+            {
+              "name": "end_date",
+              "in": "query",
+              "description": "The date to end summarizing",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "date",
+                "example": "2019-12-31"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Data deletion task has been queued",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/ReportDataGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Report Data"
+          ]
+        },
+        "parameters": []
+      },
+      "/status/": {
+        "get": {
+          "operationId": "status_list",
+          "description": "Packages response for class-based view.",
+          "parameters": [],
+          "responses": {
+            "200": {
+              "description": "",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/StatusResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Status"
+          ]
+        },
+        "parameters": []
+      },
+      "/update_charge/": {
+        "get": {
+          "operationId": "update_charge_list",
+          "description": "Update report summary tables in the database.",
+          "parameters": [
+            {
+              "name": "provider_uuid",
+              "in": "query",
+              "description": "The provider UUID",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "format": "uuid",
+                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              }
+            },
+            {
+              "name": "schema",
+              "in": "query",
+              "description": "The database schema",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "example": "acct12345"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Update derived cost",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UpdateChargeGetResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Update Charge"
+          ]
+        },
+        "parameters": []
+      }
+    },
+    "components": {
+      "schemas": {
+        "DownloadGetResponse": {
+          "type": "object",
+          "properties": {
+            "Download Request Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "ExpiredDataDeleteResponse": {
+          "type": "object",
+          "properties": {
+            "Download Request Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "ExpiredDataGetResponse": {
+          "type": "object",
+          "properties": {
+            "Async jobs for expired data removal (simulated)": {
+              "type": "string",
+              "format": "list",
+              "example": []
+            }
+          }
+        },
+        "ReportDataGetResponse": {
+          "type": "object",
+          "properties": {
+            "Report Data Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "UpdateChargeGetResponse": {
+          "type": "object",
+          "properties": {
+            "Update Charge Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "StatusResponse": {
+          "type": "object",
+          "properties": {
+            "api_version": {
+              "type": "integer",
+              "format": "int64",
+              "example": 1
+            },
+            "celery_status": {
+              "type": "object",
+              "example": {
+                "Error": "Unable to establish connection with broker."
+              }
+            },
+            "commit": {
+              "type": "string",
+              "example": "178d2ea"
+            },
+            "current_datetime": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-08-14T20:18:20.822184Z"
+            },
+            "database_status": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DatabaseConnection"
+              },
+              "example": [
+                {
+                  "database": "postgres",
+                  "database_connections": 0
+                },
+                {
+                  "database": "koku",
+                  "database_connections": 11
+                },
+                {
+                  "database": "template1",
+                  "database_connections": 0
+                },
+                {
+                  "database": "template0",
+                  "database_connections": 0
+                }
+              ]
+            },
+            "debug": {
+              "type": "boolean",
+              "example": true
+            },
+            "platform_info": {
+              "type": "object",
+              "example": {
+                "system": "Darwin",
+                "node": "node-1.example.com",
+                "release": "17.5.0",
+                "version": "Darwin Kernel Version 17.5.0",
+                "machine": "x86_64",
+                "processor": "i386"
+              }
+            },
+            "python_version": {
+              "type": "string",
+              "example": "3.6.1"
+            },
+            "modules": {
+              "type": "object",
+              "example": {
+                "coverage": "4.5.1",
+                "coverage.version": "4.5.1",
+                "coverage.xmlreport": "4.5.1",
+                "cryptography": "2.0.3",
+                "ctypes": "1.1.0",
+                "ctypes.macholib": "1.0",
+                "decimal": "1.70",
+                "django": "1.11.5",
+                "django.utils.six": "1.10.0",
+                "django_filters": "1.0.4",
+                "http.server": "0.6"
+              }
+            }
+          }
+        },
+        "DatabaseConnection": {
+          "type": "object",
+          "properties": {
+            "database": {
+              "type": "string"
+            },
+            "database_connections": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }

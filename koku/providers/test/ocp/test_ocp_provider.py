@@ -17,7 +17,7 @@
 """Tests the OCPProvider implementation for the Koku interface."""
 
 from django.test import TestCase
-from providers.ocp.ocp_provider import OCPProvider
+from providers.ocp.provider import OCPProvider
 from rest_framework.serializers import ValidationError
 
 

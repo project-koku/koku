@@ -112,7 +112,7 @@ class ProviderManagerTest(IamTestCase):
                                            customer=self.customer)
         provider_uuid = provider.uuid
         user_data = self._create_user_data()
-        request_context = self._create_request_context(self._create_customer_data(),
+        request_context = self._create_request_context(self.create_mock_customer_data(),
                                                        user_data)
         new_user = None
         serializer = UserSerializer(data=user_data, context=request_context)

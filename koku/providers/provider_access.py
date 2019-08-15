@@ -18,11 +18,11 @@
 
 import logging
 
-from providers.aws.aws_provider import AWSProvider
-from providers.aws_local.aws_local_provider import AWSLocalProvider
-from providers.azure.azure_provider import AzureProvider
-from providers.ocp.ocp_provider import OCPProvider
-from providers.ocp_local.ocp_local_provider import OCPLocalProvider
+from providers.aws.provider import AWSProvider
+from providers.aws_local.provider import AWSLocalProvider
+from providers.azure.provider import AzureProvider
+from providers.ocp.provider import OCPProvider
+from providers.ocp_local.provider import OCPLocalProvider
 
 from api.provider.models import Provider
 
@@ -35,6 +35,7 @@ class ProviderAccessorError(Exception):
 
     def __init__(self, message):
         """Set custom error message for ProviderAccessor errors."""
+        super().__init__()
         self.message = message
 
 
@@ -44,35 +45,19 @@ class ProviderAccessor:
     def __init__(self, service_name):
         """Set the backend serve."""
         valid_services = Provider.PROVIDER_CHOICES
+
         if not [service for service in valid_services if service_name in service]:
-            LOG.error('{} is not a valid provider'.format(service_name))
+            LOG.error('%s is not a valid provider', service_name)
 
-        self.service = self._create_service(service_name)
+        services = {'AWS': AWSProvider,
+                    'AWS-local': AWSLocalProvider,
+                    'OCP-local': OCPLocalProvider,
+                    'OCP': OCPProvider,
+                    'AZURE': AzureProvider}
 
-    def _create_service(self, service_name):
-        """
-        Create the provider service object.
-
-        This will establish what service (AWS, etc) ProviderAccessor should use
-        when interacting with Koku core.
-
-        Args:
-            service_name (String): Provider Type
-
-        Returns:
-            (Object) : Some object that is a child of ProviderInterface
-
-        """
-        if service_name == 'AWS':
-            return AWSProvider()
-        elif service_name == 'AWS-local':
-            return AWSLocalProvider()
-        elif service_name == 'AZURE':
-            return AzureProvider()
-        elif service_name == 'OCP-local':
-            return OCPLocalProvider()
-        elif service_name == 'OCP':
-            return OCPProvider()
+        self.service = None
+        if callable(services.get(service_name)):
+            self.service = services.get(service_name)()
 
     def service_name(self):
         """
@@ -99,11 +84,11 @@ class ProviderAccessor:
         ensure that Koku can access a cost usage report from the provider.
 
         Args:
-            credential (String): Provider Resource Name
+            credential (Object): Provider Authorization Credentials
                                  example: AWS - RoleARN
                                           arn:aws:iam::589175555555:role/CostManagement
-            source_name (String): Identifier of the cost usage report source
-                                  example: AWS - S3 Bucket
+            source_name (List): Identifier of the cost usage report source
+                                example: AWS - S3 Bucket
 
         Returns:
             None
