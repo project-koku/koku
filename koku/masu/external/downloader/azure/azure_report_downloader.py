@@ -66,23 +66,20 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-        management_reports = AzureService().list_cost_management_export()
-        if not report_name:
-            report_names = []
-            for report in management_reports.value:
-                report_names.append(report.name)
-            if report_names:
-                report_name = report_names[0]
 
-        self.resource_group_name = billing_source.get('resource_group_name')
-        self.storage_account_name = auth_credential.get('storage_account_name')
-        # There can be multiple report names, containers or directories.  For now we are just grabbing the first one.
-        # We would need a new UI mechanism for the user to specify a specific container or directory.
-        self.container_name = AzureService().list_containers(self.resource_group_name, self.storage_account_name)[0]
-        self.directory = AzureService().list_directories(self.container_name,
-                                                         self.resource_group_name,
-                                                         self.storage_account_name)[0]
-        self.export_name = report_name
+        management_reports = AzureService().list_cost_management_export()
+        export_reports = []
+        for report in management_reports.value:
+            export_reports.append(report)
+        if export_reports:
+            export_report = export_reports[0]
+
+        self.export_name = export_report.name
+        self.container_name = export_report.delivery_info.destination.container
+        self.directory = export_report.delivery_info.destination.root_folder_path
+
+        self.resource_group_name = billing_source.get('resource_group')
+        self.storage_account_name = billing_source.get('storage_account')
 
     def _get_report_path(self, date_time):
         """

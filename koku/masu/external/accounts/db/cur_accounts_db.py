@@ -24,14 +24,16 @@ from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 class CURAccountsDB(CURAccountsInterface):
     """Provider interface defnition."""
 
-    def get_authentication(self, provider):
+    @staticmethod
+    def get_authentication(provider):
         if provider.authentication.provider_resource_name:
             return provider.authentication.provider_resource_name
         elif provider.authentication.credentials:
             return provider.authentication.credentials
         return None
 
-    def get_billing_source(self, provider):
+    @staticmethod
+    def get_billing_source(provider):
         if provider.billing_source:
             if provider.billing_source.bucket:
                 return provider.billing_source.bucket

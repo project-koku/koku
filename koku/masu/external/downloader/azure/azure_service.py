@@ -22,7 +22,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.storage import CloudStorageAccount
-
+from azure.storage.blob.sharedaccesssignature import BlobSharedAccessSignature
 
 class AzureResourceGroupNotFound(Exception):
    """Raised when Azure resource group is not found."""
@@ -192,23 +192,3 @@ class AzureService:
         cost_management_client = self._get_cost_management_client()
         scope = f'/subscriptions/{self.subscription_id}'
         return cost_management_client.exports.list(scope)
-
-    def list_containers(self, resource_group_name, storage_account_name):
-        """List of containers."""
-        cloud_storage_account = self._get_cloud_storage_account(resource_group_name, storage_account_name)
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        container_list = blockblob_service.list_containers()
-        found_containers = []
-        for container in container_list:
-            found_containers.append(container.name)
-        return found_containers
-
-    def list_directories(self, container_name, resource_group_name, storage_account_name):
-        """List of directories in container."""
-        cloud_storage_account = self._get_cloud_storage_account(resource_group_name, storage_account_name)
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        blob_list = blockblob_service.list_blobs(container_name, delimiter='/')
-        found_directories = []
-        for directory in blob_list:
-            found_directories.append(directory.name.strip('/'))
-        return found_directories
