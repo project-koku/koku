@@ -97,7 +97,7 @@ class ReportDownloader:
 
         return None
 
-    def get_reports(self, number_of_months=1):
+    def get_reports(self, number_of_months=2):
         """
         Download cost usage reports.
 

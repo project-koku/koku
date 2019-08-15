@@ -66,7 +66,7 @@ def _get_report_files(customer_name,
     if Config.INGEST_OVERRIDE or not reports_processed:
         number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
     else:
-        number_of_months = 1
+        number_of_months = 2
 
     stmt = ('Downloading report for'
             ' credential: {},'
