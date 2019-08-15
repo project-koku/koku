@@ -36,7 +36,7 @@ class KokuTestRunner(DiscoverRunner):
         """Set up database tenant schema."""
         main_db = setup_databases(
             self.verbosity, self.interactive, self.keepdb, self.debug_sql,
-            **kwargs
+            self.parallel, **kwargs
         )
 
         tenant = Tenant.objects.get_or_create(schema_name=KokuTestRunner.schema)[0]
