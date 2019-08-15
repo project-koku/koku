@@ -70,7 +70,6 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
 
     # third-party
     'rest_framework',
@@ -229,25 +228,8 @@ USE_L10N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/2.0/howto/static-files/
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 API_PATH_PREFIX = os.getenv('API_PATH_PREFIX',
                             ENVIRONMENT.get_value('API_PATH_PREFIX', default='/api'))
-STATIC_API_PATH_PREFIX = API_PATH_PREFIX
-if STATIC_API_PATH_PREFIX != '' and (not STATIC_API_PATH_PREFIX.endswith('/')):
-    STATIC_API_PATH_PREFIX = STATIC_API_PATH_PREFIX + '/'
-
-STATIC_URL = '{}apidoc/'.format(STATIC_API_PATH_PREFIX)
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, '..', 'apidoc'),
-]
-
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 INTERNAL_IPS = ['127.0.0.1']
 

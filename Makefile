@@ -138,9 +138,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 gen-apidoc:
-	rm -fr $(PYDIR)/staticfiles/
 	rm -fr $(APIDOC)
-	apidoc -i $(PYDIR) -o $(APIDOC)
 	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
