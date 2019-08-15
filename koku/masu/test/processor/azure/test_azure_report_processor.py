@@ -16,7 +16,6 @@
 #
 
 """Test the AzureReportProcessor object."""
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 

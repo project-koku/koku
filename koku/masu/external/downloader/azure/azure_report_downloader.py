@@ -37,11 +37,11 @@ LOG = logging.getLogger(__name__)
 
 
 class AzureReportDownloaderError(Exception):
-    """AWS Report Downloader error."""
+    """Azure Report Downloader error."""
 
 
 class AzureReportDownloaderNoFileError(Exception):
-    """AWS Report Downloader error for missing file."""
+    """Azure Report Downloader error for missing file."""
 
 
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -60,26 +60,35 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             customer_name    (String) Name of the customer
             auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the S3 bucket containing the CUR
+            bucket           (String) Name of the Azure bucket containing the usage report
 
         """
         super().__init__(**kwargs)
+
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-
-        management_reports = AzureService().list_cost_management_export()
-        export_reports = []
-        for report in management_reports.value:
-            export_reports.append(report)
+        self._azure_client = self._get_azure_client(auth_credential, billing_source)
+        export_reports = self._azure_client.describe_cost_management_exports()
+        export_report = {}
         if export_reports:
             export_report = export_reports[0]
 
-        self.export_name = export_report.name
-        self.container_name = export_report.delivery_info.destination.container
-        self.directory = export_report.delivery_info.destination.root_folder_path
+        self.export_name = export_report.get('name')
+        self.container_name = export_report.get('container')
+        self.directory = export_report.get('directory')
 
-        self.resource_group_name = billing_source.get('resource_group')
-        self.storage_account_name = billing_source.get('storage_account')
+    @staticmethod
+    def _get_azure_client(credentials, billing_source):
+        subscription_id = credentials.get('subscription_id')
+        tenant_id = credentials.get('tenant_id')
+        client_id = credentials.get('client_id')
+        client_secret = credentials.get('client_secret')
+        resource_group_name = billing_source.get('resource_group')
+        storage_account_name = billing_source.get('storage_account')
+
+        service = AzureService(subscription_id, tenant_id, client_id, client_secret,
+                               resource_group_name, storage_account_name)
+        return service
 
     def _get_report_path(self, date_time):
         """
@@ -109,8 +118,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         billing_period_range = self._get_report_path(date_time)
-        blob = AzureService().get_latest_cost_export_for_date(billing_period_range, self.resource_group_name,
-                                                              self.storage_account_name, self.container_name)
+        blob = self._azure_client.get_latest_cost_export_for_date(billing_period_range, self.container_name)
         report_name = blob.name
         manifest = {}
         manifest['uuid'] = ''
@@ -209,8 +217,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         try:
-            blob = AzureService().get_cost_export_for_key(key, self.resource_group_name, self.storage_account_name,
-                                                          self.container_name)
+            blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.properties.etag
         except Exception as ex:
             log_msg = 'Error when downloading Azure report for key: %s. Error %s'.format(key, str(ex))
@@ -219,7 +226,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if etag != stored_etag or not os.path.isfile(full_file_path):
             LOG.info('Downloading %s to %s', key, full_file_path)
-            blob = AzureService().download_cost_export(key, self.resource_group_name, self.storage_account_name,
-                                                       self.container_name, destination=full_file_path)
+            blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
         LOG.info('Returning full_file_path: %s, etag: %s', full_file_path, etag)
         return full_file_path, etag

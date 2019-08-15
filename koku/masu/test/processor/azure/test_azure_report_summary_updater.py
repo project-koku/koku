@@ -16,9 +16,7 @@
 #
 
 """Test the AzureReportSummaryUpdater object."""
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 
 from masu.test import MasuTestCase
 

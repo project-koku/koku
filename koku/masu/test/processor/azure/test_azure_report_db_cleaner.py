@@ -16,7 +16,6 @@
 #
 
 """Test the AzureReportDBCleaner object."""
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.test import MasuTestCase
 
