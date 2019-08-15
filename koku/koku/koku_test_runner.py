@@ -33,7 +33,7 @@ class KokuTestRunner(DiscoverRunner):
     schema = f'acct{account}'
 
     def setup_databases(self, **kwargs):
-        """Setup the database with a tenant schema."""
+        """Set up database tenant schema."""
         main_db = setup_databases(
             self.verbosity, self.interactive, self.keepdb, self.debug_sql,
             **kwargs
