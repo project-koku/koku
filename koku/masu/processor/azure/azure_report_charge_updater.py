@@ -56,4 +56,3 @@ class AzureReportChargeUpdater:
         """
         LOG.debug('Starting charge calculation updates for provider: %s. Dates: %s-%s',
                   self._provider_uuid, str(start_date), str(end_date))
-

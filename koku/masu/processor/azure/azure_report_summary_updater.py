@@ -15,7 +15,6 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Updates report summary tables in the database."""
-import calendar
 import logging
 
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
@@ -53,7 +52,7 @@ class AzureReportSummaryUpdater:
             (str, str): A start date and end date.
 
         """
-        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
+        LOG.info('update_daily_tables for: %s-%s', str(start_date), str(end_date))
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
@@ -67,5 +66,5 @@ class AzureReportSummaryUpdater:
             (str, str) A start date and end date.
 
         """
-        LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
+        LOG.info('update_summary_tables for: %s-%s', str(start_date), str(end_date))
         return start_date, end_date

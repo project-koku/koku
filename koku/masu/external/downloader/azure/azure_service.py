@@ -16,6 +16,7 @@
 #
 """Azure Service helpers."""
 from tempfile import NamedTemporaryFile
+
 from providers.azure.client import AzureClientFactory
 
 
@@ -54,68 +55,31 @@ class AzureService:
         """Download the latest cost export file from a given storage container."""
         cloud_storage_account = self._cloud_storage_account
         blockblob_service = cloud_storage_account.create_block_blob_service()
-        latest = self.get_cost_export_for_key(key, container_name)
+        cost_export = self.get_cost_export_for_key(key, container_name)
 
         file_path = destination
         if not destination:
             temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
             file_path = temp_file.name
-        blockblob_service.get_blob_to_path(container_name, latest.name, file_path)
+        blockblob_service.get_blob_to_path(container_name, cost_export.name, file_path)
         return file_path
 
-    def get_latest_cost_export_for_date(self, billing_period, container_name):
+    def get_latest_cost_export_for_date(self, date_range, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
         cloud_storage_account = self._cloud_storage_account
         blockblob_service = cloud_storage_account.create_block_blob_service()
         blob_list = blockblob_service.list_blobs(container_name)
         for blob in blob_list:
-            if billing_period in blob.name and not latest_report:
+            if date_range in blob.name and not latest_report:
                 latest_report = blob
-            elif (billing_period in blob.name and
-                  blob.properties.last_modified > latest_report.properties.last_modified):
-                latest_report = blob
-        if not latest_report:
-            message = f'No cost report found in container {container_name}.'
-            raise AzureCostReportNotFound(message)
-        return latest_report
-
-    def list_storage_account_container_blobs(self, container_name):
-        """List the blobs in a storage account container."""
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        return blockblob_service.list_blobs(container_name)
-
-    def get_latest_cost_export(self, storage_account_name, container_name, export_name):
-        """Get the latest cost export file from given storage account container."""
-        latest_report = None
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        blob_list = blockblob_service.list_blobs(container_name)
-        for blob in blob_list:
-            if blob.name.startswith(export_name) and not latest_report:
-                latest_report = blob
-            elif (blob.name.startswith(export_name) and
-                  blob.properties.last_modified > latest_report.properties.last_modified):
+            elif date_range in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
                 latest_report = blob
         if not latest_report:
-            message = f'No cost report with prefix {export_name} found in ' \
-                      f'storage account {storage_account_name} with container {container_name}.'
+            message = f'No cost report found in container {container_name} for '\
+                      f'dates {date_range}.'
             raise AzureCostReportNotFound(message)
         return latest_report
-
-    def download_latest_cost_export(self, storage_account_name, container_name, export_name, destination=None):
-        """Download the latest cost export file from a given storage container."""
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        latest = self.get_latest_cost_export(storage_account_name, container_name, export_name)
-
-        file_path = destination
-        if not destination:
-            temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
-            file_path = temp_file.name
-        blockblob_service.get_blob_to_path(container_name, latest.name, file_path)
-        return file_path
 
     def describe_cost_management_exports(self):
         """List cost management export."""

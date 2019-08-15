@@ -23,31 +23,6 @@ import re
 LOG = logging.getLogger(__name__)
 
 
-def get_azure_client(credentials, billing_source):
-    """
-    Assume a Role and obtain session credentials for the given role.
-
-    Args:
-        arn (AwsArn): Amazon Resource Name
-        session (String): A session name
-
-    Usage :
-        session = get_assume_role_session(session='ExampleSessionName',
-                                          arn='arn:aws:iam::012345678901:role/my-role')
-        client = session.client('sqs')
-
-    See: https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html
-
-    """
-    subscription_id = credentials.get('subscription_id')
-    tenant_id = credentials.get('tenant_id')
-    client_id = credentials.get('client_id')
-    client_secret = credentials.get('client_secret')
-
-    client = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret)
-
-    return client
-
 def extract_uuids_from_string(source_string):
     """
     Extract uuids out of a given source string.

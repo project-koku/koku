@@ -50,4 +50,4 @@ class AzureReportDBCleaner:
             ([{}]) List of dictionaries containing 'account_payer_id' and 'billing_period_start'
 
         """
-        LOG.info("Calling purge_expired_report_data")
+        LOG.info('Calling purge_expired_report_data')

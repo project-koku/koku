@@ -26,10 +26,10 @@ import os
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.azure.azure_service import AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.azure import common as utils
-from masu.external.downloader.azure.azure_service import AzureService
 from masu.util.common import extract_uuids_from_string
 
 DATA_DIR = Config.TMP_DIR
@@ -104,7 +104,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         report_date_range = utils.month_date_range(date_time)
         return '{}/{}/{}'.format(self.directory, self.export_name,
-                              report_date_range)
+                                 report_date_range)
 
     def _get_manifest(self, date_time):
         """
@@ -181,7 +181,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             report_dict['compression'] = manifest.get('Compression')
             report_dict['files'] = manifest.get('reportKeys')
         return report_dict
-
 
     @property
     def manifest_date_format(self):
