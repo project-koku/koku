@@ -58,9 +58,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Args:
             customer_name    (String) Name of the customer
-            auth_credential  (String) Authentication credential for S3 bucket (RoleARN)
+            auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
-            bucket           (String) Name of the Azure bucket containing the usage report
+            billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
         super().__init__(**kwargs)
@@ -96,8 +96,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             date_time (DateTime): The starting datetime object
 
         Returns:
-            (String): "/prefix/report_name/YYYYMMDD-YYYYMMDD",
-                    example: "/my-prefix/my-report/19701101-19701201"
+            (String): "/blob_dir/export_name/YYYYMMDD-YYYYMMDD",
+                    example: "/cost/costreport/20190801-20190831"
 
         """
         report_date_range = utils.month_date_range(date_time)

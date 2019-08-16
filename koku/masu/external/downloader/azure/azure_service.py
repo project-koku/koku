@@ -46,6 +46,7 @@ class AzureService:
         for blob in blob_list:
             if key == blob.name:
                 report = blob
+                break
         if not report:
             message = f'No cost report for report name {key} found in container {container_name}.'
             raise AzureCostReportNotFound(message)
@@ -87,6 +88,7 @@ class AzureService:
         scope = f'/subscriptions/{self._factory.subscription_id}'
         management_reports = cost_management_client.exports.list(scope)
         export_reports = []
+        import pdb; pdb.set_trace()
         for report in management_reports.value:
             report_def = {'name': report.name, 'container': report.delivery_info.destination.container,
                           'directory': report.delivery_info.destination.root_folder_path}
