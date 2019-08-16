@@ -26,7 +26,7 @@ import os
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.azure.azure_service import AzureService, AzureCostReportNotFound
+from masu.external.downloader.azure.azure_service import AzureCostReportNotFound, AzureService
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.azure import common as utils
@@ -45,12 +45,7 @@ class AzureReportDownloaderNoFileError(Exception):
 
 
 class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
-    """
-    Azure Cost and Usage Report Downloader.
-
-    """
-
-    empty_manifest = {'reportKeys': []}
+    """Azure Cost and Usage Report Downloader."""
 
     def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
         """
@@ -215,6 +210,16 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         return utils.get_local_file_name(report)
 
     def download_file(self, key, stored_etag=None):
+        """
+        Download a file from Azure bucket.
+
+        Args:
+            key (str): The object key identified.
+
+        Returns:
+            (String): The path and file name of the saved file
+
+        """
         directory_path = f'{DATA_DIR}/{self.customer_name}/azure/{self.container_name}'
 
         local_filename = utils.get_local_file_name(key)

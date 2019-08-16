@@ -22,10 +22,11 @@ from masu.external.accounts.cur_accounts_interface import CURAccountsInterface
 
 # pylint: disable=too-few-public-methods
 class CURAccountsDB(CURAccountsInterface):
-    """Provider interface defnition."""
+    """Provider interface definition."""
 
     @staticmethod
     def get_authentication(provider):
+        """Return either provider_resource_name or credentials."""
         if provider.authentication.provider_resource_name:
             return provider.authentication.provider_resource_name
         elif provider.authentication.credentials:
@@ -34,6 +35,7 @@ class CURAccountsDB(CURAccountsInterface):
 
     @staticmethod
     def get_billing_source(provider):
+        """Return either bucket or data_source."""
         if provider.billing_source:
             if provider.billing_source.bucket:
                 return provider.billing_source.bucket

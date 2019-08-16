@@ -22,6 +22,7 @@ from providers.azure.client import AzureClientFactory
 
 class AzureCostReportNotFound(Exception):
     """Raised when Azure cost report is not found."""
+
     pass
 
 
@@ -88,7 +89,6 @@ class AzureService:
         scope = f'/subscriptions/{self._factory.subscription_id}'
         management_reports = cost_management_client.exports.list(scope)
         export_reports = []
-        import pdb; pdb.set_trace()
         for report in management_reports.value:
             report_def = {'name': report.name, 'container': report.delivery_info.destination.container,
                           'directory': report.delivery_info.destination.root_folder_path}
