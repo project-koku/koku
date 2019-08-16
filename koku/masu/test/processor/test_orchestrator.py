@@ -92,6 +92,8 @@ class OrchestratorTest(MasuTestCase):
                     account.get('billing_source'), self.ocp_test_billing_source
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                pass
             else:
                 self.fail('Unexpected provider')
 
