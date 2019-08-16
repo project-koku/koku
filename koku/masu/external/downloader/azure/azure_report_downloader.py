@@ -26,7 +26,7 @@ import os
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.azure.azure_service import AzureService
+from masu.external.downloader.azure.azure_service import AzureService, AzureCostReportNotFound
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.azure import common as utils
@@ -69,9 +69,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(' ', '_')
         self._azure_client = self._get_azure_client(auth_credential, billing_source)
         export_reports = self._azure_client.describe_cost_management_exports()
-        export_report = {}
-        if export_reports:
-            export_report = export_reports[0]
+        export_report = export_reports[0] if export_reports else {}
 
         self.export_name = export_report.get('name')
         self.container_name = export_report.get('container')
@@ -117,13 +115,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        billing_period_range = self._get_report_path(date_time)
-        blob = self._azure_client.get_latest_cost_export_for_date(billing_period_range, self.container_name)
-        report_name = blob.name
+        report_path = self._get_report_path(date_time)
         manifest = {}
+        try:
+            blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
+        except AzureCostReportNotFound as ex:
+            LOG.error('Unable to find manifest. Error: %s', str(ex))
+            return manifest
+        report_name = blob.name
         manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
-        billing_period = {'start': (billing_period_range.split('/')[-1]).split('-')[0],
-                          'end': (billing_period_range.split('/')[-1]).split('-')[1]}
+        billing_period = {'start': (report_path.split('/')[-1]).split('-')[0],
+                          'end': (report_path.split('/')[-1]).split('-')[1]}
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
@@ -211,18 +213,17 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         local_filename = utils.get_local_file_name(key)
         full_file_path = f'{directory_path}/{local_filename}'
-
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
         try:
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.properties.etag
-        except Exception as ex:
+        except AzureCostReportNotFound as ex:
             log_msg = 'Error when downloading Azure report for key: %s. Error %s'.format(key, str(ex))
             LOG.error(log_msg)
             raise AzureReportDownloaderError(log_msg)
 
-        if etag != stored_etag or not os.path.isfile(full_file_path):
+        if etag != stored_etag:
             LOG.info('Downloading %s to %s', key, full_file_path)
             blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
         LOG.info('Returning full_file_path: %s, etag: %s', full_file_path, etag)

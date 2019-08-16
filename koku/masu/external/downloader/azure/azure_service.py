@@ -64,20 +64,20 @@ class AzureService:
         blockblob_service.get_blob_to_path(container_name, cost_export.name, file_path)
         return file_path
 
-    def get_latest_cost_export_for_date(self, date_range, container_name):
+    def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
         cloud_storage_account = self._cloud_storage_account
         blockblob_service = cloud_storage_account.create_block_blob_service()
         blob_list = blockblob_service.list_blobs(container_name)
         for blob in blob_list:
-            if date_range in blob.name and not latest_report:
+            if report_path in blob.name and not latest_report:
                 latest_report = blob
-            elif date_range in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
+            elif report_path in blob.name and blob.properties.last_modified > latest_report.properties.last_modified:
                 latest_report = blob
         if not latest_report:
             message = f'No cost report found in container {container_name} for '\
-                      f'dates {date_range}.'
+                      f'path {report_path}.'
             raise AzureCostReportNotFound(message)
         return latest_report
 
