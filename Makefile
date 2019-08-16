@@ -411,13 +411,16 @@ oc-up-db: oc-up oc-create-db
 docker-down:
 	docker-compose down
 
+docker-down-db:
+	docker-compose stop db
+
 docker-logs:
 	docker-compose logs -f
 
 docker-rabbit:
 	docker-compose up -d rabbit
 
-docker-reinitdb: docker-down remove-db docker-up-db
+docker-reinitdb: docker-down-db remove-db docker-up-db
 	sleep 5
 	$(MAKE) run-migrations
 	$(MAKE) create-test-customer

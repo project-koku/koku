@@ -122,3 +122,4 @@ scripts/aws_pricing/
 # Editors
 .vscode/
 .idea/
+*.code-workspace
