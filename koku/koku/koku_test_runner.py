@@ -42,6 +42,7 @@ class KokuTestRunner(DiscoverRunner):
 
         return main_db
 
+
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
     """Create the test databases."""
     test_databases, mirrored_aliases = get_unique_databases_and_mirrors(aliases)
