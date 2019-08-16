@@ -123,7 +123,13 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.error('Unable to find manifest. Error: %s', str(ex))
             return manifest
         report_name = blob.name
-        manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
+
+        try:
+            manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
+        except IndexError:
+            message = 'Unable to extract assemblyID from %s'.format(report_name)
+            raise AzureReportDownloaderError(message)
+
         billing_period = {'start': (report_path.split('/')[-1]).split('-')[0],
                           'end': (report_path.split('/')[-1]).split('-')[1]}
         manifest['billingPeriod'] = billing_period
@@ -151,7 +157,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest_dict = {}
         report_dict = {}
         manifest = self._get_manifest(date_time)
-        manifest_id = None
+
         if manifest != {}:
             manifest_dict = self._prepare_db_manifest_record(manifest)
             should_download = self.check_if_manifest_should_be_downloaded(

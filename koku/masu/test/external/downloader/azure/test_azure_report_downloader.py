@@ -26,6 +26,8 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 
+from masu.util.azure import common as utils
+
 from masu.test import MasuTestCase
 
 from unittest.mock import patch
@@ -33,15 +35,35 @@ from unittest.mock import patch
 DATA_DIR = Config.TMP_DIR
 
 class MockAzureService:
+    def __init__(self):
+        self.export_name = "costreport"
+        self.container = "test_container"
+        self.directory = "cost"
+        self.test_date = datetime(2019, 8, 15)
+        self.month_range = utils.month_date_range(self.test_date)
+        self.report_path = '{}/{}/{}'.format(self.directory, self.export_name, self.month_range)
+        self.export_uuid = '9c308505-61d3-487c-a1bb-017956c9170a'
+        self.export_file = '{}_{}.csv'.format(self.export_name, self.export_uuid)
+        self.export_etag = 'absdfwef'
+        self.export_key = '{}/{}'.format(self.report_path, self.export_file)
+        self.bad_test_date = datetime(2019, 7, 15)
+        self.bad_month_range = utils.month_date_range(self.bad_test_date)
+        self.bad_report_path = '{}/{}/{}'.format(self.directory, self.export_name, self.bad_month_range)
 
     def describe_cost_management_exports(self):
-        return [{"name": "export_name", "container": "test_container", "directory": "cost"}]
+        return [{"name": self.export_name, "container": self.container, "directory": self.directory}]
 
     def get_latest_cost_export_for_path(self, report_path, container_name):
+        class BadExport:
+            name = self.export_name
+
         class Export:
-            name = 'costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
-        if report_path == 'cost/export_name/20190801-20190831':
+            name = self.export_file
+
+        if report_path == self.report_path:
             mock_export = Export()
+        elif report_path == self.bad_report_path:
+            mock_export = BadExport()
         else:
             message = f'No cost report found in container {container_name} for '\
                       f'path {report_path}.'
@@ -51,12 +73,12 @@ class MockAzureService:
     def get_cost_export_for_key(self, key, container_name):
 
         class ExportProperties:
-            etag = "absdfwef"
+            etag = self.export_etag
 
         class Export:
-            name = 'costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
+            name = self.export_file
             properties = ExportProperties()
-        if key == 'cost/costreport/20190801-20190831/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv':
+        if key == self.export_key:
             mock_export = Export()
         else:
             message = f'No cost report for report name {key} found in container {container_name}.'
@@ -90,6 +112,8 @@ class AzureReportDownloaderTest(MasuTestCase):
             auth_credential=self.auth_credential,
             billing_source=self.billing_source,
             provider_id=self.azure_provider_id)
+        self.mock_data = MockAzureService()
+
 
     def tearDown(self):
         super().tearDown()
@@ -103,44 +127,47 @@ class AzureReportDownloaderTest(MasuTestCase):
 
     def test_get_report_path(self):
         """Test that report path is built correctly."""
-        test_date = datetime(2019, 8, 15)
-        self.assertEqual(self.downloader.directory, 'cost')
-        self.assertEqual(self.downloader.export_name, 'export_name')
+        self.assertEqual(self.downloader.directory, self.mock_data.directory)
+        self.assertEqual(self.downloader.export_name, self.mock_data.export_name)
 
-        self.assertEqual(self.downloader._get_report_path(test_date), 'cost/export_name/20190801-20190831')
+        self.assertEqual(self.downloader._get_report_path(self.mock_data.test_date), self.mock_data.report_path)
 
     def test_get_local_file_for_report(self):
         """Test to get the local file path for a report."""
-        key = 'cost/costreport/20190801-20190831/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
-        expected_local_file = 'costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
-        local_file = self.downloader.get_local_file_for_report(key)
+        expected_local_file = self.mock_data.export_file
+        local_file = self.downloader.get_local_file_for_report(self.mock_data.export_key)
         self.assertEqual(expected_local_file, local_file)
 
     def test_get_manifest(self):
         """Test that Azure manifest is created."""
-        test_date = datetime(2019, 8, 15)
-        manifest = self.downloader._get_manifest(test_date)
-        self.assertEqual(manifest.get('assemblyId'), '9c308505-61d3-487c-a1bb-017956c9170a')
-        self.assertEqual(manifest.get('reportKeys'), ['costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'])
+        expected_start, expected_end = self.mock_data.month_range.split('-')
+
+        manifest = self.downloader._get_manifest(self.mock_data.test_date)
+        self.assertEqual(manifest.get('assemblyId'), self.mock_data.export_uuid)
+        self.assertEqual(manifest.get('reportKeys'), [self.mock_data.export_file])
         self.assertEqual(manifest.get('Compression'), 'PLAIN')
-        self.assertEqual(manifest.get('billingPeriod').get('start'), '20190801')
-        self.assertEqual(manifest.get('billingPeriod').get('end'), '20190831')
+        self.assertEqual(manifest.get('billingPeriod').get('start'), expected_start)
+        self.assertEqual(manifest.get('billingPeriod').get('end'), expected_end)
+
+    def test_get_manifest_unexpected_report_name(self):
+        """Test that error is thrown when getting manifest with an unexpected report name."""
+
+        with self.assertRaises(AzureReportDownloaderError):
+            self.downloader._get_manifest(self.mock_data.bad_test_date)
 
     def test_get_report_context_for_date_should_download(self):
         """Test that report context is retrieved for date."""
-        test_date = datetime(2019, 8, 15)
         with patch.object(ReportDownloaderBase, 'check_if_manifest_should_be_downloaded', return_value=True):
-            manifest = self.downloader.get_report_context_for_date(test_date)
-        self.assertEqual(manifest.get('assembly_id'), '9c308505-61d3-487c-a1bb-017956c9170a')
+            manifest = self.downloader.get_report_context_for_date(self.mock_data.test_date)
+        self.assertEqual(manifest.get('assembly_id'), self.mock_data.export_uuid)
         self.assertEqual(manifest.get('compression'), 'PLAIN')
-        self.assertEqual(manifest.get('files'), ['costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'])
+        self.assertEqual(manifest.get('files'), [self.mock_data.export_file])
         self.assertIsNotNone(manifest.get('manifest_id'))
 
     def test_get_report_context_for_date_should_not_download(self):
         """Test that report context is not retrieved when download check fails."""
-        test_date = datetime(2019, 8, 15)
         with patch.object(ReportDownloaderBase, 'check_if_manifest_should_be_downloaded', return_value=False):
-            manifest = self.downloader.get_report_context_for_date(test_date)
+            manifest = self.downloader.get_report_context_for_date(self.mock_data.test_date)
         self.assertEqual(manifest, {})
 
     def test_get_report_context_for_incorrect_date(self):
@@ -152,10 +179,11 @@ class AzureReportDownloaderTest(MasuTestCase):
 
     def test_download_file(self):
         """Test that Azure report report is downloaded."""
-        key = 'cost/costreport/20190801-20190831/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
-        full_file_path, etag = self.downloader.download_file(key)
-        self.assertEqual(full_file_path, '/var/tmp/masu/Azure_Customer/azure/test_container/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv')
-        self.assertEqual(etag, 'absdfwef')
+        expected_full_path = '{}/{}/azure/{}/{}'.format(Config.TMP_DIR, self.customer_name.replace(' ', '_'),
+                                                  self.mock_data.container, self.mock_data.export_file)
+        full_file_path, etag = self.downloader.download_file(self.mock_data.export_key)
+        self.assertEqual(full_file_path, expected_full_path)
+        self.assertEqual(etag, self.mock_data.export_etag)
 
     def test_download_missing_file(self):
         """Test that Azure report is not downloaded for incorrect key."""
@@ -167,9 +195,9 @@ class AzureReportDownloaderTest(MasuTestCase):
     @patch('masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader')
     def test_download_file_matching_etag(self, mock_download_cost_method):
         """Test that Azure report report is not downloaded with matching etag."""
-        key = 'cost/costreport/20190801-20190831/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv'
-        etag = 'absdfwef'
-        full_file_path, etag = self.downloader.download_file(key, etag)
-        self.assertEqual(full_file_path, '/var/tmp/masu/Azure_Customer/azure/test_container/costreport_9c308505-61d3-487c-a1bb-017956c9170a.csv')
-        self.assertEqual(etag, 'absdfwef')
+        expected_full_path = '{}/{}/azure/{}/{}'.format(Config.TMP_DIR, self.customer_name.replace(' ', '_'),
+                                                  self.mock_data.container, self.mock_data.export_file)
+        full_file_path, etag = self.downloader.download_file(self.mock_data.export_key, self.mock_data.export_etag)
+        self.assertEqual(full_file_path, expected_full_path)
+        self.assertEqual(etag, self.mock_data.export_etag)
         mock_download_cost_method._azure_client.download_cost_export.assert_not_called()
