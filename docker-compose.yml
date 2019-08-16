@@ -146,7 +146,6 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
-        - INITIAL_INGEST_NUM_MONTHS=2
       privileged: true
       volumes:
         - '.:/koku'
