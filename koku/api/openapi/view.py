@@ -16,8 +16,8 @@
 #
 
 """View for openapi documentation."""
-import logging
 import json
+import logging
 
 from rest_framework import permissions, status
 from rest_framework.decorators import (api_view,
