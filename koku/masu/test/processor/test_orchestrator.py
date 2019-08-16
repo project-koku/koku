@@ -23,7 +23,7 @@ import logging
 import faker
 from unittest.mock import patch
 
-from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
@@ -72,7 +72,7 @@ class OrchestratorTest(MasuTestCase):
         """Test to init"""
         orchestrator = Orchestrator()
 
-        if len(orchestrator._accounts) != 2:
+        if len(orchestrator._accounts) != 3:
             self.fail("Unexpected number of test accounts")
 
         for account in orchestrator._accounts:
@@ -107,6 +107,8 @@ class OrchestratorTest(MasuTestCase):
                     account.get('billing_source'), self.aws_test_billing_source
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                pass
             else:
                 self.fail('Unexpected provider')
 

@@ -17,7 +17,7 @@
 
 """Test the CURAccountsDB utility object."""
 
-from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from masu.test import MasuTestCase
 
@@ -28,7 +28,7 @@ class CURAccountsDBTest(MasuTestCase):
     def test_get_accounts_from_source(self):
         """Test to get all accounts"""
         accounts = CURAccountsDB().get_accounts_from_source()
-        if len(accounts) != 2:
+        if len(accounts) != 3:
             self.fail('unexpected number of accounts')
 
         for account in accounts:
@@ -43,5 +43,7 @@ class CURAccountsDBTest(MasuTestCase):
                 self.assertEqual(account.get('authentication'), 'my-ocp-cluster-1')
                 self.assertEqual(account.get('billing_source'), None)
                 self.assertEqual(account.get('customer_name'), 'acct10001')
+            elif account.get('provider_type') == AZURE:
+                pass
             else:
                 self.fail('Unexpected provider')
