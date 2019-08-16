@@ -17,20 +17,12 @@
 
 """View for OpenShift on AWS Usage Reports."""
 
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
-from rest_framework.settings import api_settings
-
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.report.view import _generic_report
+from api.report.view import ReportView
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission, OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def costs(request):
+class OCPAWSCostView(ReportView):
     """Get OpenShift on AWS cost usage data.
 
     @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift cost data
@@ -45,20 +37,21 @@ def costs(request):
     @apiParam (Query Param) {Object} group_by The grouping to apply to the report.
     @apiParam (Query Param) {Object} order_by The ordering to apply to the report.
     @apiParamExample {json} Query Param:
-        ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
+       ?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[project]=*
 
     @apiSuccess {Object} group_by  The grouping to applied to the report.
     @apiSuccess {Object} filter  The filter to applied to the report.
     @apiSuccess {Object} data  The report data.
     @apiSuccess {Object} total Aggregates statistics for the report range.
+
     """
-    return _generic_report(request, report='costs', provider='ocp_aws')
+
+    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
+    report = 'costs'
+    provider = 'ocp_aws'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission, OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def storage(request):
+class OCPAWSStorageView(ReportView):
     """Get OpenShift on AWS storage usage data.
 
     @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/storage/ Get OpenShift on AWS storage usage.
@@ -127,13 +120,13 @@ def storage(request):
         11.674377,2019-01,namespace_ci,24.0,GB-Mo
 
     """
-    return _generic_report(request, report='storage', provider='ocp_aws')
+
+    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
+    report = 'storage'
+    provider = 'ocp_aws'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AwsAccessPermission, OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def instance_type(request):
+class OCPAWSInstanceTypeView(ReportView):
     """Get OpenShift on AWS instance usage data.
 
     @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/instance-types/ Get instance data
@@ -229,6 +222,8 @@ def instance_type(request):
         915.889752,1,2019-01,m5.large,namespace_ci,1488.0,Hrs
         939.377001,1,2019-01,m5.large,namespace_qa,1488.0,Hrs
 
-
     """
-    return _generic_report(request, report='instance_type', provider='ocp_aws')
+
+    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
+    report = 'instance_type'
+    provider = 'ocp_aws'
