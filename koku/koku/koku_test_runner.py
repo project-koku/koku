@@ -42,9 +42,14 @@ class KokuTestRunner(DiscoverRunner):
 
         return main_db
 
-
+# Disable pylint to keep the Django function in tact as written
+# pylint: disable=C0301,R0913,R0914,R1704,W0613
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
-    """Create the test databases."""
+    """Create the test databases.
+
+    This function is a copy of the Django setup_databases with one addition.
+    A Tenant object is created and saved when setting up the database.
+    """
     test_databases, mirrored_aliases = get_unique_databases_and_mirrors(aliases)
 
     old_names = []
