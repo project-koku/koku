@@ -121,7 +121,6 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         blob = self._azure_client.get_latest_cost_export_for_date(billing_period_range, self.container_name)
         report_name = blob.name
         manifest = {}
-        manifest['uuid'] = ''
         manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
         billing_period = {'start': (billing_period_range.split('/')[-1]).split('-')[0],
                           'end': (billing_period_range.split('/')[-1]).split('-')[1]}
