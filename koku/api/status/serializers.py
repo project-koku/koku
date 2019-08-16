@@ -30,6 +30,7 @@ class StatusSerializer(serializers.Serializer):
     modules = serializers.DictField()
     platform_info = serializers.DictField()
     python_version = serializers.CharField()
+    rbac_cache_ttl = serializers.CharField()
 
     class Meta:
         """Metadata for the serializer."""
