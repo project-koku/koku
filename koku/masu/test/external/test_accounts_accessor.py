@@ -52,7 +52,13 @@ class AccountsAccessorTest(MasuTestCase):
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == AZURE:
-                pass
+                self.assertEqual(
+                    account.get('authentication'), self.azure_credentials
+                )
+                self.assertEqual(
+                    account.get('billing_source'), self.azure_data_source
+                )
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
 
