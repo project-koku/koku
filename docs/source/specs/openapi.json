@@ -609,7 +609,8 @@
                     {
                         "name": "provider_uuid",
                         "in": "query",
-                        "description": "Filter response onprovider uuid.",
+                        "description": "Filter response on provider uuid.",
+                        "required": false,
                         "schema": {
                             "type": "string",
                             "format": "uuid"
@@ -818,36 +819,16 @@
                 "summary": "Query to obtain cost reports",
                 "operationId": "getAWSCostReports",
                 "parameters": [{
-                        "name": "delta",
-                        "in": "query",
-                        "description": "Toggle to include delta values in report.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -904,36 +885,16 @@
                 "summary": "Query to obtain cost reports",
                 "operationId": "getOpenShiftCostReports",
                 "parameters": [{
-                        "name": "delta",
-                        "in": "query",
-                        "description": "Toggle to include delta values in report.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1396,36 +1357,16 @@
                 "summary": "Query to obtain OpenShift on AWS cost reports",
                 "operationId": "getOpenShiftAWSCostReports",
                 "parameters": [{
-                        "name": "delta",
-                        "in": "query",
-                        "description": "Toggle to include delta values in report.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryDelta"
                     },
                     {
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1832,10 +1773,52 @@
         "url": "https://github.com/project-koku/"
     },
     "servers": [{
-        "url": "/r/insights/platform/cost-management/v1"
+        "url": "/api/cost-management/v1"
     }],
     "components": {
         "parameters": {
+            "QueryDelta": {
+                "name": "delta",
+                "required": false,
+                "in": "query",
+                "description": "Toggle to include delta values in report.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QueryFilter": {
+                "name": "filter",
+                "required": false,
+                "in": "query",
+                "description": "The filter to apply to the report as a URL encoded dictionary.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                }
+            },
+            "QueryGroupBy": {
+                "name": "group_by",
+                "required": false,
+                "in": "query",
+                "description": "The grouping to apply to the report as a URL encoded dictionary.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                }
+            },
+            "QueryOrderBy": {
+                "name": "order_by",
+                "required": false,
+                "in": "query",
+                "description": "The ordering to apply to the report as a URL encoded dictionary.",
+                "style": "deepObject",
+                "explode": true,
+                "schema": {
+                    "type": "object"
+                }
+            },
             "QueryOffset": {
                 "in": "query",
                 "name": "offset",
