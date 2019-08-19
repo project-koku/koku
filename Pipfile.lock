@@ -525,10 +525,10 @@
         },
         "azure-mgmt-servicefabric": {
             "hashes": [
-                "sha256:0c1434e789d0c036c613855b898a385a4533656f45eafae3ef7af3ecf4d6a3e8",
-                "sha256:b2bf2279b8ff8450c35e78e226231655021482fdbda27db09975ebfc983398ad"
+                "sha256:a2cbd2797e796a550a93d37229b2ded22765f50166730a63c8e20a27677e28f4",
+                "sha256:e86ca293aaa012349aa1ef5340e3bcc6ec398a413ba43642524ddde155b2c1fe"
             ],
-            "version": "==0.2.0"
+            "version": "==0.4.0"
         },
         "azure-mgmt-signalr": {
             "hashes": [
