@@ -624,10 +624,10 @@
         },
         "azure-storage-queue": {
             "hashes": [
-                "sha256:0bafe9e61c0ce7b3f3ecadea21e931dab3248bd4989dc327a8666c5deae7f7ed",
-                "sha256:d28e6f854ed5d719d62637c1b5c2b74d9c67584bc326de5ce41ba0af73e3a3f0"
+                "sha256:14e82d3691f1bbd23f2aff143a6c17af3c297164f6e597d223b65a67051ba278",
+                "sha256:7af861e7453be79885e9e7b2253ca772e335c161ed119615428cf455753523f9"
             ],
-            "version": "==1.4.0"
+            "version": "==2.1.0"
         },
         "beautifulsoup4": {
             "hashes": [
