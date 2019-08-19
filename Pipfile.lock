@@ -88,10 +88,10 @@
         },
         "azure-datalake-store": {
             "hashes": [
-                "sha256:10696c76716762739e5e77f25c1268314786cf8e999d6d8366af7245c82fc660",
-                "sha256:5bc560ee108a1824e03ab926fbe5302b84c1e8d5742fa3a31e4cc0733ab58543"
+                "sha256:55bcbec99a35a52ea291518dadfd94c3b645e66d05ce927228289b93979ad3a5",
+                "sha256:d8e72b60b52b7875c23e386af6a90a2db7f580f75627aa5ffbda18e186180d39"
             ],
-            "version": "==0.0.46"
+            "version": "==0.0.47"
         },
         "azure-eventgrid": {
             "hashes": [
