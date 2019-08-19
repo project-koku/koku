@@ -17,7 +17,14 @@
 """Azure Service helpers."""
 from tempfile import NamedTemporaryFile
 
+from azure.common import AzureException
 from providers.azure.client import AzureClientFactory
+
+
+class AzureServiceError(Exception):
+    """Raised when errors are encountered from Azure."""
+
+    pass
 
 
 class AzureCostReportNotFound(Exception):
@@ -34,16 +41,18 @@ class AzureService:
         """Establish connection information."""
         self._factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret, cloud)
         self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
+        try:
+            self._blockblob_service = self._cloud_storage_account.create_block_blob_service()
+        except AzureException as error:
+            raise AzureServiceError('Unable to create block blob service. Error: %s', str(error))
 
         if not self._factory.credentials:
-            raise ValueError('Azure Service credentials are not configured.')
+            raise AzureServiceError('Azure Service credentials are not configured.')
 
     def get_cost_export_for_key(self, key, container_name):
         """Get the latest cost export file from given storage account container."""
         report = None
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        blob_list = blockblob_service.list_blobs(container_name)
+        blob_list = self._blockblob_service.list_blobs(container_name)
         for blob in blob_list:
             if key == blob.name:
                 report = blob
@@ -55,23 +64,22 @@ class AzureService:
 
     def download_cost_export(self, key, container_name, destination=None):
         """Download the latest cost export file from a given storage container."""
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
         cost_export = self.get_cost_export_for_key(key, container_name)
 
         file_path = destination
         if not destination:
             temp_file = NamedTemporaryFile(delete=False, suffix='.csv')
             file_path = temp_file.name
-        blockblob_service.get_blob_to_path(container_name, cost_export.name, file_path)
+        try:
+            self._blockblob_service.get_blob_to_path(container_name, cost_export.name, file_path)
+        except AzureException as error:
+            raise AzureServiceError('Failed to download cost export. Error: ', str(error))
         return file_path
 
     def get_latest_cost_export_for_path(self, report_path, container_name):
         """Get the latest cost export file from given storage account container."""
         latest_report = None
-        cloud_storage_account = self._cloud_storage_account
-        blockblob_service = cloud_storage_account.create_block_blob_service()
-        blob_list = blockblob_service.list_blobs(container_name)
+        blob_list = self._blockblob_service.list_blobs(container_name)
         for blob in blob_list:
             if report_path in blob.name and not latest_report:
                 latest_report = blob
