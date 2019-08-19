@@ -476,10 +476,10 @@
         },
         "azure-mgmt-redis": {
             "hashes": [
-                "sha256:374a267b83ec4e71077b8afad537863fb93816c96407595cdd02973235356ded",
-                "sha256:41d12cea5673b2e277ea298d85bab7d1fdbd0636ff6be08b15ee30a312c07d6d"
+                "sha256:756fd080868fd057fdaa4b7663985d8ffebd941ad06a4d9786fe4470e65a2114",
+                "sha256:db999e104edeee3a13a8ceb1881e15196fe03a02635e0e20855eb52c1e2ecca1"
             ],
-            "version": "==5.0.0"
+            "version": "==6.0.0"
         },
         "azure-mgmt-relay": {
             "hashes": [
