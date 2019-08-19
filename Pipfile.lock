@@ -102,10 +102,10 @@
         },
         "azure-graphrbac": {
             "hashes": [
-                "sha256:825b397665f478fab511e521f3f3f4b64189cb9f6c2e7e873b3b7333dc533974",
-                "sha256:f94b97bdcf774878fe2f8b8c46a5d6550a4ed891350ed0730c1561a24d488ee2"
+                "sha256:53e98ae2ca7c19b349e9e9bb1b6a824aeae8dcfcbe17190d20fe69c0f185b2e2",
+                "sha256:7b4e0f05676acc912f2b33c71c328d9fb2e4dc8e70ebadc9d3de8ab08bf0b175"
             ],
-            "version": "==0.40.0"
+            "version": "==0.61.1"
         },
         "azure-keyvault": {
             "hashes": [
