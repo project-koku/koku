@@ -123,3 +123,7 @@ scripts/aws_pricing/
 .vscode/
 .idea/
 *.code-workspace
+
+# Mac OSX
+.DS_Store
+
