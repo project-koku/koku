@@ -518,10 +518,10 @@
         },
         "azure-mgmt-servicebus": {
             "hashes": [
-                "sha256:7d1e8c3dc05ffdfe496ae643290ce4de93a3bf814ffda69121223e3d7da12408",
-                "sha256:cbc3fc8d8b8930452cf7d499856313da208eb66f62ade0091aa9bae0db2b1674"
+                "sha256:bfa726ffd5ba99ef4985dd8bcc6f8f1ff42a321ad67811914be23e92631a4c5f",
+                "sha256:f20920b8fb119ef4abeda4d2dac765a4fc48cd0bcf30c27f8c4cc6d890bc08b1"
             ],
-            "version": "==0.5.3"
+            "version": "==0.6.0"
         },
         "azure-mgmt-servicefabric": {
             "hashes": [
