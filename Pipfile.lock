@@ -617,10 +617,10 @@
         },
         "azure-storage-file": {
             "hashes": [
-                "sha256:5217b0441b671246a8d5f506a459fa3af084eeb9297c5be3bbe95d75d23bac2f",
-                "sha256:65831e66594cdda36e02f5566ea9d8a6ad35eca6691c28f1fbb49f23987752ff"
+                "sha256:07e01b6b1ccbac97946a3abab773fdc4904965577c3afa0151e786c463bd7260",
+                "sha256:3559b9c7ab13450c66ea833eb82c28233bee24f1bd8ca19aa7d27f8c23d5bc53"
             ],
-            "version": "==1.4.0"
+            "version": "==2.1.0"
         },
         "azure-storage-queue": {
             "hashes": [
