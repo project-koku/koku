@@ -589,10 +589,10 @@
         },
         "azure-servicefabric": {
             "hashes": [
-                "sha256:8724718ef48c2810dbd8609c193225fa1e037a2c9ce70c7263f5b031e2e8f208",
-                "sha256:c82575cbdf95cc897c3230ea889d4e751d8760a2223857fe6fbeeea5b802e5e2"
+                "sha256:12d5419f009091570f1009193708103aab331b739c82a9286a2c33a0fc59acb3",
+                "sha256:85f0d42045517edae4cdfb6f26718a75e84358145e6891e29de3d53d5816030b"
             ],
-            "version": "==6.3.0.0"
+            "version": "==6.5.0.0"
         },
         "azure-servicemanagement-legacy": {
             "hashes": [
