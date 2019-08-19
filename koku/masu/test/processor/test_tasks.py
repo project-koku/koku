@@ -187,6 +187,32 @@ class GetReportFileTests(MasuTestCase):
         Config.INGEST_OVERRIDE = False
         Config.INITIAL_INGEST_NUM_MONTHS = 2
 
+    @patch(
+        'masu.processor._tasks.download.ReportDownloader._set_downloader',
+        return_value=FakeDownloader,
+    )
+    @patch(
+        'masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete',
+        return_value=True,
+    )
+    def test_get_report_without_override(self, fake_accessor, fake_report_files):
+        """Test _get_report_files for two months."""
+        initial_month_qty = 2
+
+        account = fake_arn(service='iam', generate_account_id=True)
+        with patch.object(ReportDownloader, 'get_reports') as download_call:
+            _get_report_files(
+                customer_name=self.fake.word(),
+                authentication=account,
+                provider_type='AWS',
+                report_name=self.fake.word(),
+                provider_uuid=self.aws_test_provider_uuid,
+                billing_source=self.fake.word(),
+            )
+
+            download_call.assert_called_with(initial_month_qty)
+
+
     @patch('masu.processor._tasks.download.ProviderStatus.set_error')
     @patch(
         'masu.processor._tasks.download.ReportDownloader._set_downloader',
