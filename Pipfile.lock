@@ -419,10 +419,10 @@
         },
         "azure-mgmt-network": {
             "hashes": [
-                "sha256:808a9927d24f73783463eceaadb3bf40e9836b3c3ce02275cd30847f8e6ab9c1",
-                "sha256:c083f9da1af69ca8524d0a7e2f0235b025a628ad00308072c1e84662312a532a"
+                "sha256:4e3f74fa8acf3fe730fc98f6e9ba784af5ca109c141845c82273d94bf0c510f9",
+                "sha256:a939667af360e6c8cff6bce3038f3692de8e7382684a7e2fc05909585fb45440"
             ],
-            "version": "==2.7.0"
+            "version": "==4.0.0"
         },
         "azure-mgmt-notificationhubs": {
             "hashes": [
