@@ -193,10 +193,10 @@
         },
         "azure-mgmt-compute": {
             "hashes": [
-                "sha256:36f4682076bafb363cbdf17a839941208ce94a14d8a652005ee02399c4a71297",
-                "sha256:93f32e68d322a04006296b89d219e8ccc5d5e52e788ec0a602563823e108e1f8"
+                "sha256:603e9172b722d6b6f200891f3012946b6b8e13621352183003c48f11efee3fc9",
+                "sha256:e837f11138dd7d3791f2b284ceb750e0c7e1bcde16bd7f7ea48aae8a0ca4fb17"
             ],
-            "version": "==4.6.2"
+            "version": "==6.0.0"
         },
         "azure-mgmt-consumption": {
             "hashes": [
