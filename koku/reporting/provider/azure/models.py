@@ -21,7 +21,6 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
-
 class AzureCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
 
@@ -32,7 +31,7 @@ class AzureCostEntryBill(models.Model):
     class Meta:
         """Meta for AzureBill."""
 
-        unique_together = ('subscription_id', 'billing_period_start',
+        unique_together = ('subscription_guid', 'billing_period_start',
                            'provider_id')
 
     subscription_guid = models.CharField(max_length=50, null=False)
@@ -62,11 +61,11 @@ class AzureCostEntryProduct(models.Model):
                 name='resource_location_idx',
             ),
         ]
-        instance_id = models.CharField(max_length=512, null=False)
-        resource_location = models.CharField(max_length=50, null=False)
-        consumed_service = models.CharField(max_length=50, null=False)
-        resource_type = models.CharField(max_length=50, null=False)
-        resource_group = models.CharField(max_length=50, null=False)
+    instance_id = models.CharField(max_length=512, null=False)
+    resource_location = models.CharField(max_length=50, null=False)
+    consumed_service = models.CharField(max_length=50, null=False)
+    resource_type = models.CharField(max_length=50, null=False)
+    resource_group = models.CharField(max_length=50, null=False)
 
 
 class AzureMeter(models.Model):
@@ -74,6 +73,7 @@ class AzureMeter(models.Model):
 
     class Meta:
         """Meta for AzureMeter."""
+
         unique_together = ('meter_id', 'meter_category', 'meter_region')
 
     meter_id = models.CharField(max_length=50, null=False)
@@ -88,6 +88,7 @@ class AzureService(models.Model):
 
     class Meta:
         """Meta for AzureMeter."""
+
         unique_together = ('service_tier', 'service_name')
 
     service_tier = models.CharField(max_length=50, null=False)
