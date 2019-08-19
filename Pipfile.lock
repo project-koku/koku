@@ -307,10 +307,10 @@
         },
         "azure-mgmt-eventhub": {
             "hashes": [
-                "sha256:e86b20aa1f6f9c77a83d4af6e708823cc3593658bcea7b12228efc48e214d7da",
-                "sha256:e9e8f219251e8296d17f14090488376adcdbab1ca8ffc3664b70c73015f368ff"
+                "sha256:b7e77677d7cd8e075c4b4dd3c2c85d44f6adacd948ec49926e54b7119e8e8615",
+                "sha256:d28dda9b032bcf3960fd3b4bc78885f27eee07fc207dbd5726d5709118d4f9bd"
             ],
-            "version": "==2.6.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-hanaonazure": {
             "hashes": [
