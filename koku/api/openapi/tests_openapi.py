@@ -16,6 +16,7 @@
 #
 """Test the Open API endpoint."""
 import json
+import os
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
@@ -24,12 +25,21 @@ from django.urls import reverse
 from rest_framework import status
 
 from api.openapi.view import get_json
+from koku import settings
+
+
+def read_api_json():
+    """Read the openapi.json file out of the docs dir."""
+    test_filename = os.path.join(settings.BASE_DIR, '..',
+                                 'docs/source/specs/openapi.json')
+    return get_json(test_filename)
 
 
 class OpenAPIViewTest(TestCase):
     """Tests the openapi view."""
 
-    def test_openapi_endpoint(self):
+    @patch('api.openapi.view.get_json', return_value=read_api_json())
+    def test_openapi_endpoint(self, _):
         """Test the openapi endpoint returns HTTP_200_OK."""
         url = reverse('openapi')
         response = self.client.get(url)

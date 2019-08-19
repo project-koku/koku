@@ -18,6 +18,7 @@
 """View for openapi documentation."""
 import json
 import logging
+import os
 
 from rest_framework import permissions, status
 from rest_framework.decorators import (api_view,
@@ -26,10 +27,10 @@ from rest_framework.decorators import (api_view,
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
-from koku.settings import BASE_DIR
+from koku.settings import STATIC_ROOT
 
 LOG = logging.getLogger(__name__)
-OPENAPI_FILE_NAME = BASE_DIR + '/../docs/source/specs/openapi.json'
+OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, 'openapi.json')
 
 
 def get_json(path):
