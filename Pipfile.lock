@@ -272,10 +272,10 @@
         },
         "azure-mgmt-datamigration": {
             "hashes": [
-                "sha256:bb654d9f96166a5cf2638f821af5cee8b1c331257c69b053592375a4d2bb4d5e",
-                "sha256:ea2920475f9e56e660003a06397228243042157d46674f8a09abaf2d0a933aed"
+                "sha256:a52c5c4f80756c715eea71b468023c63746295e3fc94fdb5d29ef43a7589d719",
+                "sha256:b6d45a8c802f9cdbef3417f2714ee9b705102714d029589acaedce2b8fbb855d"
             ],
-            "version": "==1.0.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-devspaces": {
             "hashes": [
