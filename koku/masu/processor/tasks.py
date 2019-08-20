@@ -293,5 +293,14 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 def update_cost_summary_table(schema_name, provider_uuid, manifest_id, 
                               start_date=None, end_date=None):
     """Do something"""
+
+    worker_stats.COST_SUMMARY_ATTEMPTS_COUNTER.inc()
+
+    stmt = (f'update_cost_summary_table called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider_uuid: {provider_uuid}\n'
+            f' manifest_id: {manifest_id}')
+    LOG.info(stmt)
+
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
     updater.update_cost_summary_table(start_date, end_date)

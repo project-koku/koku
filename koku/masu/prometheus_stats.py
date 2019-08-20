@@ -44,7 +44,9 @@ REPORT_SUMMARY_ATTEMPTS_COUNTER = Counter('report_summary_attempts_count',
 CHARGE_UPDATE_ATTEMPTS_COUNTER = Counter('charge_update_attempts_count',
                                          'Number of derivied cost update attempts',
                                          registry=WORKER_REGISTRY)
-
+COST_SUMMARY_ATTEMPTS_COUNTER = Counter('cost_summary_attempts_count',
+                                        'Number of cost summary update attempts',
+                                        registry=WORKER_REGISTRY)
 
 def initialize_prometheus_exporter():
     """Start Prometheus stats HTTP server."""
