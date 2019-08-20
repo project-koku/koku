@@ -23,7 +23,7 @@ import logging
 import faker
 from unittest.mock import patch
 
-from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.orchestrator import Orchestrator
@@ -72,7 +72,7 @@ class OrchestratorTest(MasuTestCase):
         """Test to init"""
         orchestrator = Orchestrator()
 
-        if len(orchestrator._accounts) != 2:
+        if len(orchestrator._accounts) != 3:
             self.fail("Unexpected number of test accounts")
 
         for account in orchestrator._accounts:
@@ -92,10 +92,18 @@ class OrchestratorTest(MasuTestCase):
                     account.get('billing_source'), self.ocp_test_billing_source
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                self.assertEqual(
+                    account.get('authentication'), self.azure_credentials
+                )
+                self.assertEqual(
+                    account.get('billing_source'), self.azure_data_source
+                )
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
 
-        if len(orchestrator._polling_accounts) != 1:
+        if len(orchestrator._polling_accounts) != 2:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
@@ -105,6 +113,14 @@ class OrchestratorTest(MasuTestCase):
                 )
                 self.assertEqual(
                     account.get('billing_source'), self.aws_test_billing_source
+                )
+                self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                self.assertEqual(
+                    account.get('authentication'), self.azure_credentials
+                )
+                self.assertEqual(
+                    account.get('billing_source'), self.azure_data_source
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
             else:
@@ -175,7 +191,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 2)
+            self.assertEqual(len(results), 3)
             async_id = results.pop().get('async_id')
             self.assertIn(expected.format(async_id), logger.output)
 

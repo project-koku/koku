@@ -17,22 +17,19 @@
 
 """Test the ReportProcessor object."""
 
-from datetime import datetime
 from unittest.mock import patch
 
 from masu.exceptions import MasuProcessingError
 from masu.external import (
     AMAZON_WEB_SERVICES,
     AWS_LOCAL_SERVICE_PROVIDER,
+    AZURE,
     OPENSHIFT_CONTAINER_PLATFORM,
     OCP_LOCAL_SERVICE_PROVIDER,
 )
 from masu.processor.report_processor import ReportProcessor, ReportProcessorError
-from masu.processor.aws.aws_report_processor import AWSReportProcessor
-from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 
 from masu.test import MasuTestCase
-from masu.test.external.downloader.aws import fake_arn
 
 
 class ReportProcessorTest(MasuTestCase):
@@ -58,6 +55,18 @@ class ReportProcessorTest(MasuTestCase):
             compression='GZIP',
             provider=AWS_LOCAL_SERVICE_PROVIDER,
             provider_id=self.aws_provider.id,
+            manifest_id=None,
+        )
+        self.assertIsNotNone(processor._processor)
+
+    def test_initializer_azure(self):
+        """Test to initializer for Azure"""
+        processor = ReportProcessor(
+            schema_name=self.schema,
+            report_path='/my/report/file',
+            compression='GZIP',
+            provider=AZURE,
+            provider_id=self.azure_provider.id,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
