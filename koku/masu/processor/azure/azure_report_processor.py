@@ -17,12 +17,15 @@
 
 """Processor for Azure Cost Usage Reports."""
 import csv
+import io
+import json
 import logging
 import pytz
 from datetime import datetime
 from dateutil import parser
 
 from masu.config import Config
+from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
@@ -44,20 +47,20 @@ class ProcessedAzureReport:
     def __init__(self):
         """Initialize new cost entry containers."""
         self.bills = {}
-        self.cost_entries = {}
-        self.line_items = []
         self.products = {}
-        self.reservations = {}
-        self.pricing = {}
+        self.meters = {}
+        self.services = {}
+        self.line_items = []
+
 
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
         self.bills = {}
-        self.cost_entries = {}
-        self.line_items = []
         self.products = {}
-        self.reservations = {}
-        self.pricing = {}
+        self.meters = {}
+        self.services = {}
+        self.line_items = []
+
 
 
 # pylint: disable=too-many-instance-attributes
@@ -98,10 +101,11 @@ class AzureReportProcessor(ReportProcessorBase):
         with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
             self.existing_bill_map = report_db.get_cost_entry_bills()
-            # self.existing_cost_entry_map = report_db.get_cost_entries()
-            #self.existing_product_map = report_db.get_products()
-            # self.existing_pricing_map = report_db.get_pricing()
-            # self.existing_reservation_map = report_db.get_reservations()
+            self.existing_product_map = report_db.get_products()
+            self.existing_meter_map = report_db.get_meters()
+            self.existing_service_nap = report_db.get_services()
+
+        self.line_item_columns = None
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  report_path, self._schema_name)
@@ -169,14 +173,135 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
+    def _create_cost_entry_product(self, row, report_db_accessor):
+        """Create a cost entry product object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+
+        Returns:
+            (str): The DB id of the product object
+
+        """
+        table_name = AzureCostEntryProduct
+        instance_id = row.get('InstanceId')
+        resource_location = row.get('ResourceLocation')
+        key = (instance_id, resource_location)
+
+        if key in self.processed_report.products:
+            return self.processed_report.products[key]
+
+        if key in self.existing_product_map:
+            return self.existing_product_map[key]
+
+        data = self._get_data_for_table(
+            row,
+            table_name._meta.db_table
+        )
+        value_set = set(data.values())
+        if value_set == {''}:
+            return
+        product_id = report_db_accessor.insert_on_conflict_do_nothing(
+            table_name,
+            data,
+            conflict_columns=['instance_id', 'resource_location']
+        )
+        self.processed_report.products[key] = product_id
+        return product_id
+
+    def _create_meter(self, row, report_db_accessor):
+        """Create a cost entry product object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+
+        Returns:
+            (str): The DB id of the product object
+
+        """
+        table_name = AzureMeter
+        meter_id = row.get('MeterId')
+        meter_category = row.get('MeterCategory')
+        meter_region = row.get('MeterRegion')
+        key = (meter_id, meter_category, meter_region)
+
+        if key in self.processed_report.meters:
+            return self.processed_report.meters[key]
+
+        if key in self.existing_meter_map:
+            return self.existing_meter_map[key]
+
+        data = self._get_data_for_table(
+            row,
+            table_name._meta.db_table
+        )
+        value_set = set(data.values())
+        if value_set == {''}:
+            return
+        meter_id = report_db_accessor.insert_on_conflict_do_nothing(
+            table_name,
+            data,
+            conflict_columns=['meter_id', 'meter_category', 'meter_region']
+        )
+        self.processed_report.meters[key] = meter_id
+        return meter_id
+
+    def _create_service(self, row, report_db_accessor):
+        """Create a cost entry product object.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+
+        Returns:
+            (str): The DB id of the product object
+
+        """
+        table_name = AzureService
+        service_tier = row.get('ServiceTier')
+        service_name = row.get('ServiceName')
+        key = (service_tier, service_name)
+
+        if key in self.processed_report.services:
+            return self.processed_report.services[key]
+
+        if key in self.existing_service_nap:
+            return self.existing_service_nap[key]
+
+        data = self._get_data_for_table(
+            row,
+            table_name._meta.db_table
+        )
+        value_set = set(data.values())
+        if value_set == {''}:
+            return
+        service_id = report_db_accessor.insert_on_conflict_do_nothing(
+            table_name,
+            data,
+            conflict_columns=['service_tier', 'service_name']
+        )
+        self.processed_report.services[key] = service_id
+        return service_id
+
+    def _process_tags(self, tags_string):
+        """Convert the report string to a JSON dictionary.
+
+        Args:
+            label_string (str): The raw report string of pod labels
+
+        Returns:
+            (dict): The JSON dictionary made from the label string
+
+        """
+        return tags_string
+
+
     # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(self,
                                      row,
-                                     cost_entry_id,
                                      bill_id,
                                      product_id,
-                                     pricing_id,
-                                     reservation_id,
+                                     meter_id,
+                                     service_id,
                                      report_db_accesor):
         """Create a cost entry line item object.
 
@@ -194,17 +319,21 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureCostEntryLineItem
         data = self._get_data_for_table(row, table_name._meta.db_table)
+        tag_str = ''
+
+        if 'tags' in data:
+            tag_str = data.pop('tags')
+
         data = report_db_accesor.clean_data(
             data,
             table_name._meta.db_table
         )
 
-        #data['tags'] = self._process_tags(row)
-        #data['cost_entry_id'] = cost_entry_id
+        data['tags'] = self._process_tags(tag_str)
         data['cost_entry_bill_id'] = bill_id
-        #data['cost_entry_product_id'] = product_id
-        #data['cost_entry_pricing_id'] = pricing_id
-        #data['cost_entry_reservation_id'] = reservation_id
+        data['cost_entry_product_id'] = product_id
+        data['meter_id'] = meter_id
+        data['service_id'] = service_id
 
         self.processed_report.line_items.append(data)
 
@@ -214,18 +343,16 @@ class AzureReportProcessor(ReportProcessorBase):
     def create_cost_entry_objects(self, row, report_db_accesor):
         """Create the set of objects required for a row of data."""
         bill_id = self._create_cost_entry_bill(row, report_db_accesor)
-        #cost_entry_id = self._create_cost_entry(row, bill_id, report_db_accesor)
-        #product_id = self._create_cost_entry_product(row, report_db_accesor)
-        #pricing_id = self._create_cost_entry_pricing(row, report_db_accesor)
-        #reservation_id = self._create_cost_entry_reservation(row, report_db_accesor)
+        product_id = self._create_cost_entry_product(row, report_db_accesor)
+        meter_id = self._create_meter(row, report_db_accesor)
+        service_id = self._create_service(row, report_db_accesor)
 
         self._create_cost_entry_line_item(
             row,
-            None,
             bill_id,
-            None,
-            None,
-            None,
+            product_id,
+            meter_id,
+            service_id,
             report_db_accesor
         )
 
@@ -246,6 +373,67 @@ class AzureReportProcessor(ReportProcessorBase):
                 reader = csv.DictReader(f)
                 for row in reader:
                     bill_id = self.create_cost_entry_objects(row, report_db)
+                if len(self.processed_report.line_items) >= self._batch_size:
+                    LOG.debug('Saving report rows %d to %d for %s', row_count,
+                              row_count + len(self.processed_report.line_items),
+                              self._report_name)
+                    self._save_to_db(report_db)
+
+                    row_count += len(self.processed_report.line_items)
+                    self._update_mappings()
+
+                if self.processed_report.line_items:
+                    LOG.debug('Saving report rows %d to %d for %s', row_count,
+                              row_count + len(self.processed_report.line_items),
+                              self._report_name)
+                    self._save_to_db(report_db)
+                    row_count += len(self.processed_report.line_items)
+
+                report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
+                report_db.commit()
+                LOG.info('Completed report processing for file: %s and schema: %s',
+                         self._report_name, self._schema_name)
+            return True
+
+    def _update_mappings(self):
+        """Update cache of database objects for reference."""
+        self.existing_product_map.update(self.processed_report.products)
+        self.existing_meter_map.update(self.processed_report.meters)
+        self.existing_service_nap.update(self.processed_report.services)
+
+        self.processed_report.remove_processed_rows()
+
+    def _write_processed_rows_to_csv(self):
+        """Output CSV content to file stream object."""
+        values = [tuple(item.values())
+                  for item in self.processed_report.line_items]
+
+        file_obj = io.StringIO()
+        writer = csv.writer(
+            file_obj,
+            delimiter='\t',
+            quoting=csv.QUOTE_NONE,
+            quotechar=''
+        )
+        writer.writerows(values)
+        file_obj.seek(0)
+
+        return file_obj
+
+    def _save_to_db(self, report_db_accessor):
+        """Save current batch of records to the database."""
+        columns = tuple(self.processed_report.line_items[0].keys())
+        csv_file = self._write_processed_rows_to_csv()
+
+        # This will commit all pricing, products, and reservations
+        # on the session
+        report_db_accessor.commit()
+        # This will add line items to the line item table
+        report_db_accessor.bulk_insert_rows(
+            csv_file,
+            AZURE_REPORT_TABLE_MAP['line_item'],
+            columns
+        )
 
     # pylint: disable=no-self-use
     def remove_temp_cur_files(self, report_path):

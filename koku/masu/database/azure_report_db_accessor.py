@@ -94,3 +94,24 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
             return {(product['instance_id'], product['resource_location']): product['id']
                     for product in products}
+
+    def get_meters(self):
+        """Make a mapping of meter objects."""
+        table_name = AzureMeter
+        with schema_context(self.schema):
+            columns = ['id', 'meter_id', 'meter_category', 'meter_region']
+            meters = self._get_db_obj_query(table_name, columns=columns).all()
+
+            return {(meter['meter_id'], meter['meter_category'],
+                     meter['meter_region']): meter['id']
+                    for meter in meters}
+
+    def get_services(self):
+        """Make a mapping of service objects."""
+        table_name = AzureService
+        with schema_context(self.schema):
+            columns = ['id', 'service_tier', 'service_name']
+            services = self._get_db_obj_query(table_name, columns=columns).all()
+
+            return {(service['service_tier'], service['service_name']): service['id']
+                    for service in services}
