@@ -44,6 +44,9 @@ REPORT_SUMMARY_ATTEMPTS_COUNTER = Counter('report_summary_attempts_count',
 CHARGE_UPDATE_ATTEMPTS_COUNTER = Counter('charge_update_attempts_count',
                                          'Number of derivied cost update attempts',
                                          registry=WORKER_REGISTRY)
+KAFKA_CONNECTION_ERRORS_COUNTER = Counter('kafka_connection_errors',
+                                          'Number of Kafka connection errors',
+                                          registry=WORKER_REGISTRY)
 
 
 def initialize_prometheus_exporter():
