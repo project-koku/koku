@@ -146,7 +146,7 @@ class AzureReportProcessor(ReportProcessorBase):
         subscription_guid = row.get('SubscriptionGuid')
 
         start_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
-        end_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        end_date_utc = parser.parse(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
 
         key = (subscription_guid, start_date_utc, self._provider_id)
         if key in self.processed_report.bills:
