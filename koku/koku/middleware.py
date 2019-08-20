@@ -45,7 +45,7 @@ unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-nam
 
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
-    no_auth_list = ['status', 'apidoc', 'metrics', 'openapi.json',
+    no_auth_list = ['status', 'metrics', 'openapi.json',
                     'download', 'report_data', 'expired_data', 'update_charge']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth

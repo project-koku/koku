@@ -229,24 +229,18 @@ USE_L10N = True
 
 USE_TZ = True
 
+API_PATH_PREFIX = os.getenv('API_PATH_PREFIX',
+                            ENVIRONMENT.get_value('API_PATH_PREFIX',
+                                                  default='/api'))
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/2.0/howto/static-files/
-
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-API_PATH_PREFIX = os.getenv('API_PATH_PREFIX',
-                            ENVIRONMENT.get_value('API_PATH_PREFIX', default='/api'))
-STATIC_API_PATH_PREFIX = API_PATH_PREFIX
-if STATIC_API_PATH_PREFIX != '' and (not STATIC_API_PATH_PREFIX.endswith('/')):
-    STATIC_API_PATH_PREFIX = STATIC_API_PATH_PREFIX + '/'
-
-STATIC_URL = '{}apidoc/'.format(STATIC_API_PATH_PREFIX)
+# https://docs.djangoproject.com/en/2.2/howto/static-files/
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_URL = '{}/static/'.format(API_PATH_PREFIX.rstrip('/'))
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, '..', 'apidoc'),
+    os.path.join(BASE_DIR, '..', 'docs/source/specs'),
 ]
-
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 INTERNAL_IPS = ['127.0.0.1']
