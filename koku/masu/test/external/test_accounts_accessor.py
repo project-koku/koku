@@ -19,7 +19,7 @@
 
 from unittest.mock import patch
 from masu.exceptions import CURAccountsInterfaceError
-from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.test import MasuTestCase
 
@@ -31,7 +31,7 @@ class AccountsAccessorTest(MasuTestCase):
         """Test to get_access_credential"""
         account_objects = AccountsAccessor().get_accounts()
 
-        if len(account_objects) != 2:
+        if len(account_objects) != 3:
             self.fail('unexpected number of accounts')
 
         for account in account_objects:
@@ -49,6 +49,14 @@ class AccountsAccessorTest(MasuTestCase):
                 )
                 self.assertEqual(
                     account.get('billing_source'), self.ocp_test_billing_source
+                )
+                self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                self.assertEqual(
+                    account.get('authentication'), self.azure_credentials
+                )
+                self.assertEqual(
+                    account.get('billing_source'), self.azure_data_source
                 )
                 self.assertEqual(account.get('customer_name'), self.schema)
             else:

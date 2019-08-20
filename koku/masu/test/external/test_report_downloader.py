@@ -22,6 +22,7 @@ from unittest.mock import patch
 from masu.external import (
     AWS_LOCAL_SERVICE_PROVIDER,
     AMAZON_WEB_SERVICES,
+    AZURE,
     OCP_LOCAL_SERVICE_PROVIDER,
 )
 from masu.external.downloader.aws.aws_report_downloader import (
@@ -63,7 +64,7 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
 
@@ -79,7 +80,7 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=AWS_LOCAL_SERVICE_PROVIDER,
-            provider_id=1,
+            provider_id=self.aws_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
 
@@ -95,7 +96,23 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=OCP_LOCAL_SERVICE_PROVIDER,
-            provider_id=1,
+            provider_id=self.ocp_provider_id,
+        )
+        self.assertIsNotNone(downloader._downloader)
+
+    @patch(
+        'masu.external.downloader.azure.azure_report_downloader.AzureReportDownloader.__init__',
+        return_value=None,
+    )
+    def test_initializer_azure(self, fake_downloader):
+        """Test to initializer for Azure downloader"""
+        downloader = ReportDownloader(
+            customer_name='customer name',
+            access_credential=self.fake_creds,
+            report_source='hereiam',
+            report_name='bestreport',
+            provider_type=AZURE,
+            provider_id=self.azure_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
 
@@ -112,7 +129,7 @@ class ReportDownloaderTest(MasuTestCase):
                 report_source='hereiam',
                 report_name='bestreport',
                 provider_type=AMAZON_WEB_SERVICES,
-                provider_id=1,
+                provider_id=self.aws_provider_id,
             )
 
     def test_invalid_provider_type(self):
@@ -125,7 +142,7 @@ class ReportDownloaderTest(MasuTestCase):
                 report_source='hereiam',
                 report_name='bestreport',
                 provider_type='unknown',
-                provider_id=1,
+                provider_id=self.aws_provider_id,
             )
 
     @patch(
@@ -140,7 +157,7 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=AMAZON_WEB_SERVICES,
-            provider_id=1,
+            provider_id=self.aws_provider_id,
         )
         with patch.object(
             AWSReportDownloader,

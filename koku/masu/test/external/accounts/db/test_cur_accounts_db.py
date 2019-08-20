@@ -17,7 +17,7 @@
 
 """Test the CURAccountsDB utility object."""
 
-from masu.external import AMAZON_WEB_SERVICES, OPENSHIFT_CONTAINER_PLATFORM
+from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
 from masu.test import MasuTestCase
 
@@ -28,20 +28,21 @@ class CURAccountsDBTest(MasuTestCase):
     def test_get_accounts_from_source(self):
         """Test to get all accounts"""
         accounts = CURAccountsDB().get_accounts_from_source()
-        if len(accounts) != 2:
+        if len(accounts) != 3:
             self.fail('unexpected number of accounts')
 
         for account in accounts:
             if account.get('provider_type') == AMAZON_WEB_SERVICES:
-                self.assertEqual(
-                    account.get('authentication'),
-                    'arn:aws:iam::111111111111:role/CostManagement',
-                )
-                self.assertEqual(account.get('billing_source'), 'test-bucket')
-                self.assertEqual(account.get('customer_name'), 'acct10001')
+                self.assertEqual(account.get('authentication'), self.aws_provider_resource_name)
+                self.assertEqual(account.get('billing_source'), self.aws_test_billing_source)
+                self.assertEqual(account.get('customer_name'), self.schema)
             elif account.get('provider_type') == OPENSHIFT_CONTAINER_PLATFORM:
-                self.assertEqual(account.get('authentication'), 'my-ocp-cluster-1')
+                self.assertEqual(account.get('authentication'), self.ocp_provider_resource_name)
                 self.assertEqual(account.get('billing_source'), None)
-                self.assertEqual(account.get('customer_name'), 'acct10001')
+                self.assertEqual(account.get('customer_name'), self.schema)
+            elif account.get('provider_type') == AZURE:
+                self.assertEqual(account.get('authentication'), self.azure_credentials)
+                self.assertEqual(account.get('billing_source'), self.azure_data_source)
+                self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
