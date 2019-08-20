@@ -175,7 +175,7 @@ async def send_confirmation(request_id, status):  # pragma: no cover
         await producer.start()
     except (KafkaError, TimeoutError) as err:
         await producer.stop()
-        LOG.exception(err)
+        LOG.exception(str(err))
         KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.  Closing producer.')
 
@@ -349,7 +349,7 @@ async def listen_for_messages(consumer):  # pragma: no cover
         await consumer.start()
     except KafkaError as err:
         await consumer.stop()
-        LOG.exception(err)
+        LOG.exception(str(err))
         KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.')
 
