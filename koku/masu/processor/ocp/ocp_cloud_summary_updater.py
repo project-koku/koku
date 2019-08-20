@@ -38,8 +38,12 @@ class OCPCloudReportSummaryUpdater:
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema   (str) The customer schema to associate with.
+            provider (Provider db object) Database object for Provider.
+            manifest (str) The manifest to work with.
 
+        Returns:
+            None
         """
         self._schema_name = schema
         self._provider = provider
@@ -49,14 +53,31 @@ class OCPCloudReportSummaryUpdater:
         self._date_accessor = DateAccessor()
 
     def _get_ocp_infra_map(self, start_date, end_date):
-        """Get the OCP on X infrastructure map."""
+        """Get the OCP on X infrastructure map.
+        
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+
+        Returns:
+            infra_map (list) The OCP infrastructure map.
+
+        """
         infra_map = None
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
             infra_map = accessor.get_ocp_infrastructure_map(start_date, end_date)
         return infra_map
 
     def _get_infra_db_key_for_provider_type(self, provider_type):
-        """Get infrastructure map provider key."""
+        """Get infrastructure map provider key.
+        
+        Args:
+            provider_type (str) The provider
+            
+        Returns:
+            db_key (str) The infrastructure map provider key
+            
+        """
         if provider_type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             db_key = 'aws_uuid'
         elif provider_type in (OPENSHIFT_CONTAINER_PLATFORM):
@@ -96,8 +117,6 @@ class OCPCloudReportSummaryUpdater:
 
         Args:
             provider   (Provider db object).  Database object for Provider.
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
             infra_map  (DB Object) Map from OCPReportDBAccessor().get_ocp_infrastructure_map()
 
         Returns
