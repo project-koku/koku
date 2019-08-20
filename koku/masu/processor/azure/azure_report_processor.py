@@ -18,12 +18,15 @@
 """Processor for Azure Cost Usage Reports."""
 import csv
 import logging
+import pytz
+from datetime import datetime
+from dateutil import parser
 
 from masu.config import Config
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
-
+from masu.util.azure import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItem,
                                              AzureCostEntryProduct,
@@ -94,7 +97,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
-            #self.existing_bill_map = report_db.get_cost_entry_bills()
+            self.existing_bill_map = report_db.get_cost_entry_bills()
             # self.existing_cost_entry_map = report_db.get_cost_entries()
             #self.existing_product_map = report_db.get_products()
             # self.existing_pricing_map = report_db.get_pricing()
@@ -102,6 +105,23 @@ class AzureReportProcessor(ReportProcessorBase):
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  report_path, self._schema_name)
+
+    def _get_data_for_table(self, row, table_name):
+        """Extract the data from a row for a specific table.
+
+        Args:
+            row (dict): A dictionary representation of a CSV file row
+            table_name (str): The DB table fields are required for
+
+        Returns:
+            (dict): The data from the row keyed on the DB table's column names
+
+        """
+        column_map = self.column_map[table_name]
+
+        return {column_map[key]: value
+                for key, value in row.items()
+                if key in column_map}
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -113,10 +133,18 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-        table_name = AzureCostEntryBill
-        start_date = row.get('UsageDateTime')
 
-        key = (bill_type, payer_account_id, start_date, self._provider_id)
+        table_name = AzureCostEntryBill
+        row_date = row.get('UsageDateTime')
+
+        report_date_range = utils.month_date_range(parser.parse(row_date))
+        start_date, end_date = report_date_range.split('-')
+        subscription_guid = row.get('SubscriptionGuid')
+
+        start_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+        end_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
+
+        key = (subscription_guid, start_date_utc, self._provider_id)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -125,13 +153,16 @@ class AzureReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
 
+
         data['provider_id'] = self._provider_id
+        data['billing_period_start'] = datetime.strftime(start_date_utc, '%Y-%m-%d %H:%M%z')
+        data['billing_period_end'] = datetime.strftime(end_date_utc, '%Y-%m-%d %H:%M%z')
 
         bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
-            conflict_columns=['bill_type', 'payer_account_id',
-                              'billing_period_start', 'provider_id']
+            conflict_columns=['subscription_guid', 'billing_period_start',
+                              'provider_id']
         )
 
         self.processed_report.bills[key] = bill_id
@@ -207,10 +238,9 @@ class AzureReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        return
         row_count = 0
         # pylint: disable=invalid-name
-        with open(self._report_path, 'r') as f:
+        with open(self._report_path, 'r', encoding='utf-8-sig') as f:
             with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)

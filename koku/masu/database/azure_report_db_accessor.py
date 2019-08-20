@@ -51,6 +51,16 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self._schema_name = schema
         self.date_accessor = DateAccessor()
 
+    def get_cost_entry_bills(self):
+        """Get all cost entry bill objects."""
+        table_name = AzureCostEntryBill
+        with schema_context(self.schema):
+            columns = ['id', 'subscription_guid', 'billing_period_start', 'provider_id']
+            bills = self._get_db_obj_query(table_name).values(*columns)
+            return {(bill['subscription_guid'], bill['billing_period_start'],
+                     bill['provider_id']): bill['id']
+                    for bill in bills}
+
     # pylint: disable=invalid-name
     def get_cost_entry_bills_query_by_provider(self, provider_id):
         """Return all cost entry bills for the specified provider."""
