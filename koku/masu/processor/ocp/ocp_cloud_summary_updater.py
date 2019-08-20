@@ -152,6 +152,20 @@ class OCPCloudReportSummaryUpdater:
         else:
             LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
 
+
+    def update_cost_summary_table(self, start_date, end_date):
+        """Populate the cost summary tables.
+
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+
+        Returns
+            None
+
+        """
+        infra_map = self._get_ocp_infra_map(start_date, end_date)
+        cluster_id = self._get_ocp_cluster_id_for_provider(self._provider, start_date, end_date, infra_map)
         # This needs to always run regardless of whether the OpenShift
         # cluster is tied to a cloud provider
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:

@@ -164,3 +164,20 @@ class ReportSummaryUpdater:
             start_date,
             end_date
         )
+
+    def update_cost_summary_table(self, start_date, end_date):
+        """
+        Update cost summary tables.
+
+        Args:
+            start_date (str, datetime): When to start.
+            end_date (str, datetime): When to end.
+
+        Returns:
+            None
+
+        """
+        self._ocp_cloud_updater.update_cost_summary_table(
+            start_date,
+            end_date
+        )
