@@ -23,11 +23,13 @@ from dateutil.relativedelta import relativedelta
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
+                           AZURE,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
+from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 
 
@@ -87,6 +89,13 @@ class ReportDownloader:
                                             report_name=self.report_name,
                                             provider_id=self.provider_id)
 
+        if self.provider_type == AZURE:
+            return AzureReportDownloader(customer_name=self.customer_name,
+                                         auth_credential=self.credential,
+                                         billing_source=self.cur_source,
+                                         report_name=self.report_name,
+                                         provider_id=self.provider_id)
+
         if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM,
                                   OCP_LOCAL_SERVICE_PROVIDER):
             return OCPReportDownloader(customer_name=self.customer_name,
@@ -97,7 +106,7 @@ class ReportDownloader:
 
         return None
 
-    def get_reports(self, number_of_months=1):
+    def get_reports(self, number_of_months=2):
         """
         Download cost usage reports.
 

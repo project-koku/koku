@@ -82,6 +82,7 @@ class ProviderManager:
     def _get_tenant_provider_stats(self, provider, tenant, period_start):
         """Return provider statistics for schema."""
         stats = {}
+        query = None
         with tenant_context(tenant):
             if provider.type == 'OCP':
                 query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id,

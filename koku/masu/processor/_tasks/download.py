@@ -66,7 +66,7 @@ def _get_report_files(customer_name,
     if Config.INGEST_OVERRIDE or not reports_processed:
         number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
     else:
-        number_of_months = 1
+        number_of_months = 2
 
     stmt = ('Downloading report for'
             ' credential: {},'
@@ -74,8 +74,8 @@ def _get_report_files(customer_name,
             ' customer_name: {},'
             ' provider: {},'
             ' number_of_months: {}')
-    log_statement = stmt.format(authentication,
-                                billing_source,
+    log_statement = stmt.format(str(authentication),
+                                str(billing_source),
                                 customer_name,
                                 provider_type,
                                 number_of_months)

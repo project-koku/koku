@@ -94,14 +94,14 @@ class AzureReportProcessor(ReportProcessorBase):
 
         with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
             self.report_schema = report_db.report_schema
-            self.existing_bill_map = report_db.get_cost_entry_bills()
+            #self.existing_bill_map = report_db.get_cost_entry_bills()
             # self.existing_cost_entry_map = report_db.get_cost_entries()
-            self.existing_product_map = report_db.get_products()
+            #self.existing_product_map = report_db.get_products()
             # self.existing_pricing_map = report_db.get_pricing()
             # self.existing_reservation_map = report_db.get_reservations()
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_name, self._schema_name)
+                 report_path, self._schema_name)
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -207,6 +207,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (None)
 
         """
+        return
         row_count = 0
         # pylint: disable=invalid-name
         with open(self._report_path, 'r') as f:

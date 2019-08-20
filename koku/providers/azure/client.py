@@ -20,6 +20,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
+from azure.storage import CloudStorageAccount
 from msrestazure.azure_cloud import (AZURE_CHINA_CLOUD,
                                      AZURE_GERMAN_CLOUD,
                                      AZURE_PUBLIC_CLOUD,
@@ -82,3 +83,12 @@ class AzureClientFactory:
     def subscription_id(self):
         """Subscription ID property."""
         return self._subscription_id
+
+    def cloud_storage_account(self, resource_group_name, storage_account_name):
+        """Get a cloud storage account."""
+        storage_account_keys = self.storage_client.storage_accounts.list_keys(
+            resource_group_name, storage_account_name)
+        # Add check for keys and a get value
+        key = storage_account_keys.keys[0]
+        return CloudStorageAccount(
+            storage_account_name, key.value)

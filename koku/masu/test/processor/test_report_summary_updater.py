@@ -21,17 +21,10 @@ import datetime
 import uuid
 from unittest.mock import patch
 
-import pytz
-
-from masu.external import (
-    AMAZON_WEB_SERVICES,
-    AWS_LOCAL_SERVICE_PROVIDER,
-    OPENSHIFT_CONTAINER_PLATFORM,
-    OCP_LOCAL_SERVICE_PROVIDER,
-)
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
+from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.processor.report_summary_updater import (
     ReportSummaryUpdater,
@@ -69,6 +62,34 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         updater = ReportSummaryUpdater(self.schema, self.aws_test_provider_uuid)
         self.assertIsInstance(updater._updater, AWSReportSummaryUpdater)
+
+        updater.update_daily_tables(self.today, self.tomorrow)
+        mock_daily.assert_called_with(self.today, self.tomorrow)
+        mock_update.assert_not_called()
+        mock_cloud.assert_not_called()
+
+        updater.update_summary_tables(self.today, self.tomorrow)
+        mock_update.assert_called_with(self.today, self.tomorrow)
+        mock_cloud.assert_called_with(mock_start, mock_end)
+
+    @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
+    )
+    @patch(
+        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables'
+    )
+    @patch(
+        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables'
+    )
+    def test_azure_route(self, mock_daily, mock_update, mock_cloud):
+        """Test that Azure report updating works as expected."""
+        mock_start = 1
+        mock_end = 2
+        mock_daily.return_value = (mock_start, mock_end)
+        mock_update.return_value = (mock_start, mock_end)
+
+        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid)
+        self.assertIsInstance(updater._updater, AzureReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
