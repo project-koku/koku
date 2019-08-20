@@ -24,6 +24,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
+from azure.storage import CloudStorageAccount
 from django.test import TestCase
 from faker import Faker
 from providers.azure.client import AzureClientFactory
@@ -99,3 +100,18 @@ class AzureClientFactoryTestCase(TestCase):
                                  client_secret=FAKE.word(),
                                  cloud=random.choice(self.clouds))
         self.assertTrue(obj.subscription_id, subscription_id)
+
+    @patch('providers.azure.client.ServicePrincipalCredentials.set_token')
+    def test_cloud_storage_account(self, _):
+        """Test the cloud_storage_account method."""
+        subscription_id = FAKE.uuid4()
+        resource_group_name = FAKE.word()
+        storage_account_name = FAKE.word()
+        obj = AzureClientFactory(subscription_id=subscription_id,
+                                 tenant_id=FAKE.uuid4(),
+                                 client_id=FAKE.uuid4(),
+                                 client_secret=FAKE.word(),
+                                 cloud=random.choice(self.clouds))
+        with patch.object(StorageManagementClient, 'storage_accounts', return_value=None):
+            cloud_account = obj.cloud_storage_account(resource_group_name, storage_account_name)
+            self.assertTrue(isinstance(cloud_account, CloudStorageAccount))
