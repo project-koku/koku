@@ -17,17 +17,19 @@
 
 """Processor for Azure Cost Usage Reports."""
 import csv
+import gzip
 import io
-import json
 import logging
-import pytz
 from datetime import datetime
+
+import pytz
 from dateutil import parser
 
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
-from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
@@ -36,6 +38,7 @@ from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureMeter,
                                              AzureService)
 LOG = logging.getLogger(__name__)
+
 
 # pylint: disable=too-few-public-methods
 class ProcessedAzureReport:
@@ -52,7 +55,6 @@ class ProcessedAzureReport:
         self.services = {}
         self.line_items = []
 
-
     def remove_processed_rows(self):
         """Clear a batch of rows from their containers."""
         self.bills = {}
@@ -60,7 +62,6 @@ class ProcessedAzureReport:
         self.meters = {}
         self.services = {}
         self.line_items = []
-
 
 
 # pylint: disable=too-many-instance-attributes
@@ -137,7 +138,6 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): A cost entry bill object id
 
         """
-
         table_name = AzureCostEntryBill
         row_date = row.get('UsageDateTime')
 
@@ -156,7 +156,6 @@ class AzureReportProcessor(ReportProcessorBase):
             return self.existing_bill_map[key]
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
-
 
         data['provider_id'] = self._provider_id
         data['billing_period_start'] = datetime.strftime(start_date_utc, '%Y-%m-%d %H:%M%z')
@@ -294,7 +293,6 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         return tags_string
 
-
     # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(self,
                                      row,
@@ -307,11 +305,10 @@ class AzureReportProcessor(ReportProcessorBase):
 
         Args:
             row (dict): A dictionary representation of a CSV file row
-            cost_entry_id (str): A processed cost entry object id
             bill_id (str): A processed cost entry bill object id
             product_id (str): A processed product object id
-            pricing_id (str): A processed pricing object id
-            reservation_id (str): A processed reservation object id
+            meter_id (str): A processed meter object id
+            service_id (str): A processed object object id
 
         Returns:
             (None)
@@ -358,8 +355,23 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
+    def _get_file_opener(self, compression):
+        """Get the file opener for the file's compression.
+
+        Args:
+            compression (str): The compression format for the file.
+
+        Returns:
+            (file opener, str): The proper file stream handler for the
+                compression and the read mode for the file
+
+        """
+        if compression == GZIP_COMPRESSED:
+            return gzip.open, 'rt'
+        return open, 'r'    # assume uncompressed by default
+
     def process(self):
-        """Process CUR file.
+        """Process cost/usage file.
 
         Returns:
             (None)
@@ -367,12 +379,13 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         row_count = 0
         # pylint: disable=invalid-name
-        with open(self._report_path, 'r', encoding='utf-8-sig') as f:
+        opener, mode = self._get_file_opener(self._compression)
+        with opener(self._report_path, mode, encoding='utf-8-sig') as f:
             with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
-                    bill_id = self.create_cost_entry_objects(row, report_db)
+                    _ = self.create_cost_entry_objects(row, report_db)
                 if len(self.processed_report.line_items) >= self._batch_size:
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),

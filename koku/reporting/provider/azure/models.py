@@ -29,7 +29,7 @@ class AzureCostEntryBill(models.Model):
     """
 
     class Meta:
-        """Meta for AzureBill."""
+        """Meta for AzureCostEntryBill."""
 
         unique_together = ('subscription_guid', 'billing_period_start',
                            'provider_id')

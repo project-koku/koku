@@ -35,7 +35,7 @@ LOG = logging.getLogger(__name__)
 
 # pylint: disable=too-many-public-methods
 class AzureReportDBAccessor(ReportDBAccessorBase):
-    """Class to interact with customer reporting tables."""
+    """Class to interact with Azure Report reporting tables."""
 
     def __init__(self, schema, column_map):
         """Establish the database connection.
@@ -61,32 +61,8 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
                      bill['provider_id']): bill['id']
                     for bill in bills}
 
-    # pylint: disable=invalid-name
-    def get_cost_entry_bills_query_by_provider(self, provider_id):
-        """Return all cost entry bills for the specified provider."""
-        table_name = AzureCostEntryBill
-        with schema_context(self.schema):
-            return self._get_db_obj_query(table_name)\
-                .filter(provider_id=provider_id)
-
-    def bills_for_provider_id(self, provider_id, start_date=None):
-        """Return all cost entry bills for provider_id on date."""
-        bills = self.get_cost_entry_bills_query_by_provider(provider_id)
-        if start_date:
-            bill_date = parse(start_date).replace(day=1)
-            bills = bills.filter(billing_period_start=bill_date)
-        return bills
-
-    def get_lineitem_query_for_billid(self, bill_id):
-        """Get the AWS cost entry line item for a given bill query."""
-        table_name = AzureCostEntryLineItem
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
-            return line_item_query
-
     def get_products(self):
-        """Make a mapping of product sku to product objects."""
+        """Make a mapping of product objects."""
         table_name = AzureCostEntryProduct
         with schema_context(self.schema):
             columns = ['id', 'instance_id', 'resource_location']
