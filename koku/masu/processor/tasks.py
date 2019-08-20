@@ -133,15 +133,11 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
         None
 
     """
-    stmt = ('remove_expired_data called with args:\n'
-            ' schema_name: {},\n'
-            ' provider: {},\n'
-            ' simulate: {},\n'
-            ' provider_id: {}')
-    stmt = stmt.format(schema_name,
-                       provider,
-                       simulate,
-                       provider_id)
+    stmt = (f'remove_expired_data called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider: {provider},\n'
+            f' simulate: {simulate},\n'
+            f' provider_id: {provider_id}')
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
@@ -199,17 +195,12 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
 
-    stmt = ('update_summary_tables called with args:\n'
-            ' schema_name: {},\n'
-            ' provider: {},\n'
-            ' start_date: {},\n'
-            ' end_date: {},\n'
-            ' manifest_id: {}')
-    stmt = stmt.format(schema_name,
-                       provider,
-                       start_date,
-                       end_date,
-                       manifest_id)
+    stmt = (f'update_summary_tables called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider: {provider},\n'
+            f' start_date: {start_date},\n'
+            f' end_date: {end_date},\n'
+            f' manifest_id: {manifest_id}')
     LOG.info(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
@@ -277,11 +268,9 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     """
     worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
 
-    stmt = ('update_charge_info called with args:\n'
-            ' schema_name: {},\n'
-            ' provider_uuid: {}')
-    stmt = stmt.format(schema_name,
-                       provider_uuid)
+    stmt = (f'update_charge_info called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider_uuid: {provider_uuid}')
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
