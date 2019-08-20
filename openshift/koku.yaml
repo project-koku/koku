@@ -75,7 +75,7 @@ objects:
         uri: ${SOURCE_REPOSITORY_URL}
       type: Git
     strategy:
-      dockerStrategy:
+      sourceStrategy:
         env:
           - name: PIP_INDEX_URL
             value: ${PIP_INDEX_URL}
@@ -113,6 +113,7 @@ objects:
           kind: ImageStreamTag
           name: python-36-centos7:latest
           namespace: ${NAMESPACE}
+        forcePull: true
       type: Source
     triggers:
     - type: ConfigChange
