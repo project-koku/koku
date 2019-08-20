@@ -110,10 +110,6 @@ ENV/
 # Local Postgres data
 pg_data/
 
-# apidoc
-apidoc/*
-!apidoc/.apidocignore
-
 # static files
 koku/staticfiles/
 scripts/aws_cost_usage/

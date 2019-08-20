@@ -16,35 +16,40 @@
 #
 
 """View for openapi documentation."""
-import gzip
 import json
+import logging
+import os
 
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, permission_classes, renderer_classes
+from rest_framework.decorators import (api_view,
+                                       permission_classes,
+                                       renderer_classes)
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
 from koku.settings import STATIC_ROOT
 
-OPENAPI_FILE_PATH_DEFAULT = 'koku/staticfiles'
-OPENAPI_FILE_NAME = 'openapi.json.gz'
+LOG = logging.getLogger(__name__)
+OPENAPI_FILE_NAME = os.path.join(STATIC_ROOT, 'openapi.json')
 
 
-def get_api_json(path):
+def get_json(path):
     """Obtain API JSON data from file path."""
-    with gzip.open(path) as api_file:
-        data = json.load(api_file)
-        return data
+    json_data = None
+    with open(path) as json_file:
+        try:
+            json_data = json.load(json_file)
+        except (IOError, json.JSONDecodeError) as exc:
+            LOG.exception(exc)
+    return json_data
 
 
 @api_view(['GET'])
 @permission_classes((permissions.AllowAny,))
 @renderer_classes((JSONRenderer,))
-def openapi(request):
+def openapi(_):
     """Provide the openapi information."""
-    openapidoc = '{}/{}'.format(STATIC_ROOT, OPENAPI_FILE_NAME)
-    try:
-        data = get_api_json(openapidoc)
+    data = get_json(OPENAPI_FILE_NAME)
+    if data:
         return Response(data)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    return Response(status=status.HTTP_404_NOT_FOUND)

@@ -49,7 +49,6 @@ Please use \`make <target>' where <target> is one of:
 --- Commands using local services ---
   create-test-customer     create a test customer and tenant in the database
   collect-static           collect static files to host
-  gen-apidoc               create api documentation
   make-migrations          make migrations for the database
   requirements             generate Pipfile.lock and RTD requirements
   remove-db                remove local directory: $(TOPDIR)/pg_data
@@ -136,12 +135,6 @@ create-test-customer: run-migrations
 
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
-
-gen-apidoc:
-	rm -fr $(PYDIR)/staticfiles/
-	rm -fr $(APIDOC)
-	apidoc -i $(PYDIR) -o $(APIDOC)
-	cp docs/source/specs/openapi.json $(APIDOC)/
 
 make-migrations:
 	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models

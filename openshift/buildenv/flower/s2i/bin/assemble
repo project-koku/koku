@@ -30,12 +30,6 @@ function install_pipenv() {
   ln -s $VENV_DIR/bin/pipenv $HOME/.local/bin/pipenv
 }
 
-function install_apidoc() {
-  echo "---> Installing apidoc tool ..."
-  npm install apidoc -g
-}
-
-
 set -e
 
 shopt -s dotglob
@@ -65,7 +59,6 @@ elif [[ -f setup.py ]]; then
 fi
 
 if [[ -f apidoc.json ]]; then
-  install_apidoc
   echo "---> Generating apidoc ..."
   make gen-apidoc
 fi

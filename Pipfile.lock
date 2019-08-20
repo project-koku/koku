@@ -420,7 +420,7 @@
         },
         "azure-mgmt-network": {
             "hashes": [
-                "sha256:57965d5c5182bcbe4ef70c23319a2714a5f473c650e18078ac055ad12c70e913",
+                "sha256:808a9927d24f73783463eceaadb3bf40e9836b3c3ce02275cd30847f8e6ab9c1",
                 "sha256:c083f9da1af69ca8524d0a7e2f0235b025a628ad00308072c1e84662312a532a"
             ],
             "version": "==2.7.0"
@@ -664,10 +664,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:0db52327f8d2891cca4c86dfc5cb3b4821d37b84c34804c26b82e775668490f5",
-                "sha256:7983b7624b3f71648a7101fbcb437e3d599b4f79b754e89220e574482a2f8298"
+                "sha256:4d810eec1ea4f182be9d48a4a834d92b6360069fb541bfc2f8814d5acba31d59",
+                "sha256:9d7f6e468592e0d296edddb26bb7d02b5caaa7a192d7b0b1d8957432e6270cc1"
             ],
-            "version": "==1.12.210"
+            "version": "==1.12.211"
         },
         "bs4": {
             "hashes": [
@@ -1037,10 +1037,10 @@
         },
         "redis": {
             "hashes": [
-                "sha256:0607faf60d44768e17f65e506fe390679b54be6fd6d5f0c2d28f3ebf4f0535e7",
-                "sha256:9c96c5bf11a8c47eb33cefdefd41c47cf1ff68db41c51b56b3ec7938b7c627f7"
+                "sha256:98a22fb750c9b9bb46e75e945dc3f61d0ab30d06117cbb21ff9cd1d315fedd3b",
+                "sha256:c504251769031b0dd7dd5cf786050a6050197c6de0d37778c80c08cb04ae8275"
             ],
-            "version": "==3.3.7"
+            "version": "==3.3.8"
         },
         "requests": {
             "hashes": [
