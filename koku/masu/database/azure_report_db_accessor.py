@@ -18,14 +18,12 @@
 import logging
 
 
-from dateutil.parser import parse
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
-                                             AzureCostEntryLineItem,
                                              AzureCostEntryProduct,
                                              AzureMeter,
                                              AzureService)
