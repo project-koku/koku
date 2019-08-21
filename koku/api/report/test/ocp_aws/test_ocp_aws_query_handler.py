@@ -19,7 +19,7 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
+from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary

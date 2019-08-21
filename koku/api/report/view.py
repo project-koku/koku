@@ -28,12 +28,12 @@ from tenant_schemas.utils import tenant_context
 
 from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.models import Tenant, User
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
-from api.report.ocp_aws.ocp_aws_query_handler import OCPAWSReportQueryHandler
+from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.ocp.queries import OCPTagQueryHandler
