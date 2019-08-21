@@ -52,5 +52,5 @@ AZURE_REPORT_TABLE_MAP = {
     'product': 'reporting_azurecostentryproduct',
     'meter': 'reporting_azuremeter',
     'service': 'reporting_azureservice',
-    'line_item': 'reporting_azurecostentrylineitem'
+    'line_item': 'reporting_azurecostentrylineitem_daily'
 }

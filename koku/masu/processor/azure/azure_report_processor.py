@@ -33,7 +33,7 @@ from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
-                                             AzureCostEntryLineItem,
+                                             AzureCostEntryLineItemDaily,
                                              AzureCostEntryProduct,
                                              AzureMeter,
                                              AzureService)
@@ -311,7 +311,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        table_name = AzureCostEntryLineItem
+        table_name = AzureCostEntryLineItemDaily
         data = self._get_data_for_table(row, table_name._meta.db_table)
         tag_str = ''
 

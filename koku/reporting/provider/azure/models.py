@@ -97,12 +97,17 @@ class AzureService(models.Model):
     additional_info = JSONField(null=True)
 
 
-class AzureCostEntryLineItem(models.Model):
+class AzureCostEntryLineItemDaily(models.Model):
     """A line item in a cost entry.
 
     This identifies specific costs and usage of Azure resources.
 
     """
+
+    class Meta:
+        """Meta for AWSCostEntryLineItemDailySummary."""
+
+        db_table = 'reporting_azurecostentrylineitem_daily'
 
     id = models.BigAutoField(primary_key=True)
 

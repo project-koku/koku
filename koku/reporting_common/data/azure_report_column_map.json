@@ -134,35 +134,35 @@
     },
     {
         "database_column":"tags",
-        "database_table":"reporting_azurecostentrylineitem",
+        "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"Tags",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
     {
         "database_column":"usage_date_time",
-        "database_table":"reporting_azurecostentrylineitem",
+        "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"UsageDateTime",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
     {
         "database_column":"usage_quantity",
-        "database_table":"reporting_azurecostentrylineitem",
+        "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"UsageQuantity",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
     {
         "database_column":"pretax_cost",
-        "database_table":"reporting_azurecostentrylineitem",
+        "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"PreTaxCost",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
     {
         "database_column":"offer_id",
-        "database_table":"reporting_azurecostentrylineitem",
+        "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"OfferId",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
