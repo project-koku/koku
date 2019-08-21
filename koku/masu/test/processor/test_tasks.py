@@ -867,13 +867,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         self.assertEqual(result_start_date, expected_start_date)
         self.assertEqual(result_end_date, expected_end_date)
 
-    def test_update_charge_info_aws(self):
-        """Test that update_charge_info is not called for AWS."""
-        update_charge_info(
-            schema_name=self.schema, provider_uuid=self.aws_test_provider_uuid
-        )
-        # FIXME: no asserts on test
-
     @patch('masu.processor.tasks.update_summary_tables')
     def test_get_report_data_for_all_providers(self, mock_update):
         """Test GET report_data endpoint with provider_uuid=*."""
