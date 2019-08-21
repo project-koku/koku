@@ -105,9 +105,48 @@ class AzureCostEntryLineItemDaily(models.Model):
     """
 
     class Meta:
-        """Meta for AWSCostEntryLineItemDailySummary."""
+        """Meta for AzureCostEntryLineItemDaily."""
 
         db_table = 'reporting_azurecostentrylineitem_daily'
+
+    id = models.BigAutoField(primary_key=True)
+
+    cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
+                                        on_delete=models.PROTECT)
+
+    cost_entry_product = models.ForeignKey('AzureCostEntryProduct',
+                                           on_delete=models.PROTECT, null=True)
+
+    meter = models.ForeignKey('AzureMeter',
+                              on_delete=models.PROTECT, null=True)
+
+    service = models.ForeignKey('AzureService',
+                                on_delete=models.PROTECT, null=True)
+
+    tags = JSONField(null=True)
+
+    usage_date_time = models.DateTimeField(null=False)
+
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9,
+                                         null=True)
+
+    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
+
+    offer_id = models.PositiveIntegerField(null=True)
+
+
+class AzureCostEntryLineItemDailySummary(models.Model):
+    """A line item in a cost entry.
+
+    This identifies specific costs and usage of Azure resources.
+
+    """
+
+    class Meta:
+        """Meta for AzureCostEntryLineItemDailySummary."""
+
+        db_table = 'reporting_azurecostentrylineitem_daily_summary'
 
     id = models.BigAutoField(primary_key=True)
 
