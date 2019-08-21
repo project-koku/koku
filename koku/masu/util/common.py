@@ -23,6 +23,7 @@ from os import listdir, remove
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
+                           AZURE,
                            LISTEN_INGEST,
                            OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM,
@@ -66,6 +67,7 @@ def ingest_method_for_provider(provider):
     ingest_map = {
         AMAZON_WEB_SERVICES: POLL_INGEST,
         AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        AZURE: POLL_INGEST,
         OCP_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }

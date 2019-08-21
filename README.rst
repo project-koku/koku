@@ -24,7 +24,6 @@ Prerequisites
 * Docker
 * PostgreSQL
 * Node.js
-* apiDoc
 
 For Mac OSX
 ^^^^^^^^^^^
@@ -40,10 +39,6 @@ For Mac OSX
     Install Node.js: ::
 
         brew install node
-
-    Install apiDoc: ::
-
-        npm install apidoc -g
 
 
 Development
@@ -134,15 +129,9 @@ If a docker container running Postgres is not feasible, it is possible to run Po
 API Documentation Generation
 ----------------------------
 
-To generate and host the API documentation locally you need to `Install APIDoc`_.
-
 Generate the project API documenttion by running the following command ::
 
   make gen-apidoc
-
-In order to host the docs locally you need to collect the static files ::
-
-  make collect-static
 
 Server
 ^^^^^^
@@ -179,7 +168,6 @@ Please refer to Contributing_.
 .. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
 .. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/10/static/tutorial-start.html
-.. _`Install APIDoc`: http://apidocjs.com/#install
 .. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
 .. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
 
