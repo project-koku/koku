@@ -234,7 +234,7 @@ class ReportObjectCreator:
         for column in columns:
             col_type = column_types[column]
 
-            # This catches serveral different types of IntegerFields such as:
+            # This catches several different types of IntegerFields such as:
             # PositiveIntegerField, BigIntegerField,
             if 'IntegerField' in col_type:
                 data[column] = self.fake.pyint()
@@ -249,6 +249,8 @@ class ReportObjectCreator:
                 data[column] = self.make_datetime_aware(self.fake.past_datetime())
             elif col_type == 'DecimalField':
                 data[column] = self.fake.pydecimal(0, 7, positive=True)
+            elif col_type == 'UUIDField':
+                data[column] = self.fake.uuid4()
             else:
                 data[column] = self.fake.pystr()[:8]
 
@@ -358,14 +360,11 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_cost_entry_product(self, product_family=None):
+    def create_azure_cost_entry_product(self):
         """Create an Azure cost entry product database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
-        #prod_fam = {
-        #    'product_family': product_family if product_family else random.choice(AWS_PRODUCT_FAMILY)
-        #}
-        #data.update(prod_fam)
+
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 

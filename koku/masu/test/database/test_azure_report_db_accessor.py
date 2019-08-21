@@ -106,7 +106,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
             self.assertIsInstance(products, dict)
             self.assertEqual(len(products.keys()), count)
-            expected_key = (first_entry.instance_id, first_entry.resource_location)
+            expected_key = first_entry.instance_id
             self.assertIn(expected_key, products)
 
     def test_get_meters(self):
@@ -120,7 +120,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
             self.assertIsInstance(meters, dict)
             self.assertEqual(len(meters.keys()), count)
-            expected_key = (first_entry.meter_id, first_entry.meter_category, first_entry.meter_region)
+            expected_key = first_entry.meter_id
             self.assertIn(expected_key, meters)
 
     def test_get_services(self):

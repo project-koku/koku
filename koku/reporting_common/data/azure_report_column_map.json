@@ -63,6 +63,13 @@
         "provider_type":"AZURE"
     },
     {
+        "database_column":"currency",
+        "database_table":"reporting_azuremeter",
+        "provider_column_name":"Currency",
+        "report_type":"AZURE-CUR",
+        "provider_type":"AZURE"
+    },
+    {
         "database_column":"meter_subcategory",
         "database_table":"reporting_azuremeter",
         "provider_column_name":"MeterSubcategory",
@@ -73,6 +80,13 @@
         "database_column":"meter_region",
         "database_table":"reporting_azuremeter",
         "provider_column_name":"MeterRegion",
+        "report_type":"AZURE-CUR",
+        "provider_type":"AZURE"
+    },
+    {
+        "database_column":"resource_rate",
+        "database_table":"reporting_azuremeter",
+        "provider_column_name":"UsageRate",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
@@ -112,16 +126,16 @@
         "provider_type":"AZURE"
     },
     {
-        "database_column":"tags",
-        "database_table":"reporting_azurecostentrylineitem",
-        "provider_column_name":"Tags",
+        "database_column":"additional_info",
+        "database_table":"reporting_azureservice",
+        "provider_column_name":"AdditionalInfo",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
     {
-        "database_column":"additional_info",
+        "database_column":"tags",
         "database_table":"reporting_azurecostentrylineitem",
-        "provider_column_name":"AdditionalInfo",
+        "provider_column_name":"Tags",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
@@ -136,13 +150,6 @@
         "database_column":"usage_quantity",
         "database_table":"reporting_azurecostentrylineitem",
         "provider_column_name":"UsageQuantity",
-        "report_type":"AZURE-CUR",
-        "provider_type":"AZURE"
-    },
-    {
-        "database_column":"resource_rate",
-        "database_table":"reporting_azurecostentrylineitem",
-        "provider_column_name":"UsageRate",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },

@@ -184,8 +184,8 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureCostEntryProduct
         instance_id = row.get('InstanceId')
-        resource_location = row.get('ResourceLocation')
-        key = (instance_id, resource_location)
+
+        key = (instance_id,)
 
         if key in self.processed_report.products:
             return self.processed_report.products[key]
@@ -202,8 +202,7 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data,
-            conflict_columns=['instance_id', 'resource_location']
+            data
         )
         self.processed_report.products[key] = product_id
         return product_id
@@ -220,9 +219,8 @@ class AzureReportProcessor(ReportProcessorBase):
         """
         table_name = AzureMeter
         meter_id = row.get('MeterId')
-        meter_category = row.get('MeterCategory')
-        meter_region = row.get('MeterRegion')
-        key = (meter_id, meter_category, meter_region)
+
+        key = (meter_id,)
 
         if key in self.processed_report.meters:
             return self.processed_report.meters[key]
@@ -239,8 +237,7 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         meter_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data,
-            conflict_columns=['meter_id', 'meter_category', 'meter_region']
+            data
         )
         self.processed_report.meters[key] = meter_id
         return meter_id

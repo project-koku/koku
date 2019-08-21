@@ -79,8 +79,7 @@ class AzureMeter(models.Model):
     resource_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                         null=True)
 
-    currency = models.CharField(max_length=10)
-
+    currency = models.CharField(max_length=10, null=False)
 
 
 class AzureService(models.Model):
