@@ -304,7 +304,7 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1E9, result_total)
 
-    @patch('api.report.aws.aws_query_handler.AWSReportQueryHandler')
+    @patch('api.report.aws.query_handler.AWSReportQueryHandler')
     def test_generic_report_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in generic report."""
         mock_handler.return_value.execute_query.return_value = self.report
