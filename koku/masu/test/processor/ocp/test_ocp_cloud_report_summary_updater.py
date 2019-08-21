@@ -132,7 +132,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         mock_ocp_on_aws.assert_called_with(start_date_str, end_date_str,
                                            fake_cluster, [])
-        # mock_ocp.assert_called_with(fake_cluster, start_date_str, end_date_str)
 
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_cost_summary_table')
@@ -163,7 +162,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(start_date_str, end_date_str)
         mock_ocp_on_aws.assert_called_with(start_date_str, end_date_str,
                                            fake_cluster_id, bill_ids)
-        # mock_ocp.assert_called_with(fake_cluster_id, start_date_str, end_date_str)
 
     @patch('masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary')
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_cost_summary_table')
@@ -187,7 +185,6 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             )
 
             updater.update_summary_tables(start_date_str, end_date_str)
-            # mock_ocp.assert_called()
             mock_ocp_on_aws.assert_not_called()
 
     def test_update_summary_tables(self):

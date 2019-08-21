@@ -177,6 +177,8 @@ class ReportSummaryUpdater:
             None
 
         """
+        start_date, end_date = self._format_dates(start_date, end_date)
+
         self._ocp_cloud_updater.update_cost_summary_table(
             start_date,
             end_date

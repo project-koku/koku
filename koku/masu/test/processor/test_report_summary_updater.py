@@ -52,6 +52,9 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         cls.tomorrow = (today + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
     @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_cost_summary_table'
+    )
+    @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
     @patch(
@@ -60,7 +63,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables'
     )
-    def test_aws_route(self, mock_daily, mock_update, mock_cloud):
+    def test_aws_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
         """Test that AWS report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -79,6 +82,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
+        updater.update_cost_summary_table(self.today, self.tomorrow)
+        mock_cloud_cost.assert_called_with(self.today, self.tomorrow)
+
+    @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_cost_summary_table'
+    )
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
@@ -88,7 +97,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables'
     )
-    def test_aws_local_route(self, mock_daily, mock_update, mock_cloud):
+    def test_aws_local_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
         """Test that AWS Local report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -106,6 +115,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
+        updater.update_cost_summary_table(self.today, self.tomorrow)
+        mock_cloud_cost.assert_called_with(self.today, self.tomorrow)
+
+    @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_cost_summary_table'
+    )
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
@@ -115,7 +130,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables'
     )
-    def test_ocp_route(self, mock_daily, mock_update, mock_cloud):
+    def test_ocp_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
         """Test that OCP report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -133,6 +148,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
+        updater.update_cost_summary_table(self.today, self.tomorrow)
+        mock_cloud_cost.assert_called_with(self.today, self.tomorrow)
+
+    @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_cost_summary_table'
+    )
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
@@ -142,7 +163,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables'
     )
-    def test_ocp_local_route(self, mock_daily, mock_update, mock_cloud):
+    def test_ocp_local_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
         """Test that OCP Local report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -159,6 +180,9 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_summary_tables(self.today, self.tomorrow)
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
+
+        updater.update_cost_summary_table(self.today, self.tomorrow)
+        mock_cloud_cost.assert_called_with(self.today, self.tomorrow)
 
     def test_bad_provider(self):
         """Test that an unimplemented provider throws an error."""
