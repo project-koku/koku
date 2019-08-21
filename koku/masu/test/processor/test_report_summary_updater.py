@@ -90,7 +90,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables'
     )
-    def test_azure_route(self, mock_daily, mock_update, mock_cloud):
+    def test_azure_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
         """Test that Azure report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -109,6 +109,12 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
+        updater.update_cost_summary_table(self.today, self.tomorrow)
+        mock_cloud_cost.assert_called_with(self.today, self.tomorrow)
+
+    @patch(
+        'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_cost_summary_table'
+    )
     @patch(
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
