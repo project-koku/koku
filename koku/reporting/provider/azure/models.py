@@ -53,15 +53,14 @@ class AzureCostEntryProduct(models.Model):
     class Meta:
         """Meta for AzureCostEntryProduct."""
 
-        unique_together = ('instance_id', 'resource_location')
-
         indexes = [
             models.Index(
                 fields=['resource_location'],
                 name='resource_location_idx',
             ),
         ]
-    instance_id = models.CharField(max_length=512, null=False)
+
+    instance_id = models.CharField(max_length=512, unique=True, null=False)
     resource_location = models.CharField(max_length=50, null=False)
     consumed_service = models.CharField(max_length=50, null=False)
     resource_type = models.CharField(max_length=50, null=False)
@@ -71,16 +70,17 @@ class AzureCostEntryProduct(models.Model):
 class AzureMeter(models.Model):
     """The Azure meter."""
 
-    class Meta:
-        """Meta for AzureMeter."""
-
-        unique_together = ('meter_id', 'meter_category', 'meter_region')
-
-    meter_id = models.CharField(max_length=50, null=False)
+    meter_id = models.UUIDField(editable=False, unique=True, null=False)
     meter_name = models.CharField(max_length=50, null=False)
     meter_category = models.CharField(max_length=50, null=True)
     meter_subcategory = models.CharField(max_length=50, null=True)
     meter_region = models.CharField(max_length=50, null=True)
+
+    resource_rate = models.DecimalField(max_digits=17, decimal_places=9,
+                                        null=True)
+
+    currency = models.CharField(max_length=10)
+
 
 
 class AzureService(models.Model):
@@ -93,8 +93,9 @@ class AzureService(models.Model):
 
     service_tier = models.CharField(max_length=50, null=False)
     service_name = models.CharField(max_length=50, null=False)
-    service_info1 = models.CharField(max_length=50, null=True)
-    service_info2 = models.CharField(max_length=50, null=True)
+    service_info1 = models.TextField(null=True)
+    service_info2 = models.TextField(null=True)
+    additional_info = JSONField(null=True)
 
 
 class AzureCostEntryLineItem(models.Model):
@@ -120,15 +121,10 @@ class AzureCostEntryLineItem(models.Model):
 
     tags = JSONField(null=True)
 
-    additional_info = JSONField(null=True)
-
     usage_date_time = models.DateTimeField(null=False)
 
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9,
                                          null=True)
-
-    resource_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                        null=True)
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                       null=True)
