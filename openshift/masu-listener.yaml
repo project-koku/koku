@@ -257,6 +257,9 @@ objects:
           volumeMounts:
           - mountPath: /var/tmp/masu/
             name: ${NAME}-listener-data
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
         volumes:
         - name: ssl-cert
           projected:
