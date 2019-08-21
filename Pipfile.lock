@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4f885ad965f013b697c5c17208230416713bd8c827f86a04997bd05aaca86221"
+            "sha256": "c73252aaa79595d475756620d9970ea10bab4e31a5fc0edcbda0bce5cf5e42cf"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -89,10 +89,10 @@
         },
         "azure-datalake-store": {
             "hashes": [
-                "sha256:10696c76716762739e5e77f25c1268314786cf8e999d6d8366af7245c82fc660",
-                "sha256:5bc560ee108a1824e03ab926fbe5302b84c1e8d5742fa3a31e4cc0733ab58543"
+                "sha256:55bcbec99a35a52ea291518dadfd94c3b645e66d05ce927228289b93979ad3a5",
+                "sha256:d8e72b60b52b7875c23e386af6a90a2db7f580f75627aa5ffbda18e186180d39"
             ],
-            "version": "==0.0.46"
+            "version": "==0.0.47"
         },
         "azure-eventgrid": {
             "hashes": [
@@ -602,11 +602,20 @@
             ],
             "version": "==0.20.6"
         },
+        "azure-storage": {
+            "hashes": [
+                "sha256:4c406422e3edd41920bb1f0c3930c34fee3eb0d55258ef7ec7308ccbb9385ad5",
+                "sha256:fb6212dcbed91b49d9637aa5e8888eafdfcd523b7e560c8044d2d838bbd3ca5f"
+            ],
+            "index": "pypi",
+            "version": "==0.36.0"
+        },
         "azure-storage-blob": {
             "hashes": [
                 "sha256:6577e9ebca6fd1cf47795f88a1f0949c003fae62eeb6479a05631b765cf73b80",
                 "sha256:f187a878e7a191f4e098159904f72b4146cf70e1aabaf6484ab4ba72fc6f252c"
             ],
+            "index": "pypi",
             "version": "==1.5.0"
         },
         "azure-storage-common": {
@@ -655,10 +664,10 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:4ef7ab3e5632d55ae91be8a0d404cf586f955c2dca972a6f761de793ddc14ea1",
-                "sha256:d90d0299dde2b7514586f01f11954c4c6acca58f1508827408690b201ccce8ac"
+                "sha256:4d810eec1ea4f182be9d48a4a834d92b6360069fb541bfc2f8814d5acba31d59",
+                "sha256:9d7f6e468592e0d296edddb26bb7d02b5caaa7a192d7b0b1d8957432e6270cc1"
             ],
-            "version": "==1.12.207"
+            "version": "==1.12.211"
         },
         "bs4": {
             "hashes": [
@@ -823,11 +832,11 @@
         },
         "docutils": {
             "hashes": [
-                "sha256:02aec4bd92ab067f6ff27a38a38a41173bf01bed8f89157768c1573f53e474a6",
-                "sha256:51e64ef2ebfb29cae1faa133b3710143496eca21c530f3f71424d77687764274",
-                "sha256:7a4bd47eaf6596e1295ecb11361139febe29b084a87bf005bf899f9a42edc3c6"
+                "sha256:6c4f696463b79f1fb8ba0c594b63840ebd41f059e92b31957c46b74a4599b6d0",
+                "sha256:9e4d7ecfc600058e07ba661411a2b7de2fd0fafa17d1a7f7361cd47b1175c827",
+                "sha256:a2aeea129088da402665e92e0b25b04b073c04b2dce4ab65caaa38b7ce2e1a99"
             ],
-            "version": "==0.14"
+            "version": "==0.15.2"
         },
         "drf-nested-routers": {
             "hashes": [
@@ -1028,10 +1037,10 @@
         },
         "redis": {
             "hashes": [
-                "sha256:0607faf60d44768e17f65e506fe390679b54be6fd6d5f0c2d28f3ebf4f0535e7",
-                "sha256:9c96c5bf11a8c47eb33cefdefd41c47cf1ff68db41c51b56b3ec7938b7c627f7"
+                "sha256:98a22fb750c9b9bb46e75e945dc3f61d0ab30d06117cbb21ff9cd1d315fedd3b",
+                "sha256:c504251769031b0dd7dd5cf786050a6050197c6de0d37778c80c08cb04ae8275"
             ],
-            "version": "==3.3.7"
+            "version": "==3.3.8"
         },
         "requests": {
             "hashes": [
@@ -1064,10 +1073,10 @@
         },
         "soupsieve": {
             "hashes": [
-                "sha256:72b5f1aea9101cf720a36bb2327ede866fd6f1a07b1e87c92a1cc18113cbc946",
-                "sha256:e4e9c053d59795e440163733a7fec6c5972210e1790c507e4c7b051d6c5259de"
+                "sha256:8662843366b8d8779dec4e2f921bebec9afd856a5ff2e82cd419acc5054a1a92",
+                "sha256:a5a6166b4767725fd52ae55fee8c8b6137d9a51e9f1edea461a062a759160118"
             ],
-            "version": "==1.9.2"
+            "version": "==1.9.3"
         },
         "sqlparse": {
             "hashes": [
@@ -1213,11 +1222,11 @@
         },
         "docutils": {
             "hashes": [
-                "sha256:02aec4bd92ab067f6ff27a38a38a41173bf01bed8f89157768c1573f53e474a6",
-                "sha256:51e64ef2ebfb29cae1faa133b3710143496eca21c530f3f71424d77687764274",
-                "sha256:7a4bd47eaf6596e1295ecb11361139febe29b084a87bf005bf899f9a42edc3c6"
+                "sha256:6c4f696463b79f1fb8ba0c594b63840ebd41f059e92b31957c46b74a4599b6d0",
+                "sha256:9e4d7ecfc600058e07ba661411a2b7de2fd0fafa17d1a7f7361cd47b1175c827",
+                "sha256:a2aeea129088da402665e92e0b25b04b073c04b2dce4ab65caaa38b7ce2e1a99"
             ],
-            "version": "==0.14"
+            "version": "==0.15.2"
         },
         "entrypoints": {
             "hashes": [
@@ -1506,11 +1515,11 @@
         },
         "sphinx": {
             "hashes": [
-                "sha256:22538e1bbe62b407cf5a8aabe1bb15848aa66bb79559f42f5202bbce6b757a69",
-                "sha256:f9a79e746b87921cabc3baa375199c6076d1270cee53915dbd24fdbeaaacc427"
+                "sha256:0d586b0f8c2fc3cc6559c5e8fd6124628110514fda0e5d7c82e682d749d2e845",
+                "sha256:839a3ed6f6b092bb60f492024489cc9e6991360fb9f52ed6361acd510d261069"
             ],
             "index": "pypi",
-            "version": "==2.1.2"
+            "version": "==2.2.0"
         },
         "sphinx-rtd-theme": {
             "hashes": [
@@ -1615,10 +1624,10 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:6cb2e4c18d22dbbe283d0a0c31bb7d90771a606b2cb3415323eea008eaee6a9d",
-                "sha256:909fe0d3f7c9151b2df0a2cb53e55bdb7b0d61469353ff7a49fd47b0f0ab9285"
+                "sha256:5e4d92f9a36359a745ddb113cabb662e6100e71072a1e566eb6ddfcc95fdb7ed",
+                "sha256:b6711690882013bc79e0eac55889d901596f0967165d80adfa338c5729db1c71"
             ],
-            "version": "==16.7.2"
+            "version": "==16.7.3"
         },
         "wrapt": {
             "hashes": [

@@ -22,7 +22,6 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 
 from django.conf import settings
 from django.conf.urls import include, url
-from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.urls import path
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX
@@ -38,5 +37,3 @@ urlpatterns = [
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('cost_models.urls')),
     path('', include('django_prometheus.urls')),
 ]
-
-urlpatterns += staticfiles_urlpatterns()

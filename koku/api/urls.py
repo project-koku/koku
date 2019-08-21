@@ -18,6 +18,7 @@ from django.conf.urls import include, url
 from rest_framework.routers import DefaultRouter
 
 from api.views import (CostModelMetricsMapViewSet,
+                       DataExportRequestViewSet,
                        ProviderViewSet,
                        UserPreferenceViewSet,
                        aws_costs,
@@ -37,6 +38,7 @@ from api.views import (CostModelMetricsMapViewSet,
                        volume)
 
 ROUTER = DefaultRouter()
+ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')

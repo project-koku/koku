@@ -9,13 +9,14 @@
             "url": "https://opensource.org/licenses/AGPL-3.0"
         }
     },
-    "tags": [{
+    "tags": [
+        {
             "name": "Provider",
             "description": "Operations about provider interaction"
         },
         {
-            "name": "Rate",
-            "description": "Operations about metered rates"
+            "name": "Cost Model",
+            "description": "Operations about cost model interaction"
         },
         {
             "name": "AWS Report",
@@ -36,6 +37,10 @@
         {
             "name": "Status",
             "description": "Operations about status"
+        },
+        {
+            "name": "Data Export Request",
+            "description": "Operations about data export requests"
         }
     ],
     "paths": {
@@ -68,6 +73,293 @@
                         }
                     }
                 }
+            }
+        },
+        "/costmodels/": {
+            "get": {
+                "tags": [
+                    "Cost Model"
+                ],
+                "summary": "List the cost models",
+                "operationId": "listCostModels",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "name": "provider_uuid",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter response on provider uuid.",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "source_type",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter response on provider source type.",
+                        "schema": {
+                          "type": "string"
+                        }
+                    },
+                    {
+                        "name": "name",
+                        "required": false,
+                        "in": "query",
+                        "description": "Filter response on cost model name.",
+                        "schema": {
+                          "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated list of cost model objects",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostModelPagination"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+
+            "post": {
+                "tags": [
+                    "Cost Model"
+                ],
+                "summary": "Create a new cost model.",
+                "operationId": "createCostModel",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CostModel"
+                            }
+                        }
+
+                    },
+                    "required": true
+                },
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the cost model",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostModelOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        },
+        "/costmodels/{cost_model_uuid}/": {
+            "get": {
+                "tags": [
+                    "Cost Model"
+                ],
+                "summary": "Get a Cost Model.",
+                "operationId": "getCostModel",
+                "parameters": [{
+                    "name": "cost_model_uuid",
+                    "in": "path",
+                    "description": "UUID of Cost Model to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "200": {
+                        "description": "A Cost Model object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostModelOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }                }
+            },
+            "put": {
+                "tags": [
+                    "Cost Model"
+                ],
+                "summary": "Update a Cost Model",
+                "operationId": "updateCostModel",
+                "parameters": [{
+                    "name": "cost_model_uuid",
+                    "in": "path",
+                    "description": "UUID of Cost Model to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CostModel"
+                            }
+                        }
+                    },
+                    "description": "Update to a Cost Model",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "A Cost Model object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CostModelOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]            },
+
+            "delete": {
+                "tags": [
+                    "Cost Model"
+                ],
+                "summary": "Delete a Cost Model",
+                "operationId": "deleteCostModel",
+                "parameters": [{
+                    "name": "cost_model_uuid",
+                    "in": "path",
+                    "description": "UUID of Cost Model to get",
+                    "required": true,
+                    "schema": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
+                }],
+                "responses": {
+                    "204": {
+                        "description": "Cost Model deleted"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
             }
         },
         "/preferences/": {
@@ -457,7 +749,7 @@
                     "403": {
                         "description": "Insufficent permissions to delete provider",
                         "content": {
-                            "*/*": {
+                            "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
@@ -467,7 +759,7 @@
                     "404": {
                         "description": "Not Found",
                         "content": {
-                            "*/*": {
+                            "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
@@ -477,7 +769,7 @@
                     "500": {
                         "description": "Unexpected Error",
                         "content": {
-                            "*/*": {
+                            "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Error"
                                 }
@@ -517,270 +809,6 @@
                                 }
                             }
                         }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            }
-        },
-        "/rates/": {
-            "post": {
-                "tags": [
-                    "Rate"
-                ],
-                "summary": "Create a rate",
-                "operationId": "createRate",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/RateIn"
-                            }
-                        }
-                    },
-                    "description": "Rate to add to a Rate",
-                    "required": true
-                },
-                "responses": {
-                    "201": {
-                        "description": "An object describing the rate",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RateOut"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            },
-            "get": {
-                "tags": [
-                    "Rate"
-                ],
-                "summary": "List the rates",
-                "operationId": "listRates",
-                "parameters": [{
-                        "$ref": "#/components/parameters/QueryOffset"
-                    },
-                    {
-                        "$ref": "#/components/parameters/QueryLimit"
-                    },
-                    {
-                        "name": "provider_uuid",
-                        "in": "query",
-                        "description": "Filter response on provider uuid.",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "A paginated list of rate objects",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RatePagination"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            }
-        },
-        "/rates/{rate_id}": {
-            "get": {
-                "tags": [
-                    "Rate"
-                ],
-                "summary": "Get a rate",
-                "operationId": "getRate",
-                "parameters": [{
-                    "name": "rate_id",
-                    "in": "path",
-                    "description": "ID of rate to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "uuid"
-                    }
-                }],
-                "responses": {
-                    "200": {
-                        "description": "A Rate object",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/RateOut"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            },
-            "delete": {
-                "tags": [
-                    "Rate"
-                ],
-                "summary": "Delete a rate",
-                "operationId": "deleteRate",
-                "parameters": [{
-                    "name": "rate_id",
-                    "in": "path",
-                    "description": "ID of rate to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "integer"
-                    }
-                }],
-                "responses": {
-                    "204": {
-                        "description": "Rate deleted"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [{
-                    "basic_auth": []
-                }]
-            },
-            "put": {
-                "tags": [
-                    "Rate"
-                ],
-                "summary": "Update a rate",
-                "operationId": "updateRate",
-                "parameters": [{
-                    "name": "rate_id",
-                    "in": "path",
-                    "description": "ID of rate to get",
-                    "required": true,
-                    "schema": {
-                        "type": "string",
-                        "format": "integer"
-                    }
-                }],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/RateIn"
-                            }
-                        }
-                    },
-                    "description": "Update to a Rate",
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "description": "Rate updated"
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1766,6 +1794,157 @@
                     "basic_auth": []
                 }]
             }
+        },
+        "/dataexportrequests/": {
+            "get": {
+                "tags": [
+                    "Data Export Request"
+                ],
+                "summary": "List the data export requests",
+                "operationId": "ListDataExportRequests",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DataExportRequestPagination"
+                                }
+                            }
+                        },
+                        "description": "List of DataExportRequest objects"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            },
+            "post": {
+                "tags": [
+                    "Data Export Request"
+                ],
+                "summary": "Create a data export request",
+                "operationId": "createDataExportRequest",
+                "parameters": [],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DataExportRequest"
+                            }
+                        }
+                    },
+                    "description": "Data export request to create",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "An object describing the data export request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DataExportRequestOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/dataexportrequests/{uuid}/": {
+            "get": {
+                "tags": [
+                    "Data Export Request"
+                ],
+                "summary": "Get a data export request",
+                "operationId": "retrieveDataExportRequest",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "ID of data export request to get",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DataExportRequestOut"
+                                }
+                            }
+                        },
+                        "description": "A DataExportRequest object"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
         }
     },
     "externalDocs": {
@@ -1863,6 +2042,76 @@
             }
         },
         "schemas": {
+            "CostModel": {
+                "properties": {
+
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "source_type": {
+                        "type": "string"
+                      },
+                      "provider_uuids": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        }
+                      },
+                      "rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Rate"
+                        }
+                      }
+                },
+                "required": [
+                    "name",
+                    "description",
+                    "source_type"
+                ]
+            },
+            "CostModelOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/CostModel"
+                }],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+
+            },
+            "CostModelPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CostModelOut"
+                        }
+                    }
+                }
+            },
             "Customer": {
                 "required": [
                     "account_id"
@@ -2130,11 +2379,11 @@
                     "metric"
                 ],
                 "properties": {
-                    "provider_uuids": {
-                        "type": "object",
-                        "example": [
-                            "da065ad8-7e68-4a12-b2b4-74f18d4d9fa0"
-                        ]
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4",
+                        "readOnly": true
                     },
                     "metric": {
                         "type": "object",
@@ -2144,8 +2393,24 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
-                    "tiered_rate": {
-                        "type": "object",
+                    "tiered_rates": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "value": {
+                                    "type": "number"
+                                },
+                                "usage": {
+                                    "type": "object"
+                                },
+                                "unit": {
+                                    "type": "string",
+                                    "enum": [
+                                        "USD"
+                                    ]
+                                }
+                            }
+                        },
                         "example": [{
                             "value": 0.22,
                             "unit": "USD",
@@ -2154,47 +2419,6 @@
                                 "usage_end": 10
                             }
                         }]
-                    }
-                }
-            },
-            "RateIn": {
-                "allOf": [{
-                    "$ref": "#/components/schemas/Rate"
-                }],
-                "required": [
-                    "metric"
-                ]
-            },
-            "RatePagination": {
-                "allOf": [{
-                    "$ref": "#/components/schemas/ListPagination"
-                }],
-                "required": [
-                    "data"
-                ],
-                "properties": {
-                    "data": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/RateOut"
-                        }
-                    }
-                }
-            },
-            "RateOut": {
-                "allOf": [{
-                    "$ref": "#/components/schemas/Rate"
-                }],
-                "required": [
-                    "uuid",
-                    "provider_uuids",
-                    "metric"
-                ],
-                "properties": {
-                    "uuid": {
-                        "type": "string",
-                        "format": "uuid",
-                        "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
                     }
                 }
             },
@@ -3669,6 +3893,68 @@
                     },
                     "user": {
                         "$ref": "#/components/schemas/UserOut"
+                    }
+                }
+            },
+            "DataExportRequest": {
+                "required": [
+                    "start_date",
+                    "end_date"
+                ],
+                "properties": {
+                    "start_date": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "format": "date"
+                    }
+                }
+            },
+            "DataExportRequestOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/DataExportRequest"
+                }],
+                "required": [
+                    "uuid",
+                    "user"
+                ],
+                "properties": {
+                    "uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "created_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "complete"
+                        ]
+                    }
+                }
+            },
+            "DataExportRequestPagination": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }],
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DataExportRequestOut"
+                        }
                     }
                 }
             }
