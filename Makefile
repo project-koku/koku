@@ -196,7 +196,7 @@ oc-create-celery-scheduler:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-celery-worker: OC_OBJECT := 'bc/$(NAME)-worker dc/$(NAME)-worker'
+oc-create-celery-worker: OC_OBJECT := 'sts/$(NAME)-worker'
 oc-create-celery-worker: OC_PARAMETER_FILE := celery-worker.env
 oc-create-celery-worker: OC_TEMPLATE_FILE := celery-worker.yaml
 oc-create-celery-worker: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
@@ -266,7 +266,7 @@ oc-create-koku-auth-cache:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
-oc-create-listener: OC_OBJECT := 'bc/$(NAME)-listener dc/$(NAME)-listener'
+oc-create-listener: OC_OBJECT := 'sts/$(NAME)-listener'
 oc-create-listener: OC_PARAMETER_FILE := masu-listener.env
 oc-create-listener: OC_TEMPLATE_FILE := masu-listener.yaml
 oc-create-listener: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
