@@ -22,7 +22,7 @@ from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
 from api.report.access_utils import update_query_parameters_for_openshift
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
+from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 
 
