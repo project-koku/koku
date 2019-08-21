@@ -220,7 +220,7 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
                 provider_uuid,
                 manifest_id,
                 start_date,
-                end_date)) # celery chain to the new update cost summary task
+                end_date))
 
 
 @celery.task(name='masu.processor.tasks.update_all_summary_tables',
@@ -279,7 +279,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 
 @celery.task(name='masu.processor.tasks.update_cost_summary_table',
              queue_name='reporting')
-def update_cost_summary_table(schema_name, provider_uuid, manifest_id, 
+def update_cost_summary_table(schema_name, provider_uuid, manifest_id,
                               start_date=None, end_date=None):
     """Do something"""
 

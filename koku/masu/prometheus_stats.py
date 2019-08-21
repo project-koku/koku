@@ -48,6 +48,7 @@ COST_SUMMARY_ATTEMPTS_COUNTER = Counter('cost_summary_attempts_count',
                                         'Number of cost summary update attempts',
                                         registry=WORKER_REGISTRY)
 
+
 def initialize_prometheus_exporter():
     """Start Prometheus stats HTTP server."""
     start_http_server(9999, registry=WORKER_REGISTRY)

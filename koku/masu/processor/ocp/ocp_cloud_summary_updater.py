@@ -54,7 +54,7 @@ class OCPCloudReportSummaryUpdater:
 
     def _get_ocp_infra_map(self, start_date, end_date):
         """Get the OCP on X infrastructure map.
-        
+
         Args:
             start_date (str) The date to start populating the table.
             end_date   (str) The date to end on.
@@ -70,13 +70,13 @@ class OCPCloudReportSummaryUpdater:
 
     def _get_infra_db_key_for_provider_type(self, provider_type):
         """Get infrastructure map provider key.
-        
+
         Args:
             provider_type (str) The provider
-            
+
         Returns:
             db_key (str) The infrastructure map provider key
-            
+
         """
         if provider_type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             db_key = 'aws_uuid'
@@ -170,7 +170,6 @@ class OCPCloudReportSummaryUpdater:
                 )
         else:
             LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
-
 
     def update_cost_summary_table(self, start_date, end_date):
         """Populate the cost summary tables.
