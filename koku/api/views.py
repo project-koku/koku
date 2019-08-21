@@ -18,6 +18,7 @@
 """API views for import organization"""
 # flake8: noqa
 # pylint: disable=unused-import
+from api.dataexport.views import DataExportRequestViewSet
 from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
