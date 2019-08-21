@@ -27,6 +27,7 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -183,8 +184,7 @@ class OCPCloudReportSummaryUpdater:
             None
 
         """
-        infra_map = self._get_ocp_infra_map(start_date, end_date)
-        cluster_id = self._get_ocp_cluster_id_for_provider(self._provider, start_date, end_date, infra_map)
+        cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         # This needs to always run regardless of whether the OpenShift
         # cluster is tied to a cloud provider
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:

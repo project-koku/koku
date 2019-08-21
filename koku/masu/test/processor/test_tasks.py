@@ -874,3 +874,17 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_all_summary_tables(start_date)
 
         mock_update.delay.assert_called_with(ANY, ANY, ANY, str(start_date), ANY)
+
+    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_cost_summary_table')
+    def test_update_cost_summary_table(self, mock_update):
+        """Tests that the updater updates the cost summary table."""
+        provider = 'OCP'
+        provider_aws_uuid = self.ocp_test_provider_uuid
+        manifest_id = None
+        start_date = self.start_date.replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        ) + relativedelta.relativedelta(months=-1)
+
+        update_cost_summary_table(self.schema, provider_aws_uuid, None)
+
+        mock_update.assert_called()
