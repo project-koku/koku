@@ -72,6 +72,10 @@ objects:
         containers:
         - name: ${NAME}-masu
           image: ${NAME}-masu
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
           env:
             - name: DISABLE_MIGRATE
               value: "true"

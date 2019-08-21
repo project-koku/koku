@@ -32,8 +32,8 @@ from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.aws.aws_query_handler import AWSReportQueryHandler
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.queries import strip_tag_prefix
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.aws.queries import AWSTagQueryHandler

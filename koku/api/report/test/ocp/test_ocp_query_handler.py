@@ -26,7 +26,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
-from api.report.ocp.ocp_query_handler import OCPReportQueryHandler
+from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -286,8 +286,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(query_data.get('total', {}).get('capacity', {}).get('value'),
                          total_capacity)
 
-    @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
-    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')
+    @patch('api.report.ocp.query_handler.ReportQueryHandler.add_deltas')
+    @patch('api.report.ocp.query_handler.OCPReportQueryHandler.add_current_month_deltas')
     def test_add_deltas_current_month(self, mock_current_deltas, mock_deltas):
         """Test that the current month method is called for deltas."""
         query_params = {}
@@ -304,8 +304,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         mock_current_deltas.assert_called()
         mock_deltas.assert_not_called()
 
-    @patch('api.report.ocp.ocp_query_handler.ReportQueryHandler.add_deltas')
-    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler.add_current_month_deltas')
+    @patch('api.report.ocp.query_handler.ReportQueryHandler.add_deltas')
+    @patch('api.report.ocp.query_handler.OCPReportQueryHandler.add_current_month_deltas')
     def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas):
         """Test that the super delta method is called for deltas."""
         query_params = {}
