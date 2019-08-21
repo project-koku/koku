@@ -44,6 +44,7 @@ class OCPCloudReportSummaryUpdater:
 
         Returns:
             None
+
         """
         self._schema_name = schema
         self._provider = provider

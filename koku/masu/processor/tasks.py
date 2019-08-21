@@ -175,6 +175,7 @@ def summarize_reports(reports_to_summarize):
             manifest_id=report.get('manifest_id')
         )
 
+
 @celery.task(name='masu.processor.tasks.update_summary_tables',
              queue_name='reporting')
 def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None,
@@ -281,8 +282,19 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
              queue_name='reporting')
 def update_cost_summary_table(schema_name, provider_uuid, manifest_id,
                               start_date=None, end_date=None):
-    """Do something"""
+    """Update derived costs summary table.
 
+    Args:
+        schema_name (str) The DB schema name.
+        provider_uuid (str) The provider uuid.
+        manifest_id (str) The manifest id.
+        start_date (str, Optional) - Start date of range to update derived cost.
+        end_date (str, Optional) - End date of range to update derived cost.
+
+    Returns:
+        None
+
+    """
     worker_stats.COST_SUMMARY_ATTEMPTS_COUNTER.inc()
 
     stmt = (f'update_cost_summary_table called with args:\n'
