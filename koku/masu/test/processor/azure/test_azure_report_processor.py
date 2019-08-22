@@ -103,12 +103,13 @@ class AzureReportProcessorTest(MasuTestCase):
         logging.disable(
             logging.NOTSET
         )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+        import pdb; pdb.set_trace()
+
         with self.assertLogs(
             'masu.processor.azure.azure_report_processor', level='INFO'
         ) as logger:
             self.processor.process()
             self.assertIn(expected, logger.output)
-        import pdb; pdb.set_trace()
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
             with schema_context(self.schema):
