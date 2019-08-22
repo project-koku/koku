@@ -3899,7 +3899,8 @@
             "DataExportRequest": {
                 "required": [
                     "start_date",
-                    "end_date"
+                    "end_date",
+                    "bucket_name"
                 ],
                 "properties": {
                     "start_date": {

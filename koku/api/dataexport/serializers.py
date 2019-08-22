@@ -26,7 +26,7 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             'created_timestamp',
             'updated_timestamp',
         )
-        create_only_fields = ('start_date', 'end_date')
+        create_only_fields = ('start_date', 'end_date', 'bucket_name')
         validators = [DataExportRequestValidator()]
 
     @transaction.atomic
