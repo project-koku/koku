@@ -18,7 +18,8 @@ class DataExportRequestViewSetTest(IamTestCase):
         """
         start_date = '2019-01-01'
         end_date = '2019-02-01'
-        post_data = {'start_date': start_date, 'end_date': end_date}
+        post_data = {'start_date': start_date, 'end_date': end_date,
+                     'bucket_name': 'my-test-bucket'}
 
         url = reverse('dataexportrequests-list')
         client = APIClient()
@@ -29,6 +30,7 @@ class DataExportRequestViewSetTest(IamTestCase):
         self.assertEqual(response_json['start_date'], start_date)
         self.assertEqual(response_json['end_date'], end_date)
         self.assertEqual(response_json['status'], 'pending')
+        self.assertEqual(response_json['bucket_name'], 'my-test-bucket')
 
         # Second request should fail.
         response = client.post(url, data=post_data, **self.headers)
@@ -43,7 +45,8 @@ class DataExportRequestViewSetTest(IamTestCase):
         """Test refusing a request with end date before start date."""
         start_date = '2019-02-01'
         end_date = '2019-01-01'
-        post_data = {'start_date': start_date, 'end_date': end_date}
+        post_data = {'start_date': start_date, 'end_date': end_date,
+                     'bucket_name': 'my-test-bucket'}
 
         url = reverse('dataexportrequests-list')
         client = APIClient()

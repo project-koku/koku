@@ -21,6 +21,7 @@ class DataExportRequest(models.Model):
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=PENDING)
     start_date = models.DateField(null=False)
     end_date = models.DateField(null=False)
+    bucket_name = models.CharField(max_length=63)
 
     class Meta:
         ordering = ('created_timestamp',)
@@ -54,6 +55,6 @@ class DataExportRequest(models.Model):
         return (
             f'{self.__class__.__name__}: uuid: {self.uuid}, '
             f'status: {self.status}, start_date: {start_date}, end_date: {end_date}, '
-            f'created_by: {created_by}, '
+            f'bucket_name: {self.bucket_name}, created_by: {created_by}, '
             f'created_timestamp: {created_timestamp}, updated_timestamp: {updated_timestamp}'
         )
