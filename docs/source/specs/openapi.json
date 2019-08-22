@@ -3909,6 +3909,9 @@
                     "end_date": {
                         "type": "string",
                         "format": "date"
+                    },
+                    "bucket_name": {
+                        "type": "string"
                     }
                 }
             },
@@ -3939,6 +3942,9 @@
                             "pending",
                             "complete"
                         ]
+                    },
+                    "bucket_name": {
+                        "type": "string"
                     }
                 }
             },
