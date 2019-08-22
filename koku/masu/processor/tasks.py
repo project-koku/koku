@@ -133,15 +133,11 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
         None
 
     """
-    stmt = ('remove_expired_data called with args:\n'
-            ' schema_name: {},\n'
-            ' provider: {},\n'
-            ' simulate: {},\n'
-            ' provider_id: {}')
-    stmt = stmt.format(schema_name,
-                       provider,
-                       simulate,
-                       provider_id)
+    stmt = (f'remove_expired_data called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider: {provider},\n'
+            f' simulate: {simulate},\n'
+            f' provider_id: {provider_id}')
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
@@ -179,6 +175,7 @@ def summarize_reports(reports_to_summarize):
             manifest_id=report.get('manifest_id')
         )
 
+
 @celery.task(name='masu.processor.tasks.update_summary_tables',
              queue_name='reporting')
 def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None,
@@ -199,17 +196,12 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
 
-    stmt = ('update_summary_tables called with args:\n'
-            ' schema_name: {},\n'
-            ' provider: {},\n'
-            ' start_date: {},\n'
-            ' end_date: {},\n'
-            ' manifest_id: {}')
-    stmt = stmt.format(schema_name,
-                       provider,
-                       start_date,
-                       end_date,
-                       manifest_id)
+    stmt = (f'update_summary_tables called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider: {provider},\n'
+            f' start_date: {start_date},\n'
+            f' end_date: {end_date},\n'
+            f' manifest_id: {manifest_id}')
     LOG.info(stmt)
 
     updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
@@ -218,12 +210,18 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
         updater.update_summary_tables(start_date, end_date)
 
     if provider_uuid:
-        update_charge_info.delay(
-            schema_name,
-            provider_uuid,
-            start_date,
-            end_date
-        )
+        update_charge_info.apply_async(
+            args=(
+                schema_name,
+                provider_uuid,
+                start_date,
+                end_date),
+            link=update_cost_summary_table.si(
+                schema_name,
+                provider_uuid,
+                manifest_id,
+                start_date,
+                end_date))
 
 
 @celery.task(name='masu.processor.tasks.update_all_summary_tables',
@@ -261,7 +259,7 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
 
     Args:
         schema_name (str) The DB schema name.
-        provider_uuid    (str) The provider uuid.
+        provider_uuid (str) The provider uuid.
         start_date (str, Optional) - Start date of range to update derived cost.
         end_date (str, Optional) - End date of range to update derived cost.
 
@@ -271,12 +269,39 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     """
     worker_stats.CHARGE_UPDATE_ATTEMPTS_COUNTER.inc()
 
-    stmt = ('update_charge_info called with args:\n'
-            ' schema_name: {},\n'
-            ' provider_uuid: {}')
-    stmt = stmt.format(schema_name,
-                       provider_uuid)
+    stmt = (f'update_charge_info called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider_uuid: {provider_uuid}')
     LOG.info(stmt)
 
     updater = ReportChargeUpdater(schema_name, provider_uuid)
     updater.update_charge_info(start_date, end_date)
+
+
+@celery.task(name='masu.processor.tasks.update_cost_summary_table',
+             queue_name='reporting')
+def update_cost_summary_table(schema_name, provider_uuid, manifest_id=None,
+                              start_date=None, end_date=None):
+    """Update derived costs summary table.
+
+    Args:
+        schema_name (str) The DB schema name.
+        provider_uuid (str) The provider uuid.
+        manifest_id (str) The manifest id.
+        start_date (str, Optional) - Start date of range to update derived cost.
+        end_date (str, Optional) - End date of range to update derived cost.
+
+    Returns:
+        None
+
+    """
+    worker_stats.COST_SUMMARY_ATTEMPTS_COUNTER.inc()
+
+    stmt = (f'update_cost_summary_table called with args:\n'
+            f' schema_name: {schema_name},\n'
+            f' provider_uuid: {provider_uuid}\n'
+            f' manifest_id: {manifest_id}')
+    LOG.info(stmt)
+
+    updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id)
+    updater.update_cost_summary_table(start_date, end_date)
