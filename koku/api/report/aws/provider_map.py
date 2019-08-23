@@ -144,11 +144,15 @@ class AWSProviderMap(ProviderMap):
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                         },
                         'delta_key': {'usage': Sum('usage_amount')},
-                        'filter': {
+                        'filter': [{
                             'field': 'product_family',
                             'operation': 'contains',
                             'parameter': 'Storage'
-                        },
+                        }, {
+                            'field': 'unit',
+                            'operation': 'exact',
+                            'parameter': 'GB-Mo'
+                        }],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
