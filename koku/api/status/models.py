@@ -24,6 +24,7 @@ import subprocess
 import sys
 
 from api import API_VERSION
+from koku.rbac import RbacService
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -97,3 +98,8 @@ class Status:
             logger.info('Modules: None')
         logger.info('Commit: %s', self.commit)
         logger.info('API Version: %s', self.api_version)
+
+    @property
+    def rbac_cache_ttl(self):
+        """Get the RBAC cache ttl."""
+        return RbacService().get_cache_ttl()
