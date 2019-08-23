@@ -25,7 +25,7 @@ def load_azure_report_map_data(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting_common', '0013_auto_20190819_2006'),
+        ('reporting_common', '0013_auto_20190823_1442'),
     ]
 
     operations = [
