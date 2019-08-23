@@ -140,7 +140,24 @@ class KokuCustomerOnboarder:
 
             cursor.execute(auth_sql)
             conn.commit()
-            print('Created provider authentication')
+            print('Created AWS provider authentication')
+
+            credentials = self.customer.get('providers')\
+                                         .get('azure_provider')\
+                                         .get('authentication')\
+                                         .get('credentials')
+
+            auth_azure_sql = """
+                INSERT INTO api_providerauthentication (uuid,
+                                                        credentials)
+                VALUES (%s, %s)
+                ;
+            """
+            values =[str(uuid4()), json_dumps(credentials)]
+
+            cursor.execute(auth_azure_sql, values)
+            conn.commit()
+            print('Created Azure provider authentication')
 
             provider_name = self.customer.get('providers')\
                                          .get('ocp_provider')\
@@ -155,7 +172,7 @@ class KokuCustomerOnboarder:
 
             cursor.execute(auth_ocp_sql)
             conn.commit()
-            print('Created provider authentication')
+            print('Created OCP provider authentication')
 
             bucket = self.customer.get('providers')\
                                   .get('aws_provider')\
@@ -168,7 +185,21 @@ class KokuCustomerOnboarder:
 
             cursor.execute(billing_sql)
             conn.commit()
-            print('Created provider billing source')
+            print('Created AWS provider billing source')
+
+            data_source = self.customer.get('providers')\
+                                  .get('azure_provider')\
+                                  .get('data_source')
+            billing_sql = """
+                INSERT INTO api_providerbillingsource (uuid, data_source)
+                VALUES (%s, %s)
+                ;
+            """
+            values =[str(uuid4()), json_dumps(data_source)]
+
+            cursor.execute(billing_sql, values)
+            conn.commit()
+            print('Created Azure provider billing source')
 
             provider_name = self.customer.get('providers')\
                                          .get('aws_provider')\
@@ -176,12 +207,14 @@ class KokuCustomerOnboarder:
             provider_sql = """
             INSERT INTO api_provider (uuid, name, type, authentication_id,
                                       billing_source_id, created_by_id,
-                                      customer_id, setup_)
+                                      customer_id, setup_complete)
             VALUES('{uuid}', '{name}', 'AWS', 1, 1, 1, 1, False)
                 ;
             """.format(uuid=uuid4(), name=provider_name)
 
             cursor.execute(provider_sql)
+
+            print('Created AWS provider')
 
             provider_name = self.customer.get('providers')\
                                          .get('ocp_provider')\
@@ -197,6 +230,20 @@ class KokuCustomerOnboarder:
             cursor.execute(provider_ocp_sql)
             conn.commit()
             print('Created OCP provider')
+
+            provider_name = self.customer.get('providers')\
+                                         .get('azure_provider')\
+                                         .get('provider_name')
+            provider_sql = """
+            INSERT INTO api_provider (uuid, name, type, authentication_id,
+                                      billing_source_id, created_by_id,
+                                      customer_id, setup_complete)
+            VALUES('{uuid}', '{name}', 'AZURE', 3, 2, 1, 1, False)
+                ;
+            """.format(uuid=uuid4(), name=provider_name)
+
+            cursor.execute(provider_sql)
+            print('Created Azure provider')
 
     def onboard(self):
         """Execute Koku onboarding steps."""

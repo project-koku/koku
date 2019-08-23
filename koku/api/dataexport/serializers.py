@@ -18,6 +18,7 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             'start_date',
             'end_date',
             'status',
+            'bucket_name',
         )
         read_only_fields = (
             'uuid',
@@ -25,7 +26,7 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             'created_timestamp',
             'updated_timestamp',
         )
-        create_only_fields = ('start_date', 'end_date')
+        create_only_fields = ('start_date', 'end_date', 'bucket_name')
         validators = [DataExportRequestValidator()]
 
     @transaction.atomic
@@ -37,5 +38,6 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             created_by=user,
             start_date=validated_data['start_date'],
             end_date=validated_data['end_date'],
+            bucket_name=validated_data['bucket_name'],
         )
         return dump_request
