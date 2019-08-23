@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0015_dataexportrequest'),
+        ('api', '0016_dataexportrequest_bucket_name'),
     ]
 
     operations = [
