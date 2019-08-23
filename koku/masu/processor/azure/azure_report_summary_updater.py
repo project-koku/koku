@@ -122,7 +122,6 @@ class AzureReportSummaryUpdater:
         with AzureReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
         with AzureReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            LOG.info("POPULATING TAG SUMMARY")
             accessor.populate_tags_summary_table()
             with schema_context(self._schema_name):
                 for bill in bills:
