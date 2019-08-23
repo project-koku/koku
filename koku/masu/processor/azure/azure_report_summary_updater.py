@@ -88,6 +88,8 @@ class AzureReportSummaryUpdater:
 
         """
         LOG.info('update_daily_tables for: %s-%s', str(start_date), str(end_date))
+        start_date, end_date = self._get_sql_inputs(start_date, end_date)
+
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
