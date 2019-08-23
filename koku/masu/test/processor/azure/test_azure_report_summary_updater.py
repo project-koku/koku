@@ -75,6 +75,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
 
     def test_update_daily_tables(self):
         """Test process method."""
+        import pdb; pdb.set_trace()
         self.updater.update_daily_tables(None, None)
 
     def test_update_summary_tables(self):

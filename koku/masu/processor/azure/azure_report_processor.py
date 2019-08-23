@@ -88,7 +88,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self.manifest_id = manifest_id
         self._report_name = report_path
-        self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
+        self._datetime_format = Config.AZURE_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         self._schema_name = schema_name

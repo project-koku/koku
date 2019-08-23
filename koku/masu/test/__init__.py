@@ -27,6 +27,13 @@ def load_db_map_data():
             map = ReportColumnMap(**entry)
             map.save()
 
+        data = pkgutil.get_data('reporting_common',
+                                'data/azure_report_column_map.json')
+        data = json.loads(data)
+        for entry in data:
+            map = ReportColumnMap(**entry)
+            map.save()
+
     if CostModelMetricsMap.objects.count() == 0:
         data = pkgutil.get_data('api',
                                 'metrics/data/cost_models_metric_map.json')

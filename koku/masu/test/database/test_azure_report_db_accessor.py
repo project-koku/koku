@@ -168,7 +168,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         for _ in range(10):
-            import pdb; pdb.set_trace() # Need to re-check this once column map problem is fixed
+            import pdb; pdb.set_trace() #TODO figure out why mappign isn't working
             bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
             product = self.creator.create_azure_cost_entry_product()
             meter = self.creator.create_azure_meter()
