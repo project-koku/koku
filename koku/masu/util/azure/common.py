@@ -16,16 +16,17 @@
 #
 
 """Common util functions."""
-import datetime
 import calendar
+import datetime
 import logging
 import re
 
 from tenant_schemas.utils import schema_context
-from masu.external import AZURE
+
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import AZURE
 
 LOG = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ def get_local_file_name(cur_key):
     local_file_name = cur_key.split('/')[-1]
 
     return local_file_name
+
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
     """
