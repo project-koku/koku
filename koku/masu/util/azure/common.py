@@ -16,9 +16,16 @@
 #
 
 """Common util functions."""
+import datetime
 import calendar
 import logging
 import re
+
+from tenant_schemas.utils import schema_context
+from masu.external import AZURE
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -85,3 +92,49 @@ def get_local_file_name(cur_key):
     local_file_name = cur_key.split('/')[-1]
 
     return local_file_name
+
+def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
+    """
+    Return the Azure bill IDs given a provider UUID.
+
+    Args:
+        provider_uuid (str): Provider UUID.
+        schema (str): Tenant schema
+        start_date (datetime, str): Start date for bill IDs.
+        end_date (datetime, str) End date for bill IDs.
+
+    Returns:
+        (list): Azure cost entry bill objects.
+
+    """
+    if isinstance(start_date, datetime.datetime):
+        start_date = start_date.replace(day=1)
+        start_date = start_date.strftime('%Y-%m-%d')
+    elif isinstance(start_date, str):
+        start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
+        start_date = start_date.replace(day=1)
+        start_date = start_date.strftime('%Y-%m-%d')
+    if isinstance(end_date, datetime.datetime):
+        end_date = end_date.strftime('%Y-%m-%d')
+
+    with ReportingCommonDBAccessor() as reporting_common:
+        column_map = reporting_common.column_map
+
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        provider = provider_accessor.get_provider()
+
+    if provider.type not in (AZURE,):
+        err_msg = 'Provider UUID is not an Azure type.  It is {}'.format(provider.type)
+        LOG.warning(err_msg)
+        return []
+
+    with AzureReportDBAccessor(schema, column_map) as report_accessor:
+        with schema_context(schema):
+            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            if start_date:
+                bills = bills.filter(billing_period_start__gte=start_date)
+            if end_date:
+                bills = bills.filter(billing_period_start__lte=end_date)
+            bills = bills.all()
+
+    return bills

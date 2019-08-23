@@ -16,11 +16,15 @@
 #
 """Database accessor for Azure report data."""
 import logging
+import pkgutil
+import uuid
 
+from dateutil.parser import parse
 
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
+from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
@@ -88,3 +92,55 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
             return {(service['service_tier'], service['service_name']): service['id']
                     for service in services}
+
+    # pylint: disable=invalid-name
+    def get_cost_entry_bills_query_by_provider(self, provider_id):
+        """Return all cost entry bills for the specified provider."""
+        table_name = AzureCostEntryBill
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .filter(provider_id=provider_id)
+
+    def bills_for_provider_id(self, provider_id, start_date=None):
+        """Return all cost entry bills for provider_id on date."""
+        bills = self.get_cost_entry_bills_query_by_provider(provider_id)
+        if start_date:
+            bill_date = parse(start_date).replace(day=1)
+            bills = bills.filter(billing_period_start=bill_date)
+        return bills
+
+    def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
+        """Populate the daily aggregated summary of line items table.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
+        summary_sql = pkgutil.get_data(
+            'masu.database',
+            'sql/reporting_azurecostentrylineitem_daily_summary.sql'
+        )
+        summary_sql = summary_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids),
+            schema=self.schema
+        )
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+
+    # pylint: disable=invalid-name
+    def populate_tags_summary_table(self):
+        """Populate the line item aggregated totals data table."""
+        table_name = AZURE_REPORT_TABLE_MAP['tags_summary']
+
+        agg_sql = pkgutil.get_data(
+            'masu.database',
+            f'sql/reporting_azuretags_summary.sql'
+        )
+        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
+        self._commit_and_vacuum(table_name, agg_sql)

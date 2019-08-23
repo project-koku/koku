@@ -149,13 +149,13 @@ services:
       privileged: true
       volumes:
         - '.:/koku'
-        # - '~/aws_local:/tmp/local_bucket'
-        # - '~/aws_local_0:/tmp/local_bucket_0'
-        # - '~/aws_local_1:/tmp/local_bucket_1'
-        # - '~/aws_local_2:/tmp/local_bucket_2'
-        # - '~/aws_local_3:/tmp/local_bucket_3'
-        # - '~/aws_local_4:/tmp/local_bucket_4'
-        # - '~/insights_local:/var/tmp/insights_local'
+        - '~/aws_local:/tmp/local_bucket'
+        - '~/aws_local_0:/tmp/local_bucket_0'
+        - '~/aws_local_1:/tmp/local_bucket_1'
+        - '~/aws_local_2:/tmp/local_bucket_2'
+        - '~/aws_local_3:/tmp/local_bucket_3'
+        - '~/aws_local_4:/tmp/local_bucket_4'
+        - '~/insights_local:/var/tmp/insights_local'
       links:
           - koku-rabbit
       depends_on:

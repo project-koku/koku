@@ -17,7 +17,7 @@
 
 """Models for Azure cost and usage entry tables."""
 
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 
 
@@ -173,3 +173,15 @@ class AzureCostEntryLineItemDailySummary(models.Model):
                                       null=True)
 
     offer_id = models.PositiveIntegerField(null=True)
+
+
+class AzureTagsSummary(models.Model):
+    """A collection of all current existing tag key and values."""
+
+    class Meta:
+        """Meta for AzureTagsSummary."""
+
+        db_table = 'reporting_azuretags_summary'
+
+    key = models.CharField(primary_key=True, max_length=253)
+    values = ArrayField(models.CharField(max_length=253))
