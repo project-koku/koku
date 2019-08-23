@@ -164,14 +164,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
     @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
     def test_populate_line_item_daily_summary_table(self, mock_vaccum):
         """Test that the daily summary table is populated."""
-        #ce_table_name = AZURE_REPORT_TABLE_MAP['cost_entry']
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
-
-        #ce_table = getattr(self.accessor.report_schema, ce_table_name)
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         for _ in range(10):
-            import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace() # Need to re-check this once column map problem is fixed
             bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
             product = self.creator.create_azure_cost_entry_product()
             meter = self.creator.create_azure_meter()
@@ -250,3 +247,13 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
             self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
             self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
+
+    def test_get_cost_entry_bills_by_date(self):
+        """Test that get bills by date functions correctly."""
+        table_name = AZURE_REPORT_TABLE_MAP['bill']
+        with schema_context(self.schema):
+            today = datetime.datetime.utcnow()
+            bill_start = today.replace(day=1).date()
+            bill_id = self.accessor._get_db_obj_query(table_name).first().id
+            bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
+            self.assertEqual(bill_id, bills[0].id)

@@ -143,3 +143,10 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         )
         agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
         self._commit_and_vacuum(table_name, agg_sql)
+
+    def get_cost_entry_bills_by_date(self, start_date):
+        """Return a cost entry bill for the specified start date."""
+        table_name = AzureCostEntryBill
+        with schema_context(self.schema):
+            return self._get_db_obj_query(table_name)\
+                .filter(billing_period_start=start_date)
