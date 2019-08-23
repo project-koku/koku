@@ -17,19 +17,11 @@
 
 """View for OpenShift Usage Reports."""
 
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
-from rest_framework.settings import api_settings
-
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.report.view import _generic_report
+from api.report.view import ReportView
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def memory(request):
+class OCPMemoryView(ReportView):
     """Get OpenShift memory usage data.
 
     @api {get} /cost-management/v1/reports/openshift/memory/ Get memory usage data
@@ -128,13 +120,13 @@ def memory(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    return _generic_report(request, report='memory', provider='ocp')
+
+    permission_classes = [OpenShiftAccessPermission]
+    report = 'memory'
+    provider = 'ocp'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def cpu(request):
+class OCPCpuView(ReportView):
     """Get OpenShift compute usage data.
 
     @api {get} /cost-management/v1/reports/openshift/compute/ Get compute usage data
@@ -237,13 +229,13 @@ def cpu(request):
         ,4.753333,0.862687,2018-10,openshift-web-console
 
     """
-    return _generic_report(request, report='cpu', provider='ocp')
+
+    permission_classes = [OpenShiftAccessPermission]
+    report = 'cpu'
+    provider = 'ocp'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def costs(request):
+class OCPCostView(ReportView):
     """Get OpenShift cost data.
 
     @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift costs data
@@ -357,13 +349,13 @@ def costs(request):
         0.000000,USD,2019-03,0.000000,0,namespace_hyper
 
     """
-    return _generic_report(request, report='costs', provider='ocp')
+
+    permission_classes = [OpenShiftAccessPermission]
+    report = 'costs'
+    provider = 'ocp'
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([OpenShiftAccessPermission])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def volume(request):
+class OCPVolumeView(ReportView):
     """Get OpenShift volume usage data.
 
     @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data
@@ -434,6 +426,8 @@ def volume(request):
         capacity,charge,date,project,request,units,usage
         13732.252982,,2019-02,metering-hccm,14058.333334,GB-Mo,283.455815
 
-
     """
-    return _generic_report(request, report='volume', provider='ocp')
+
+    permission_classes = [OpenShiftAccessPermission]
+    report = 'volume'
+    provider = 'ocp'
