@@ -12,22 +12,16 @@ services:
   - postgresql
 
 addons:
-  postgresql: '10'
-  apt:
-    packages:
-    - postgresql-10
-    - postgresql-client-10
+  postgresql: '9.6'
 
 env:
-  global:
-    DATABASE_SERVICE_NAME=POSTGRES_SQL
-    DATABASE_ENGINE=postgresql
-    DATABASE_NAME=koku_test
-    POSTGRES_SQL_SERVICE_HOST=localhost
-    POSTGRES_SQL_SERVICE_PORT=5433
-    DATABASE_USER=postgres
-    DATABASE_PASSWORD=''
-    PGPORT=5433
+  DATABASE_SERVICE_NAME=POSTGRES_SQL
+  DATABASE_ENGINE=postgresql
+  DATABASE_NAME=koku_test
+  POSTGRES_SQL_SERVICE_HOST=localhost
+  POSTGRES_SQL_SERVICE_PORT=5432
+  DATABASE_USER=postgres
+  DATABASE_PASSWORD=''
 
 before_install:
   - sudo rm -f /etc/boto.cfg
