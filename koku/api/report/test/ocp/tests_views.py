@@ -204,7 +204,7 @@ class OCPReportViewTest(IamTestCase):
         self.data_generator.remove_data_from_tenant()
         self.data_generator.remove_data_from_reporting_common()
 
-    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
+    @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_cpu_success(self, mock_handler):
         """Test OCP cpu generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
@@ -232,7 +232,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertIsInstance(response, Response)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    @patch('api.report.ocp.ocp_query_handler.OCPReportQueryHandler')
+    @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_mem_success(self, mock_handler):
         """Test OCP memory generic report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem

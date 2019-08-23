@@ -81,7 +81,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
-    """Provider View .
+    """Provider View.
 
     A viewset that provides default `create()`, `retrieve()`,
     and `list()` actions.

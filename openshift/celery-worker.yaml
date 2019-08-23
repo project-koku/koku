@@ -65,7 +65,7 @@ objects:
       spec:
         containers:
         - name: ${NAME}-worker
-          image: ${NAME}
+          image: ${IMAGE}
           imagePullPolicy: Always
           ports:
           - containerPort: ${{WORKER_PORT}}
@@ -315,6 +315,9 @@ objects:
           volumeMounts:
           - mountPath: /var/tmp/masu/
             name: ${NAME}-worker-data
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
         volumes:
         - name: ssl-cert
           projected:
@@ -354,6 +357,11 @@ parameters:
 - description: The OpenShift Namespace where the ImageStream resides.
   displayName: Namespace
   name: NAMESPACE
+  required: true
+  value: koku
+- description: The image the StatefulSet will use
+  displayName: Image
+  name: IMAGE
   required: true
   value: koku
 - description: Number of Celery Workers to create

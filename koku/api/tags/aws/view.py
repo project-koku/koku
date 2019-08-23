@@ -17,19 +17,12 @@
 
 """View for AWS tags."""
 
-from rest_framework.decorators import (api_view,
-                                       permission_classes,
-                                       renderer_classes)
 from rest_framework.permissions import AllowAny
-from rest_framework.settings import api_settings
 
-from api.report.view import _generic_report
+from api.report.view import ReportView
 
 
-@api_view(http_method_names=['GET'])
-@permission_classes([AllowAny])
-@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def aws_tags(request):
+class AWSTagView(ReportView):
     """Get AWS tags.
 
     @api {get} /cost-management/v1/tags/aws/
@@ -62,4 +55,7 @@ def aws_tags(request):
         }
 
     """
-    return _generic_report(request, provider='aws', report='tags')
+
+    permission_classes = [AllowAny]
+    provider = 'aws'
+    report = 'tags'
