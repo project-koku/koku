@@ -16,7 +16,12 @@
 #
 
 """Test the AzureReportDBAccessor utility object."""
+import datetime
 from tenant_schemas.utils import schema_context
+
+from unittest.mock import patch
+
+from django.db.models import Max, Min, Sum
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -136,3 +141,112 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEqual(len(services.keys()), count)
             expected_key = (first_entry.service_tier, first_entry.service_name)
             self.assertIn(expected_key, services)
+
+    def test_bills_for_provider_id(self):
+        """Test that bills_for_provider_id returns the right bills."""
+        bill1_date = datetime.datetime(2018, 1, 6, 0, 0, 0)
+        bill2_date = datetime.datetime(2018, 2, 3, 0, 0, 0)
+
+        self.creator.create_azure_cost_entry_bill(
+            bill_date=bill1_date, provider_id=self.azure_provider.id
+        )
+        bill2 = self.creator.create_azure_cost_entry_bill(
+            provider_id=self.azure_provider.id, bill_date=bill2_date
+        )
+
+        bills = self.accessor.bills_for_provider_id(
+            self.azure_provider.id, start_date=bill2_date.strftime('%Y-%m-%d')
+        )
+        with schema_context(self.schema):
+            self.assertEquals(len(bills), 1)
+            self.assertEquals(bills[0].id, bill2.id)
+
+    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
+    def test_populate_line_item_daily_summary_table(self, mock_vaccum):
+        """Test that the daily summary table is populated."""
+        #ce_table_name = AZURE_REPORT_TABLE_MAP['cost_entry']
+        summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        #ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+
+        for _ in range(10):
+            import pdb; pdb.set_trace()
+            bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
+            product = self.creator.create_azure_cost_entry_product()
+            meter = self.creator.create_azure_meter()
+            service = self.creator.create_azure_service()
+            self.creator.create_azure_cost_entry_line_item(
+                bill, product, meter, service
+            )
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(
+            self.azure_provider.id
+        )
+        with schema_context(self.schema):
+            bill_ids = [str(bill.id) for bill in bills.all()]
+
+        table_name = AZURE_REPORT_TABLE_MAP['line_item']
+        line_item_table = getattr(self.accessor.report_schema, table_name)
+        tag_query = self.accessor._get_db_obj_query(table_name)
+        possible_keys = []
+        possible_values = []
+        with schema_context(self.schema):
+            for item in tag_query:
+                possible_keys += list(item.tags.keys())
+                possible_values += list(item.tags.values())
+
+            li_entry = line_item_table.objects.all().aggregate(
+                Min('usage_date_time'), Max('usage_date_time')
+            )
+            start_date = li_entry['usage_date_time__min']
+            end_date = li_entry['usage_date_time__max']
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        with schema_context(self.schema):
+            initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+        self.accessor.populate_line_item_daily_summary_table(
+            start_date, end_date, bill_ids
+        )
+        with schema_context(self.schema):
+            self.assertNotEqual(query.count(), initial_count)
+
+            summary_entry = summary_table.objects.all().aggregate(
+                Min('usage_date_time'), Max('usage_date_time')
+            )
+            result_start_date = summary_entry['usage_date_time__min']
+            result_end_date = summary_entry['usage_date_time__max']
+
+            self.assertEqual(result_start_date, start_date)
+            self.assertEqual(result_end_date, end_date)
+
+            entry = query.order_by('-id')
+
+            summary_columns = [
+                'usage_date_time',
+                'usage_quantity',
+                'pretax_cost',
+                'offer_id',
+                'cost_entry_bill_id',
+                'cost_entry_product_id',
+                'meter_id',
+                'service_id',
+                'tags',
+            ]
+
+            for column in summary_columns:
+                self.assertIsNotNone(getattr(entry.first(), column))
+
+            found_keys = []
+            found_values = []
+            for item in query.all():
+                found_keys += list(item.tags.keys())
+                found_values += list(item.tags.values())
+
+            self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
+            self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
