@@ -19,6 +19,7 @@
 import shutil
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from pathlib import Path
 
 from masu.config import Config
 
@@ -148,6 +149,9 @@ class AzureReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest.get('Compression'), 'PLAIN')
         self.assertEqual(manifest.get('billingPeriod').get('start'), expected_start)
         self.assertEqual(manifest.get('billingPeriod').get('end'), expected_end)
+
+        expected_manifest_path = '{}/{}'.format(self.downloader._get_exports_data_directory(), 'Manifest.json')
+        self.assertTrue(Path(expected_manifest_path).exists())
 
     def test_get_manifest_unexpected_report_name(self):
         """Test that error is thrown when getting manifest with an unexpected report name."""

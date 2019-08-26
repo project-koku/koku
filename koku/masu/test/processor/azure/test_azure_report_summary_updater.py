@@ -80,7 +80,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
 
 
     @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
-    def test_update_summary_tables_with_manifest(self, mock_summary):
+    def test_azure_update_summary_tables_with_manifest(self, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest_accessor.commit()
@@ -116,7 +116,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(bill.summary_data_updated_datetime)
 
     @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
-    def test_update_summary_tables_new_bill(self, mock_summary):
+    def test_azure_update_summary_tables_new_bill(self, mock_summary):
         """Test that summary tables are run for a full month."""
 
         self.manifest.num_processed_files = self.manifest.num_total_files

@@ -19,8 +19,10 @@
 import csv
 import gzip
 import io
+import json
 import logging
 from datetime import datetime
+from os import listdir
 
 import pytz
 from dateutil import parser
@@ -32,6 +34,7 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
+from masu.util.common import clear_temp_directory
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDaily,
                                              AzureCostEntryProduct,
@@ -448,4 +451,18 @@ class AzureReportProcessor(ReportProcessorBase):
     # pylint: disable=no-self-use
     def remove_temp_cur_files(self, report_path):
         """Remove temporary report files."""
-        pass
+        LOG.info('Cleaning up temporary report files for %s', report_path)
+        current_assembly_id = None
+        files = listdir(report_path)
+        for file in files:
+            file_path = '{}/{}'.format(report_path, file)
+            if file.endswith('Manifest.json'):
+                with open(file_path, 'r') as manifest_file_handle:
+                    manifest_json = json.load(manifest_file_handle)
+                    current_assembly_id = manifest_json.get('assemblyId')
+
+        removed_files = []
+        if current_assembly_id:
+            removed_files = clear_temp_directory(report_path, current_assembly_id)
+
+        return removed_files

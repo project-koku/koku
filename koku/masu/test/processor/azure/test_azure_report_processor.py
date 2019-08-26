@@ -16,15 +16,19 @@
 #
 
 """Test the AzureReportProcessor object."""
+import datetime
 import logging
 import json
 import copy
 import csv
+import tempfile
+import shutil
 from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 
@@ -64,6 +68,7 @@ class AzureReportProcessorTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
+        self.assembly_id = '1234'
         self.processor = AzureReportProcessor(
             schema_name=self.schema,
             report_path=self.test_report,
@@ -71,10 +76,24 @@ class AzureReportProcessorTest(MasuTestCase):
             provider_id=self.azure_provider_id,
         )
 
+        billing_start = self.date_accessor.today_with_timezone('UTC').replace(
+            year=2018, month=6, day=1, hour=0, minute=0, second=0
+        )
+        self.assembly_id = '1234'
+        self.manifest_dict = {
+            'assembly_id': self.assembly_id,
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 1,
+            'provider_id': self.azure_provider.id,
+        }
+
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
         self.report_schema = self.accessor.report_schema
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.commit()
 
-    def test_initializer(self):
+
+    def test_azure_initializer(self):
         """Test Azure initializer."""
         self.assertIsNotNone(self.processor._schema_name)
         self.assertIsNotNone(self.processor._report_path)
@@ -87,7 +106,7 @@ class AzureReportProcessorTest(MasuTestCase):
             self.processor._batch_size, Config.REPORT_PROCESSING_BATCH_SIZE
         )
 
-    def test_process(self):
+    def test_azure_process(self):
         """Test the processing of an uncompressed Azure file."""
         counts = {}
 
@@ -114,7 +133,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count > counts[table_name])
 
-    def test_process_duplicates(self):
+    def test_azure_process_duplicates(self):
         """Test that row duplicates are not inserted into the DB."""
         counts = {}
         processor = AzureReportProcessor(
@@ -154,7 +173,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
-    def test_process_tags(self):
+    def test_azure_process_tags(self):
         """Test that tags are properly packaged in a JSON string."""
         row = '{"project":"p1","cost":"management"}'
         expected = {'project': 'p1', 'cost': 'management'}
@@ -164,7 +183,7 @@ class AzureReportProcessorTest(MasuTestCase):
         self.assertNotIn(row, actual)
         self.assertEqual(expected, actual)
 
-    def test_create_cost_entry_bill(self):
+    def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']
         table = getattr(self.report_schema, table_name)
@@ -179,7 +198,7 @@ class AzureReportProcessorTest(MasuTestCase):
         self.assertEqual(bill_id, id_in_db)
         self.assertIsNotNone(provider_id)
 
-    def test_create_product(self):
+    def test_azure_create_product(self):
         """Test that a product id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['product']
         table = getattr(self.report_schema, table_name)
@@ -192,7 +211,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
         self.assertEqual(product_id, id_in_db)
 
-    def test_create_meter(self):
+    def test_azure_create_meter(self):
         """Test that a meter id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['meter']
         table = getattr(self.report_schema, table_name)
@@ -205,7 +224,7 @@ class AzureReportProcessorTest(MasuTestCase):
 
         self.assertEqual(meter_id, id_in_db)
 
-    def test_create_cost_entry_line_item(self):
+    def test_azure_create_cost_entry_line_item(self):
         """Test that Azure line item data is returned properly."""
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
@@ -238,6 +257,51 @@ class AzureReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.processor.line_item_columns)
 
-    def test_remove_temp_cur_files(self):
-        """Test verify temporary files are removed."""
-        self.processor.remove_temp_cur_files(self.test_report)
+    def test_azure_remove_temp_cur_files(self):
+        """Test to remove temporary cost usage files."""
+        cur_dir = tempfile.mkdtemp()
+
+        manifest_data = {"assemblyId": "31727a10-f4b4-43a2-80e5-bef1aaeabfc1"}
+        manifest = '{}/{}'.format(cur_dir, 'Manifest.json')
+        with open(manifest, 'w') as outfile:
+            json.dump(manifest_data, outfile)
+
+        file_list = [
+            {
+                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
+                'processed_date': datetime.datetime(year=2018, month=5, day=3),
+            },
+            {
+                'file': 'costreport_31727a10-f4b4-43a2-80e5-bef1aaeabfc1.csv',
+                'processed_date': datetime.datetime(year=2018, month=5, day=3),
+            },
+            {
+                'file': 'costreport_2aeb9169-2526-441c-9eca-d7ed015d52bd.csv',
+                'processed_date': datetime.datetime(year=2018, month=5, day=2),
+            },
+            {
+                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375c0bad.csv',
+                'processed_date': datetime.datetime(year=2018, month=5, day=1),
+            },
+            {
+                'file': 'costreport_6c8487e8-c590-4e6a-b2c2-91a2375d0bed.csv',
+                'processed_date': None,
+            },
+        ]
+        expected_delete_list = []
+        for item in file_list:
+            path = '{}/{}'.format(cur_dir, item['file'])
+            f = open(path, 'w')
+            obj = self.manifest_accessor.get_manifest(self.assembly_id,
+                                                      self.azure_provider.id)
+            with ReportStatsDBAccessor(item['file'], obj.id) as stats:
+                stats.update(last_completed_datetime=item['processed_date'])
+            f.close()
+            if (
+                not manifest_data.get('assemblyId') in item['file']
+                and item['processed_date']
+            ):
+                expected_delete_list.append(path)
+        removed_files = self.processor.remove_temp_cur_files(cur_dir)
+        self.assertEqual(sorted(removed_files), sorted(expected_delete_list))
+        shutil.rmtree(cur_dir)
