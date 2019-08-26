@@ -300,7 +300,8 @@ class ReportQueryHandler(QueryHandler):
         filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
-        filters.add(**self._mapper._report_type_map.get('filter'))
+        for filter_map in self._mapper._report_type_map.get('filter'):
+            filters.add(**filter_map)
 
         # define filter parameters using API query params.
         composed_filters = self._get_search_filter(filters)
