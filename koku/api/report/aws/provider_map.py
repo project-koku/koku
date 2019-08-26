@@ -85,7 +85,7 @@ class AWSProviderMap(ProviderMap):
                             'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                         },
                         'delta_key': {'cost': Sum('unblended_cost')},
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
@@ -112,11 +112,11 @@ class AWSProviderMap(ProviderMap):
                             'usage_units': Coalesce(Max('unit'), Value('Hrs'))
                         },
                         'delta_key': {'usage': Sum('usage_amount')},
-                        'filter': {
+                        'filter': [{
                             'field': 'instance_type',
                             'operation': 'isnull',
                             'parameter': False
-                        },
+                        },],
                         'group_by': ['instance_type'],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
