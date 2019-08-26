@@ -116,7 +116,7 @@ class AWSProviderMap(ProviderMap):
                             'field': 'instance_type',
                             'operation': 'isnull',
                             'parameter': False
-                        },],
+                        }, ],
                         'group_by': ['instance_type'],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',

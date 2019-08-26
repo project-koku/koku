@@ -163,7 +163,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'field': 'product_family',
                             'operation': 'contains',
                             'parameter': 'Storage'
-                        },],
+                        }, ],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
@@ -199,7 +199,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'field': 'product_family',
                             'operation': 'contains',
                             'parameter': 'Storage'
-                        },],
+                        }, ],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
@@ -234,7 +234,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'field': 'instance_type',
                             'operation': 'isnull',
                             'parameter': False
-                        },],
+                        }, ],
                         'group_by': ['instance_type'],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
@@ -276,7 +276,7 @@ class OCPAWSProviderMap(ProviderMap):
                             'field': 'instance_type',
                             'operation': 'isnull',
                             'parameter': False
-                        },],
+                        }, ],
                         'group_by': ['instance_type'],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
