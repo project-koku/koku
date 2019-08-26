@@ -1,12 +1,5 @@
 [
     {
-        "database_column":"subscription_guid",
-        "database_table":"reporting_azurecostentrybill",
-        "provider_column_name":"SubscriptionGuid",
-        "report_type":"AZURE-CUR",
-        "provider_type":"AZURE"
-    },
-    {
         "database_column":"instance_id",
         "database_table":"reporting_azurecostentryproduct",
         "provider_column_name":"InstanceId",
@@ -38,6 +31,13 @@
         "database_column":"resource_group",
         "database_table":"reporting_azurecostentryproduct",
         "provider_column_name":"ResourceGroup",
+        "report_type":"AZURE-CUR",
+        "provider_type":"AZURE"
+    },
+    {
+        "database_column":"additional_info",
+        "database_table":"reporting_azurecostentryproduct",
+        "provider_column_name":"AdditionalInfo",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },
@@ -119,9 +119,9 @@
         "provider_type":"AZURE"
     },
     {
-        "database_column":"additional_info",
-        "database_table":"reporting_azureservice",
-        "provider_column_name":"AdditionalInfo",
+        "database_column":"subscription_guid",
+        "database_table":"reporting_azurecostentrylineitem_daily",
+        "provider_column_name":"SubscriptionGuid",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     },

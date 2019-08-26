@@ -1,38 +1,27 @@
 """Shared Class for masu tests."""
+import os
 import json
 import pkgutil
 
-from django.db import connection, connections
+from django.db import connection
 from django.core.management import call_command
-from django.test import TestCase, TransactionTestCase
-from tenant_schemas.utils import schema_context
+from django.test import TransactionTestCase
 
 from api.models import CostModelMetricsMap, Customer, Tenant
 from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
+from reporting_common import package_directory
 from reporting_common.models import ReportColumnMap
 
 def load_db_map_data():
     if ReportColumnMap.objects.count() == 0:
-        data = pkgutil.get_data('reporting_common',
-                                'data/aws_report_column_map.json')
-        data = json.loads(data)
-        for entry in data:
-            map = ReportColumnMap(**entry)
-            map.save()
-
-        data = pkgutil.get_data('reporting_common',
-                                'data/ocp_report_column_map.json')
-        data = json.loads(data)
-        for entry in data:
-            map = ReportColumnMap(**entry)
-            map.save()
-
-        data = pkgutil.get_data('reporting_common',
-                                'data/azure_report_column_map.json')
-        data = json.loads(data)
-        for entry in data:
-            map = ReportColumnMap(**entry)
-            map.save()
+        json_dir = '{}/{}'.format(package_directory, 'data')
+        for filename in os.listdir(json_dir):
+            if filename.endswith('report_column_map.json'):
+                data = pkgutil.get_data('reporting_common', f'data/{filename}')
+                data = json.loads(data)
+                for entry in data:
+                    map = ReportColumnMap(**entry)
+                    map.save()
 
     if CostModelMetricsMap.objects.count() == 0:
         data = pkgutil.get_data('api',

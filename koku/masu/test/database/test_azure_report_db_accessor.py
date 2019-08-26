@@ -92,7 +92,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             bill = self.accessor._get_db_obj_query(table_name).first()
             expected_key = (
-                bill.subscription_guid,
                 bill.billing_period_start,
                 bill.provider_id,
             )
@@ -228,9 +227,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 'pretax_cost',
                 'offer_id',
                 'cost_entry_bill_id',
-                'cost_entry_product_id',
                 'meter_id',
-                'service_id',
                 'tags',
             ]
 
