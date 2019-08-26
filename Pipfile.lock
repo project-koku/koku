@@ -342,10 +342,10 @@
         },
         "azure-mgmt-keyvault": {
             "hashes": [
-                "sha256:05a15327a922441d2ba32add50a35c7f1b9225727cbdd3eeb98bc656e4684099",
-                "sha256:406298b6236abf9e3bae3218df2fc89c25aee471b917eca7769ff5696fc8ec01"
+                "sha256:4ad6294a19c97db05b754ec2308083f53cbd7a1219d0651dcc277b044989f114",
+                "sha256:70d0c5df6df6a8d1e40b834fb6b4728a509d6a272d96834d35224743211180c5"
             ],
-            "version": "==1.1.0"
+            "version": "==2.0.0"
         },
         "azure-mgmt-loganalytics": {
             "hashes": [
