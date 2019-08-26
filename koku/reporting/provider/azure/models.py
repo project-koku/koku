@@ -153,14 +153,16 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
                                         on_delete=models.PROTECT)
 
-    cost_entry_product = models.ForeignKey('AzureCostEntryProduct',
-                                           on_delete=models.PROTECT, null=True)
-
     meter = models.ForeignKey('AzureMeter',
                               on_delete=models.PROTECT, null=True)
 
-    service = models.ForeignKey('AzureService',
-                                on_delete=models.PROTECT, null=True)
+    subscription_guid = models.CharField(max_length=50, null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    service_name = models.CharField(max_length=50, null=False)
+
+    resource_location = models.CharField(max_length=50, null=False)
 
     tags = JSONField(null=True)
 
