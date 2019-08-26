@@ -22,8 +22,6 @@
 # Addressing all lint errors would impact both report processors.
 
 import csv
-import gzip
-import io
 import json
 import logging
 from datetime import datetime
@@ -35,7 +33,6 @@ from dateutil import parser
 from masu.config import Config
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.common import clear_temp_directory
 from masu.util.ocp.common import month_date_range
@@ -172,7 +169,8 @@ class OCPReportProcessorBase(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id
+            provider_id=provider_id,
+            processed_report=ProcessedOCPReport()
         )
 
         self._report_name = path.basename(report_path)
@@ -189,39 +187,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
             self.existing_report_map = report_db.get_reports()
 
         self.line_item_columns = None
-        self.processed_report = ProcessedOCPReport()
-
-    def _get_file_opener(self, compression):
-        """Get the file opener for the file's compression.
-
-        Args:
-            compression (str): The compression format for the file.
-
-        Returns:
-            (file opener, str): The proper file stream handler for the
-                compression and the read mode for the file
-
-        """
-        if compression == GZIP_COMPRESSED:
-            return gzip.open, 'rt'
-        return open, 'r'    # assume uncompressed by default
-
-    def _get_data_for_table(self, row, table_name):
-        """Extract the data from a row for a specific table.
-
-        Args:
-            row (dict): A dictionary representation of a CSV file row
-            table_name (str): The DB table fields are required for
-
-        Returns:
-            (dict): The data from the row keyed on the DB table's column names
-
-        """
-        column_map = self.column_map[table_name._meta.db_table]
-
-        return {column_map[key]: value
-                for key, value in row.items()
-                if key in column_map}
 
     def _create_report(self, row, report_period_id, report_db_accessor):
         """Create a report object.
@@ -324,33 +289,6 @@ class OCPReportProcessorBase(ReportProcessorBase):
 
         return json.dumps(label_dict)
 
-    def _write_processed_rows_to_csv(self):
-        """Output CSV content to file stream object."""
-        values = [tuple(item.values())
-                  for item in self.processed_report.line_items]
-
-        file_obj = io.StringIO()
-        writer = csv.writer(
-            file_obj,
-            delimiter='\t',
-            quoting=csv.QUOTE_NONE,
-            quotechar=''
-        )
-        writer.writerows(values)
-        file_obj.seek(0)
-
-        return file_obj
-
-    def _save_to_db(self, temp_table, report_db_accessor):
-        """Save current batch of records to the database."""
-        columns = tuple(self.processed_report.line_items[0].keys())
-        csv_file = self._write_processed_rows_to_csv()
-
-        report_db_accessor.bulk_insert_rows(
-            csv_file,
-            temp_table,
-            columns)
-
     def _update_mappings(self):
         """Update cache of database objects for reference."""
         self.existing_report_periods_map.update(self.processed_report.report_periods)
@@ -452,7 +390,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             (None)
 
         """
-        data = self._get_data_for_table(row, self.table_name)
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
         pod_label_str = ''
         if 'pod_labels' in data:
             pod_label_str = data.pop('pod_labels')
@@ -522,7 +460,7 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             (None)
 
         """
-        data = self._get_data_for_table(row, self.table_name)
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
 
         persistentvolume_labels_str = ''
         if 'persistentvolume_labels' in data:

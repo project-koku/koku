@@ -17,12 +17,8 @@
 
 """Processor for Azure Cost Usage Reports."""
 import csv
-import gzip
-import io
-import json
 import logging
 from datetime import datetime
-from os import listdir
 
 import pytz
 from dateutil import parser
@@ -31,10 +27,8 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
-from masu.util.common import clear_temp_directory
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDaily,
                                              AzureCostEntryProduct,
@@ -86,7 +80,8 @@ class AzureReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id
+            provider_id=provider_id,
+            processed_report=ProcessedAzureReport()
         )
 
         self.manifest_id = manifest_id
@@ -95,8 +90,6 @@ class AzureReportProcessor(ReportProcessorBase):
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
 
         self._schema_name = schema_name
-
-        self.processed_report = ProcessedAzureReport()
 
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
@@ -113,23 +106,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  report_path, self._schema_name)
-
-    def _get_data_for_table(self, row, table_name):
-        """Extract the data from a row for a specific table.
-
-        Args:
-            row (dict): A dictionary representation of a CSV file row
-            table_name (str): The DB table fields are required for
-
-        Returns:
-            (dict): The data from the row keyed on the DB table's column names
-
-        """
-        column_map = self.column_map[table_name]
-
-        return {column_map[key]: value
-                for key, value in row.items()
-                if key in column_map}
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -281,18 +257,6 @@ class AzureReportProcessor(ReportProcessorBase):
         self.processed_report.services[key] = service_id
         return service_id
 
-    def _process_tags(self, tags_string):
-        """Convert the report string to a JSON dictionary.
-
-        Args:
-            label_string (str): The raw report string of pod labels
-
-        Returns:
-            (dict): The JSON dictionary made from the label string
-
-        """
-        return tags_string
-
     # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(self,
                                      row,
@@ -326,7 +290,7 @@ class AzureReportProcessor(ReportProcessorBase):
             table_name._meta.db_table
         )
 
-        data['tags'] = self._process_tags(tag_str)
+        data['tags'] = tag_str
         data['cost_entry_bill_id'] = bill_id
         data['cost_entry_product_id'] = product_id
         data['meter_id'] = meter_id
@@ -355,21 +319,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    def _get_file_opener(self, compression):
-        """Get the file opener for the file's compression.
-
-        Args:
-            compression (str): The compression format for the file.
-
-        Returns:
-            (file opener, str): The proper file stream handler for the
-                compression and the read mode for the file
-
-        """
-        if compression == GZIP_COMPRESSED:
-            return gzip.open, 'rt'
-        return open, 'r'    # assume uncompressed by default
-
     def process(self):
         """Process cost/usage file.
 
@@ -390,7 +339,7 @@ class AzureReportProcessor(ReportProcessorBase):
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    self._save_to_db(report_db)
+                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
 
                     row_count += len(self.processed_report.line_items)
                     self._update_mappings()
@@ -399,7 +348,7 @@ class AzureReportProcessor(ReportProcessorBase):
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    self._save_to_db(report_db)
+                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
 
                 report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
@@ -415,54 +364,3 @@ class AzureReportProcessor(ReportProcessorBase):
         self.existing_service_nap.update(self.processed_report.services)
 
         self.processed_report.remove_processed_rows()
-
-    def _write_processed_rows_to_csv(self):
-        """Output CSV content to file stream object."""
-        values = [tuple(item.values())
-                  for item in self.processed_report.line_items]
-
-        file_obj = io.StringIO()
-        writer = csv.writer(
-            file_obj,
-            delimiter='\t',
-            quoting=csv.QUOTE_NONE,
-            quotechar=''
-        )
-        writer.writerows(values)
-        file_obj.seek(0)
-
-        return file_obj
-
-    def _save_to_db(self, report_db_accessor):
-        """Save current batch of records to the database."""
-        columns = tuple(self.processed_report.line_items[0].keys())
-        csv_file = self._write_processed_rows_to_csv()
-
-        # This will commit all pricing, products, and reservations
-        # on the session
-        report_db_accessor.commit()
-        # This will add line items to the line item table
-        report_db_accessor.bulk_insert_rows(
-            csv_file,
-            AZURE_REPORT_TABLE_MAP['line_item'],
-            columns
-        )
-
-    # pylint: disable=no-self-use
-    def remove_temp_cur_files(self, report_path):
-        """Remove temporary report files."""
-        LOG.info('Cleaning up temporary report files for %s', report_path)
-        current_assembly_id = None
-        files = listdir(report_path)
-        for file in files:
-            file_path = '{}/{}'.format(report_path, file)
-            if file.endswith('Manifest.json'):
-                with open(file_path, 'r') as manifest_file_handle:
-                    manifest_json = json.load(manifest_file_handle)
-                    current_assembly_id = manifest_json.get('assemblyId')
-
-        removed_files = []
-        if current_assembly_id:
-            removed_files = clear_temp_directory(report_path, current_assembly_id)
-
-        return removed_files

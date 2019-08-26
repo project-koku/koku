@@ -173,16 +173,6 @@ class AzureReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             self.assertTrue(count == counts[table_name])
 
-    def test_azure_process_tags(self):
-        """Test that tags are properly packaged in a JSON string."""
-        row = '{"project":"p1","cost":"management"}'
-        expected = {'project': 'p1', 'cost': 'management'}
-
-        actual = json.loads(self.processor._process_tags(row))
-
-        self.assertNotIn(row, actual)
-        self.assertEqual(expected, actual)
-
     def test_azure_create_cost_entry_bill(self):
         """Test that a cost entry bill id is returned."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']
