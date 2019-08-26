@@ -350,6 +350,10 @@ class ReportObjectCreator:
         table_name = AZURE_REPORT_TABLE_MAP['bill']
         data = self.create_columns_for_table(table_name)
         data['provider_id'] = provider_id
+        fake_bill_date = self.make_datetime_aware(self.fake.past_datetime())
+        data['billing_period_start'] = fake_bill_date
+        data['billing_period_end'] = fake_bill_date
+
         if bill_date:
             report_date_range = azure_utils.month_date_range(bill_date)
             bill_start, bill_end = report_date_range.split('-')

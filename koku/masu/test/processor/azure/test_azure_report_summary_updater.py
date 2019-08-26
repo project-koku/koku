@@ -16,6 +16,11 @@
 #
 
 """Test the AzureReportSummaryUpdater object."""
+import calendar
+import datetime
+from unittest.mock import patch
+
+from tenant_schemas.utils import schema_context
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -73,11 +78,77 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
            self.schema, self.azure_provider, self.manifest
         )
 
-    def test_update_daily_tables(self):
-        """Test process method."""
-        import pdb; pdb.set_trace()
-        self.updater.update_daily_tables(None, None)
 
-    def test_update_summary_tables(self):
-        """Test verify temporary files are removed."""
-        self.updater.update_summary_tables(None, None)
+    @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
+    def test_update_summary_tables_with_manifest(self, mock_summary):
+        """Test that summary tables are properly run."""
+        self.manifest.num_processed_files = self.manifest.num_total_files
+        self.manifest_accessor.commit()
+
+        start_date = self.date_accessor.today_with_timezone('UTC')
+        end_date = start_date + datetime.timedelta(days=1)
+        bill_date = start_date.replace(day=1).date()
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            bill.summary_data_creation_datetime = start_date
+            bill.save()
+
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+
+        expected_start_date = start_date.strftime('%Y-%m-%d')
+        expected_end_date = end_date.strftime('%Y-%m-%d')
+
+        self.assertIsNone(bill.summary_data_updated_datetime)
+
+        self.updater.update_daily_tables(start_date_str, end_date_str)
+        mock_summary.assert_not_called()
+
+        self.updater.update_summary_tables(start_date_str, end_date_str)
+        mock_summary.assert_called_with(
+            expected_start_date, expected_end_date, [str(bill.id)]
+        )
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            self.assertIsNotNone(bill.summary_data_creation_datetime)
+            self.assertIsNotNone(bill.summary_data_updated_datetime)
+
+    @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
+    def test_update_summary_tables_new_bill(self, mock_summary):
+        """Test that summary tables are run for a full month."""
+
+        self.manifest.num_processed_files = self.manifest.num_total_files
+        manifest_id = self.manifest.id
+        self.manifest_accessor.commit()
+
+        start_date = self.date_accessor.today_with_timezone('UTC')
+        end_date = start_date
+        bill_date = start_date.replace(day=1).date()
+        with schema_context(self.schema):
+            bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
+
+        last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+
+        expected_start_date = start_date.replace(day=1).strftime('%Y-%m-%d')
+        expected_end_date = end_date.replace(day=last_day_of_month).strftime('%Y-%m-%d')
+
+        self.assertIsNone(bill.summary_data_creation_datetime)
+        self.assertIsNone(bill.summary_data_updated_datetime)
+
+        self.updater.update_daily_tables(start_date_str, end_date_str)
+        mock_summary.assert_not_called()
+
+        self.updater.update_summary_tables(start_date_str, end_date_str)
+        mock_summary.assert_called_with(
+            expected_start_date, expected_end_date, [str(bill.id)]
+        )
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            self.assertIsNotNone(bill.summary_data_creation_datetime)
+            self.assertIsNotNone(bill.summary_data_updated_datetime)
