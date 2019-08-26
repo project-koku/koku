@@ -391,10 +391,10 @@
         },
         "azure-mgmt-marketplaceordering": {
             "hashes": [
-                "sha256:6da12425cbab0cc62f246e7266b4d67aff6bdd031ecbe50c7542c2f2b2440ad4",
-                "sha256:fb7a21f4a4a4b8d32bae600614f047a17993111374c9567ac11f241ada61d69f"
+                "sha256:12d595f3dbda90de7cbc08ace99b925124ce675219b32bb3fde90e36d357c095",
+                "sha256:dc765cde7ec03efe456438c85c6207c2f77775a8ce8a7adb19b0df5c5dc513c2"
             ],
-            "version": "==0.1.0"
+            "version": "==0.2.1"
         },
         "azure-mgmt-media": {
             "hashes": [
