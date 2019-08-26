@@ -151,10 +151,10 @@
         },
         "azure-mgmt-batch": {
             "hashes": [
-                "sha256:6e375ecdd5966ee9ee45b29c90a806388c27ceacc2cbd6dd406ff311b5d7da72",
-                "sha256:d942e225180d07aae07a43e489ae0acbacd92651be3a019f4eb330a587028161"
+                "sha256:16c5b652b439b1a0a20366558f5c06858a3052d50b16a470bb80cd30f97abca1",
+                "sha256:7b92eca04ffcd9cd3cceede263141d3094b17b2da1c4f6a440f2c40bb5a5de22"
             ],
-            "version": "==5.0.1"
+            "version": "==7.0.0"
         },
         "azure-mgmt-batchai": {
             "hashes": [
