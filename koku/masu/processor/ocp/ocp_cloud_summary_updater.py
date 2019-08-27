@@ -16,7 +16,7 @@
 #
 """Updates report summary tables in the database."""
 # pylint: skip-file
-
+import datetime
 import logging
 
 from tenant_schemas.utils import schema_context
@@ -150,8 +150,8 @@ class OCPCloudReportSummaryUpdater:
             aws_bills = get_bills_from_provider(
                 aws_uuid,
                 self._schema_name,
-                start_date,
-                end_date
+                datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+                datetime.datetime.strptime(end_date, '%Y-%m-%d')
             )
             aws_bill_ids = []
             with schema_context(self._schema_name):
