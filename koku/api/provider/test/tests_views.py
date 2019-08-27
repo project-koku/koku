@@ -19,6 +19,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.urls import reverse
+from rest_framework.exceptions import PermissionDenied
 from providers.provider_access import ProviderAccessor
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -359,4 +360,5 @@ class ProviderViewTest(IamTestCase):
         self.headers = self.request_context['request'].META
         # Remove Provider as the invalid user
         response = client.delete(url, **self.headers)
+        self.assertRaises(PermissionDenied)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
