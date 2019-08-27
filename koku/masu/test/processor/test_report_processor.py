@@ -25,7 +25,7 @@ from masu.external import (
     AWS_LOCAL_SERVICE_PROVIDER,
     AZURE,
     OPENSHIFT_CONTAINER_PLATFORM,
-    OCP_LOCAL_SERVICE_PROVIDER,
+    AZURE_LOCAL_SERVICE_PROVIDER,
 )
 from masu.processor.report_processor import ReportProcessor, ReportProcessorError
 
@@ -83,13 +83,13 @@ class ReportProcessorTest(MasuTestCase):
         )
         self.assertIsNotNone(processor._processor)
 
-    def test_initializer_ocp_local(self):
-        """Test to initializer for OCP-local"""
+    def test_initializer_azure_local(self):
+        """Test to initializer for AZURE-local"""
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
             compression='PLAIN',
-            provider=OCP_LOCAL_SERVICE_PROVIDER,
+            provider=AZURE_LOCAL_SERVICE_PROVIDER,
             provider_id=self.aws_provider.id,
             manifest_id=None,
         )

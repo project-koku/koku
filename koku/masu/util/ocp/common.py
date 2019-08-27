@@ -25,7 +25,7 @@ from dateutil.relativedelta import relativedelta
 from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
-from masu.external import (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM)
+from masu.external import OPENSHIFT_CONTAINER_PLATFORM
 
 LOG = logging.getLogger(__name__)
 
@@ -119,7 +119,7 @@ def get_cluster_id_from_provider(provider_uuid):
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider_type = provider_accessor.get_type()
 
-    if provider_type not in (OCP_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM):
+    if provider_type not in (OPENSHIFT_CONTAINER_PLATFORM,):
         err_msg = 'Provider UUID is not an OpenShift type.  It is {}'.\
             format(provider_type)
         LOG.warning(err_msg)
