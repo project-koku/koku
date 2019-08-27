@@ -131,79 +131,44 @@ CREATE TEMPORARY TABLE volume_nodes_{uuid} AS (
 ;
 
 CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
-    SELECT cluster_id,
-        cluster_alias,
-        usage_start,
-        usage_end,
-        namespace,
-        pod,
-        node,
-        persistentvolumeclaim,
-        persistentvolume,
-        storageclass,
-        persistentvolume_labels,
-        persistentvolumeclaim_labels,
-        persistentvolumeclaim_capacity_byte_seconds,
-        volume_request_storage_byte_seconds,
-        persistentvolumeclaim_usage_byte_seconds,
-        persistentvolumeclaim_capacity_bytes,
-        total_seconds
-    FROM (
-        SELECT  rp.cluster_id,
-            coalesce(max(p.name), rp.cluster_id) as cluster_alias,
-            date(ur.interval_start) as usage_start,
-            date(ur.interval_start) as usage_end,
-            li.namespace,
-            li.pod,
-            max(uli.node) as node,
-            li.persistentvolumeclaim,
-            li.persistentvolume,
-            li.storageclass,
-            CASE WHEN pvl.persistentvolume_labels IS NULL
-                THEN '{{}}'::jsonb
-                ELSE pvl.persistentvolume_labels
-                END as persistentvolume_labels,
-            CASE WHEN pvcl.persistentvolumeclaim_labels IS NULL
-                THEN '{{}}'::jsonb
-                ELSE pvcl.persistentvolumeclaim_labels
-                END as persistentvolumeclaim_labels,
-            sum(li.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
-            sum(li.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
-            sum(li.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds,
-            max(li.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
-            count(ur.interval_start) * 3600 as total_seconds
-        FROM {schema}.reporting_ocpstoragelineitem AS li
-        JOIN {schema}.reporting_ocpusagereport AS ur
-            ON li.report_id = ur.id
-        JOIN {schema}.reporting_ocpusagereportperiod AS rp
-            ON li.report_period_id = rp.id
-        LEFT JOIN persistentvolume_labels_{uuid} as pvl
-            ON rp.cluster_id = pvl.cluster_id
-                AND li.namespace = pvl.namespace
-                AND li.pod = pvl.pod
-                AND date(ur.interval_start) = pvl.usage_start
-        LEFT JOIN persistentvolumeclaim_labels_{uuid} as pvcl
-            ON rp.cluster_id = pvcl.cluster_id
-                AND li.namespace = pvcl.namespace
-                AND li.pod = pvcl.pod
-                AND date(ur.interval_start) = pvcl.usage_start
-        LEFT JOIN public.api_provider as p
-            ON rp.provider_id = p.id
-        LEFT JOIN volume_nodes_{uuid} as uli
-            ON li.id = uli.id
-        WHERE date(ur.interval_start) >= '{start_date}'
-            AND date(ur.interval_start) <= '{end_date}'
-            AND rp.cluster_id = '{cluster_id}'
-        GROUP BY rp.cluster_id,
-            date(ur.interval_start),
-            li.namespace,
-            li.pod,
-            li.persistentvolumeclaim,
-            li.persistentvolume,
-            li.storageclass,
-            pvl.persistentvolume_labels,
-            pvcl.persistentvolumeclaim_labels
-    ) t
+    SELECT  rp.cluster_id,
+        coalesce(max(p.name), rp.cluster_id) as cluster_alias,
+        date(ur.interval_start) as usage_start,
+        date(ur.interval_start) as usage_end,
+        li.namespace,
+        li.pod,
+        max(uli.node) as node,
+        li.persistentvolumeclaim,
+        li.persistentvolume,
+        li.storageclass,
+        li.persistentvolume_labels,
+        li.persistentvolumeclaim_labels,
+        sum(li.persistentvolumeclaim_capacity_byte_seconds) as persistentvolumeclaim_capacity_byte_seconds,
+        sum(li.volume_request_storage_byte_seconds) as volume_request_storage_byte_seconds,
+        sum(li.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds,
+        max(li.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
+        count(ur.interval_start) * 3600 as total_seconds
+    FROM {schema}.reporting_ocpstoragelineitem AS li
+    JOIN {schema}.reporting_ocpusagereport AS ur
+        ON li.report_id = ur.id
+    JOIN {schema}.reporting_ocpusagereportperiod AS rp
+        ON li.report_period_id = rp.id
+    LEFT JOIN public.api_provider as p
+        ON rp.provider_id = p.id
+    LEFT JOIN volume_nodes_{uuid} as uli
+        ON li.id = uli.id
+    WHERE date(ur.interval_start) >= '{start_date}'
+        AND date(ur.interval_start) <= '{end_date}'
+        AND rp.cluster_id = '{cluster_id}'
+    GROUP BY rp.cluster_id,
+        date(ur.interval_start),
+        li.namespace,
+        li.pod,
+        li.persistentvolumeclaim,
+        li.persistentvolume,
+        li.storageclass,
+        li.persistentvolume_labels,
+        li.persistentvolumeclaim_labels
 )
 ;
 
