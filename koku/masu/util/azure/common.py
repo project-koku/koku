@@ -102,8 +102,8 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     Args:
         provider_uuid (str): Provider UUID.
         schema (str): Tenant schema
-        start_date (datetime, str): Start date for bill IDs.
-        end_date (datetime, str) End date for bill IDs.
+        start_date (datetime): Start date for bill IDs.
+        end_date (datetime) End date for bill IDs.
 
     Returns:
         (list): Azure cost entry bill objects.
@@ -112,10 +112,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     if isinstance(start_date, datetime.datetime):
         start_date = start_date.replace(day=1)
         start_date = start_date.strftime('%Y-%m-%d')
-    elif isinstance(start_date, str):
-        start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d')
-        start_date = start_date.replace(day=1)
-        start_date = start_date.strftime('%Y-%m-%d')
+
     if isinstance(end_date, datetime.datetime):
         end_date = end_date.strftime('%Y-%m-%d')
 
