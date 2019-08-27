@@ -46,3 +46,13 @@ OCP_REPORT_TABLE_MAP = {
     'volume_label_summary': 'reporting_ocpstoragevolumelabel_summary',
     'cost_summary': 'reporting_ocpcosts_summary'
 }
+
+AZURE_REPORT_TABLE_MAP = {
+    'bill': 'reporting_azurecostentrybill',
+    'product': 'reporting_azurecostentryproduct',
+    'meter': 'reporting_azuremeter',
+    'service': 'reporting_azureservice',
+    'line_item': 'reporting_azurecostentrylineitem_daily',
+    'line_item_daily_summary': 'reporting_azurecostentrylineitem_daily_summary',
+    'tags_summary': 'reporting_azuretags_summary'
+}

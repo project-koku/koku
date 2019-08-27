@@ -18,11 +18,9 @@
 """Processor for Cost Usage Reports."""
 
 import csv
-import gzip
-import io
 import json
 import logging
-from os import listdir, path
+from os import path
 
 from tenant_schemas.utils import schema_context
 
@@ -31,9 +29,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import GZIP_COMPRESSED
 from masu.processor.report_processor_base import ReportProcessorBase
-from masu.util.common import clear_temp_directory
 from reporting.provider.aws.models import (AWSCostEntry,
                                            AWSCostEntryBill,
                                            AWSCostEntryLineItem,
@@ -89,15 +85,14 @@ class AWSReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id
+            provider_id=provider_id,
+            processed_report=ProcessedReport()
         )
 
         self.manifest_id = manifest_id
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
-
-        self.processed_report = ProcessedReport()
 
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
@@ -138,7 +133,7 @@ class AWSReportProcessor(ReportProcessorBase):
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
                                   row_count + len(self.processed_report.line_items),
                                   self._report_name)
-                        self._save_to_db(report_db)
+                        self._save_to_db(AWS_CUR_TABLE_MAP['line_item'], report_db)
 
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
@@ -147,7 +142,7 @@ class AWSReportProcessor(ReportProcessorBase):
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    self._save_to_db(report_db)
+                    self._save_to_db(AWS_CUR_TABLE_MAP['line_item'], report_db)
 
                     row_count += len(self.processed_report.line_items)
 
@@ -176,56 +171,6 @@ class AWSReportProcessor(ReportProcessorBase):
             row = reader.__next__()
             invoice_id = row.get('bill/InvoiceId')
             return invoice_id is not None and invoice_id != ''
-
-    # pylint: disable=no-self-use
-    def remove_temp_cur_files(self, report_path):
-        """Remove temporary report files."""
-        LOG.info('Cleaning up temporary report files for %s', report_path)
-        current_assembly_id = None
-        files = listdir(report_path)
-        for file in files:
-            file_path = '{}/{}'.format(report_path, file)
-            if file.endswith('Manifest.json'):
-                with open(file_path, 'r') as manifest_file_handle:
-                    manifest_json = json.load(manifest_file_handle)
-                    current_assembly_id = manifest_json.get('assemblyId')
-
-        removed_files = []
-        if current_assembly_id:
-            removed_files = clear_temp_directory(report_path, current_assembly_id)
-
-        return removed_files
-
-    # pylint: disable=inconsistent-return-statements, no-self-use
-    def _get_file_opener(self, compression):
-        """Get the file opener for the file's compression.
-
-        Args:
-            compression (str): The compression format for the file.
-
-        Returns:
-            (file opener, str): The proper file stream handler for the
-                compression and the read mode for the file
-
-        """
-        if compression == GZIP_COMPRESSED:
-            return gzip.open, 'rt'
-        return open, 'r'    # assume uncompressed by default
-
-    def _save_to_db(self, report_db_accessor):
-        """Save current batch of records to the database."""
-        columns = tuple(self.processed_report.line_items[0].keys())
-        csv_file = self._write_processed_rows_to_csv()
-
-        # This will commit all pricing, products, and reservations
-        # on the session
-        report_db_accessor.commit()
-        # This will add line items to the line item table
-        report_db_accessor.bulk_insert_rows(
-            csv_file,
-            AWS_CUR_TABLE_MAP['line_item'],
-            columns
-        )
 
     def _delete_line_items(self):
         """Delete stale data for the report being processed, if necessary."""
@@ -261,23 +206,6 @@ class AWSReportProcessor(ReportProcessorBase):
         self.existing_reservation_map.update(self.processed_report.reservations)
 
         self.processed_report.remove_processed_rows()
-
-    def _write_processed_rows_to_csv(self):
-        """Output CSV content to file stream object."""
-        values = [tuple(item.values())
-                  for item in self.processed_report.line_items]
-
-        file_obj = io.StringIO()
-        writer = csv.writer(
-            file_obj,
-            delimiter='\t',
-            quoting=csv.QUOTE_NONE,
-            quotechar=''
-        )
-        writer.writerows(values)
-        file_obj.seek(0)
-
-        return file_obj
 
     def _get_data_for_table(self, row, table_name):
         """Extract the data from a row for a specific table.
