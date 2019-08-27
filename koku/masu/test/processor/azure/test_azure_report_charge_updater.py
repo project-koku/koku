@@ -16,17 +16,49 @@
 #
 
 """Test the AzureReportChargeUpdater object."""
+from masu.database import AZURE_REPORT_TABLE_MAP
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
 from masu.test import MasuTestCase
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class AzureReportChargeUpdaterTest(MasuTestCase):
     """Test Cases for the AzureReportChargeUpdater object."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class with required objects."""
+        super().setUpClass()
+        with ReportingCommonDBAccessor() as report_common_db:
+            cls.column_map = report_common_db.column_map
+
+        cls.accessor = AzureReportDBAccessor('acct10001', cls.column_map)
+
+        cls.report_schema = cls.accessor.report_schema
+
+        cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
+
+        cls.creator = ReportObjectCreator(cls.schema, cls.column_map)
+
+        cls.date_accessor = DateAccessor()
+        cls.manifest_accessor = ReportManifestDBAccessor()
+
     def setUp(self):
         """Set up each test."""
         super().setUp()
+
+        billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
+        self.manifest_dict = {
+            'assembly_id': '1234',
+            'billing_period_start_datetime': billing_start,
+            'num_total_files': 1,
+            'provider_id': self.azure_provider.id,
+        }
 
         self.provider_accessor = ProviderDBAccessor(
             provider_uuid=self.azure_test_provider_uuid
@@ -38,6 +70,27 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
             provider_uuid=self.azure_test_provider_uuid,
             provider_id=provider_id)
 
-    def test_update_summary_charge_info(self):
+        today = DateAccessor().today_with_timezone('UTC')
+        bill = self.creator.create_azure_cost_entry_bill(provider_id = provider_id, bill_date=today)
+        product = self.creator.create_azure_cost_entry_product()
+        meter = self.creator.create_azure_meter()
+        service = self.creator.create_azure_service()
+        self.creator.create_azure_cost_entry_line_item(bill, product, meter, service)
+
+        self.manifest = self.manifest_accessor.add(**self.manifest_dict)
+        self.manifest_accessor.commit()
+
+        with ProviderDBAccessor(self.azure_test_provider_uuid) as provider_accessor:
+            self.provider = provider_accessor.get_provider()
+
+
+    def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""
+        start_date = self.date_accessor.today_with_timezone('UTC')
+        bill_date = start_date.replace(day=1).date()
+
         self.updater.update_summary_charge_info()
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            self.assertIsNotNone(bill.derived_cost_datetime)
