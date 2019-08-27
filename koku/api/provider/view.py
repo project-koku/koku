@@ -100,7 +100,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         else:
             return serializers.ProviderSerializer
 
-    def empty_queryset(self):
+    def is_empty_queryset(self):
         """Check if queryset is empty."""
         queryset_bool = not Provider.objects.all()
         if queryset_bool:
@@ -394,7 +394,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             HTTP/1.1 204 NO CONTENT
         """
         # Block any users not part of the organization
-        if not self.empty_queryset() and not self.get_queryset():
+        if not self.is_empty_queryset() and not self.get_queryset():
             raise PermissionDenied()
 
         # throws ValidationError if pk is not a valid UUID

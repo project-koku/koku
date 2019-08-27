@@ -290,6 +290,26 @@ class ProviderViewTest(IamTestCase):
             response = client.delete(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_remove_empty_queryset(self, mock_delete_reports):
+        """Test removing an empty queryset with valid user."""
+        # Create a Provider as a regular user
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        # Remove Provider as the regular user that created the Provider
+        json_result = response.json()
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # Remove invalid Provider as the regular user
+        url = reverse('provider-detail', args=[uuid4()])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
     def test_remove_invalid_provider(self, ):
         """Test removing an invalid provider with the user."""
         # Create a Provider
@@ -317,3 +337,26 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_remove_provider_unauthorized_user(self):
+        """Test removing a provider with unauthorized user."""
+        # Create a Provider as a regular user
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        response = self.create_provider(bucket_name, iam_arn)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        json_result = response.json()
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        # Create unauthorized user
+        self.user_data = self._create_user_data()
+        self.request_context = self._create_request_context(
+            self.customer_data,
+            self.user_data,
+            is_hybrid_cloud=False
+        )
+        self.headers = self.request_context['request'].META
+        # Remove Provider as the invalid user
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
