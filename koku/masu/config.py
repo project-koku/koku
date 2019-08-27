@@ -86,7 +86,7 @@ class Config:
     # Data directory for processing incoming data
     TMP_DIR = '/var/tmp/masu'
 
-    # OCP-local simulates Insights report storage
+    # OCP intermediate report storage
     INSIGHTS_LOCAL_REPORT_DIR = '/var/tmp/insights_local'
 
     # Celery settings

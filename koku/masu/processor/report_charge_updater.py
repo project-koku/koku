@@ -22,7 +22,7 @@ from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
-                           OCP_LOCAL_SERVICE_PROVIDER,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.aws.aws_report_charge_updater import AWSReportChargeUpdater
 from masu.processor.azure.azure_report_charge_updater import AzureReportChargeUpdater
@@ -76,10 +76,9 @@ class ReportChargeUpdater:
         """
         if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return AWSReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
-        if self._provider in (AZURE, ):
+        if self._provider in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return AzureReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
-        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
-                              OCP_LOCAL_SERVICE_PROVIDER):
+        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return OCPReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
 
         return None
