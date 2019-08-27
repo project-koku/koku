@@ -19,9 +19,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.urls import reverse
-from rest_framework.exceptions import PermissionDenied
 from providers.provider_access import ProviderAccessor
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
