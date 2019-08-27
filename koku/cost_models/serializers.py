@@ -370,6 +370,6 @@ class CostModelSerializer(serializers.Serializer):
         rep['source_type'] = source_type
 
         cm_uuid = cost_model_obj.uuid
-        provider_uuids = CostModelManager(cm_uuid).get_provider_uuids()
-        rep.update({'provider_uuids': provider_uuids})
+        provider_uuids = CostModelManager(cm_uuid).get_provider_names_uuids()
+        rep.update({'providers': provider_uuids})
         return rep

@@ -120,7 +120,7 @@ class CostModelViewTests(IamTestCase):
         url = reverse('costmodels-detail', kwargs={'uuid': response.data.get('uuid')})
         response = client.get(url, **self.headers)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuids'))
+        self.assertIsNotNone(response.data.get('providers'))
         for rate in response.data.get('rates', []):
             self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                              rate.get('metric', {}).get('name'))
@@ -179,7 +179,7 @@ class CostModelViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuids'))
+        self.assertIsNotNone(response.data.get('providers'))
         for rate in response.data.get('rates', []):
             self.assertEqual(self.ocp_metric,
                              rate.get('metric', {}).get('name'))
@@ -306,7 +306,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get('data')[0]
         self.assertIsNotNone(cost_model.get('uuid'))
-        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertIsNotNone(cost_model.get('providers'))
         self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                          cost_model.get('rates', [])[0].get('metric', {}).get('name'))
         self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),
@@ -326,7 +326,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get('data')[0]
         self.assertIsNotNone(cost_model.get('uuid'))
-        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertIsNotNone(cost_model.get('providers'))
         self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                          cost_model.get('rates', [])[0].get('metric', {}).get('name'))
         self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),

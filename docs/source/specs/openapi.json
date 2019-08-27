@@ -2072,9 +2072,49 @@
                     "source_type"
                 ]
             },
+            "CostModelResp": {
+                "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "source_type": {
+                        "type": "string"
+                      },
+                      "providers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "uuid": {
+                              "type": "string",
+                              "example": "e5ff62e7-e6d6-5513-5532-45fe72792dae"
+                            },
+                            "name": {
+                              "type": "string",
+                              "example": "provider"
+                            }
+                          }
+                        }
+                      },
+                      "rates": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Rate"
+                        }
+                      }
+                },
+                "required": [
+                    "name",
+                    "description",
+                    "source_type"
+                ]
+            },
             "CostModelOut": {
                 "allOf": [{
-                    "$ref": "#/components/schemas/CostModel"
+                    "$ref": "#/components/schemas/CostModelResp"
                 }, {
                     "type": "object",
                     "properties": {
