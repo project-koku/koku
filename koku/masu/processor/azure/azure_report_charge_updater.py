@@ -17,7 +17,11 @@
 """Updates Azure report summary tables in the database with charge information."""
 import logging
 
+from tenant_schemas.utils import schema_context
+
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -56,3 +60,12 @@ class AzureReportChargeUpdater:
         """
         LOG.debug('Starting charge calculation updates for provider: %s. Dates: %s-%s',
                   self._provider_uuid, str(start_date), str(end_date))
+
+        with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
+            LOG.debug('Updating Azure derived cost summary for schema: %s and provider: %s',
+                      self._schema, self._provider_uuid)
+            bills = accessor.bills_for_provider_id(self._provider_id, start_date)
+            with schema_context(self._schema):
+                for bill in bills:
+                    bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
+                    bill.save()
