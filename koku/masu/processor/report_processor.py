@@ -21,7 +21,7 @@ import logging
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
-                           OCP_LOCAL_SERVICE_PROVIDER,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
@@ -77,14 +77,14 @@ class ReportProcessor:
                                       provider_id=self.provider_id,
                                       manifest_id=self.manifest_id)
 
-        if self.provider_type in AZURE:
+        if self.provider_type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return AzureReportProcessor(schema_name=self.schema_name,
                                         report_path=self.report_path,
                                         compression=self.compression,
                                         provider_id=self.provider_id,
                                         manifest_id=self.manifest_id)
 
-        if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, OCP_LOCAL_SERVICE_PROVIDER):
+        if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return OCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
