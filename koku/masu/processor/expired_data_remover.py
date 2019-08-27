@@ -29,7 +29,7 @@ from masu.config import Config
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
-                           OCP_LOCAL_SERVICE_PROVIDER,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
@@ -94,11 +94,10 @@ class ExpiredDataRemover():
         if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return AWSReportDBCleaner(self._schema)
 
-        if self._provider in (AZURE, ):
+        if self._provider in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return AzureReportDBCleaner(self._schema)
 
-        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM,
-                              OCP_LOCAL_SERVICE_PROVIDER):
+        if self._provider in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return OCPReportDBCleaner(self._schema)
 
         return None
