@@ -25,7 +25,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
-                           OCP_LOCAL_SERVICE_PROVIDER,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
@@ -90,11 +90,10 @@ class ReportSummaryUpdater:
         if self._provider.type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in AZURE:
+        if self._provider.type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return (AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM,
-                                   OCP_LOCAL_SERVICE_PROVIDER):
+        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
 

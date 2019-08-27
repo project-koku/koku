@@ -21,8 +21,9 @@ from unittest.mock import patch
 from django.test import TestCase
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
+from providers.azure.provider import AzureProvider
+from providers.azure_local.provider import AzureLocalProvider
 from providers.ocp.provider import OCPProvider
-from providers.ocp_local.provider import OCPLocalProvider
 from providers.provider_access import ProviderAccessor, ProviderAccessorError
 
 
@@ -56,12 +57,19 @@ class ProviderAccessorTestCase(TestCase):
         self.assertIsNotNone(interface.service)
         self.assertTrue(isinstance(interface.service, AWSLocalProvider))
 
-    def test_establish_ocp_local_provider(self):
-        """Verify that OCP local provider is created."""
-        provider_name = 'OCP-local'
+    def test_establish_azure_provider(self):
+        """Verify that AZURE provider is created."""
+        provider_name = 'AZURE'
         interface = ProviderAccessor(provider_name)
         self.assertIsNotNone(interface.service)
-        self.assertTrue(isinstance(interface.service, OCPLocalProvider))
+        self.assertTrue(isinstance(interface.service, AzureProvider))
+
+    def test_establish_azure_local_provider(self):
+        """Verify that AZURE local provider is created."""
+        provider_name = 'AZURE-local'
+        interface = ProviderAccessor(provider_name)
+        self.assertIsNotNone(interface.service)
+        self.assertTrue(isinstance(interface.service, AzureLocalProvider))
 
     def test_establish_invalid_provider(self):
         """Verify that an invalid service is created."""
