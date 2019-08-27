@@ -23,13 +23,13 @@ from masu.external import (
     AWS_LOCAL_SERVICE_PROVIDER,
     AMAZON_WEB_SERVICES,
     AZURE,
+    AZURE_LOCAL_SERVICE_PROVIDER,
     OPENSHIFT_CONTAINER_PLATFORM,
 )
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
     AWSReportDownloaderError,
 )
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
 from masu.test import MasuTestCase
@@ -112,6 +112,22 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=AZURE,
+            provider_id=self.azure_provider_id,
+        )
+        self.assertIsNotNone(downloader._downloader)
+
+    @patch(
+        'masu.external.downloader.azure_local.azure_local_report_downloader.AzureLocalReportDownloader.__init__',
+        return_value=None,
+    )
+    def test_initializer_azure(self, fake_downloader):
+        """Test to initializer for Azure downloader"""
+        downloader = ReportDownloader(
+            customer_name='customer name',
+            access_credential=self.fake_creds,
+            report_source='hereiam',
+            report_name='bestreport',
+            provider_type=AZURE_LOCAL_SERVICE_PROVIDER,
             provider_id=self.azure_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
