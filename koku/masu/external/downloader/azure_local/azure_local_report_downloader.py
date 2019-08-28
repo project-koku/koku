@@ -16,9 +16,6 @@
 #
 """Azure-Local Report Downloader."""
 
-# pylint: disable=fixme
-# disabled until we get travis to not fail on warnings, or the fixme is
-# resolved.
 import hashlib
 import json
 import logging
@@ -34,10 +31,6 @@ from masu.util.common import extract_uuids_from_string
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
-
-
-class AzureReportDownloaderError(Exception):
-    """Azure Report Downloader error."""
 
 
 class AzureLocalReportDownloader(AzureReportDownloader):
@@ -59,7 +52,6 @@ class AzureLocalReportDownloader(AzureReportDownloader):
 
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-
         self.export_name = billing_source.get('resource_group').get('export_name')
         self.directory = billing_source.get('resource_group').get('directory')
         self.container_name = billing_source.get('storage_account').get('container')
@@ -86,8 +78,9 @@ class AzureLocalReportDownloader(AzureReportDownloader):
             return manifest
 
         report_names = os.listdir(local_path)
-        if report_names:
-            report_name = report_names[0]
+        sorted_by_modified_date = sorted(report_names, key=lambda file: os.path.getmtime(f'{local_path}/{file}'))
+        if sorted_by_modified_date:
+            report_name = report_names[0]  # First item on list is most recent
 
         try:
             manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
