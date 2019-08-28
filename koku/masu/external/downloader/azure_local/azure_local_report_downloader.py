@@ -20,9 +20,11 @@
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
 import datetime
+import hashlib
 import json
 import logging
 import os
+import shutil
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
@@ -62,26 +64,11 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-        self._azure_client = self._get_azure_client(auth_credential, billing_source)
-        export_reports = self._azure_client.describe_cost_management_exports()
-        export_report = export_reports[0] if export_reports else {}
 
-        self.export_name = export_report.get('name')
-        self.container_name = export_report.get('container')
-        self.directory = export_report.get('directory')
-
-    @staticmethod
-    def _get_azure_client(credentials, billing_source):
-        subscription_id = credentials.get('subscription_id')
-        tenant_id = credentials.get('tenant_id')
-        client_id = credentials.get('client_id')
-        client_secret = credentials.get('client_secret')
-        resource_group_name = billing_source.get('resource_group')
-        storage_account_name = billing_source.get('storage_account')
-
-        service = AzureService(subscription_id, tenant_id, client_id, client_secret,
-                               resource_group_name, storage_account_name)
-        return service
+        self.export_name = billing_source.get('resource_group').get('export_name')
+        self.directory = billing_source.get('resource_group').get('directory')
+        self.container_name = billing_source.get('storage_account').get('container')
+        self.local_storage = billing_source.get('storage_account').get('local_dir')
 
     def _get_exports_data_directory(self):
         """Return the path of the exports temporary data directory."""
@@ -118,12 +105,17 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         report_path = self._get_report_path(date_time)
         manifest = {}
-        try:
-            blob = self._azure_client.get_latest_cost_export_for_path(report_path, self.container_name)
-        except AzureCostReportNotFound as ex:
-            LOG.error('Unable to find manifest. Error: %s', str(ex))
+
+        local_path = '{}/{}/{}'.format(self.local_storage, self.container_name, report_path)
+        LOG.info('LOCAL_PATH: %s', local_path)
+        # Get report name for report_path and container
+        if not os.path.exists(local_path):
+            LOG.error('Unable to find manifest.')
             return manifest
-        report_name = blob.name
+
+        report_names = os.listdir(local_path)
+        if report_names:
+            report_name = report_names[0]
 
         try:
             manifest['assemblyId'] = extract_uuids_from_string(report_name).pop()
@@ -134,7 +126,7 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         billing_period = {'start': (report_path.split('/')[-1]).split('-')[0],
                           'end': (report_path.split('/')[-1]).split('-')[1]}
         manifest['billingPeriod'] = billing_period
-        manifest['reportKeys'] = [report_name]
+        manifest['reportKeys'] = [f'{local_path}/{report_name}']
         manifest['Compression'] = UNCOMPRESSED
 
         manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
@@ -233,16 +225,12 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         local_filename = utils.get_local_file_name(key)
         full_file_path = f'{self._get_exports_data_directory()}/{local_filename}'
 
-        try:
-            blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
-            etag = blob.properties.etag
-        except AzureCostReportNotFound as ex:
-            log_msg = 'Error when downloading Azure report for key: %s. Error %s'.format(key, str(ex))
-            LOG.error(log_msg)
-            raise AzureReportDownloaderError(log_msg)
+        etag_hasher = hashlib.new('ripemd160')
+        etag_hasher.update(bytes(local_filename, 'utf-8'))
+        etag = etag_hasher.hexdigest()
 
         if etag != stored_etag:
             LOG.info('Downloading %s to %s', key, full_file_path)
-            blob = self._azure_client.download_cost_export(key, self.container_name, destination=full_file_path)
+            shutil.copy2(key, full_file_path)
         LOG.info('Returning full_file_path: %s, etag: %s', full_file_path, etag)
         return full_file_path, etag
