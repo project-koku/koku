@@ -18,6 +18,7 @@
 """Helper class for database test classes."""
 import csv
 import datetime
+from dateutil import parser
 import io
 import random
 import uuid
@@ -31,12 +32,14 @@ from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database.report_db_accessor_base import ReportSchema
-from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
+from masu.database import AWS_CUR_TABLE_MAP, AZURE_REPORT_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.util.azure import common as azure_utils
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = [
@@ -231,7 +234,7 @@ class ReportObjectCreator:
         for column in columns:
             col_type = column_types[column]
 
-            # This catches serveral different types of IntegerFields such as:
+            # This catches several different types of IntegerFields such as:
             # PositiveIntegerField, BigIntegerField,
             if 'IntegerField' in col_type:
                 data[column] = self.fake.pyint()
@@ -246,6 +249,8 @@ class ReportObjectCreator:
                 data[column] = self.make_datetime_aware(self.fake.past_datetime())
             elif col_type == 'DecimalField':
                 data[column] = self.fake.pydecimal(0, 7, positive=True)
+            elif col_type == 'UUIDField':
+                data[column] = self.fake.uuid4()
             else:
                 data[column] = self.fake.pystr()[:8]
 
@@ -340,6 +345,72 @@ class ReportObjectCreator:
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
+    def create_azure_cost_entry_bill(self, provider_id, bill_date=None):
+        """Create an Azure cost entry bill database object for test."""
+        table_name = AZURE_REPORT_TABLE_MAP['bill']
+        data = self.create_columns_for_table(table_name)
+        data['provider_id'] = provider_id
+        fake_bill_date = self.make_datetime_aware(self.fake.past_datetime())
+        data['billing_period_start'] = fake_bill_date
+        data['billing_period_end'] = fake_bill_date
+
+        if bill_date:
+            report_date_range = azure_utils.month_date_range(bill_date)
+            bill_start, bill_end = report_date_range.split('-')
+
+            data['billing_period_start'] = self.make_datetime_aware(parser.parse(bill_start))
+            data['billing_period_end'] = self.make_datetime_aware(parser.parse(bill_end))
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
+    def create_azure_cost_entry_product(self):
+        """Create an Azure cost entry product database object for test."""
+        table_name = AZURE_REPORT_TABLE_MAP['product']
+        data = self.create_columns_for_table(table_name)
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
+    def create_azure_meter(self):
+        """Create an Azure meter database object for test."""
+        table_name = AZURE_REPORT_TABLE_MAP['meter']
+        data = self.create_columns_for_table(table_name)
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
+    def create_azure_service(self):
+        """Create an Azure service database object for test."""
+        table_name = AZURE_REPORT_TABLE_MAP['service']
+        data = self.create_columns_for_table(table_name)
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
+
+    def create_azure_cost_entry_line_item(
+        self, bill, product, meter, service, usage_date_time=None
+    ):
+        """Create an Azure cost entry line item database object for test."""
+        table_name = AZURE_REPORT_TABLE_MAP['line_item']
+        data = self.create_columns_for_table(table_name)
+
+        random_usage_date_time = bill.billing_period_start + relativedelta.relativedelta(days=random.randint(1, 15))
+        extra_data = {
+            'cost_entry_bill_id': bill.id,
+            'cost_entry_product_id': product.id,
+            'meter_id': meter.id,
+            'service_id': service.id,
+            'usage_date_time': usage_date_time if usage_date_time else random_usage_date_time,
+            'tags': {
+                'environment': random.choice(['dev', 'qa', 'prod']),
+                self.fake.pystr()[:8]: self.fake.pystr()[:8],
+            }
+        }
+
+        data.update(extra_data)
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            return accessor.create_db_object(table_name, data)
 
 def map_django_field_type_to_python_type(field):
     """Map a Django field to its corresponding python type."""

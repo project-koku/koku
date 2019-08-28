@@ -236,9 +236,3 @@ services:
           - koku-rabbit
       depends_on:
           - koku-rabbit
-
-
-networks:
-  default:
-    external:
-      name: koku-network

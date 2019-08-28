@@ -16,6 +16,7 @@
 #
 """Updates report summary tables in the database."""
 import calendar
+import datetime
 import logging
 
 from tenant_schemas.utils import schema_context
@@ -61,8 +62,8 @@ class AWSReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema_name,
-            start_date,
-            end_date
+            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            datetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
         with schema_context(self._schema_name):
@@ -91,8 +92,8 @@ class AWSReportSummaryUpdater:
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema_name,
-            start_date,
-            end_date
+            datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+            datetime.datetime.strptime(end_date, '%Y-%m-%d')
         )
         bill_ids = []
         with schema_context(self._schema_name):
@@ -104,18 +105,15 @@ class AWSReportSummaryUpdater:
             LOG.info('Updating AWS report summary tables: \n\tSchema: %s'
                      '\n\tProvider: %s \n\tDates: %s - %s',
                      self._schema_name, self._provider.uuid, start_date, end_date)
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-        with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
             accessor.populate_tags_summary_table()
-            with schema_context(self._schema_name):
-                for bill in bills:
-                    if bill.summary_data_creation_datetime is None:
-                        bill.summary_data_creation_datetime = \
-                            self._date_accessor.today_with_timezone('UTC')
-                    bill.summary_data_updated_datetime = \
+            for bill in bills:
+                if bill.summary_data_creation_datetime is None:
+                    bill.summary_data_creation_datetime = \
                         self._date_accessor.today_with_timezone('UTC')
-                    bill.save()
+                bill.summary_data_updated_datetime = \
+                    self._date_accessor.today_with_timezone('UTC')
+                bill.save()
 
             accessor.commit()
         return start_date, end_date

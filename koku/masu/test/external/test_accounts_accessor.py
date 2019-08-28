@@ -82,7 +82,7 @@ class AccountsAccessorTest(MasuTestCase):
 
     @patch('masu.util.ocp.common.poll_ingest_override_for_provider', return_value=True)
     def test_get_ocp_override_account_is_poll(self, ocp_override):
-        """Test that the OCP-local path returns OCP as a listen account."""
+        """Test that the OCP path returns OCP as a listen account."""
         account_objects = AccountsAccessor().get_accounts(self.ocp_test_provider_uuid)
         self.assertEqual(len(account_objects), 1)
 

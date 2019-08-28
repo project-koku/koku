@@ -24,8 +24,8 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            LISTEN_INGEST,
-                           OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM,
                            POLL_INGEST)
 
@@ -68,7 +68,7 @@ def ingest_method_for_provider(provider):
         AMAZON_WEB_SERVICES: POLL_INGEST,
         AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         AZURE: POLL_INGEST,
-        OCP_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        AZURE_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }
     return ingest_map.get(provider)

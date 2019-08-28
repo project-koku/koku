@@ -185,19 +185,19 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         'masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables'
     )
     @patch(
-        'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_summary_tables'
+        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables'
     )
     @patch(
-        'masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables'
+        'masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables'
     )
-    def test_ocp_local_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
-        """Test that OCP Local report updating works as expected."""
+    def test_azure_local_route(self, mock_daily, mock_update, mock_cloud, mock_cloud_cost):
+        """Test that AZURE Local report updating works as expected."""
         mock_start = 1
         mock_end = 2
         mock_daily.return_value = (mock_start, mock_end)
         mock_update.return_value = (mock_start, mock_end)
-        updater = ReportSummaryUpdater(self.schema, self.ocp_test_provider_uuid)
-        self.assertIsInstance(updater._updater, OCPReportSummaryUpdater)
+        updater = ReportSummaryUpdater(self.schema, self.azure_test_provider_uuid)
+        self.assertIsInstance(updater._updater, AzureReportSummaryUpdater)
 
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
