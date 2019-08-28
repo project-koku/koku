@@ -62,13 +62,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
-        self._azure_client = self._get_azure_client(auth_credential, billing_source)
-        export_reports = self._azure_client.describe_cost_management_exports()
-        export_report = export_reports[0] if export_reports else {}
+        if not kwargs.get('is_local'):
+            self._azure_client = self._get_azure_client(auth_credential, billing_source)
+            export_reports = self._azure_client.describe_cost_management_exports()
+            export_report = export_reports[0] if export_reports else {}
 
-        self.export_name = export_report.get('name')
-        self.container_name = export_report.get('container')
-        self.directory = export_report.get('directory')
+            self.export_name = export_report.get('name')
+            self.container_name = export_report.get('container')
+            self.directory = export_report.get('directory')
 
     @staticmethod
     def _get_azure_client(credentials, billing_source):

@@ -19,7 +19,6 @@
 # pylint: disable=fixme
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
-import datetime
 import hashlib
 import json
 import logging
@@ -28,9 +27,8 @@ import shutil
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
-from masu.external.downloader.azure.azure_service import AzureCostReportNotFound, AzureService
-from masu.external.downloader.downloader_interface import DownloaderInterface
-from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.external.downloader.azure.azure_report_downloader import (AzureReportDownloader,
+                                                                    AzureReportDownloaderError)
 from masu.util.azure import common as utils
 from masu.util.common import extract_uuids_from_string
 
@@ -42,11 +40,7 @@ class AzureReportDownloaderError(Exception):
     """Azure Report Downloader error."""
 
 
-class AzureReportDownloaderNoFileError(Exception):
-    """Azure Report Downloader error for missing file."""
-
-
-class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
+class AzureLocalReportDownloader(AzureReportDownloader):
     """Azure Cost and Usage Report Downloader."""
 
     def __init__(self, customer_name, auth_credential, billing_source, report_name=None, **kwargs):
@@ -60,7 +54,8 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
 
         """
-        super().__init__(**kwargs)
+        kwargs['is_local'] = True
+        super().__init__(customer_name, auth_credential, billing_source, report_name, **kwargs)
 
         self._provider_id = kwargs.get('provider_id')
         self.customer_name = customer_name.replace(' ', '_')
@@ -69,28 +64,6 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.directory = billing_source.get('resource_group').get('directory')
         self.container_name = billing_source.get('storage_account').get('container')
         self.local_storage = billing_source.get('storage_account').get('local_dir')
-
-    def _get_exports_data_directory(self):
-        """Return the path of the exports temporary data directory."""
-        directory_path = f'{DATA_DIR}/{self.customer_name}/azure/{self.container_name}'
-        os.makedirs(directory_path, exist_ok=True)
-        return directory_path
-
-    def _get_report_path(self, date_time):
-        """
-        Return path of report files.
-
-        Args:
-            date_time (DateTime): The starting datetime object
-
-        Returns:
-            (String): "/blob_dir/export_name/YYYYMMDD-YYYYMMDD",
-                    example: "/cost/costreport/20190801-20190831"
-
-        """
-        report_date_range = utils.month_date_range(date_time)
-        return '{}/{}/{}'.format(self.directory, self.export_name,
-                                 report_date_range)
 
     def _get_manifest(self, date_time):
         """
@@ -107,8 +80,7 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest = {}
 
         local_path = '{}/{}/{}'.format(self.local_storage, self.container_name, report_path)
-        LOG.info('LOCAL_PATH: %s', local_path)
-        # Get report name for report_path and container
+
         if not os.path.exists(local_path):
             LOG.error('Unable to find manifest.')
             return manifest
@@ -134,82 +106,6 @@ class AzureLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_hdl.write(json.dumps(manifest))
 
         return manifest
-
-    def get_report_context_for_date(self, date_time):
-        """
-        Get the report context for a provided date.
-
-        Args:
-            date_time (DateTime): The starting datetime object
-
-        Returns:
-            ({}) Dictionary containing the following keys:
-                manifest_id - (String): Manifest ID for ReportManifestDBAccessor
-                assembly_id - (String): UUID identifying report file
-                compression - (String): Report compression format
-                files       - ([]): List of report files.
-
-        """
-        should_download = True
-        manifest_dict = {}
-        report_dict = {}
-        manifest = self._get_manifest(date_time)
-
-        if manifest != {}:
-            manifest_dict = self._prepare_db_manifest_record(manifest)
-            should_download = self.check_if_manifest_should_be_downloaded(
-                manifest_dict.get('assembly_id')
-            )
-
-        if not should_download:
-            manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
-            stmt = ('This manifest has already been downloaded and processed:\n'
-                    ' customer: {},\n'
-                    ' provider_id: {},\n'
-                    ' manifest_id: {}')
-            stmt = stmt.format(self.customer_name,
-                               self._provider_id,
-                               manifest_id)
-            LOG.info(stmt)
-            return report_dict
-
-        if manifest_dict:
-            manifest_id = self._process_manifest_db_record(
-                manifest_dict.get('assembly_id'),
-                manifest_dict.get('billing_start'),
-                manifest_dict.get('num_of_files')
-            )
-
-            report_dict['manifest_id'] = manifest_id
-            report_dict['assembly_id'] = manifest.get('assemblyId')
-            report_dict['compression'] = manifest.get('Compression')
-            report_dict['files'] = manifest.get('reportKeys')
-        return report_dict
-
-    @property
-    def manifest_date_format(self):
-        """Set the Azure manifest date format."""
-        return '%Y%m%d'
-
-    def _prepare_db_manifest_record(self, manifest):
-        """Prepare to insert or update the manifest DB record."""
-        assembly_id = manifest.get('assemblyId')
-        billing_str = manifest.get('billingPeriod', {}).get('start')
-        billing_start = datetime.datetime.strptime(
-            billing_str,
-            self.manifest_date_format
-        )
-        num_of_files = len(manifest.get('reportKeys', []))
-        return {
-            'assembly_id': assembly_id,
-            'billing_start': billing_start,
-            'num_of_files': num_of_files
-        }
-
-    @staticmethod
-    def get_local_file_for_report(report):
-        """Get full path for local report file."""
-        return utils.get_local_file_name(report)
 
     def download_file(self, key, stored_etag=None):
         """
