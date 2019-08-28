@@ -386,14 +386,13 @@ class ProviderViewSet(mixins.CreateModelMixin,
         @apiSuccessExample {json} Success-Response:
             HTTP/1.1 204 NO CONTENT
         """
+        # throws ValidationError if pk is not a valid UUID
+        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
+        get_object_or_404(Provider, uuid=uuid)
+
         # Block any users not part of the organization
         if not self.get_queryset():
             raise PermissionDenied()
-
-        # throws ValidationError if pk is not a valid UUID
-        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
-
-        get_object_or_404(Provider, uuid=uuid)
         manager = ProviderManager(uuid)
         try:
             manager.remove(request.user)
