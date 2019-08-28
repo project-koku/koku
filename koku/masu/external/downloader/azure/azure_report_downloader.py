@@ -19,8 +19,8 @@
 # pylint: disable=fixme
 # disabled until we get travis to not fail on warnings, or the fixme is
 # resolved.
-
 import datetime
+import json
 import logging
 import os
 
@@ -83,6 +83,12 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                                resource_group_name, storage_account_name)
         return service
 
+    def _get_exports_data_directory(self):
+        """Return the path of the exports temporary data directory."""
+        directory_path = f'{DATA_DIR}/{self.customer_name}/azure/{self.container_name}'
+        os.makedirs(directory_path, exist_ok=True)
+        return directory_path
+
     def _get_report_path(self, date_time):
         """
         Return path of report files.
@@ -130,6 +136,10 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifest['billingPeriod'] = billing_period
         manifest['reportKeys'] = [report_name]
         manifest['Compression'] = UNCOMPRESSED
+
+        manifest_file = '{}/{}'.format(self._get_exports_data_directory(), 'Manifest.json')
+        with open(manifest_file, 'w') as manifest_hdl:
+            manifest_hdl.write(json.dumps(manifest))
 
         return manifest
 
@@ -220,12 +230,9 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (String): The path and file name of the saved file
 
         """
-        directory_path = f'{DATA_DIR}/{self.customer_name}/azure/{self.container_name}'
-
         local_filename = utils.get_local_file_name(key)
-        full_file_path = f'{directory_path}/{local_filename}'
-        # Make sure the data directory exists
-        os.makedirs(directory_path, exist_ok=True)
+        full_file_path = f'{self._get_exports_data_directory()}/{local_filename}'
+
         try:
             blob = self._azure_client.get_cost_export_for_key(key, self.container_name)
             etag = blob.properties.etag

@@ -21,8 +21,8 @@ import logging
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
+from providers.azure_local.provider import AzureLocalProvider
 from providers.ocp.provider import OCPProvider
-from providers.ocp_local.provider import OCPLocalProvider
 
 from api.provider.models import Provider
 
@@ -51,7 +51,7 @@ class ProviderAccessor:
 
         services = {'AWS': AWSProvider,
                     'AWS-local': AWSLocalProvider,
-                    'OCP-local': OCPLocalProvider,
+                    'AZURE-local': AzureLocalProvider,
                     'OCP': OCPProvider,
                     'AZURE': AzureProvider}
 

@@ -25,7 +25,7 @@ from masu.external import (
     AMAZON_WEB_SERVICES,
     AWS_LOCAL_SERVICE_PROVIDER,
     LISTEN_INGEST,
-    OCP_LOCAL_SERVICE_PROVIDER,
+    AZURE_LOCAL_SERVICE_PROVIDER,
     OPENSHIFT_CONTAINER_PLATFORM,
     POLL_INGEST,
 )
@@ -107,7 +107,7 @@ class CommonUtilTests(MasuTestCase):
                 'expected_ingest': LISTEN_INGEST,
             },
             {
-                'provider_type': OCP_LOCAL_SERVICE_PROVIDER,
+                'provider_type': AZURE_LOCAL_SERVICE_PROVIDER,
                 'expected_ingest': POLL_INGEST,
             },
             {'provider_type': 'NEW_TYPE', 'expected_ingest': None},
