@@ -27,7 +27,7 @@ from django_filters import CharFilter, FilterSet
 from django_filters.filters import BaseCSVFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
@@ -145,9 +145,6 @@ class ProviderViewSet(mixins.CreateModelMixin,
         uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
         get_object_or_404(Provider, uuid=uuid, customer=user.customer)
 
-        # Block any users not part of the organization
-        # if not self.get_queryset():
-            # raise PermissionDenied()
         manager = ProviderManager(uuid)
         try:
             manager.remove(request.user)
