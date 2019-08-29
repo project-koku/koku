@@ -979,36 +979,16 @@
                 "summary": "Query to obtain AWS instance type data",
                 "operationId": "getAWSInstanceReports",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "name": "units",
-                        "in": "query",
-                        "description": "The units used to report data.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1065,36 +1045,16 @@
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAWSStorageReports",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "name": "units",
-                        "in": "query",
-                        "description": "The units used to report data.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1151,28 +1111,13 @@
                 "summary": "Query to obtain OpenShift compute usage information",
                 "operationId": "getOpenShiftComputeReports",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1229,28 +1174,13 @@
                 "summary": "Query to obtain OpenShift memory usage information",
                 "operationId": "getOpenShiftMemoryReports",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1307,28 +1237,13 @@
                 "summary": "Query to obtain OpenShift volume usage information",
                 "operationId": "getOpenShiftVolumeReports",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1451,36 +1366,16 @@
                 "summary": "Query to obtain OpenShift on AWS storage data",
                 "operationId": "getOpenShiftAWSInventoryStorageReport",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "name": "units",
-                        "in": "query",
-                        "description": "The units used to report data.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1537,36 +1432,16 @@
                 "summary": "Query to obtain OpenShift on AWS instance data",
                 "operationId": "getOpenShiftAWSInventoryInstanceReport",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "group_by",
-                        "in": "query",
-                        "description": "The grouping to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryGroupBy"
                     },
                     {
-                        "name": "order_by",
-                        "in": "query",
-                        "description": "The ordering to apply to the report as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryOrderBy"
                     },
                     {
-                        "name": "units",
-                        "in": "query",
-                        "description": "The units used to report data.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/ReportQueryUnits"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1623,20 +1498,10 @@
                 "summary": "Query to obtain AWS tags",
                 "operationId": "getAWSTagData",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the query as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "key_only",
-                        "in": "query",
-                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
-                        "schema": {
-                            "type": "boolean"
-                        }
+                        "$ref": "#/components/parameters/QueryKeyOnly"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1683,20 +1548,10 @@
                 "summary": "Query to obtain OpenShift tags",
                 "operationId": "getOpenShiftTagData",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the query as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "key_only",
-                        "in": "query",
-                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
-                        "schema": {
-                            "type": "boolean"
-                        }
+                        "$ref": "#/components/parameters/QueryKeyOnly"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -1743,20 +1598,10 @@
                 "summary": "Query to obtain OpenShift-on-AWS tags",
                 "operationId": "getOpenShiftAWSTagData",
                 "parameters": [{
-                        "name": "filter",
-                        "in": "query",
-                        "description": "The filter to apply to the query as a URL encoded dictionary.",
-                        "schema": {
-                            "type": "string"
-                        }
+                        "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
-                        "name": "key_only",
-                        "in": "query",
-                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
-                        "schema": {
-                            "type": "boolean"
-                        }
+                        "$ref": "#/components/parameters/QueryKeyOnly"
                     },
                     {
                         "$ref": "#/components/parameters/QueryOffset"
@@ -2032,6 +1877,23 @@
                     "minimum": 1,
                     "maximum": 1000
                 }
+            },
+            "ReportQueryUnits": {
+                "required": false,
+                "name": "units",
+                "in": "query",
+                "description": "The units used to report data.",
+                "schema": {
+                    "type": "string"
+                }
+            },
+            "QueryKeyOnly": {
+                        "name": "key_only",
+                        "in": "query",
+                        "description": "Flag to indicate whether or not only the tag key values will be returned.",
+                        "schema": {
+                            "type": "boolean"
+                        }
             }
         },
         "securitySchemes": {
@@ -2056,7 +1918,7 @@
                       "provider_uuids": {
                         "type": "array",
                         "items": {
-                          "type": "integer"
+                          "type": "string"
                         }
                       },
                       "rates": {
@@ -3109,12 +2971,6 @@
                 "description": "The resources scope to apply to the report. Default resource scope is null, meaning no product or service filtering."
             },
             "ReportPaginationMeta": {
-                "required": [
-                    "delta",
-                    "group_by",
-                    "order_by",
-                    "filter"
-                ],
                 "properties": {
                     "count": {
                         "type": "integer",
@@ -3858,10 +3714,6 @@
                 }
             },
             "Tags": {
-                "required": [
-                    "filter",
-                    "key_only"
-                ],
                 "properties": {
                     "filter": {
                         "$ref": "#/components/schemas/TagsFilter"
