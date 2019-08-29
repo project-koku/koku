@@ -41,7 +41,7 @@ class CostModelsFilter(FilterSet):
 
     name = CharFilter(field_name='name', method='list_contain_filter')
     uuid = UUIDFilter(field_name='uuid')
-    provider_uuid = ModelChoiceFilter(queryset=CostModelMap.objects.all())
+    provider_uuid = UUIDFilter(field_name='costmodelmap__provider_uuid')
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
@@ -69,6 +69,13 @@ class RateProviderPermissionDenied(APIException):
         self.status_code = status.HTTP_403_FORBIDDEN
         self.detail = {'detail': force_text(self.default_detail)}
 
+
+class CostModelQueryException(APIException):
+    """Invalid query field exception."""
+
+    def __init__(self, message):
+        self.status_code = status.HTTP_400_BAD_REQUEST
+        self.detail = {'detail': force_text(message)}
 
 class CostModelProviderQueryException(APIException):
     """Rate query custom internal error exception."""
@@ -109,7 +116,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
     filterset_class = CostModelsFilter
 
     @staticmethod
-    def check_fields(model, dict_, exception):
+    def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
         try:
             model.objects.filter(**dict_)
@@ -125,11 +132,11 @@ class CostModelViewSet(mixins.CreateModelMixin,
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if not provider_uuid:
-            self.check_fields(CostModel, self.request.query_params, CostModelProviderQueryException)
+            self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
 
         if provider_uuid:
             dict_ = {k: self.request.query_params[k] for k in self.request.query_params.keys() if k != 'provider_uuid'}
-            self.check_fields(CostModel, dict_, CostModelProviderQueryException)
+            self.check_fields(dict_, CostModel, CostModelQueryException)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:
