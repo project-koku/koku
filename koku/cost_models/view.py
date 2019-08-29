@@ -24,7 +24,7 @@ from uuid import UUID
 from django.core.exceptions import FieldError, ValidationError
 from django.db.models import Q
 from django.utils.encoding import force_text
-from django_filters import CharFilter, FilterSet, ModelChoiceFilter
+from django_filters import CharFilter, FilterSet, ModelChoiceFilter, UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
@@ -40,6 +40,7 @@ class CostModelsFilter(FilterSet):
     """Cost model custom filters."""
 
     name = CharFilter(field_name='name', method='list_contain_filter')
+    uuid = UUIDFilter(field_name='uuid')
     provider_uuid = ModelChoiceFilter(queryset=CostModelMap.objects.all())
 
     def list_contain_filter(self, qs, name, values):
@@ -108,12 +109,12 @@ class CostModelViewSet(mixins.CreateModelMixin,
     filterset_class = CostModelsFilter
 
     @staticmethod
-    def check_fields(dict_):
+    def check_fields(model, dict_, exception):
         """Check if GET fields are valid."""
         try:
-            CostModel.objects.filter(**dict_)
+            model.objects.filter(**dict_)
         except FieldError as fe:
-            raise CostModelProviderQueryException(fe)
+            raise exception(fe)
 
 
     def get_queryset(self):  # noqa: C901
@@ -124,21 +125,14 @@ class CostModelViewSet(mixins.CreateModelMixin,
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if not provider_uuid:
-            self.check_fields(self.request.query_params)
+            self.check_fields(CostModel, self.request.query_params, CostModelProviderQueryException)
 
         if provider_uuid:
             dict_ = {k: self.request.query_params[k] for k in self.request.query_params.keys() if k != 'provider_uuid'}
-            self.check_fields(dict_)
+            self.check_fields(CostModel, dict_, CostModelProviderQueryException)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
-            # read_access_list = ['1']
             if '*' not in read_access_list:
-                for access_item in read_access_list:
-                    try:
-                        UUID(access_item)
-                    except ValueError:
-                        err_msg = 'Unexpected rbac access item.  {} is not a uuid.'.format(access_item)
-                        raise CostModelProviderQueryException(err_msg)
                 try:
                     queryset = self.queryset.filter(uuid__in=read_access_list)
                 except ValidationError as queryset_error:
