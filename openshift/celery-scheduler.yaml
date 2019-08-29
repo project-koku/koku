@@ -47,6 +47,10 @@ objects:
         containers:
         - name: ${NAME}-scheduler
           image: ${NAME}-scheduler
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
           command:
             - /bin/bash
             - -c
