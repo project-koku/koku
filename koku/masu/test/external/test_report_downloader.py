@@ -88,15 +88,15 @@ class ReportDownloaderTest(MasuTestCase):
         'masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader.__init__',
         return_value=None,
     )
-    def test_initializer_aws_local(self, fake_downloader):
-        """Test to initializer for AWS-local downloader"""
+    def test_initializer_ocp(self, fake_downloader):
+        """Test to initializer"""
         downloader = ReportDownloader(
             customer_name='customer name',
             access_credential=self.fake_creds,
             report_source='hereiam',
             report_name='bestreport',
-            provider_type=AWS_LOCAL_SERVICE_PROVIDER,
-            provider_id=self.aws_provider_id,
+            provider_type=OPENSHIFT_CONTAINER_PLATFORM,
+            provider_id=self.ocp_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
 
