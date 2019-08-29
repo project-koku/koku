@@ -50,6 +50,8 @@ objects:
     # S3 Bucket settings
     s3-bucket-name: ${S3_BUCKET_NAME}
     s3-bucket-path: ${S3_BUCKET_PATH}
+    s3-ia-transition: ${S3_IA_TRANSITION}
+    s3-glacier-transition: ${S3_GLACIER_TRANSITION}
     enable-s3-archiving: "True"
 
 # logging configs
@@ -218,4 +220,12 @@ parameters:
 - displayName: S3 bucket path
   value: 'data_archive'
   name: S3_BUCKET_PATH
+  required: true
+- displayName: S3 InfrequentAccess transition age
+  value: '180'
+  name: S3_IA_TRANSITION
+  required: true
+- displayName: S3 Glacier transition age
+  value: '365'
+  name: S3_GLACIER_TRANSITION
   required: true
