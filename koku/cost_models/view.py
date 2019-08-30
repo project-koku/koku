@@ -19,18 +19,17 @@
 import logging
 from functools import reduce
 from operator import and_
-from uuid import UUID
 
 from django.core.exceptions import FieldError, ValidationError
 from django.db.models import Q
 from django.utils.encoding import force_text
-from django_filters import CharFilter, FilterSet, ModelChoiceFilter, UUIDFilter
+from django_filters import CharFilter, FilterSet, UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
-from cost_models.models import CostModel, CostModelMap
+from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
 
 LOG = logging.getLogger(__name__)
@@ -74,8 +73,10 @@ class CostModelQueryException(APIException):
     """Invalid query field exception."""
 
     def __init__(self, message):
+        """Initialize with status code 400."""
         self.status_code = status.HTTP_400_BAD_REQUEST
         self.detail = {'detail': force_text(message)}
+
 
 class CostModelProviderQueryException(APIException):
     """Rate query custom internal error exception."""
@@ -123,12 +124,11 @@ class CostModelViewSet(mixins.CreateModelMixin,
         except FieldError as fe:
             raise exception(fe)
 
-
     def get_queryset(self):  # noqa: C901
         """Get a queryset.
 
         Restricts the returned data to provider_uuid if supplied as a query parameter.
-        # """
+        """
         queryset = CostModel.objects.all()
         provider_uuid = self.request.query_params.get('provider_uuid')
         if not provider_uuid:

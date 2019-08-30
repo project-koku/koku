@@ -22,7 +22,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.cache import caches
-from django.core.exceptions import ValidationError
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
