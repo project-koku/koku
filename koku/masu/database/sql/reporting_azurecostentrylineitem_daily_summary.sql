@@ -12,7 +12,9 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
                 cost_entry_product_id,
                 li.meter_id,
                 m.currency,
-                tags
+                tags,
+                array_agg(DISTINCT p.instance_id) as instance_ids,
+                count(DISTINCT p.instance_id) as instance_count
     FROM {schema}.reporting_azurecostentrylineitem_daily AS li
     JOIN {schema}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
@@ -55,7 +57,9 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
     usage_date_time,
     tags,
     instance_type,
-    currency
+    currency,
+    instance_ids,
+    instance_count
 )
     SELECT cost_entry_bill_id,
         subscription_guid,
@@ -68,6 +72,8 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
         usage_date_time,
         tags,
         instance_type,
-        currency
+        currency,
+        instance_ids,
+        instance_count
     FROM reporting_azurecostentrylineitem_daily_summary_{uuid}
 ;
