@@ -54,7 +54,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             AZURE_REPORT_TABLE_MAP['bill'],
             AZURE_REPORT_TABLE_MAP['product'],
             AZURE_REPORT_TABLE_MAP['meter'],
-            AZURE_REPORT_TABLE_MAP['service'],
         ]
         cls.manifest_accessor = ReportManifestDBAccessor()
 
@@ -77,8 +76,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         product = self.creator.create_azure_cost_entry_product()
         meter = self.creator.create_azure_meter()
-        service = self.creator.create_azure_service()
-        self.creator.create_azure_cost_entry_line_item(bill, product, meter, service)
+        self.creator.create_azure_cost_entry_line_item(bill, product, meter)
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
     def tearDown(self):
@@ -110,7 +108,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
             self.assertIsInstance(products, dict)
             self.assertEqual(len(products.keys()), count)
-            expected_key = first_entry.instance_id
+            expected_key = (first_entry.instance_id,
+                            first_entry.service_name,
+                            first_entry.service_tier)
             self.assertIn(expected_key, products)
 
     def test_get_meters(self):
@@ -126,20 +126,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertEqual(len(meters.keys()), count)
             expected_key = first_entry.meter_id
             self.assertIn(expected_key, meters)
-
-    def test_get_services(self):
-        """Test that a dict of Azure services are returned."""
-        table_name = AZURE_REPORT_TABLE_MAP['service']
-        query = self.accessor._get_db_obj_query(table_name)
-        with schema_context(self.schema):
-            count = query.count()
-            first_entry = query.first()
-            services = self.accessor.get_services()
-
-            self.assertIsInstance(services, dict)
-            self.assertEqual(len(services.keys()), count)
-            expected_key = (first_entry.service_tier, first_entry.service_name)
-            self.assertIn(expected_key, services)
 
     def test_bills_for_provider_id(self):
         """Test that bills_for_provider_id returns the right bills."""
@@ -170,9 +156,8 @@ class AzureReportDBAccessorTest(MasuTestCase):
             bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
             product = self.creator.create_azure_cost_entry_product()
             meter = self.creator.create_azure_meter()
-            service = self.creator.create_azure_service()
             self.creator.create_azure_cost_entry_line_item(
-                bill, product, meter, service
+                bill, product, meter
             )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
