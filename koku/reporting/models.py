@@ -30,9 +30,8 @@ from reporting.provider.aws.models import (AWSAccountAlias,                     
 from reporting.provider.azure.models import (AzureCostEntryBill,                  # noqa: F401
                                              AzureCostEntryLineItemDaily,         # noqa: F401
                                              AzureCostEntryLineItemDailySummary,  # noqa: F401
-                                             AzureCostEntryProduct,               # noqa: F401
-                                             AzureMeter,                          # noqa: F401
-                                             AzureService)                        # noqa: F401
+                                             AzureCostEntryProductService,        # noqa: F401
+                                             AzureMeter)                          # noqa: F401
 from reporting.provider.ocp.costs.models import CostSummary                       # noqa: F401
 from reporting.provider.ocp.models import (OCPStorageLineItem,                    # noqa: F401
                                            OCPStorageLineItemDaily,               # noqa: F401

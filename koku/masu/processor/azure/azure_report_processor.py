@@ -31,9 +31,8 @@ from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
 from reporting.provider.azure.models import (AzureCostEntryBill,
                                              AzureCostEntryLineItemDaily,
-                                             AzureCostEntryProduct,
-                                             AzureMeter,
-                                             AzureService)
+                                             AzureCostEntryProductService,
+                                             AzureMeter)
 LOG = logging.getLogger(__name__)
 
 
@@ -49,7 +48,6 @@ class ProcessedAzureReport:
         self.bills = {}
         self.products = {}
         self.meters = {}
-        self.services = {}
         self.line_items = []
 
     def remove_processed_rows(self):
@@ -57,7 +55,6 @@ class ProcessedAzureReport:
         self.bills = {}
         self.products = {}
         self.meters = {}
-        self.services = {}
         self.line_items = []
 
 
@@ -100,7 +97,6 @@ class AzureReportProcessor(ReportProcessorBase):
             self.existing_bill_map = report_db.get_cost_entry_bills()
             self.existing_product_map = report_db.get_products()
             self.existing_meter_map = report_db.get_meters()
-            self.existing_service_nap = report_db.get_services()
 
         self.line_item_columns = None
 
@@ -159,10 +155,12 @@ class AzureReportProcessor(ReportProcessorBase):
             (str): The DB id of the product object
 
         """
-        table_name = AzureCostEntryProduct
+        table_name = AzureCostEntryProductService
         instance_id = row.get('InstanceId')
+        service_name = row.get('ServiceName')
+        service_tier = row.get('ServiceTier')
 
-        key = (instance_id, )
+        key = (instance_id, service_name, service_tier)
 
         if key in self.processed_report.products:
             return self.processed_report.products[key]
@@ -180,7 +178,7 @@ class AzureReportProcessor(ReportProcessorBase):
         product_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
             data,
-            conflict_columns=['instance_id', ]
+            conflict_columns=['instance_id', 'service_name', 'service_tier']
         )
         self.processed_report.products[key] = product_id
         return product_id
@@ -220,49 +218,12 @@ class AzureReportProcessor(ReportProcessorBase):
         self.processed_report.meters[key] = meter_id
         return meter_id
 
-    def _create_service(self, row, report_db_accessor):
-        """Create a cost entry product object.
-
-        Args:
-            row (dict): A dictionary representation of a CSV file row
-
-        Returns:
-            (str): The DB id of the product object
-
-        """
-        table_name = AzureService
-        service_tier = row.get('ServiceTier')
-        service_name = row.get('ServiceName')
-        key = (service_tier, service_name)
-
-        if key in self.processed_report.services:
-            return self.processed_report.services[key]
-
-        if key in self.existing_service_nap:
-            return self.existing_service_nap[key]
-
-        data = self._get_data_for_table(
-            row,
-            table_name._meta.db_table
-        )
-        value_set = set(data.values())
-        if value_set == {''}:
-            return
-        service_id = report_db_accessor.insert_on_conflict_do_nothing(
-            table_name,
-            data,
-            conflict_columns=['service_tier', 'service_name']
-        )
-        self.processed_report.services[key] = service_id
-        return service_id
-
     # pylint: disable=too-many-arguments
     def _create_cost_entry_line_item(self,
                                      row,
                                      bill_id,
                                      product_id,
                                      meter_id,
-                                     service_id,
                                      report_db_accesor):
         """Create a cost entry line item object.
 
@@ -271,7 +232,6 @@ class AzureReportProcessor(ReportProcessorBase):
             bill_id (str): A processed cost entry bill object id
             product_id (str): A processed product object id
             meter_id (str): A processed meter object id
-            service_id (str): A processed object object id
 
         Returns:
             (None)
@@ -293,7 +253,6 @@ class AzureReportProcessor(ReportProcessorBase):
         data['cost_entry_bill_id'] = bill_id
         data['cost_entry_product_id'] = product_id
         data['meter_id'] = meter_id
-        data['service_id'] = service_id
 
         self.processed_report.line_items.append(data)
 
@@ -305,14 +264,12 @@ class AzureReportProcessor(ReportProcessorBase):
         bill_id = self._create_cost_entry_bill(row, report_db_accesor)
         product_id = self._create_cost_entry_product(row, report_db_accesor)
         meter_id = self._create_meter(row, report_db_accesor)
-        service_id = self._create_service(row, report_db_accesor)
 
         self._create_cost_entry_line_item(
             row,
             bill_id,
             product_id,
             meter_id,
-            service_id,
             report_db_accesor
         )
 
@@ -360,6 +317,5 @@ class AzureReportProcessor(ReportProcessorBase):
         """Update cache of database objects for reference."""
         self.existing_product_map.update(self.processed_report.products)
         self.existing_meter_map.update(self.processed_report.meters)
-        self.existing_service_nap.update(self.processed_report.services)
 
         self.processed_report.remove_processed_rows()
