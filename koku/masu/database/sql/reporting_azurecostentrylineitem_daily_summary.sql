@@ -4,20 +4,20 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
                 date(usage_date_time) AS usage_date_time,
                 subscription_guid, -- account ID
                 p.resource_location AS resource_location, -- region
-                s.service_name AS service_name, -- service
+                p.service_name AS service_name, -- service
                 p.additional_info->>'ServiceType' as instance_type, -- VM type
                 sum(usage_quantity) AS usage_quantity,
                 sum(pretax_cost) AS pretax_cost,
                 offer_id,
                 cost_entry_product_id,
-                meter_id,
-                service_id,
+                li.meter_id,
+                m.currency,
                 tags
     FROM {schema}.reporting_azurecostentrylineitem_daily AS li
-    JOIN {schema}.reporting_azurecostentryproduct AS p
+    JOIN {schema}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
-    JOIN {schema}.reporting_azureservice AS s
-        ON li.service_id = s.id
+    JOIN {schema}.reporting_azuremeter AS m
+        ON li.meter_id = m.id
     WHERE date(li.usage_date_time) >= '{start_date}'
         AND date(li.usage_date_time) <= '{end_date}'
         AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
@@ -29,9 +29,9 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
         li.subscription_guid,
         p.resource_location,
         li.meter_id,
-        li.service_id,
         p.additional_info->>'ServiceType',
-        s.service_name -- service
+        p.service_name, -- service
+        m.currency
 )
 ;
 
@@ -54,7 +54,8 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
     usage_quantity,
     usage_date_time,
     tags,
-    instance_type
+    instance_type,
+    currency
 )
     SELECT cost_entry_bill_id,
         subscription_guid,
@@ -66,6 +67,7 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
         usage_quantity,
         usage_date_time,
         tags,
-        instance_type
+        instance_type,
+        currency
     FROM reporting_azurecostentrylineitem_daily_summary_{uuid}
 ;
