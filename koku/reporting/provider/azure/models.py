@@ -45,25 +45,24 @@ class AzureCostEntryBill(models.Model):
     provider_id = models.IntegerField(null=True)
 
 
-class AzureCostEntryProduct(models.Model):
+class AzureCostEntryProductService(models.Model):
     """The Azure product identified in a cost entry line item."""
 
     class Meta:
-        """Meta for AzureCostEntryProduct."""
+        """Meta for AzureCostEntryProductService."""
 
-        indexes = [
-            models.Index(
-                fields=['resource_location'],
-                name='resource_location_idx',
-            ),
-        ]
+        unique_together = ('instance_id', 'service_name', 'service_tier')
 
-    instance_id = models.CharField(max_length=512, unique=True, null=False)
+    instance_id = models.CharField(max_length=512, null=False)
     resource_location = models.CharField(max_length=50, null=False)
     consumed_service = models.CharField(max_length=50, null=False)
     resource_type = models.CharField(max_length=50, null=False)
     resource_group = models.CharField(max_length=50, null=False)
     additional_info = JSONField(null=True)
+    service_tier = models.CharField(max_length=50, null=False)
+    service_name = models.CharField(max_length=50, null=False)
+    service_info1 = models.TextField(null=True)
+    service_info2 = models.TextField(null=True)
 
 
 class AzureMeter(models.Model):
@@ -79,20 +78,6 @@ class AzureMeter(models.Model):
                                         null=True)
 
     currency = models.CharField(max_length=10, null=False)
-
-
-class AzureService(models.Model):
-    """The Azure service."""
-
-    class Meta:
-        """Meta for AzureMeter."""
-
-        unique_together = ('service_tier', 'service_name')
-
-    service_tier = models.CharField(max_length=50, null=False)
-    service_name = models.CharField(max_length=50, null=False)
-    service_info1 = models.TextField(null=True)
-    service_info2 = models.TextField(null=True)
 
 
 class AzureCostEntryLineItemDaily(models.Model):
@@ -112,14 +97,11 @@ class AzureCostEntryLineItemDaily(models.Model):
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
                                         on_delete=models.PROTECT)
 
-    cost_entry_product = models.ForeignKey('AzureCostEntryProduct',
+    cost_entry_product = models.ForeignKey('AzureCostEntryProductService',
                                            on_delete=models.PROTECT, null=True)
 
     meter = models.ForeignKey('AzureMeter',
                               on_delete=models.PROTECT, null=True)
-
-    service = models.ForeignKey('AzureService',
-                                on_delete=models.PROTECT, null=True)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 
@@ -175,6 +157,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
                                       null=True)
 
     offer_id = models.PositiveIntegerField(null=True)
+
+    currency = models.CharField(max_length=10, null=False, default='USD')
 
 
 class AzureTagsSummary(models.Model):
