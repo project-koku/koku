@@ -158,6 +158,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     offer_id = models.PositiveIntegerField(null=True)
 
+    currency = models.CharField(max_length=10, null=False, default='USD')
+
 
 class AzureTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""

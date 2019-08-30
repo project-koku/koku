@@ -10,11 +10,14 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
                 sum(pretax_cost) AS pretax_cost,
                 offer_id,
                 cost_entry_product_id,
-                meter_id,
+                li.meter_id,
+                m.currency,
                 tags
     FROM {schema}.reporting_azurecostentrylineitem_daily AS li
     JOIN {schema}.reporting_azurecostentryproductservice AS p
         ON li.cost_entry_product_id = p.id
+    JOIN {schema}.reporting_azuremeter AS m
+        ON li.meter_id = m.id
     WHERE date(li.usage_date_time) >= '{start_date}'
         AND date(li.usage_date_time) <= '{end_date}'
         AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
@@ -27,7 +30,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
         p.resource_location,
         li.meter_id,
         p.additional_info->>'ServiceType',
-        p.service_name -- service
+        p.service_name, -- service
+        m.currency
 )
 ;
 
@@ -50,7 +54,8 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
     usage_quantity,
     usage_date_time,
     tags,
-    instance_type
+    instance_type,
+    currency
 )
     SELECT cost_entry_bill_id,
         subscription_guid,
@@ -62,6 +67,7 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
         usage_quantity,
         usage_date_time,
         tags,
-        instance_type
+        instance_type,
+        currency
     FROM reporting_azurecostentrylineitem_daily_summary_{uuid}
 ;
