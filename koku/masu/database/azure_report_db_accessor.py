@@ -27,9 +27,8 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
-                                             AzureCostEntryProduct,
-                                             AzureMeter,
-                                             AzureService)
+                                             AzureCostEntryProductService,
+                                             AzureMeter)
 
 LOG = logging.getLogger(__name__)
 
@@ -63,12 +62,13 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
     def get_products(self):
         """Make a mapping of product objects."""
-        table_name = AzureCostEntryProduct
+        table_name = AzureCostEntryProductService
         with schema_context(self.schema):
-            columns = ['id', 'instance_id']
+            columns = ['id', 'instance_id', 'service_name', 'service_tier']
             products = self._get_db_obj_query(table_name, columns=columns).all()
 
-            return {(product['instance_id']): product['id']
+            return {(product['instance_id'], product['service_name'],
+                     product['service_tier']): product['id']
                     for product in products}
 
     def get_meters(self):
@@ -80,16 +80,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
 
             return {(meter['meter_id']): meter['id']
                     for meter in meters}
-
-    def get_services(self):
-        """Make a mapping of service objects."""
-        table_name = AzureService
-        with schema_context(self.schema):
-            columns = ['id', 'service_tier', 'service_name']
-            services = self._get_db_obj_query(table_name, columns=columns).all()
-
-            return {(service['service_tier'], service['service_name']): service['id']
-                    for service in services}
 
     # pylint: disable=invalid-name
     def get_cost_entry_bills_query_by_provider(self, provider_id):
