@@ -160,6 +160,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     currency = models.CharField(max_length=10, null=False, default='USD')
 
+    instance_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    instance_count = models.IntegerField(null=True)
+
 
 class AzureTagsSummary(models.Model):
     """A collection of all current existing tag key and values."""
