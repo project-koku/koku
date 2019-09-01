@@ -219,9 +219,6 @@ class AzureReportProcessorTest(MasuTestCase):
         bill_id = self.processor._create_cost_entry_bill(self.row, self.accessor)
         product_id = self.processor._create_cost_entry_product(self.row, self.accessor)
         meter_id = self.processor._create_meter(self.row, self.accessor)
-        service_id = self.processor._create_service(
-            self.row, self.accessor
-        )
 
         self.accessor.commit()
 
@@ -230,7 +227,6 @@ class AzureReportProcessorTest(MasuTestCase):
             bill_id,
             product_id,
             meter_id,
-            service_id,
             self.accessor,
         )
 
@@ -243,7 +239,6 @@ class AzureReportProcessorTest(MasuTestCase):
         self.assertEqual(line_item.get('cost_entry_bill_id'), bill_id)
         self.assertEqual(line_item.get('cost_entry_product_id'), product_id)
         self.assertEqual(line_item.get('meter_id'), meter_id)
-        self.assertEqual(line_item.get('service_id'), service_id)
 
         self.assertIsNotNone(self.processor.line_item_columns)
 
