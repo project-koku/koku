@@ -370,10 +370,10 @@
         },
         "azure-mgmt-managementgroups": {
             "hashes": [
-                "sha256:005e8289c2e1d8a8368c96790edf6a34e5c37b4096bce2eb8a923c6d5dc11fb2",
-                "sha256:ff62d982edda634a36160cb1d15a367a9572a5acb419e5e7ad371e8c83bd47c7"
+                "sha256:3d5237947458dc94b4a392141174b1c1258d26611241ee104e9006d1d798f682",
+                "sha256:8194ee6274df865eccd1ed9d385ea625aeba9b8058b9e4fdf547f5207271a775"
             ],
-            "version": "==0.1.0"
+            "version": "==0.2.0"
         },
         "azure-mgmt-managementpartner": {
             "hashes": [
