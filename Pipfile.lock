@@ -1253,11 +1253,10 @@
         },
         "flake8-docstrings": {
             "hashes": [
-                "sha256:3ad372b641f4c8e70c7465f067aed4ff8bf1e9347fce14f9eb71ed816db36257",
-                "sha256:d8d72ccd5807c1ab9ff1466cb9bece0c4d94b8669e9bc4f472abc80dbc5d399e"
+                "sha256:1666dd069c9c457ee57e80af3c1a6b37b00cc1801c6fde88e455131bb2e186cd",
+                "sha256:9c0db5a79a1affd70fdf53b8765c8a26bf968e59e0252d7f2fc546b41c0cda06"
             ],
-            "index": "pypi",
-            "version": "==1.3.1"
+            "version": "==1.4.0"
         },
         "flake8-polyfill": {
             "hashes": [
