@@ -412,10 +412,10 @@
         },
         "azure-mgmt-msi": {
             "hashes": [
-                "sha256:8622bc9a164169a0113728ebe7fd43a88189708ce6e10d4507247d6907987167",
-                "sha256:e989e61753bf4eca0e688526b7c31c9a88082080acfb038fad17dda7f084a026"
+                "sha256:d46f3aab25db3dad520e4055c1d67afe4fcc6d66335c762134e60f82265f8f58",
+                "sha256:e75175af21f9a471c1e8d7a538c11905d65083b86d661b9a759578fb65a1dbcc"
             ],
-            "version": "==0.2.0"
+            "version": "==1.0.0"
         },
         "azure-mgmt-network": {
             "hashes": [
