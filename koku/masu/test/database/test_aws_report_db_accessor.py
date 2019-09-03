@@ -795,6 +795,84 @@ class ReportDBAccessorTest(MasuTestCase):
             self.assertNotEqual(getattr(entry, 'tags'), {})
 
     @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
+    def test_populate_line_item_daily_table_no_bill_ids(self, mock_vacuum):
+        """Test that the daily table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        daily_table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        daily_table = getattr(self.accessor.report_schema, daily_table_name)
+        bill_ids = None
+
+        with schema_context(self.schema):
+            for _ in range(10):
+                bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+                cost_entry = self.creator.create_cost_entry(bill)
+                product = self.creator.create_cost_entry_product()
+                pricing = self.creator.create_cost_entry_pricing()
+                reservation = self.creator.create_cost_entry_reservation()
+                self.creator.create_cost_entry_line_item(
+                    bill, cost_entry, product, pricing, reservation, resource_id='1234'
+                )
+
+        with schema_context(self.schema):
+            ce_entry = ce_table.objects.all().aggregate(
+                Min('interval_start'), Max('interval_start')
+            )
+            start_date = ce_entry['interval_start__min']
+            end_date = ce_entry['interval_start__max']
+
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            query = self.accessor._get_db_obj_query(daily_table_name)
+            initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+
+        with schema_context(self.schema):
+            self.assertNotEqual(query.count(), initial_count)
+
+            daily_entry = daily_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_start')
+            )
+            result_start_date = daily_entry['usage_start__min']
+            result_end_date = daily_entry['usage_start__max']
+
+            self.assertEqual(result_start_date, start_date)
+            self.assertEqual(result_end_date, end_date)
+            entry = query.first()
+
+            summary_columns = [
+                'cost_entry_product_id',
+                'cost_entry_pricing_id',
+                'cost_entry_reservation_id',
+                'line_item_type',
+                'usage_account_id',
+                'usage_start',
+                'usage_end',
+                'product_code',
+                'usage_type',
+                'operation',
+                'availability_zone',
+                'resource_id',
+                'usage_amount',
+                'normalization_factor',
+                'normalized_usage_amount',
+                'currency_code',
+                'unblended_rate',
+                'unblended_cost',
+                'blended_rate',
+                'blended_cost',
+                'public_on_demand_cost',
+                'public_on_demand_rate',
+                'tags',
+            ]
+            for column in summary_columns:
+                self.assertIsNotNone(getattr(entry, column))
+
+            self.assertNotEqual(getattr(entry, 'tags'), {})
+
+    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
     def test_populate_line_item_daily_summary_table(self, mock_vaccum):
         """Test that the daily summary table is populated."""
         ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
@@ -818,6 +896,102 @@ class ReportDBAccessorTest(MasuTestCase):
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
+
+        table_name = AWS_CUR_TABLE_MAP['line_item']
+        tag_query = self.accessor._get_db_obj_query(table_name)
+        possible_keys = []
+        possible_values = []
+        with schema_context(self.schema):
+            for item in tag_query:
+                possible_keys += list(item.tags.keys())
+                possible_values += list(item.tags.values())
+
+            ce_entry = ce_table.objects.all().aggregate(
+                Min('interval_start'), Max('interval_start')
+            )
+            start_date = ce_entry['interval_start__min']
+            end_date = ce_entry['interval_start__max']
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+        with schema_context(self.schema):
+            initial_count = query.count()
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
+        self.accessor.populate_line_item_daily_summary_table(
+            start_date, end_date, bill_ids
+        )
+        with schema_context(self.schema):
+            self.assertNotEqual(query.count(), initial_count)
+
+            summary_entry = summary_table.objects.all().aggregate(
+                Min('usage_start'), Max('usage_start')
+            )
+            result_start_date = summary_entry['usage_start__min']
+            result_end_date = summary_entry['usage_start__max']
+
+            self.assertEqual(result_start_date, start_date)
+            self.assertEqual(result_end_date, end_date)
+
+            entry = query.order_by('-id')
+
+            summary_columns = [
+                'usage_start',
+                'usage_end',
+                'usage_account_id',
+                'product_code',
+                'product_family',
+                'availability_zone',
+                'region',
+                'instance_type',
+                'unit',
+                'resource_count',
+                'usage_amount',
+                'normalization_factor',
+                'normalized_usage_amount',
+                'currency_code',
+                'unblended_rate',
+                'unblended_cost',
+                'blended_rate',
+                'blended_cost',
+                'public_on_demand_cost',
+                'public_on_demand_rate',
+                'tags',
+            ]
+
+            for column in summary_columns:
+                self.assertIsNotNone(getattr(entry.first(), column))
+
+            found_keys = []
+            found_values = []
+            for item in query.all():
+                found_keys += list(item.tags.keys())
+                found_values += list(item.tags.values())
+
+            self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
+            self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
+
+    @patch('masu.database.aws_report_db_accessor.AWSReportDBAccessor.vacuum_table')
+    def test_populate_line_item_daily_summary_table_no_bill_ids(self, mock_vaccum):
+        """Test that the daily summary table is populated."""
+        ce_table_name = AWS_CUR_TABLE_MAP['cost_entry']
+        summary_table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
+
+        ce_table = getattr(self.accessor.report_schema, ce_table_name)
+        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+        bill_ids = None
+
+        for _ in range(10):
+            bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+            cost_entry = self.creator.create_cost_entry(bill)
+            product = self.creator.create_cost_entry_product()
+            pricing = self.creator.create_cost_entry_pricing()
+            reservation = self.creator.create_cost_entry_reservation()
+            self.creator.create_cost_entry_line_item(
+                bill, cost_entry, product, pricing, reservation
+            )
 
         table_name = AWS_CUR_TABLE_MAP['line_item']
         tag_query = self.accessor._get_db_obj_query(table_name)

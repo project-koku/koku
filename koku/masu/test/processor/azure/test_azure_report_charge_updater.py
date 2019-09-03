@@ -74,8 +74,7 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
         bill = self.creator.create_azure_cost_entry_bill(provider_id = provider_id, bill_date=today)
         product = self.creator.create_azure_cost_entry_product()
         meter = self.creator.create_azure_meter()
-        service = self.creator.create_azure_service()
-        self.creator.create_azure_cost_entry_line_item(bill, product, meter, service)
+        self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
