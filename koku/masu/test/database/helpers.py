@@ -380,16 +380,8 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_service(self):
-        """Create an Azure service database object for test."""
-        table_name = AZURE_REPORT_TABLE_MAP['service']
-        data = self.create_columns_for_table(table_name)
-
-        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
-            return accessor.create_db_object(table_name, data)
-
     def create_azure_cost_entry_line_item(
-        self, bill, product, meter, service, usage_date_time=None
+        self, bill, product, meter, usage_date_time=None
     ):
         """Create an Azure cost entry line item database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['line_item']
@@ -400,7 +392,6 @@ class ReportObjectCreator:
             'cost_entry_bill_id': bill.id,
             'cost_entry_product_id': product.id,
             'meter_id': meter.id,
-            'service_id': service.id,
             'usage_date_time': usage_date_time if usage_date_time else random_usage_date_time,
             'tags': {
                 'environment': random.choice(['dev', 'qa', 'prod']),

@@ -49,9 +49,8 @@ OCP_REPORT_TABLE_MAP = {
 
 AZURE_REPORT_TABLE_MAP = {
     'bill': 'reporting_azurecostentrybill',
-    'product': 'reporting_azurecostentryproduct',
+    'product': 'reporting_azurecostentryproductservice',
     'meter': 'reporting_azuremeter',
-    'service': 'reporting_azureservice',
     'line_item': 'reporting_azurecostentrylineitem_daily',
     'line_item_daily_summary': 'reporting_azurecostentrylineitem_daily_summary',
     'tags_summary': 'reporting_azuretags_summary'

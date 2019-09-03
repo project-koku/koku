@@ -30,7 +30,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
         ON li.cost_entry_id = ce.id
     WHERE date(ce.interval_start) >= '{start_date}'
         AND date(ce.interval_start) <= '{end_date}'
-        AND li.cost_entry_bill_id IN ({cost_entry_bill_ids})
+        {bill_id_where_clause}
     GROUP BY date(ce.interval_start),
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
@@ -49,10 +49,10 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_awscostentrylineitem_daily
-WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}'
-    AND cost_entry_bill_id IN ({cost_entry_bill_ids})
+DELETE FROM {schema}.reporting_awscostentrylineitem_daily AS li
+WHERE li.usage_start >= '{start_date}'
+    AND li.usage_start <= '{end_date}'
+    {bill_id_where_clause}
 ;
 
 -- Populate the daily aggregate line item data
