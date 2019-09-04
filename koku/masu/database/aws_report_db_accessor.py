@@ -196,12 +196,16 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
+        bill_id_where_clause = ''
+        if bill_ids:
+            ids = ','.join(bill_ids)
+            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
 
         daily_sql = daily_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
             end_date=end_date,
-            cost_entry_bill_ids=','.join(bill_ids),
+            bill_id_where_clause=bill_id_where_clause,
             schema=self.schema
         )
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
@@ -223,10 +227,15 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily_summary.sql'
         )
+        bill_id_where_clause = ''
+        if bill_ids:
+            ids = ','.join(bill_ids)
+            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
         summary_sql = summary_sql.decode('utf-8').format(
             uuid=str(uuid.uuid4()).replace('-', '_'),
             start_date=start_date,
-            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids),
+            end_date=end_date,
+            bill_id_where_clause=bill_id_where_clause,
             schema=self.schema
         )
         self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
