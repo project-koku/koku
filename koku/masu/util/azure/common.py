@@ -26,7 +26,7 @@ from tenant_schemas.utils import schema_context
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import AZURE
+from masu.external import AZURE, AZURE_LOCAL_SERVICE_PROVIDER
 
 LOG = logging.getLogger(__name__)
 
@@ -122,7 +122,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
     with ProviderDBAccessor(provider_uuid) as provider_accessor:
         provider = provider_accessor.get_provider()
 
-    if provider.type not in (AZURE,):
+    if provider.type not in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
         err_msg = 'Provider UUID is not an Azure type.  It is {}'.format(provider.type)
         LOG.warning(err_msg)
         return []

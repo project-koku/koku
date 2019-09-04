@@ -91,7 +91,7 @@ class ProviderManager:
             elif provider.type == 'AWS' or provider.type == 'AWS-local':
                 query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
                                                         billing_period_start=period_start).first()
-            elif provider.type == 'AZURE':
+            elif provider.type == 'AZURE' or provider.type == 'AZURE-local':
                 query = AzureCostEntryBill.objects.filter(provider_id=provider.id,
                                                           billing_period_start=period_start).first()
         if query and query.summary_data_creation_datetime:

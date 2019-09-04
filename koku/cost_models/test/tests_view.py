@@ -339,8 +339,17 @@ class CostModelViewTests(IamTestCase):
         client = APIClient()
         response = client.get(url, **self.headers)
 
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIsNotNone(response.data.get('errors'))
+
+    def test_return_error_on_invalid_query_field(self):
+        """Test that an error is thrown when a query field is incorrect."""
+        url = '{}?wrong={}'.format(reverse('costmodels-list'), 'query')
+
+        client = APIClient()
+        response = client.get(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_list_cost_model_rate_rbac_access(self):
         """Test GET /costmodels with an rbac user."""
