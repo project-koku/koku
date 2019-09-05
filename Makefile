@@ -406,7 +406,7 @@ docker-down:
 
 docker-down-db:
 	docker-compose stop db
-	docker container rm $(shell docker ps -a -f name=koku_db -q)
+	docker ps -a -f name=koku_db -q | xargs docker container rm
 
 docker-logs:
 	docker-compose logs -f
