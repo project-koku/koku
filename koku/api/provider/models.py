@@ -144,6 +144,21 @@ class Provider(models.Model):
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
 
+class Sources(models.Model):
+    class Meta:
+        """Meta for Sources."""
+
+        db_table = 'api_sources'
+
+    source_id = models.IntegerField(primary_key=True)
+    name = models.CharField(max_length=256, null=True)
+    source_type = models.CharField(max_length=50, null=False)
+    authentication = models.CharField(max_length=128, null=False)
+    billing_source = models.CharField(max_length=128, null=True)
+    koku_uuid = models.CharField(max_length=512, null=True)
+    auth_header = models.CharField(max_length=512, null=True)
+
+
 class ProviderStatus(models.Model):
     """Koku provider status.
 

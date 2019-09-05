@@ -203,6 +203,26 @@ services:
         - db
         - koku-rabbit
 
+  sources-client:
+      container_name: sources_client
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/
+      entrypoint: ['python', 'koku/manage.py', 'sources']
+      environment:
+        - SOURCES_KAFKA_HOST=localhost
+        - SOURCES_KAFKA_PORT=29092
+      privileged: true
+      ports:
+          - "9988:9999"
+      volumes:
+        - '.:/koku'
+      links:
+        - db
+      depends_on:
+        - db
+
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat

@@ -117,6 +117,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
+        print(str(request))
         return super().create(request=request, args=args, kwargs=kwargs)
 
     def list(self, request, *args, **kwargs):

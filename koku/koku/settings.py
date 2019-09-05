@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     # local apps
     'api',
     'masu',
+    'sources',
     'reporting',
     'reporting_common',
     'cost_models',
@@ -91,6 +92,7 @@ SHARED_APPS = (
     'tenant_schemas',
     'api',
     'masu',
+    'sources',
     'reporting_common',
     'django.contrib.contenttypes',
     'django.contrib.auth',
