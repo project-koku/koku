@@ -84,7 +84,7 @@ class CostModelManagerTest(IamTestCase):
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_uuids(), [])
+            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), [])
 
     def test_create_with_provider(self):
         """Test creating a cost model with provider uuids."""
@@ -123,7 +123,8 @@ class CostModelManagerTest(IamTestCase):
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().provider_uuid, provider_uuid)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_uuids(), [provider_uuid])
+            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(),
+                             [{'uuid': str(provider_uuid), 'name': 'sample_provider'}])
 
     def test_create_second_cost_model_same_provider(self):
         """Test that the cost model map is updated for the second model."""
@@ -134,6 +135,7 @@ class CostModelManagerTest(IamTestCase):
 
         # Get Provider UUID
         provider_uuid = provider.uuid
+        provider_names_uuids = [{'uuid': str(provider.uuid), 'name': provider.name}]
         metric = CostModelMetricsMap.OCP_METRIC_CPU_CORE_USAGE_HOUR
         source_type = 'OCP'
         tiered_rates = [{'unit': 'USD', 'value': 0.22}]
@@ -157,7 +159,7 @@ class CostModelManagerTest(IamTestCase):
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.assertEqual(cost_model_map.first().cost_model, cost_model_obj)
-            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_uuids(), [provider_uuid])
+            self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
             second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -166,7 +168,8 @@ class CostModelManagerTest(IamTestCase):
             # the previous cost model
             self.assertNotEqual(cost_model_map.first().cost_model, cost_model_obj)
             self.assertEqual(cost_model_map.first().cost_model, second_cost_model_obj)
-            self.assertEqual(CostModelManager(second_cost_model_obj.uuid).get_provider_uuids(), [provider_uuid])
+            self.assertEqual(CostModelManager(second_cost_model_obj.uuid).get_provider_names_uuids(),
+                             provider_names_uuids)
 
     def test_create_with_two_providers(self):
         """Test creating a cost model with multiple providers."""

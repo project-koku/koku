@@ -62,7 +62,7 @@ class CostModelSerializerTest(IamTestCase):
             'name': 'Test Cost Model',
             'description': 'Test',
             'source_type': ocp_source_type,
-            'provider_uuids': [self.provider.uuid],
+            'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
             'rates': [
                 {
                     'metric': {'name': ocp_metric},
@@ -291,7 +291,7 @@ class CostModelSerializerTest(IamTestCase):
                 'name': 'Test Cost Model',
                 'description': 'Test',
                 'source_type': 'OCP',
-                'provider_uuids': [self.provider.uuid],
+                'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
                 'rates': [
                     {
                         'metric': {'name': storage_rate},
@@ -334,7 +334,7 @@ class CostModelSerializerTest(IamTestCase):
                 'name': 'Test Cost Model',
                 'description': 'Test',
                 'source_type': 'OCP',
-                'provider_uuids': [self.provider.uuid],
+                'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
                 'rates': [
                     {
                         'metric': {'name': storage_rate},

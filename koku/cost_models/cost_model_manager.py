@@ -21,6 +21,7 @@ import logging
 
 from django.db import transaction
 
+from api.provider.models import Provider
 from cost_models.models import CostModel, CostModelMap
 
 
@@ -87,10 +88,10 @@ class CostModelManager:
         self._model.rates = data.get('rates', self._model.rates)
         self._model.save()
 
-    def get_provider_uuids(self):
+    def get_provider_names_uuids(self):
         """Get a list of provider uuids assoicated with rate."""
         providers_query = CostModelMap.objects.filter(cost_model=self._model)
-        provider_uuids = []
-        for provider in providers_query:
-            provider_uuids.append(provider.provider_uuid)
-        return provider_uuids
+        provider_uuids = [provider.provider_uuid for provider in providers_query]
+        providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
+        provider_names_uuids = [{'uuid': str(provider.uuid), 'name': provider.name} for provider in providers_qs_list]
+        return provider_names_uuids
