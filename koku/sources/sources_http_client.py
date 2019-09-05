@@ -46,3 +46,11 @@ class SourcesHTTPClient:
         password = authentications_internal_response.get('password')
 
         return password
+
+    def get_cost_management_sources(self):
+        # TODO: need to be enhanced for pagination
+        cost_managment_id = self.get_cost_management_application_type_id()
+        endpoint_url = '{}/application_types/{}/sources/'.format(self._base_url, cost_managment_id)
+        r = requests.get(endpoint_url, headers=self._identity_header)
+        response = r.json()
+        return response.get('data')

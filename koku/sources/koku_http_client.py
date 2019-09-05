@@ -5,8 +5,7 @@ from api.provider.models import Provider, ProviderBillingSource, ProviderAuthent
 from api.provider.view import ProviderViewSet
 
 class KokuHTTPClient:
-    def __init__(self, source_id, auth_header):
-        self._source_id = source_id
+    def __init__(self, auth_header):
         self._base_url = 'http://localhost:8000/api/cost-management/v1'
         header = {}
         header['x-rh-identity'] = auth_header
@@ -60,4 +59,5 @@ class KokuHTTPClient:
 
     def destroy_provider(self, provider_uuid):
         url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
-        requests.delete(url, headers=self._identity_header)
+        response = requests.delete(url, headers=self._identity_header)
+        return response

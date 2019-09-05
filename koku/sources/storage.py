@@ -14,13 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
-from dateutil import parser
+import collections
 import logging
 import json
 from api.provider.models import Sources
 from sources.utils import extract_from_header
-
 
 LOG = logging.getLogger(__name__)
 
@@ -31,18 +29,33 @@ def load_providers_to_create():
     for provider in all_providers:
         if provider.source_type == 'AWS':
             if provider.source_id and provider.name and provider.auth_header and provider.billing_source and not provider.koku_uuid:
-                providers_to_create.append(provider)
+                providers_to_create.append({'operation': 'create', 'provider': provider})
         else:
             if provider.source_id and provider.name and provider.auth_header and not provider.koku_uuid:
-                providers_to_create.append(provider)
+                providers_to_create.append({'operation': 'create', 'provider': provider})
     return providers_to_create
 
 
-async def load_events_queue(queue):
-    for event in self._session.query(Pending).all():
-        print('trying to add events')
-        await queue.put(event)
+async def enqueue_source_delete(queue, source_id):
+    print("IN ENQUEUE_SOURCE_DELETE")
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        print('Adding to processing queue: ', str(source))
+        await queue.put({'operation': 'destroy', 'provider': source})
+    except Sources.DoesNotExist:
+        LOG.error("Unable to enqueue source delete.  %s not found.", str(source_id))
 
+
+def enqueue_source_create(queue, topic, sources):
+    ConsumerRecord = collections.namedtuple("ConsumerRecord", ["topic", "value"])
+    for source in sources:
+        # TODO: Need header for this to work
+        payload = {'id': source.get('id'),
+                   'source_id': source.get('source_id'),
+                   'uid': source.get('uid'),
+                   'tenant': source.get('tenant')}
+        record = ConsumerRecord(topic, payload)
+        queue.put_nowait(record)
 
 def create_provider_event(msg):
     value = json.loads(msg.value.decode('utf-8'))
@@ -60,9 +73,7 @@ def create_provider_event(msg):
         new_event.save()
 
 
-def destroy_provider_event(msg):
-    value = json.loads(msg.value.decode('utf-8'))
-    source_id = int(value.get('source_id'))
+def destroy_provider_event(source_id):
     koku_uuid = None
     try:
         query = Sources.objects.get(source_id=source_id)
@@ -101,4 +112,3 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         query.save()
     except Sources.DoesNotExist:
         LOG.error("%s does not exist", str(source_id))
-

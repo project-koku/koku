@@ -70,7 +70,7 @@ def filter_message(msg, application_source_id):
                 return False, None
         else:
             value = json.loads(msg.value.decode('utf-8'))
-            print('Kafka event recieved: ', str(value))
+            print('Kafka event received: ', str(value))
             return False, None
     else:
         LOG.error('Unexpected Message')
@@ -101,6 +101,7 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
     print("IN process_messages")
     while True:
         msg = await msg_pending_queue.get()
+        print("MSG: ", str(msg))
         if not application_source_id:
             fake_header = 'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0='
             application_source_id = SourcesHTTPClient(fake_header).get_cost_management_application_type_id()
@@ -113,12 +114,9 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
             source_id = int(value.get('source_id'))
             await sources_network_info(source_id, auth_header)
         elif valid_msg and operation == 'destroy':
-            koku_uuid = storage.destroy_provider_event(msg)
             value = json.loads(msg.value.decode('utf-8'))
             source_id = int(value.get('source_id'))
-            auth_header = extract_from_header(msg.headers, 'x-rh-identity')
-            koku_client = KokuHTTPClient(source_id, auth_header)
-            koku_client.destroy_provider(koku_uuid)
+            await storage.enqueue_source_delete(in_progress_queue, source_id)
         await load_pending_items(in_progress_queue)
 
 
@@ -137,9 +135,18 @@ async def process_in_progress_objects(in_progress_queue):
     print('IN process_in_progress_objects')
     while True:
         msg = await in_progress_queue.get()
-        koku_client = KokuHTTPClient(msg.source_id, msg.auth_header)
-        koku_details = koku_client.create_provider(msg.name, msg.source_type, msg.authentication, msg.billing_source)
-        storage.add_provider_koku_uuid(msg.source_id, koku_details.get('uuid'))
+        print('MSG', str(msg))
+        print("Operation: ", msg.get('operation'))
+        provider = msg.get('provider')
+        operation = msg.get('operation')
+        koku_client = KokuHTTPClient(provider.auth_header)
+        if operation == 'create':
+            koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication, provider.billing_source)
+            storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
+        elif operation == 'destroy':
+            response = koku_client.destroy_provider(provider.koku_uuid)
+            print("DELETE RESPONSE: ", str(response))
+            storage.destroy_provider_event(provider.source_id)
 
 
 async def load_pending_items(in_progress_queue):
@@ -174,9 +181,13 @@ def asyncio_listener_thread(event_loop):
     pending_process_queue = asyncio.Queue(loop=event_loop)
     in_progress_queue = asyncio.Queue(loop=event_loop)
 
+    fake_header = 'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0='
+    upstream_sources = SourcesHTTPClient(fake_header).get_cost_management_sources()
+    print("UPSTREAM SOURCES: ", str(upstream_sources))
+
     consumer = AIOKafkaConsumer(
         SOURCES_TOPIC,
-        loop=event_loop, bootstrap_servers=SOURCES_KAFKA_ADDRESS
+        loop=event_loop, bootstrap_servers=SOURCES_KAFKA_ADDRESS, group_id='hccm-group'
     )
     while True:
         try:
