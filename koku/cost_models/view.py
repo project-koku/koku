@@ -45,7 +45,7 @@ class CostModelsFilter(FilterSet):
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
         lookup = '__'.join([name, 'icontains'])
-        value_list = ','.join(values).split(',')
+        value_list = values.split(',')
         queries = [Q(**{lookup: val}) for val in value_list]
         return qs.filter(reduce(and_, queries))
 

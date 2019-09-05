@@ -188,7 +188,7 @@ class CostModelViewTests(IamTestCase):
     def test_filter_cost_model(self):
         """Test that we can filter a cost model."""
         client = APIClient()
-        url = '%s?name=Cost,Production' % reverse('costmodels-list')
+        url = '%s?name=Cost,TTTest' % reverse('costmodels-list')
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
