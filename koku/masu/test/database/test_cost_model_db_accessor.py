@@ -15,18 +15,18 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the OCPRateDBAccessor utility object."""
+"""Test the CostModelDBAccessor utility object."""
 from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 
 
-class OCPRateDBAccessorTest(MasuTestCase):
-    """Test Cases for the OCPRateDBAccessor object."""
+class CostModelDBAccessorTest(MasuTestCase):
+    """Test Cases for the CostModelDBAccessor object."""
 
     @classmethod
     def setUpClass(cls):
@@ -35,7 +35,7 @@ class OCPRateDBAccessorTest(MasuTestCase):
         cls.provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.common_accessor = ReportingCommonDBAccessor()
         cls.column_map = cls.common_accessor.column_map
-        cls.accessor = OCPRateDBAccessor(
+        cls.accessor = CostModelDBAccessor(
             schema='acct10001',
             provider_uuid=cls.provider_uuid,
             column_map=cls.column_map

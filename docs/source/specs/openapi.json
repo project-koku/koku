@@ -1926,6 +1926,12 @@
                         "items": {
                             "$ref": "#/components/schemas/Rate"
                         }
+                      },
+                      "markups": {
+                          "type": "array",
+                          "items": {
+                              "$ref": "#/components/schemas/Markup"
+                          }
                       }
                 },
                 "required": [
@@ -2063,6 +2069,20 @@
                                 "status": 404
                             }
                         }
+                    }
+                }
+            },
+            "Markup": {
+                "properties": {
+                    "value": {
+                        "type": "number"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": [
+                            "USD",
+                            "percent"
+                        ]
                     }
                 }
             },

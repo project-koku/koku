@@ -23,7 +23,7 @@ from decimal import Decimal
 
 from tenant_schemas.utils import schema_context
 
-from masu.database.ocp_rate_db_accessor import OCPRateDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -184,7 +184,7 @@ class OCPReportChargeUpdater:
     def _update_pod_charge(self):
         """Calculate and store total POD charges."""
         try:
-            with OCPRateDBAccessor(self._schema, self._provider_uuid,
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
                                    self._column_map) as rate_accessor:
                 cpu_usage_rates = rate_accessor.get_cpu_core_usage_per_hour_rates()
                 cpu_request_rates = rate_accessor.get_cpu_core_request_per_hour_rates()
@@ -232,7 +232,7 @@ class OCPReportChargeUpdater:
     def _update_storage_charge(self):
         """Calculate and store the storage charges."""
         try:
-            with OCPRateDBAccessor(self._schema, self._provider_uuid,
+            with CostModelDBAccessor(self._schema, self._provider_uuid,
                                    self._column_map) as rate_accessor:
                 storage_usage_rates = rate_accessor.get_storage_gb_usage_per_month_rates()
                 storage_request_rates = rate_accessor.get_storage_gb_request_per_month_rates()

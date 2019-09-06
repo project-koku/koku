@@ -732,10 +732,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch('masu.processor.tasks.update_cost_summary_table')
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates'
     )
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates'
     )
     def test_update_summary_tables_ocp(
         self, mock_cpu_rate, mock_mem_rate, mock_charge_info, mock_cost_summary
@@ -809,10 +809,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates'
     )
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates'
     )
     def test_update_summary_tables_ocp_end_date(
         self, mock_cpu_rate, mock_mem_rate, mock_charge_info

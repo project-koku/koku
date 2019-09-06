@@ -26,7 +26,7 @@ LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
-class OCPRateDBAccessor(ReportDBAccessorBase):
+class CostModelDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema, provider_uuid, column_map):
