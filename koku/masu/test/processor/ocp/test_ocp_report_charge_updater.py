@@ -567,10 +567,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             self.assertEqual(usage, usage_dictionary[key])
             self.assertEqual(round(float(calculated_charge), 1), entry.get('expected_charge'))
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_request_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_request_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_request_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_request_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates')
     def test_update_summary_charge_info_mem_cpu(self, mock_db_mem_usage_rate, mock_db_mem_request_rate, mock_db_cpu_usage_rate, mock_db_cpu_request_rate):
         """Test that OCP charge information is updated for cpu and memory."""
         mem_rate_usage = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
@@ -611,8 +611,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
                 self.assertAlmostEqual(float(cpu_charge), float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates')
     def test_update_summary_charge_info_cpu(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
         """Test that OCP charge information is updated for cpu."""
         mem_rate = None
@@ -640,8 +640,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertAlmostEqual(0.0, float(item.pod_charge_memory_gigabyte_hours), places=6)
                 self.assertAlmostEqual(float(cpu_usage_value*cpu_rate_value), float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates')
     def test_update_summary_charge_info_mem(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
         """Test that OCP charge information is updated for cpu and memory."""
         mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
@@ -669,8 +669,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertAlmostEqual(float(mem_usage_value*mem_rate_value), float(item.pod_charge_memory_gigabyte_hours), places=6)
                 self.assertAlmostEqual(0.0, float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_request_per_month_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_usage_per_month_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_storage_gb_request_per_month_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_storage_gb_usage_per_month_rates')
     def test_update_summary_storage_charge(self, mock_db_storage_usage_rate, mock_db_storage_request_rate):
         """Test that OCP charge information is updated for storage."""
         usage_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
@@ -702,8 +702,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 expected_request_charge = request_rate_value * float(item.volume_request_storage_gigabyte_months)
                 self.assertAlmostEqual(float(storage_charge), float(expected_usage_charge + expected_request_charge), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates')
     def test_update_summary_charge_info_mem_cpu_malformed_mem(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
         """Test that OCP charge information is updated for cpu and memory with malformed memory rates."""
         mem_rate = {"tiered_rates": [{
@@ -763,8 +763,8 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertIsNone(item.pod_charge_cpu_core_hours)
 
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates')
     def test_update_summary_charge_info_mem_cpu_malformed_cpu(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
         """Test that OCP charge information is updated for cpu and memory with malformed cpu rates."""
         mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
