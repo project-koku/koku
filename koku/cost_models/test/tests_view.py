@@ -33,7 +33,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from cost_models.models import CostModel, CostModelMap
+from cost_models.models import CostModel, CostModelAudit, CostModelMap
 from cost_models.serializers import CostModelSerializer
 from koku.rbac import RbacService
 
@@ -505,3 +505,49 @@ class CostModelViewTests(IamTestCase):
                 caches['rbac'].clear()
                 response = client.delete(url, **request_context['request'].META)
                 self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    def test_cost_model_audit_table(self):
+        """Test that cost model history is logged in the audit table."""
+        tiered_rates = [
+            {
+                'value': round(Decimal(random.random()), 6),
+                'unit': 'USD',
+                'usage': {'usage_start': None, 'usage_end': None}
+            }
+        ]
+        fake_data = {
+            'name': 'Test Cost Model',
+            'description': 'Test',
+            'source_type': self.ocp_source_type,
+            'provider_uuids': [],
+            'rates': [
+                {
+                    'metric': {'name': self.ocp_metric},
+                    'tiered_rates': tiered_rates
+                }
+            ]
+        }
+
+        url = reverse('costmodels-list')
+        client = APIClient()
+        response = client.post(url, data=fake_data,
+                               format='json', **self.headers)
+        cost_model_uuid = response.data.get('uuid')
+
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'INSERT')
+
+        fake_data['provider_uuids'] = [self.provider.uuid]
+        url = reverse('costmodels-detail', kwargs={'uuid': cost_model_uuid})
+        response = client.put(url, data=fake_data,
+                              format='json', **self.headers)
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'UPDATE')
+
+        response = client.delete(url, format='json', **self.headers)
+
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'DELETE')
