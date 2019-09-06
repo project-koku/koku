@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -14,21 +14,18 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Sources Client entry point."""
-import logging
-import asyncio
 
-from django.core.management.base import BaseCommand
-from sources.kafka_listener import initialize_kafka_listener
+"""Serializer to capture server status."""
 
-LOG = logging.getLogger(__name__)
+from rest_framework import serializers
 
 
-class Command(BaseCommand):
-    """Django command to launch listener."""
+class SourcesSerializer(serializers.Serializer):
+    """Serializer for the Status model."""
 
-    def handle(self, *args, **kwargs):
-        """Initialize listener."""
-        LOG.info('Starting SourcesKafka handler')
-        LOG.debug('handle args: %s, kwargs: %s', str(args), str(kwargs))
-        initialize_kafka_listener()
+    api_version = serializers.IntegerField()
+    commit = serializers.CharField()
+    modules = serializers.DictField()
+    platform_info = serializers.DictField()
+    python_version = serializers.CharField()
+    rbac_cache_ttl = serializers.CharField()

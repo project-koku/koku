@@ -34,6 +34,7 @@ from api.views import (
     OCPTagView,
     OCPVolumeView,
     ProviderViewSet,
+    SourcesView,
     StatusView,
     UserPreferenceViewSet,
     openapi
@@ -49,6 +50,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', StatusView.as_view(), name='server-status'),
+    url(r'^sources/$', SourcesView.as_view(), name='sources'),
     url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
     url(r'^tags/openshift/$', OCPTagView.as_view(), name='openshift-tags'),

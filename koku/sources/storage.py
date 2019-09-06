@@ -16,9 +16,8 @@
 #
 import collections
 import logging
-import json
+
 from api.provider.models import Sources
-from sources.utils import extract_from_header
 
 LOG = logging.getLogger(__name__)
 
@@ -37,10 +36,8 @@ def load_providers_to_create():
 
 
 async def enqueue_source_delete(queue, source_id):
-    print("IN ENQUEUE_SOURCE_DELETE")
     try:
         source = Sources.objects.get(source_id=source_id)
-        print('Adding to processing queue: ', str(source))
         await queue.put({'operation': 'destroy', 'provider': source})
     except Sources.DoesNotExist:
         LOG.error("Unable to enqueue source delete.  %s not found.", str(source_id))
@@ -57,13 +54,8 @@ def enqueue_source_create(queue, topic, sources):
         record = ConsumerRecord(topic, payload)
         queue.put_nowait(record)
 
-def create_provider_event(msg):
-    value = json.loads(msg.value.decode('utf-8'))
-    offset = msg.offset
-    headers = msg.headers
-    source_id = int(value.get('source_id'))
-    operation = extract_from_header(headers, 'event_type')
-    auth_header = extract_from_header(headers, 'x-rh-identity')
+
+def create_provider_event(source_id, auth_header):
     try:
         query = Sources.objects.get(source_id=source_id)
         query.auth_header = auth_header
@@ -102,7 +94,8 @@ def add_provider_billing_source(source_id, billing_source):
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:
-        LOG.error("Unable to add billing_source.  Source ID: %s does not exist", str(source_id))
+        new_event = Sources(source_id=source_id, billing_source=billing_source)
+        new_event.save()
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):

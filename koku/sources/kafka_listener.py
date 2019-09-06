@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
 import os
 import logging
 import json
@@ -22,12 +21,17 @@ import asyncio
 import threading
 from aiokafka import AIOKafkaConsumer
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from api.provider.models import Sources
+
 from kafka.errors import ConnectionError as KafkaConnectionError
 
 from sources.utils import extract_from_header
 from sources.sources_http_client import SourcesHTTPClient
 from sources.koku_http_client import KokuHTTPClient
 from sources import storage
+
 
 LOG = logging.getLogger(__name__)
 SOURCES_KAFKA_HOST = os.getenv('SOURCES_KAFKA_HOST', 'localhost')
@@ -41,40 +45,37 @@ BUILDER_LOOP = asyncio.new_event_loop()
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
+in_progress_queue = asyncio.Queue(loop=EVENT_LOOP)
 
-def filter_message(msg, application_source_id):
+
+@receiver(post_save, sender=Sources)
+def storage_callback(sender, **kwargs):
+    pending_events = storage.load_providers_to_create()
+    for event in pending_events:
+        in_progress_queue.put_nowait(event)
+
+
+async def poll_for_billing_source_updates():
+    while True:
+        await asyncio.sleep(30)
+        storage_callback(None)
+
+def get_sources_msg_data(msg, application_source_id):
+    msg_data = {}
     if msg.topic == SOURCES_TOPIC:
-        if extract_from_header(msg.headers, 'event_type') == 'Application.create':
-            try:
-                value = json.loads(msg.value.decode('utf-8'))
-                print('handle msg value: ', str(value))
-                if int(value.get('application_type_id')) == application_source_id:
-                    return True, 'create'
-                else:
-                    print('Ignoring message; wrong application source id')
-                    return False, None
-            except Exception as error:
-                LOG.error('Unable load message. Error: %s', str(error))
-                return False, None
-        elif extract_from_header(msg.headers, 'event_type') == 'Application.destroy':
-            try:
-                value = json.loads(msg.value.decode('utf-8'))
-                print('handle msg value: ', str(value))
-                if int(value.get('application_type_id')) == application_source_id:
-                    return True, 'destroy'
-                else:
-                    print('Ignoring message; wrong application source id')
-                    return False, None
-            except Exception as error:
-                LOG.error('Unable load message. Error: %s', str(error))
-                return False, None
-        else:
+        try:
             value = json.loads(msg.value.decode('utf-8'))
-            print('Kafka event received: ', str(value))
-            return False, None
-    else:
-        LOG.error('Unexpected Message')
-    return False
+            event_type = extract_from_header(msg.headers, 'event_type')
+            if event_type in ('Application.create', 'Application.destroy'):
+                if int(value.get('application_type_id')) == application_source_id:
+                    msg_data['event_type'] = event_type
+                    msg_data['source_id'] = int(value.get('source_id'))
+                    msg_data['auth_header'] = extract_from_header(msg.headers, 'x-rh-identity')
+        except Exception as error:
+            LOG.error('Unable load message. Error: %s', str(error))
+            raise KafkaMsgHandlerError("Unable to load message")
+
+    return msg_data
 
 
 async def sources_network_info(source_id, auth_header):
@@ -98,26 +99,19 @@ async def sources_network_info(source_id, auth_header):
 
 async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no cover
     application_source_id = None
-    print("IN process_messages")
+    print("Waiting to process incoming kafka messages...")
     while True:
         msg = await msg_pending_queue.get()
-        print("MSG: ", str(msg))
         if not application_source_id:
             fake_header = 'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0='
             application_source_id = SourcesHTTPClient(fake_header).get_cost_management_application_type_id()
 
-        valid_msg, operation = filter_message(msg, application_source_id)
-        if valid_msg and operation == 'create':
-            storage.create_provider_event(msg)
-            auth_header = extract_from_header(msg.headers, 'x-rh-identity')
-            value = json.loads(msg.value.decode('utf-8'))
-            source_id = int(value.get('source_id'))
-            await sources_network_info(source_id, auth_header)
-        elif valid_msg and operation == 'destroy':
-            value = json.loads(msg.value.decode('utf-8'))
-            source_id = int(value.get('source_id'))
-            await storage.enqueue_source_delete(in_progress_queue, source_id)
-        await load_pending_items(in_progress_queue)
+        msg_data = get_sources_msg_data(msg, application_source_id)
+        if msg_data.get('event_type') == 'Application.create':
+            storage.create_provider_event(msg_data.get('source_id'), msg_data.get('auth_header'))
+            await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
+        elif msg_data.get('event_type') == 'Application.destroy':
+            await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
 
 async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
@@ -132,29 +126,21 @@ async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
 
 
 async def process_in_progress_objects(in_progress_queue):
-    print('IN process_in_progress_objects')
+    print('Processing koku provider events...')
     while True:
         msg = await in_progress_queue.get()
-        print('MSG', str(msg))
-        print("Operation: ", msg.get('operation'))
         provider = msg.get('provider')
         operation = msg.get('operation')
         koku_client = KokuHTTPClient(provider.auth_header)
         if operation == 'create':
+            print(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
             koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication, provider.billing_source)
+            print(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
             response = koku_client.destroy_provider(provider.koku_uuid)
-            print("DELETE RESPONSE: ", str(response))
+            print(f'Koku Provider UUID ({str(provider.koku_uuid)}) Removal Status Code: {str(response.status_code)}')
             storage.destroy_provider_event(provider.source_id)
-
-
-async def load_pending_items(in_progress_queue):
-    print("LOAD_PENDING_ITEMS")
-    pending_events = storage.load_providers_to_create()
-    for event in pending_events:
-        print("EVENT TO ADD TO QUEUE")
-        await in_progress_queue.put(event)
 
 
 async def connect_consumer(consumer):
@@ -179,11 +165,7 @@ def asyncio_listener_thread(event_loop):
 
     """
     pending_process_queue = asyncio.Queue(loop=event_loop)
-    in_progress_queue = asyncio.Queue(loop=event_loop)
-
-    fake_header = 'eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiaW50ZXJuYWwiOiB7Im9yZ19pZCI6ICI1NDMyMSJ9fX0='
-    upstream_sources = SourcesHTTPClient(fake_header).get_cost_management_sources()
-    print("UPSTREAM SOURCES: ", str(upstream_sources))
+    #in_progress_queue = asyncio.Queue(loop=event_loop)
 
     consumer = AIOKafkaConsumer(
         SOURCES_TOPIC,
@@ -202,6 +184,7 @@ def asyncio_listener_thread(event_loop):
             event_loop.create_task(listen_for_messages(consumer, pending_process_queue))
             event_loop.create_task(process_messages(pending_process_queue, in_progress_queue))
             event_loop.create_task(process_in_progress_objects(in_progress_queue))
+            event_loop.create_task(poll_for_billing_source_updates())
             event_loop.run_forever()
     except KeyboardInterrupt:
         exit(0)
