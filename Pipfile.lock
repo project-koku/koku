@@ -286,10 +286,10 @@
         },
         "azure-mgmt-devtestlabs": {
             "hashes": [
-                "sha256:7e91bb139b59cfaf1c1b2b0e3e21f091768c658c1879797757dedc6312f00c8c",
-                "sha256:d416a6d0883b0d33a63c524db6455ee90a01a72a9d8757653e446bf4d3f69796"
+                "sha256:59549c4c4068f26466b1097b574a8e5099fb2cd6c8be0a00395b06d3b29e278d",
+                "sha256:aada92d62085d4fb96b3ae843821523e40aa13b8fb1b8457a0b4d3d0ce240403"
             ],
-            "version": "==2.2.0"
+            "version": "==4.0.0"
         },
         "azure-mgmt-dns": {
             "hashes": [
