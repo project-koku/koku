@@ -398,10 +398,10 @@
         },
         "azure-mgmt-media": {
             "hashes": [
-                "sha256:688b56daad16e84afc7ad788a1d0d2969e365317db0d6034dd428a08030d21aa",
-                "sha256:6d68668b14c00b4c68f695f2bb69ff77af29034d440371c2bdd9c80187b1a08c"
+                "sha256:5d0c6b3a0f882dde8ae3d42467f03ea6c4e3f62613936087d54c67e6f504939b",
+                "sha256:7c270edaa22c2d2f453d7eb05c55069020c89261d813210575991d5c872c8b19"
             ],
-            "version": "==1.0.0"
+            "version": "==1.1.1"
         },
         "azure-mgmt-monitor": {
             "hashes": [
