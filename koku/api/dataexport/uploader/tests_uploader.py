@@ -2,6 +2,7 @@
 from unittest.mock import patch
 
 import faker
+from django.conf import settings
 from django.test import TestCase
 
 from api.dataexport.uploader import AwsS3Uploader
@@ -23,6 +24,6 @@ class AwsS3UploaderTest(TestCase):
         uploader = AwsS3Uploader(bucket_name)
         uploader.upload_file(local_path, remote_path)
 
-        mock_boto3.client.assert_called_with('s3')
+        mock_boto3.client.assert_called_with('s3', settings.S3_REGION)
         mock_client = mock_boto3.client.return_value
         mock_client.upload_file.assert_called_with(local_path, bucket_name, remote_path)
