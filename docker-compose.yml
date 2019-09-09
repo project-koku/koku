@@ -146,6 +146,9 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
+        - ENABLE_S3_ARCHIVING=False
+        - S3_BUCKET_NAME=koku-bucket
+        - S3_BUCKET_PATH=data_archive
       privileged: true
       volumes:
         - '.:/koku'
@@ -230,6 +233,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
+        - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       privileged: true
       volumes:
         - '.:/koku'
