@@ -4,6 +4,12 @@ import requests
 from api.provider.models import Provider, ProviderBillingSource, ProviderAuthentication
 from api.provider.view import ProviderViewSet
 
+
+class KokuHTTPClientError(Exception):
+    """KokuHTTPClient Error"""
+    pass
+
+
 class KokuHTTPClient:
     def __init__(self, auth_header):
         self._base_url = 'http://localhost:8000/api/cost-management/v1'
@@ -26,8 +32,8 @@ class KokuHTTPClient:
         json_data["billing_source"] = bucket
         print(str(json_data))
         r = requests.post(url, headers=self._identity_header, json=json_data)
+        print("Response: r ", str(r))
         response = r.json()
-        print(str(response))
         return response
 
     def create_provider_db(self, name, provider_type, authentication, billing_source):

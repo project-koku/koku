@@ -33,7 +33,6 @@ from api.report.ocp.view import (OCPCostView,
 from api.report.ocp_aws.view import (OCPAWSCostView,
                                      OCPAWSInstanceTypeView,
                                      OCPAWSStorageView)
-from api.sources.views import SourcesView
 from api.status.views import StatusView
 from api.tags.aws.view import AWSTagView
 from api.tags.ocp.view import OCPTagView

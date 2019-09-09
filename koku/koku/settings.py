@@ -82,23 +82,23 @@ INSTALLED_APPS = [
     # local apps
     'api',
     'masu',
-    'sources',
     'reporting',
     'reporting_common',
     'cost_models',
+    'sources',
 ]
 
 SHARED_APPS = (
     'tenant_schemas',
     'api',
     'masu',
-    'sources',
     'reporting_common',
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
+    'sources',
 )
 
 TENANT_APPS = (
@@ -130,9 +130,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 MASU = ENVIRONMENT.bool('MASU', default=False)
+SOURCES = ENVIRONMENT.bool('SOURCES', default=False)
 ROOT_URLCONF = 'koku.urls'
 if MASU:
     ROOT_URLCONF = 'masu.urls'
+elif SOURCES:
+    ROOT_URLCONF = 'sources.urls'
 
 TEMPLATES = [
     {

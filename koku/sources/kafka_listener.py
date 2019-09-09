@@ -42,23 +42,23 @@ SOURCES_TOPIC = os.getenv('SOURCES_KAFKA_TOPIC', 'platform.sources.event-stream'
 EVENT_LOOP = asyncio.new_event_loop()
 BUILDER_LOOP = asyncio.new_event_loop()
 
+process_queue = asyncio.Queue(loop=EVENT_LOOP)
+
+
 class KafkaMsgHandlerError(Exception):
     """Kafka msg handler error."""
 
-in_progress_queue = asyncio.Queue(loop=EVENT_LOOP)
+
+def load_process_queue():
+    pending_events = storage.load_providers_to_create()
+    for event in pending_events:
+        process_queue.put_nowait(event)
 
 
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, **kwargs):
-    pending_events = storage.load_providers_to_create()
-    for event in pending_events:
-        in_progress_queue.put_nowait(event)
+    load_process_queue()
 
-
-async def poll_for_billing_source_updates():
-    while True:
-        await asyncio.sleep(30)
-        storage_callback(None)
 
 def get_sources_msg_data(msg, application_source_id):
     msg_data = {}
@@ -71,6 +71,12 @@ def get_sources_msg_data(msg, application_source_id):
                     msg_data['event_type'] = event_type
                     msg_data['source_id'] = int(value.get('source_id'))
                     msg_data['auth_header'] = extract_from_header(msg.headers, 'x-rh-identity')
+            elif event_type in ('Source.destroy', ):
+                msg_data['event_type'] = event_type
+                msg_data['source_id'] = int(value.get('id'))
+                msg_data['auth_header'] = extract_from_header(msg.headers, 'x-rh-identity')
+            else:
+                print("Other Message: ", str(msg))
         except Exception as error:
             LOG.error('Unable load message. Error: %s', str(error))
             raise KafkaMsgHandlerError("Unable to load message")
@@ -110,7 +116,7 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
         if msg_data.get('event_type') == 'Application.create':
             storage.create_provider_event(msg_data.get('source_id'), msg_data.get('auth_header'))
             await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
-        elif msg_data.get('event_type') == 'Application.destroy':
+        elif msg_data.get('event_type') in ('Application.destroy', 'Source.destroy'):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
 
@@ -125,22 +131,34 @@ async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
         await consumer.stop()
 
 
-async def process_in_progress_objects(in_progress_queue):
-    print('Processing koku provider events...')
-    while True:
-        msg = await in_progress_queue.get()
-        provider = msg.get('provider')
-        operation = msg.get('operation')
-        koku_client = KokuHTTPClient(provider.auth_header)
-        if operation == 'create':
-            print(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
-            koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication, provider.billing_source)
-            print(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
-            storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
-        elif operation == 'destroy':
+def execute_koku_provider_op(msg):
+    provider = msg.get('provider')
+    operation = msg.get('operation')
+    koku_client = KokuHTTPClient(provider.auth_header)
+    if operation == 'create':
+        print(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
+        koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
+                                                   provider.billing_source)
+        print(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
+        storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
+    elif operation == 'destroy':
+        if provider.koku_uuid:
             response = koku_client.destroy_provider(provider.koku_uuid)
             print(f'Koku Provider UUID ({str(provider.koku_uuid)}) Removal Status Code: {str(response.status_code)}')
-            storage.destroy_provider_event(provider.source_id)
+        storage.destroy_provider_event(provider.source_id)
+
+
+async def synchronize_sources(process_queue):
+    print('Processing koku provider events...')
+    while True:
+        msg = await process_queue.get()
+        try:
+            execute_koku_provider_op(msg)
+        except Exception as error:
+            print('Unable to process objects. Error: ', str(error))
+            await asyncio.sleep(10)
+            print('Retry Failed. requeing...')
+            await process_queue.put(msg)
 
 
 async def connect_consumer(consumer):
@@ -165,7 +183,6 @@ def asyncio_listener_thread(event_loop):
 
     """
     pending_process_queue = asyncio.Queue(loop=event_loop)
-    #in_progress_queue = asyncio.Queue(loop=event_loop)
 
     consumer = AIOKafkaConsumer(
         SOURCES_TOPIC,
@@ -180,11 +197,11 @@ def asyncio_listener_thread(event_loop):
         print('Attempting to reconnect')
 
     try:
+        load_process_queue()
         while True:
             event_loop.create_task(listen_for_messages(consumer, pending_process_queue))
-            event_loop.create_task(process_messages(pending_process_queue, in_progress_queue))
-            event_loop.create_task(process_in_progress_objects(in_progress_queue))
-            event_loop.create_task(poll_for_billing_source_updates())
+            event_loop.create_task(process_messages(pending_process_queue, process_queue))
+            event_loop.create_task(synchronize_sources(process_queue))
             event_loop.run_forever()
     except KeyboardInterrupt:
         exit(0)
@@ -192,6 +209,5 @@ def asyncio_listener_thread(event_loop):
 
 def initialize_kafka_listener():
     event_loop_thread = threading.Thread(target=asyncio_listener_thread, args=(EVENT_LOOP,))
-    #event_loop_thread.daemon = True
     event_loop_thread.start()
     print('Listening for kafka events')

@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,17 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Serializer to capture server status."""
-
-from rest_framework import serializers
-
-
-class SourcesSerializer(serializers.Serializer):
-    """Serializer for the Status model."""
-
-    api_version = serializers.IntegerField()
-    commit = serializers.CharField()
-    modules = serializers.DictField()
-    platform_info = serializers.DictField()
-    python_version = serializers.CharField()
-    rbac_cache_ttl = serializers.CharField()
+"""Sources views for import organization"""
+# flake8: noqa
+# pylint: disable=unused-import
+from sources.api.billing_source import billing_source

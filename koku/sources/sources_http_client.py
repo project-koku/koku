@@ -1,4 +1,19 @@
-
+#
+# Copyright 2019 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
 import requests
 
 
@@ -33,8 +48,9 @@ class SourcesHTTPClient:
         endpoint_response = r.json()
         resource_id = endpoint_response.get('data')[0].get('id')
 
-        authentications_url = '{}/authentications?filter[resource_type]=Endpoint&[resource_id]={}'.format(
-            self._base_url, str(resource_id))
+        authentications_url = \
+            '{}/authentications?filter[resource_type]=Endpoint&[authtype]=arn&[resource_id]={}'.format(self._base_url,
+                                                                                                       str(resource_id))
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
         authentications_id = authentications_response.get('data')[0].get('id')
@@ -46,11 +62,3 @@ class SourcesHTTPClient:
         password = authentications_internal_response.get('password')
 
         return password
-
-    def get_cost_management_sources(self):
-        # TODO: need to be enhanced for pagination
-        cost_managment_id = self.get_cost_management_application_type_id()
-        endpoint_url = '{}/application_types/{}/sources/'.format(self._base_url, cost_managment_id)
-        r = requests.get(endpoint_url, headers=self._identity_header)
-        response = r.json()
-        return response.get('data')

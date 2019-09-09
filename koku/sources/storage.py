@@ -26,7 +26,9 @@ def load_providers_to_create():
     providers_to_create = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        if provider.source_type == 'AWS':
+        if provider.pending_delete:
+            providers_to_create.append({'operation': 'destroy', 'provider': provider})
+        elif provider.source_type == 'AWS':
             if provider.source_id and provider.name and provider.auth_header and provider.billing_source and not provider.koku_uuid:
                 providers_to_create.append({'operation': 'create', 'provider': provider})
         else:
@@ -38,21 +40,11 @@ def load_providers_to_create():
 async def enqueue_source_delete(queue, source_id):
     try:
         source = Sources.objects.get(source_id=source_id)
+        source.pending_delete = True
+        source.save()
         await queue.put({'operation': 'destroy', 'provider': source})
     except Sources.DoesNotExist:
         LOG.error("Unable to enqueue source delete.  %s not found.", str(source_id))
-
-
-def enqueue_source_create(queue, topic, sources):
-    ConsumerRecord = collections.namedtuple("ConsumerRecord", ["topic", "value"])
-    for source in sources:
-        # TODO: Need header for this to work
-        payload = {'id': source.get('id'),
-                   'source_id': source.get('source_id'),
-                   'uid': source.get('uid'),
-                   'tenant': source.get('tenant')}
-        record = ConsumerRecord(topic, payload)
-        queue.put_nowait(record)
 
 
 def create_provider_event(source_id, auth_header):
