@@ -681,6 +681,33 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
+    def test_execute_query_current_month_filter_resource_location_csv(self):
+        """Test execute_query on monthly filtered by resource_location for csv."""
+        query_params = {'filter':
+                        {'resolution': 'monthly', 'time_scope_value': -1,
+                         'time_scope_units': 'month',
+                         'resource_location': [self.generator.config.resource_location]}}
+        handler = AzureReportQueryHandler(query_params, '',
+                                          self.tenant,
+                                          accept_type='text/csv',
+                                          report_type='costs')
+        query_output = handler.execute_query()
+        data = query_output.get('data')
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get('total'))
+        total = query_output.get('total')
+        aggregates = handler._mapper.report_type_map.get('aggregates')
+        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
+        self.assertIsNotNone(total.get('cost'))
+        self.assertEqual(total.get('cost', {}).get('value'),
+                         current_totals.get('cost'))
+
+        cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
+        self.assertEqual(len(data), 1)
+        for data_item in data:
+            month_val = data_item.get('date')
+            self.assertEqual(month_val, cmonth_str)
+
     def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
         for _ in range(3):
