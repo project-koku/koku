@@ -47,6 +47,11 @@ objects:
     masu-host: ${MASU_HOST}
     masu-port: ${MASU_PORT}
 
+    # S3 Bucket settings
+    s3-bucket-name: ${S3_BUCKET_NAME}
+    s3-bucket-path: ${S3_BUCKET_PATH}
+    enable-s3-archiving: "True"
+
 # logging configs
 - kind: ConfigMap
   apiVersion: v1
@@ -90,6 +95,14 @@ objects:
     initial-ingest-num-months: "2"
     initial-ingest-override: "False"
 
+# data upload configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-upload
+  data:
+    upload-normalized-data-interval: "86400"
+
 # message queue configs
 - kind: ConfigMap
   apiVersion: v1
@@ -97,7 +110,7 @@ objects:
     name: ${NAME}-messaging
   data:
     rabbitmq-host: ${RABBITMQ_HOST}
-    worker-queues: "celery,download,remove_expired,reporting,process"
+    worker-queues: "celery,download,remove_expired,reporting,process,upload"
     kafka-connect: "True"
     kafka-host: ${KAFKA_HOST}
     kafka-port: ${KAFKA_PORT}
@@ -197,4 +210,12 @@ parameters:
 - displayName: API path prefix
   value: '/api'
   name: API_PATH_PREFIX
+  required: true
+- displayName: S3 bucket name
+  value: ''
+  name: S3_BUCKET_NAME
+  required: true
+- displayName: S3 bucket path
+  value: 'data_archive'
+  name: S3_BUCKET_PATH
   required: true
