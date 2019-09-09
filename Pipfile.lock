@@ -314,10 +314,10 @@
         },
         "azure-mgmt-hanaonazure": {
             "hashes": [
-                "sha256:9fe4dc0adeb772d13918e1d6126d83c7770b762f358487504c5f082f542d0189",
-                "sha256:aec953c54809d0cc2f61f24d4d62a97f02c466bdc7906fd66f30120becf0c3df"
+                "sha256:910ba7e5d509d87257bf7cbcc8522ae4af8db65571e9f73c7b5142b988749ee6",
+                "sha256:e68583c44d759d4618987a663ddb7d6aa0eefde252ba347b935cdb1139ccf605"
             ],
-            "version": "==0.1.1"
+            "version": "==0.10.0"
         },
         "azure-mgmt-iotcentral": {
             "hashes": [
