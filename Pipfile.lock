@@ -243,10 +243,10 @@
         },
         "azure-mgmt-datafactory": {
             "hashes": [
-                "sha256:63d6cad02ef4d9da788b148b69c708227085b2d948d805bbf54150c7a692393c",
-                "sha256:6ee02286e9950b9f5b76589459f6d060a962faaab1f49c263a55d011e98b30bf"
+                "sha256:8a5bcdfd9c5bb0f10001d8a43d789aec3828cdcd6e3ae0274236390207216367",
+                "sha256:c643e4e0aa5c51792558c3c46432b606e660aa747180be2a01a134d6f300ba9a"
             ],
-            "version": "==0.6.0"
+            "version": "==0.8.0"
         },
         "azure-mgmt-datalake-analytics": {
             "hashes": [
