@@ -18,7 +18,7 @@
 """Models for cost models."""
 from uuid import uuid4
 
-from django.contrib.postgres.fields import JSONField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 
 from api.provider.models import Provider
@@ -47,6 +47,39 @@ class CostModel(models.Model):
     created_timestamp = models.DateTimeField(auto_now_add=True)
 
     updated_timestamp = models.DateTimeField(auto_now=True)
+
+    rates = JSONField(default=dict)
+
+
+class CostModelAudit(models.Model):
+    """A collection of rates used to calculate cost against resource usage data."""
+
+    class Meta:
+        """Meta for CostModel."""
+
+        db_table = 'cost_model_audit'
+
+    operation = models.CharField(max_length=16)
+
+    audit_timestamp = models.DateTimeField()
+
+    provider_uuids = ArrayField(models.UUIDField(), null=True)
+
+    uuid = models.UUIDField()
+
+    name = models.TextField()
+
+    description = models.TextField()
+
+    source_type = models.CharField(
+        max_length=50,
+        null=False,
+        choices=Provider.PROVIDER_CHOICES
+    )
+
+    created_timestamp = models.DateTimeField()
+
+    updated_timestamp = models.DateTimeField()
 
     rates = JSONField(default=dict)
 
