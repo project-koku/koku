@@ -39,7 +39,7 @@ class AzureFilterSerializerTest(TestCase):
                          'time_scope_value': '-10',
                          'time_scope_units': 'day',
                          'resource_location': FAKE.word(),
-                         'subscription': FAKE.uuid4(),
+                         'subscription_guid': FAKE.uuid4(),
                          'resource_type': FAKE.word(),
                          'service': FAKE.word()}
         serializer = AzureFilterSerializer(data=filter_params)
@@ -48,7 +48,7 @@ class AzureFilterSerializerTest(TestCase):
     def test_parse_filter_params_no_time(self):
         """Test parse of a filter param no time filter."""
         filter_params = {'resource_location': FAKE.word(),
-                         'subscription': FAKE.uuid4(),
+                         'subscription_guid': FAKE.uuid4(),
                          'resource_type': FAKE.word(),
                          'service': FAKE.word()}
         serializer = AzureFilterSerializer(data=filter_params)
@@ -134,7 +134,7 @@ class AzureGroupBySerializerTest(TestCase):
 
     def test_parse_group_by_params_success(self):
         """Test parse of a group_by param successfully."""
-        group_params = {'subscription': [FAKE.uuid4()]}
+        group_params = {'subscription_guid': [FAKE.uuid4()]}
         serializer = AzureGroupBySerializer(data=group_params)
         self.assertTrue(serializer.is_valid())
 
@@ -197,7 +197,7 @@ class AzureOrderBySerializerTest(TestCase):
 
     def test_order_by_params_invalid_fields(self):
         """Test parse of order_by params for invalid fields."""
-        order_params = {'subscription': 'asc',
+        order_params = {'subscription_guid': 'asc',
                         'invalid': 'param'
                         }
         serializer = AzureOrderBySerializer(data=order_params)
@@ -214,7 +214,7 @@ class AzureQueryParamSerializerTest(TestCase):
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
-                                   'subscription': [FAKE.uuid4()]},
+                                   'subscription_guid': [FAKE.uuid4()]},
                         }
         serializer = AzureQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
@@ -238,7 +238,7 @@ class AzureQueryParamSerializerTest(TestCase):
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
-                                   'subscription': [FAKE.uuid4()]}
+                                   'subscription_guid': [FAKE.uuid4()]}
                         }
         serializer = AzureQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
@@ -325,7 +325,7 @@ class AzureQueryParamSerializerTest(TestCase):
     def test_query_params_invalid_order_by_request(self):
         """Test parse of charge query params for invalid fields."""
         # Charge can't order by request or usage
-        query_params = {'group_by': {'subscription': [FAKE.uuid4()]},
+        query_params = {'group_by': {'subscription_guid': [FAKE.uuid4()]},
                         'order_by': {'request': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
@@ -339,7 +339,7 @@ class AzureQueryParamSerializerTest(TestCase):
     def test_query_params_invalid_order_by_usage(self):
         """Test parse of charge query params for invalid fields."""
         # Charge can't order by request or usage
-        query_params = {'group_by': {'subscription': [FAKE.uuid4()]},
+        query_params = {'group_by': {'subscription_guid': [FAKE.uuid4()]},
                         'order_by': {'usage': 'asc'},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
