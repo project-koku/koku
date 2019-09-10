@@ -158,6 +158,7 @@ class Sources(models.Model):
     koku_uuid = models.CharField(max_length=512, null=True)
     auth_header = models.CharField(max_length=512, null=True)
     pending_delete = models.BooleanField(default=False)
+    offset = models.IntegerField(null=False)
 
 
 class ProviderStatus(models.Model):

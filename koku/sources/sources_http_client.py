@@ -15,6 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 import requests
+from requests.exceptions import RequestException
+
+
+class SourcesHTTPClientError(Exception):
+    """SourcesHTTPClient Error"""
+    pass
 
 
 class SourcesHTTPClient:
@@ -31,13 +37,19 @@ class SourcesHTTPClient:
     def get_source_details(self):
         url = '{}/{}/{}'.format(self._base_url, 'sources', str(self._source_id))
         r = requests.get(url, headers=self._identity_header)
+        if r.status_code != 200:
+            raise SourcesHTTPClientError("Status Code: ", r.status_code)
         response = r.json()
         return response
 
     def get_cost_management_application_type_id(self):
         application_type_url = '{}/application_types?filter[name]=/insights/platform/cost-management'.format(
             self._base_url)
-        r = requests.get(application_type_url, headers=self._identity_header)
+        try:
+            r = requests.get(application_type_url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError("Unable to get cost management application ID Type. Reason: ", str(conn_error))
+
         endpoint_response = r.json()
         application_type_id = endpoint_response.get('data')[0].get('id')
         return int(application_type_id)

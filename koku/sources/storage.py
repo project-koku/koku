@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-import collections
 import logging
 
 from api.provider.models import Sources
@@ -26,15 +25,22 @@ def load_providers_to_create():
     providers_to_create = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        if provider.pending_delete:
-            providers_to_create.append({'operation': 'destroy', 'provider': provider})
-        elif provider.source_type == 'AWS':
+        if provider.source_type == 'AWS':
             if provider.source_id and provider.name and provider.auth_header and provider.billing_source and not provider.koku_uuid:
-                providers_to_create.append({'operation': 'create', 'provider': provider})
+                providers_to_create.append({'operation': 'create', 'provider': provider, 'offset': provider.offset})
         else:
             if provider.source_id and provider.name and provider.auth_header and not provider.koku_uuid:
-                providers_to_create.append({'operation': 'create', 'provider': provider})
+                providers_to_create.append({'operation': 'create', 'provider': provider, 'offset': provider.offset})
     return providers_to_create
+
+
+def load_providers_to_delete():
+    providers_to_delete = []
+    all_providers = Sources.objects.all()
+    for provider in all_providers:
+        if provider.pending_delete:
+            providers_to_delete.append({'operation': 'destroy', 'provider': provider, 'offset': provider.offset})
+    return providers_to_delete
 
 
 async def enqueue_source_delete(queue, source_id):
@@ -47,13 +53,14 @@ async def enqueue_source_delete(queue, source_id):
         LOG.error("Unable to enqueue source delete.  %s not found.", str(source_id))
 
 
-def create_provider_event(source_id, auth_header):
+def create_provider_event(source_id, auth_header, offset):
     try:
         query = Sources.objects.get(source_id=source_id)
         query.auth_header = auth_header
+        query.offset = offset
         query.save()
     except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, auth_header=auth_header)
+        new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset)
         new_event.save()
 
 
