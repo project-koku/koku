@@ -1261,3 +1261,127 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ]
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
+
+    def test_execute_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = AzureTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            labels = AzureCostEntryLineItemDailySummary.objects\
+                .filter(usage_date_time__gte=self.dh.this_month_start)\
+                .filter(tags__has_key=filter_key)\
+                .values(*['tags'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('tags', {}).get(filter_key)
+
+            totals = AzureCostEntryLineItemDailySummary.objects\
+                .filter(usage_date_time__gte=self.dh.this_month_start)\
+                .filter(**{f'tags__{filter_key}': filter_value})\
+                .aggregate(**{'cost': Sum('pretax_cost')})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                f'tag:{filter_key}': [filter_value]
+            }
+        }
+        query_string = f'?filter[tag:{filter_key}]={filter_value}'
+
+        handler = AzureReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_wildcard_tag_filter(self):
+        """Test that data is filtered to include entries with tag key."""
+        handler = AzureTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AzureCostEntryLineItemDailySummary.objects\
+                .filter(usage_date_time__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': filter_key})\
+                .aggregate(
+                    **{'cost': Sum('pretax_cost')})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                f'tag:{filter_key}': ['*']
+            }
+        }
+        query_string = f'?filter[tag:{filter_key}]=*'
+
+        handler = AzureReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        handler = AzureTagQueryHandler('', {}, self.tenant)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AzureCostEntryLineItemDailySummary.objects\
+                .filter(usage_date_time__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': group_by_key})\
+                .aggregate(
+                    **{'cost': Sum('unblended_cost')})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+            },
+            'group_by': {
+                f'tag:{group_by_key}': ['*']
+            }
+        }
+        query_string = quote_plus(f'?group_by[tag:{group_by_key}]=*')
+
+        handler = AzureReportQueryHandler(
+            query_params,
+            query_string,
+            self.tenant,
+            **{'report_type': 'costs', 'tag_keys': tag_keys}
+        )
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
