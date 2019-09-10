@@ -43,33 +43,24 @@ class CostModelDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid
         self.column_map = column_map
-        # self.rates = self._make_rate_by_metric_map()
+        self.cost_model = None
+        self.markup = None
+        self.rates = None
 
     def _get_cost_model(self):
         """Get the cost model for a provider."""
-        with schema_context(self.schema):
-            return CostModel.objects.filter(
-                costmodelmap__provider_uuid=self.provider_uuid
-            ).first()
+        if self.cost_model is None:
+            with schema_context(self.schema):
+                self.cost_model = CostModel.objects.filter(
+                    costmodelmap__provider_uuid=self.provider_uuid
+                ).first()
+        return self.cost_model
 
-    def _get_base_entry(self, key):
-        """Get base metric query."""
-        query_sql = f"""
-            SELECT cost_model_table.{key}
-            FROM {self.schema}.cost_model as cost_model_table
-            JOIN {self.schema}.cost_model_map as map
-                ON cost_model_table.uuid = map.cost_model_id
-            WHERE map.provider_uuid = '{self.provider_uuid}'
-            """
-        with connection.cursor() as cursor:
-            cursor.execute(query_sql)
-            results = cursor.fetchall()
-
-        return results[0][0] if len(results) == 1 else None
-
-    def _get_markup(self):
+    def get_markup(self):
         """Get the cost model for a provider."""
-        return self._get_cost_model().markup
+        if self.markup is None:
+            self.markup = self._get_cost_model().markup
+        return self.markup
 
     def _make_rate_by_metric_map(self):
         """Convert the rates JSON list to a dict keyed on metric."""
@@ -83,6 +74,8 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
     def get_rates(self, value):
         """Get the rates."""
+        if self.rates is None:
+            self.rates = self._make_rate_by_metric_map()
         return self.rates.get(value)
 
     def get_cpu_core_usage_per_hour_rates(self):
