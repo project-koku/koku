@@ -16,6 +16,7 @@
 #
 import os
 
+
 class Config:
     """Configuration for service."""
     SOURCES_KAFKA_HOST = os.getenv('SOURCES_KAFKA_HOST', 'localhost')
