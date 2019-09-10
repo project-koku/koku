@@ -14,23 +14,23 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-import time
-import logging
-import json
+"""Sources Integration Service."""
 import asyncio
+import json
+import logging
 import threading
-from aiokafka import AIOKafkaConsumer
+import time
 
+from aiokafka import AIOKafkaConsumer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from api.provider.models import Sources
-
 from kafka.errors import KafkaError
-
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
-from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
 from sources import storage
 from sources.config import Config
+from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
+
+from api.provider.models import Sources
 
 LOG = logging.getLogger(__name__)
 
@@ -42,12 +42,13 @@ KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
 
+
 class SourcesIntegrationError(Exception):
     """Sources Integration error."""
 
 
 def _extract_from_header(headers, header_type):
-    """Helper to retrieve information from Kafka Headers"""
+    """Retrieve information from Kafka Headers."""
     for header in headers:
         if header_type in header:
             for item in header:
@@ -57,9 +58,10 @@ def _extract_from_header(headers, header_type):
                     return item.decode('ascii')
     return None
 
+
 def load_process_queue():
     """
-    Re-populates the process queue for any Source events that need synchronization.
+    Re-populate the process queue for any Source events that need synchronization.
 
     Handles the case for when the Sources Integration service goes down before
     Koku Synchronization could be completed.
@@ -74,14 +76,14 @@ def load_process_queue():
     create_events = storage.load_providers_to_create()
     destroy_events = storage.load_providers_to_delete()
     pending_events = create_events + destroy_events
-    pending_events.sort(key=lambda item:item.get('offset'))
+    pending_events.sort(key=lambda item: item.get('offset'))
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
 
 
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, **kwargs):
-    """Callback to load Sources ready for Koku Synchronization"""
+    """Load Sources ready for Koku Synchronization when Sources table is updated."""
     pending_events = storage.load_providers_to_create()
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
@@ -89,7 +91,7 @@ def storage_callback(sender, **kwargs):
 
 def get_sources_msg_data(msg, app_type_id):
     """
-    General filter and data extractor for Platform-Sources kafka messages
+    General filter and data extractor for Platform-Sources kafka messages.
 
     Args:
         msg (Kafka msg): Platform-Sources kafka message
@@ -107,29 +109,29 @@ def get_sources_msg_data(msg, app_type_id):
             event_type = _extract_from_header(msg.headers, KAFKA_HDR_EVENT_TYPE)
             if event_type in (KAFKA_APPLICATION_CREATE, KAFKA_APPLICATION_DESTROY):
                 if int(value.get('application_type_id')) == app_type_id:
-                    LOG.debug("Application Message: %s", str(msg))
+                    LOG.debug('Application Message: %s', str(msg))
                     msg_data['event_type'] = event_type
                     msg_data['offset'] = msg.offset
                     msg_data['source_id'] = int(value.get('source_id'))
                     msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_SOURCE_DESTROY, ):
-                LOG.debug("Source Message: %s", str(msg))
+                LOG.debug('Source Message: %s', str(msg))
                 msg_data['event_type'] = event_type
                 msg_data['offset'] = msg.offset
                 msg_data['source_id'] = int(value.get('id'))
                 msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
-                LOG.debug("Other Message: %s", str(msg))
+                LOG.debug('Other Message: %s', str(msg))
         except Exception as error:
             LOG.error('Unable load message. Error: %s', str(error))
-            raise SourcesIntegrationError("Unable to load message")
+            raise SourcesIntegrationError('Unable to load message')
 
     return msg_data
 
 
 async def sources_network_info(source_id, auth_header):
     """
-    Sources API network call to get additional sources context.
+    Get additional sources context from Sources REST API.
 
     Additional details retrieved from the network includes:
         - Source Name
@@ -191,7 +193,7 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
         None
 
     """
-    LOG.info("Waiting to process incoming kafka messages...")
+    LOG.info('Waiting to process incoming kafka messages...')
     while True:
         msg = await msg_pending_queue.get()
 
@@ -199,7 +201,9 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
         if msg_data:
             LOG.info(f'Processing Message Details: {str(msg_data)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
-            storage.create_provider_event(msg_data.get('source_id'), msg_data.get('auth_header'), msg_data.get('offset'))
+            storage.create_provider_event(msg_data.get('source_id'),
+                                          msg_data.get('auth_header'),
+                                          msg_data.get('offset'))
             await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
@@ -256,12 +260,12 @@ def execute_koku_provider_op(msg):
             LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
             koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
                                                        provider.billing_source)
-            LOG.info(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
+            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
             if provider.koku_uuid:
                 response = koku_client.destroy_provider(provider.koku_uuid)
-                LOG.info(f'Koku Provider UUID ({str(provider.koku_uuid)}) Removal Status Code: {str(response.status_code)}')
+                LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
             storage.destroy_provider_event(provider.source_id)
     except KokuHTTPClientError as koku_error:
         raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
@@ -290,7 +294,6 @@ async def synchronize_sources(process_queue):
         None
 
     """
-
     LOG.info('Processing koku provider events...')
     while True:
         msg = await process_queue.get()
@@ -312,7 +315,7 @@ async def connect_consumer(consumer):
 
 def asyncio_sources_thread(event_loop):
     """
-    Sources listener thread function to run the asyncio event loop.
+    Configure Sources listener thread function to run the asyncio event loop.
 
     Args:
         event_loop: Asyncio event loop.
@@ -337,7 +340,8 @@ def asyncio_sources_thread(event_loop):
         time.sleep(Config.RETRY_SECONDS)
 
     try:
-        cost_management_type_id = SourcesHTTPClient(Config.SOURCES_FAKE_HEADER).get_cost_management_application_type_id()
+        cost_management_type_id = SourcesHTTPClient(Config.SOURCES_FAKE_HEADER).\
+            get_cost_management_application_type_id()
 
         load_process_queue()
         while True:
@@ -346,13 +350,14 @@ def asyncio_sources_thread(event_loop):
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
     except SourcesHTTPClientError:
-        LOG.error("Unable to connect to Sources REST API.  Check configuration and restart server...")
+        LOG.error('Unable to connect to Sources REST API.  Check configuration and restart server...')
         exit(0)
     except KeyboardInterrupt:
         exit(0)
 
 
 def initialize_sources_integration():
+    """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=asyncio_sources_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
     LOG.info('Listening for kafka events')

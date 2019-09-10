@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Database accessors for Sources database table."""
 import logging
 
 from api.provider.models import Sources
@@ -27,7 +28,7 @@ class SourcesStorageError(Exception):
 
 def load_providers_to_create():
     """
-    Builds a list of Sources that has all information needed to create a Koku Provider.
+    Build a list of Sources that has all information needed to create a Koku Provider.
 
     This information can come in over several API calls.  The primary use cases where this
     is needed is for side-loading the AWS S3 bucket via the /billing_source API and for
@@ -45,14 +46,14 @@ def load_providers_to_create():
     all_providers = Sources.objects.all()
     for provider in all_providers:
         if provider.source_type == 'AWS':
-            if (provider.source_id and provider.name and provider.auth_header and
-                    provider.billing_source and not provider.koku_uuid):
+            if (provider.source_id and provider.name and provider.auth_header
+                    and provider.billing_source and not provider.koku_uuid):
                 providers_to_create.append({'operation': 'create',
                                             'provider': provider,
                                             'offset': provider.offset})
         else:
-            if (provider.source_id and provider.name and
-                    provider.auth_header and not provider.koku_uuid):
+            if (provider.source_id and provider.name
+                    and provider.auth_header and not provider.koku_uuid):
                 providers_to_create.append({'operation': 'create',
                                             'provider': provider,
                                             'offset': provider.offset})
@@ -61,7 +62,7 @@ def load_providers_to_create():
 
 def load_providers_to_delete():
     """
-    Builds a list of Sources that need to be deleted from the Koku provider database.
+    Build a list of Sources that need to be deleted from the Koku provider database.
 
     The primary use case where this is when the Koku API is down and the Source has
     been removed from the Platform-Sources backend.  Additionally this is also needed
@@ -103,12 +104,12 @@ async def enqueue_source_delete(queue, source_id):
         source.save()
         await queue.put({'operation': 'destroy', 'provider': source})
     except Sources.DoesNotExist:
-        LOG.error("Unable to enqueue source delete.  %s not found.", str(source_id))
+        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
 
 
 def create_provider_event(source_id, auth_header, offset):
     """
-    Creates the Sources database object.
+    Create a Sources database object.
 
     Args:
         source_id (Integer) - Platform-Sources identifier
@@ -146,7 +147,7 @@ def destroy_provider_event(source_id):
         koku_uuid = query.koku_uuid
         query.delete()
     except Sources.DoesNotExist:
-        LOG.error("Unable to delete.  Source ID: %s does not exist", str(source_id))
+        LOG.error('Unable to delete.  Source ID: %s does not exist', str(source_id))
 
     return koku_uuid
 
@@ -172,7 +173,7 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         query.authentication = authentication
         query.save()
     except Sources.DoesNotExist:
-        LOG.error("Unable to add network details.  Source ID: %s does not exist", str(source_id))
+        LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
 def add_provider_billing_source(source_id, billing_source):
@@ -190,11 +191,11 @@ def add_provider_billing_source(source_id, billing_source):
     try:
         query = Sources.objects.get(source_id=source_id)
         if query.source_type != 'AWS':
-            raise SourcesStorageError("Source is not AWS.")
+            raise SourcesStorageError('Source is not AWS.')
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:
-        raise SourcesStorageError("Source does not exist")
+        raise SourcesStorageError('Source does not exist')
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):
@@ -214,4 +215,4 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         query.koku_uuid = koku_uuid
         query.save()
     except Sources.DoesNotExist:
-        LOG.error("%s does not exist", str(source_id))
+        LOG.error('%s does not exist', str(source_id))

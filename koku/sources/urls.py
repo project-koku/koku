@@ -23,9 +23,9 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf import settings
 from django.conf.urls import include, url
 from django.urls import path
+from sources.kafka_listener import initialize_sources_integration
 
 from koku.env import ENVIRONMENT
-from sources.kafka_listener import initialize_sources_integration
 
 is_sources = ENVIRONMENT.bool('SOURCES', default=False)
 if is_sources:

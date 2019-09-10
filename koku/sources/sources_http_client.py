@@ -14,14 +14,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
+"""Sources HTTP Client."""
 import requests
 from requests.exceptions import RequestException
-
 from sources.config import Config
 
 
 class SourcesHTTPClientError(Exception):
-    """SourcesHTTPClient Error"""
+    """SourcesHTTPClient Error."""
+
     pass
 
 
@@ -29,7 +30,7 @@ class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
     def __init__(self, auth_header, source_id=None):
-        """Sources HTTP Client initializer."""
+        """Initialize the client."""
         self._source_id = source_id
         self._sources_host = Config.SOURCES_API_URL
         self._base_url = '{}/{}'.format(self._sources_host, Config.SOURCES_API_PREFIX)
@@ -39,29 +40,29 @@ class SourcesHTTPClient:
         self._identity_header = header
 
     def get_source_details(self):
-        """Sources HTTP call to get details on source_id."""
+        """Get details on source_id."""
         url = '{}/{}/{}'.format(self._base_url, 'sources', str(self._source_id))
         r = requests.get(url, headers=self._identity_header)
         if r.status_code != 200:
-            raise SourcesHTTPClientError("Status Code: ", r.status_code)
+            raise SourcesHTTPClientError('Status Code: ', r.status_code)
         response = r.json()
         return response
 
     def get_cost_management_application_type_id(self):
-        """Sources HTTP call to determine the cost management application type id."""
+        """Get the cost management application type id."""
         application_type_url = '{}/application_types?filter[name]=/insights/platform/cost-management'.format(
             self._base_url)
         try:
             r = requests.get(application_type_url, headers=self._identity_header)
         except RequestException as conn_error:
-            raise SourcesHTTPClientError("Unable to get cost management application ID Type. Reason: ", str(conn_error))
+            raise SourcesHTTPClientError('Unable to get cost management application ID Type. Reason: ', str(conn_error))
 
         endpoint_response = r.json()
         application_type_id = endpoint_response.get('data')[0].get('id')
         return int(application_type_id)
 
     def get_aws_role_arn(self):
-        """Sources HTTP call to retrieve the roleARN from Sources Authentication service."""
+        """Get the roleARN from Sources Authentication service."""
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()

@@ -15,7 +15,6 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import url
-
 from sources.api.views import billing_source
 
 

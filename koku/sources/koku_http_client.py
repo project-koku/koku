@@ -14,27 +14,29 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
+"""Koku HTTP Client."""
 import requests
 from requests.exceptions import RequestException
-
 from sources.config import Config
 
 
 class KokuHTTPClientError(Exception):
-    """KokuHTTPClient Error"""
+    """KokuHTTPClient Error."""
+
     pass
 
 
 class KokuHTTPClientNonRecoverableError(Exception):
-    """KokuHTTPClient Error"""
+    """KokuHTTPClient Unrecoverable Error."""
+
     pass
+
 
 class KokuHTTPClient:
     """Koku HTTP client to create koku providers."""
 
     def __init__(self, auth_header):
-        """Initializer for client."""
+        """Initialize the client."""
         self._base_url = Config.KOKU_API_URL
         header = {}
         header['x-rh-identity'] = auth_header
@@ -43,24 +45,20 @@ class KokuHTTPClient:
     def create_provider(self, name, provider_type, authentication, billing_source):
         """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
-        json_data = {}
-        json_data["name"] = name
-        json_data["type"] = provider_type
+        json_data = {'name': name, 'type': provider_type}
 
-        provider_resource_name = {}
-        provider_resource_name["provider_resource_name"] = authentication
-        json_data["authentication"] = provider_resource_name
+        provider_resource_name = {'provider_resource_name': authentication}
+        json_data['authentication'] = provider_resource_name
 
-        bucket = {}
-        bucket["bucket"] = billing_source if billing_source else ''
-        json_data["billing_source"] = bucket
+        bucket = {'bucket': billing_source if billing_source else ''}
+        json_data['billing_source'] = bucket
 
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
-            raise KokuHTTPClientError("Failed to create provider. Connection Error: ", str(conn_err))
+            raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
         if r.status_code != 201:
-            raise KokuHTTPClientNonRecoverableError("Unable to create provider. Error: ", str(r.json()))
+            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
         return r.json()
 
     def destroy_provider(self, provider_uuid):
@@ -69,6 +67,6 @@ class KokuHTTPClient:
         try:
             response = requests.delete(url, headers=self._identity_header)
         except RequestException as conn_err:
-            raise KokuHTTPClientError("Failed to delete provider. Connection Error: ", str(conn_err))
+            raise KokuHTTPClientError('Failed to delete provider. Connection Error: ', str(conn_err))
 
         return response

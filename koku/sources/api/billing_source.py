@@ -23,7 +23,7 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.storage import add_provider_billing_source, SourcesStorageError
+from sources.storage import SourcesStorageError, add_provider_billing_source
 
 
 @api_view(http_method_names=['POST'])

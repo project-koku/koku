@@ -145,6 +145,11 @@ class Provider(models.Model):
 
 
 class Sources(models.Model):
+    """Platform-Sources table.
+
+    Used for managing Platform-Sources.
+    """
+
     class Meta:
         """Meta for Sources."""
 
