@@ -565,39 +565,27 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             if cluster_id:
                 CostSummary.objects.filter(cluster_id=cluster_id).update(
-                    markup_cost=((
-                        F('pod_charge_cpu_core_hours')
-                        + F('pod_charge_memory_gigabyte_hours')
-                        + F('persistentvolumeclaim_charge_gb_month')
-                        + F('infra_cost'))
-                        * markup
-                    )
+                    markup_cost=((F('pod_charge_cpu_core_hours')
+                                  + F('pod_charge_memory_gigabyte_hours')
+                                  + F('persistentvolumeclaim_charge_gb_month')
+                                  + F('infra_cost')) * markup)
                 )
                 CostSummary.objects.filter(cluster_id=cluster_id).update(
-                    project_markup_cost=((
-                        F('pod_charge_cpu_core_hours')
-                        + F('pod_charge_memory_gigabyte_hours')
-                        + F('persistentvolumeclaim_charge_gb_month')
-                        + F('project_infra_cost'))
-                        * markup
-                    )
+                    project_markup_cost=((F('pod_charge_cpu_core_hours')
+                                          + F('pod_charge_memory_gigabyte_hours')
+                                          + F('persistentvolumeclaim_charge_gb_month')
+                                          + F('project_infra_cost')) * markup)
                 )
             else:
                 CostSummary.objects.update(
-                    markup_cost=((
-                        F('pod_charge_cpu_core_hours')
-                        + F('pod_charge_memory_gigabyte_hours')
-                        + F('persistentvolumeclaim_charge_gb_month')
-                        + F('infra_cost'))
-                        * markup
-                    )
+                    markup_cost=((F('pod_charge_cpu_core_hours')
+                                  + F('pod_charge_memory_gigabyte_hours')
+                                  + F('persistentvolumeclaim_charge_gb_month')
+                                  + F('infra_cost')) * markup)
                 )
                 CostSummary.objects.update(
-                    project_markup_cost=((
-                        F('pod_charge_cpu_core_hours')
-                        + F('pod_charge_memory_gigabyte_hours')
-                        + F('persistentvolumeclaim_charge_gb_month')
-                        + F('project_infra_cost'))
-                        * markup
-                    )
+                    project_markup_cost=((F('pod_charge_cpu_core_hours')
+                                          + F('pod_charge_memory_gigabyte_hours')
+                                          + F('persistentvolumeclaim_charge_gb_month')
+                                          + F('project_infra_cost')) * markup)
                 )

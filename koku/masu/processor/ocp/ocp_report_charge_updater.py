@@ -192,7 +192,6 @@ class OCPReportChargeUpdater:
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update markup costs. Error: %s', str(error))
 
-
     # pylint: disable=too-many-locals
     def _update_pod_charge(self):
         """Calculate and store total POD charges."""

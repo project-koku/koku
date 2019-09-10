@@ -30,7 +30,6 @@ CURRENCY_CHOICES = (('USD', 'USD'),)
 MARKUP_CHOICES = (('percent', '%'),)
 
 
-
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
     """Related field to handle UUIDs."""
 
@@ -55,6 +54,7 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
+
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
 
@@ -348,6 +348,7 @@ class CostModelSerializer(serializers.Serializer):
         return validated_rates
 
     def validate_markups(self, markup):
+        """Run validation on markup."""
         serializer = MarkupSerializer(data=markup)
         serializer.is_valid(raise_exception=True)
         return markup
