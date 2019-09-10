@@ -47,6 +47,7 @@ class SourcesIntegrationError(Exception):
 
 
 def _extract_from_header(headers, header_type):
+    """Helper to retrieve information from Kafka Headers"""
     for header in headers:
         if header_type in header:
             for item in header:
@@ -57,6 +58,19 @@ def _extract_from_header(headers, header_type):
     return None
 
 def load_process_queue():
+    """
+    Re-populates the process queue for any Source events that need synchronization.
+
+    Handles the case for when the Sources Integration service goes down before
+    Koku Synchronization could be completed.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    """
     create_events = storage.load_providers_to_create()
     destroy_events = storage.load_providers_to_delete()
     pending_events = create_events + destroy_events
@@ -67,12 +81,25 @@ def load_process_queue():
 
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, **kwargs):
+    """Callback to load Sources ready for Koku Synchronization"""
     pending_events = storage.load_providers_to_create()
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
 
 
 def get_sources_msg_data(msg, app_type_id):
+    """
+    General filter and data extractor for Platform-Sources kafka messages
+
+    Args:
+        msg (Kafka msg): Platform-Sources kafka message
+        app_type_id (Integer): Cost Management's current Application Source ID. Used for
+            kafka message filtering.  Initialized at service startup time.
+
+    Returns:
+        Dictionary - Keys: event_type, offset, source_id, auth_header
+
+    """
     msg_data = {}
     if msg.topic == Config.SOURCES_TOPIC:
         try:
@@ -101,6 +128,24 @@ def get_sources_msg_data(msg, app_type_id):
 
 
 async def sources_network_info(source_id, auth_header):
+    """
+    Sources API network call to get additional sources context.
+
+    Additional details retrieved from the network includes:
+        - Source Name
+        - Source ID Type -> AWS, Azure, or OCP
+        - Authentication: OCP -> Source uid; AWS -> Network call to Sources Authentication Store
+
+    Details are stored in the Sources database table.
+
+    Args:
+        source_id (Integer): Source identifier
+        auth_header (String): Authentication Header.
+
+    Returns:
+        None
+
+    """
     sources_network = SourcesHTTPClient(auth_header, source_id)
     try:
         source_details = sources_network.get_source_details()
@@ -125,6 +170,27 @@ async def sources_network_info(source_id, auth_header):
 
 
 async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
+    """
+    Process messages from Platform-Sources kafka service.
+
+    Handler for various application/source create and delete events.
+    'create' events:
+        Issues a Sources REST API call to get additional context for the Platform-Sources kafka event.
+        This information is stored in the Sources database table.
+    'destroy' events:
+        Enqueues a source delete event which will be processed in the synchronize_sources method.
+
+    Args:
+        msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
+        in_progress_queue (Asyncio queue): Queue for filtered cost management messages awaiting
+            Koku-Provider synchronization.
+        application_source_id (Integer): Cost Management's current Application Source ID. Used for
+            kafka message filtering.
+
+    Returns:
+        None
+
+    """
     LOG.info("Waiting to process incoming kafka messages...")
     while True:
         msg = await msg_pending_queue.get()
@@ -140,9 +206,19 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
 
 
 async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
+    """
+    Listen for Platform-Sources kafka messages.
+
+    Args:
+        consumer (AIOKafkaConsumer): Kafka consumer object
+        msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
+
+    Returns:
+        None
+
+    """
     LOG.info('Listener started.  Waiting for messages...')
     try:
-        # Consume messages
         async for msg in consumer:
             await msg_pending_queue.put(msg)
     finally:
@@ -150,6 +226,28 @@ async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
 
 
 def execute_koku_provider_op(msg):
+    """
+    Execute the 'create' or 'destroy Koku-Provider operations.
+
+    'create' operations:
+        Koku POST /providers is executed along with updating the Sources database table with
+        the Koku Provider uuid.
+    'destroy' operations:
+        Koku DELETE /providers is executed along with removing the Sources database entry.
+
+    Two types of exceptions are handled for Koku HTTP operations.  Recoverable client and
+    Non-Recoverable client errors.  If the error is recoverable the calling function
+    (synchronize_sources) will re-queue the operation.
+
+    Args:
+        msg (Asyncio msg): Dictionary messages containing operation,
+                                       provider and offset.
+            example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
+
+    Returns:
+        None
+
+    """
     provider = msg.get('provider')
     operation = msg.get('operation')
     koku_client = KokuHTTPClient(provider.auth_header)
@@ -173,6 +271,26 @@ def execute_koku_provider_op(msg):
 
 
 async def synchronize_sources(process_queue):
+    """
+    Synchronize Platform Sources with Koku Providers.
+
+    Task will process the process_queue which contains filtered
+    events (Cost Management Platform-Sources).
+
+    The items on the queue are Koku-Provider 'create' or 'destroy
+    events.  If the Koku-Provider operation fails the event will
+    be re-queued until the operation is successful.
+
+    Args:
+        process_queue (Asyncio.Queue): Dictionary messages containing operation,
+                                       provider and offset.
+            example: {'operation': 'create', 'provider': SourcesModelObj, 'offset': 3}
+
+    Returns:
+        None
+
+    """
+
     LOG.info('Processing koku provider events...')
     while True:
         msg = await process_queue.get()
@@ -180,7 +298,7 @@ async def synchronize_sources(process_queue):
             execute_koku_provider_op(msg)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
-            await asyncio.sleep(10)
+            await asyncio.sleep(Config.RETRY_SECONDS)
             await process_queue.put(msg)
 
 
@@ -197,7 +315,7 @@ def asyncio_sources_thread(event_loop):
     Sources listener thread function to run the asyncio event loop.
 
     Args:
-        None
+        event_loop: Asyncio event loop.
 
     Returns:
         None
@@ -216,7 +334,7 @@ def asyncio_sources_thread(event_loop):
         except SourcesIntegrationError as err:
             err_msg = f'Kafka Connection Failure: {str(err)}. Reconnecting...'
             LOG.error(err_msg)
-        time.sleep(10)
+        time.sleep(Config.RETRY_SECONDS)
 
     try:
         cost_management_type_id = SourcesHTTPClient(Config.SOURCES_FAKE_HEADER).get_cost_management_application_type_id()

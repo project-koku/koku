@@ -36,3 +36,5 @@ class Config:
     KOKU_API_PORT = os.getenv('KOKU_API_PORT', '8000')
     KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PORT', '/api/cost-management/v1')
     KOKU_API_URL = f'http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}'
+
+    RETRY_SECONDS = int(os.getenv('RETRY_SECONDS', '10'))

@@ -22,32 +22,81 @@ LOG = logging.getLogger(__name__)
 
 
 class SourcesStorageError(Exception):
-    """Kafka msg handler error."""
+    """Sources Storage error."""
 
 
 def load_providers_to_create():
+    """
+    Builds a list of Sources that has all information needed to create a Koku Provider.
+
+    This information can come in over several API calls.  The primary use cases where this
+    is needed is for side-loading the AWS S3 bucket via the /billing_source API and for
+    re-loading the process queue when the service goes down before synchronization could be
+    completed.
+
+    Args:
+        None
+
+    Returns:
+        [Dict] - List of events that can be processed by the synchronize_sources method.
+
+    """
     providers_to_create = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
         if provider.source_type == 'AWS':
-            if provider.source_id and provider.name and provider.auth_header and provider.billing_source and not provider.koku_uuid:
-                providers_to_create.append({'operation': 'create', 'provider': provider, 'offset': provider.offset})
+            if (provider.source_id and provider.name and provider.auth_header and
+                    provider.billing_source and not provider.koku_uuid):
+                providers_to_create.append({'operation': 'create',
+                                            'provider': provider,
+                                            'offset': provider.offset})
         else:
-            if provider.source_id and provider.name and provider.auth_header and not provider.koku_uuid:
-                providers_to_create.append({'operation': 'create', 'provider': provider, 'offset': provider.offset})
+            if (provider.source_id and provider.name and
+                    provider.auth_header and not provider.koku_uuid):
+                providers_to_create.append({'operation': 'create',
+                                            'provider': provider,
+                                            'offset': provider.offset})
     return providers_to_create
 
 
 def load_providers_to_delete():
+    """
+    Builds a list of Sources that need to be deleted from the Koku provider database.
+
+    The primary use case where this is when the Koku API is down and the Source has
+    been removed from the Platform-Sources backend.  Additionally this is also needed
+    to re-load the process queue when the service goes down before synchronization
+    could be completed.
+
+    Args:
+        None
+
+    Returns:
+        [Dict] - List of events that can be processed by the synchronize_sources method.
+
+    """
     providers_to_delete = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
         if provider.pending_delete:
-            providers_to_delete.append({'operation': 'destroy', 'provider': provider, 'offset': provider.offset})
+            providers_to_delete.append({'operation': 'destroy',
+                                        'provider': provider,
+                                        'offset': provider.offset})
     return providers_to_delete
 
 
 async def enqueue_source_delete(queue, source_id):
+    """
+    Queues a source destroy event to be processed by the synchronize_sources method.
+
+    Args:
+        queue (Asyncio Queue) - process_queue containing all pending Souces-koku events.
+        source_id (Integer) - Platform-Sources identifier.
+
+    Returns:
+        None
+
+    """
     try:
         source = Sources.objects.get(source_id=source_id)
         source.pending_delete = True
@@ -58,6 +107,18 @@ async def enqueue_source_delete(queue, source_id):
 
 
 def create_provider_event(source_id, auth_header, offset):
+    """
+    Creates the Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        auth_header (String) - HTTP Authenticaiton Header
+        offset (Integer) - Kafka offset
+
+    Returns:
+        None
+
+    """
     try:
         query = Sources.objects.get(source_id=source_id)
         query.auth_header = auth_header
@@ -69,6 +130,16 @@ def create_provider_event(source_id, auth_header, offset):
 
 
 def destroy_provider_event(source_id):
+    """
+    Destroy a Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+
+    Returns:
+        None
+
+    """
     koku_uuid = None
     try:
         query = Sources.objects.get(source_id=source_id)
@@ -81,6 +152,19 @@ def destroy_provider_event(source_id):
 
 
 def add_provider_sources_network_info(source_id, name, source_type, authentication):
+    """
+    Add additional Sources information to a Source database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        name (String) - Source name
+        source_type (String) - Source type. i.e. AWS, OCP, Azure
+        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
+
+    Returns:
+        None
+
+    """
     try:
         query = Sources.objects.get(source_id=source_id)
         query.name = name
@@ -92,6 +176,17 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
 
 
 def add_provider_billing_source(source_id, billing_source):
+    """
+    Add AWS billing source to Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        billign_source (String) - S3 bucket
+
+    Returns:
+        None
+
+    """
     try:
         query = Sources.objects.get(source_id=source_id)
         if query.source_type != 'AWS':
@@ -103,6 +198,17 @@ def add_provider_billing_source(source_id, billing_source):
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):
+    """
+    Add Koku provider UUID to Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        koku_uuid (String) - Koku Provider UUID.
+
+    Returns:
+        None
+
+    """
     try:
         query = Sources.objects.get(source_id=source_id)
         query.koku_uuid = koku_uuid

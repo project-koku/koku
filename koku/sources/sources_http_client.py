@@ -26,17 +26,20 @@ class SourcesHTTPClientError(Exception):
 
 
 class SourcesHTTPClient:
+    """Sources HTTP client for Sources API service."""
+
     def __init__(self, auth_header, source_id=None):
+        """Sources HTTP Client initializer."""
         self._source_id = source_id
         self._sources_host = Config.SOURCES_API_URL
         self._base_url = '{}/{}'.format(self._sources_host, Config.SOURCES_API_PREFIX)
         self._internal_url = '{}/{}'.format(self._sources_host, Config.SOURCES_INTERNAL_API_PREFIX)
 
-        header = {}
-        header['x-rh-identity'] = auth_header
+        header = {'x-rh-identity': auth_header}
         self._identity_header = header
 
     def get_source_details(self):
+        """Sources HTTP call to get details on source_id."""
         url = '{}/{}/{}'.format(self._base_url, 'sources', str(self._source_id))
         r = requests.get(url, headers=self._identity_header)
         if r.status_code != 200:
@@ -45,6 +48,7 @@ class SourcesHTTPClient:
         return response
 
     def get_cost_management_application_type_id(self):
+        """Sources HTTP call to determine the cost management application type id."""
         application_type_url = '{}/application_types?filter[name]=/insights/platform/cost-management'.format(
             self._base_url)
         try:
@@ -57,6 +61,7 @@ class SourcesHTTPClient:
         return int(application_type_id)
 
     def get_aws_role_arn(self):
+        """Sources HTTP call to retrieve the roleARN from Sources Authentication service."""
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()

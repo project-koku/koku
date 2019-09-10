@@ -31,13 +31,17 @@ class KokuHTTPClientNonRecoverableError(Exception):
     pass
 
 class KokuHTTPClient:
+    """Koku HTTP client to create koku providers."""
+
     def __init__(self, auth_header):
+        """Initializer for client."""
         self._base_url = Config.KOKU_API_URL
         header = {}
         header['x-rh-identity'] = auth_header
         self._identity_header = header
 
     def create_provider(self, name, provider_type, authentication, billing_source):
+        """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
         json_data = {}
         json_data["name"] = name
@@ -60,6 +64,7 @@ class KokuHTTPClient:
         return r.json()
 
     def destroy_provider(self, provider_uuid):
+        """Koku HTTP call to destroy provider."""
         url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
         try:
             response = requests.delete(url, headers=self._identity_header)
