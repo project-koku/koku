@@ -26,6 +26,10 @@ class AzureTagQueryHandler(TagQueryHandler):
     data_sources = [{'db_table': AzureCostEntryLineItemDailySummary,
                      'db_column': 'tags'}]
 
+    SUPPORTED_FILTERS = ['subscription_guid']
+    FILTER_MAP = {'subscription_guid': {'field': 'subscription_guid',
+                                        'operation': 'icontains'}}
+
     def _get_time_based_filters(self, delta=False):
         """Overridden from QueryHandler."""
         start_filter = QueryFilter(field='usage_date_time', operation='gte',

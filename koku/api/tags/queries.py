@@ -26,16 +26,6 @@ from api.query_filter import QueryFilter, QueryFilterCollection
 from api.query_handler import QueryHandler
 
 LOG = logging.getLogger(__name__)
-SUPPORTED_FILTERS = ['project', 'account']
-FILTER_MAP = {
-    'project': {'field': 'namespace', 'operation': 'icontains'},
-    'account': [{'field': 'account_alias__account_alias',
-                 'operation': 'icontains',
-                 'composition_key': 'account_filter'},
-                {'field': 'usage_account_id',
-                 'operation': 'icontains',
-                 'composition_key': 'account_filter'}]
-}
 
 
 class TagQueryHandler(QueryHandler):
@@ -72,6 +62,16 @@ class TagQueryHandler(QueryHandler):
 
     _DEFAULT_ORDERING = {'tags': 'asc'}
     data_sources = []
+    SUPPORTED_FILTERS = ['project', 'account']
+    FILTER_MAP = {
+        'project': {'field': 'namespace', 'operation': 'icontains'},
+        'account': [{'field': 'account_alias__account_alias',
+                     'operation': 'icontains',
+                     'composition_key': 'account_filter'},
+                    {'field': 'usage_account_id',
+                     'operation': 'icontains',
+                     'composition_key': 'account_filter'}]
+    }
 
     def __init__(self, query_parameters, url_data, tenant,
                  default_ordering=None, **kwargs):
@@ -122,10 +122,10 @@ class TagQueryHandler(QueryHandler):
         """
         filters = super()._get_filter(delta)
 
-        for filter_key in SUPPORTED_FILTERS:
+        for filter_key in self.SUPPORTED_FILTERS:
             filter_value = self.get_query_param_data('filter', filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
-                filter_obj = FILTER_MAP.get(filter_key)
+                filter_obj = self.FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
                         for item in filter_value:
@@ -150,14 +150,14 @@ class TagQueryHandler(QueryHandler):
         """Set any filters using AND instead of OR."""
         filters = QueryFilterCollection()
         composed_filter = Q()
-        for filter_key in SUPPORTED_FILTERS:
+        for filter_key in self.SUPPORTED_FILTERS:
             operator_key = operator + ':' + filter_key
             filter_value = self.get_query_param_data('filter', operator_key)
             logical_operator = operator
             if filter_value and len(filter_value) < 2:
                 logical_operator = 'or'
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
-                filter_obj = FILTER_MAP.get(filter_key)
+                filter_obj = self.FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):
                     for _filt in filter_obj:
                         filt_filters = QueryFilterCollection()

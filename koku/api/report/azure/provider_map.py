@@ -160,8 +160,8 @@ class AzureProviderMap(ProviderMap):
                             'cost': Sum('pretax_cost'),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
-                            'usage_units': Coalesce(Max('meter__meter_subcategory'),   # FIXME: Probably Wrong
-                                                    Value('Core-Hrs'))
+                            # 'usage_units': Coalesce(Max('meter__meter_subcategory'),   # FIXME: Probably Wrong
+                            #                         Value('Core-Hrs'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
                         'filter': [{
