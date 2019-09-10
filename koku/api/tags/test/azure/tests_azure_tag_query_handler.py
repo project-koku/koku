@@ -225,7 +225,7 @@ class AzureTagQueryHandlerTest(IamTestCase):
                     tag_keys.add(key)
 
         result = handler.get_tag_keys(filters=False)
-        self.assertEqual(result, list(tag_keys))
+        self.assertEqual(sorted(result), sorted(list(tag_keys)))
 
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
@@ -256,4 +256,4 @@ class AzureTagQueryHandlerTest(IamTestCase):
                     tag_keys.add(key)
 
         result = handler.get_tag_keys(filters=False)
-        self.assertEqual(result, list(tag_keys))
+        self.assertEqual(sorted(result), sorted(list(tag_keys)))
