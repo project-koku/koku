@@ -85,6 +85,8 @@ class CostModelAudit(models.Model):
 
     rates = JSONField(default=dict)
 
+    markup = JSONField(default=dict)
+
 
 class CostModelMap(models.Model):
     """Map for provider and rate objects."""
