@@ -19,7 +19,9 @@
 import logging
 
 from django.db import connection
+from tenant_schemas.utils import schema_context
 
+from cost_models.models import CostModel
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 LOG = logging.getLogger(__name__)
@@ -41,12 +43,19 @@ class CostModelDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid
         self.column_map = column_map
-        self.rates = self._make_rate_by_metric_map()
+        # self.rates = self._make_rate_by_metric_map()
 
-    def _get_base_entry(self):
+    def _get_cost_model(self):
+        """Get the cost model for a provider."""
+        with schema_context(self.schema):
+            return CostModel.objects.filter(
+                costmodelmap__provider_uuid=self.provider_uuid
+            ).first()
+
+    def _get_base_entry(self, key):
         """Get base metric query."""
         query_sql = f"""
-            SELECT cost_model_table.rates
+            SELECT cost_model_table.{key}
             FROM {self.schema}.cost_model as cost_model_table
             JOIN {self.schema}.cost_model_map as map
                 ON cost_model_table.uuid = map.cost_model_id
@@ -58,10 +67,14 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
         return results[0][0] if len(results) == 1 else None
 
+    def _get_markup(self):
+        """Get the cost model for a provider."""
+        return self._get_cost_model().markup
+
     def _make_rate_by_metric_map(self):
         """Convert the rates JSON list to a dict keyed on metric."""
         metric_rate_map = {}
-        rates = self._get_base_entry()
+        rates = self._get_cost_model().rates
         if not rates:
             return {}
         for rate in rates:

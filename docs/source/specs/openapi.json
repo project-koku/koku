@@ -1906,33 +1906,30 @@
         "schemas": {
             "CostModel": {
                 "properties": {
-                      "name": {
+                    "name": {
                         "type": "string"
-                      },
-                      "description": {
+                    },
+                    "description": {
                         "type": "string"
-                      },
-                      "source_type": {
+                    },
+                    "source_type": {
                         "type": "string"
-                      },
-                      "provider_uuids": {
+                    },
+                    "provider_uuids": {
                         "type": "array",
                         "items": {
                           "type": "string"
                         }
-                      },
-                      "rates": {
+                    },
+                    "rates": {
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/Rate"
                         }
-                      },
-                      "markups": {
-                          "type": "array",
-                          "items": {
-                              "$ref": "#/components/schemas/Markup"
-                          }
-                      }
+                    },
+                    "markup": {
+                          "$ref": "#/components/schemas/Markup"
+                    }
                 },
                 "required": [
                     "name",
@@ -2080,7 +2077,6 @@
                     "unit": {
                         "type": "string",
                         "enum": [
-                            "USD",
                             "percent"
                         ]
                     }

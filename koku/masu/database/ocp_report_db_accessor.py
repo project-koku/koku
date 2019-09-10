@@ -21,11 +21,13 @@ import uuid
 
 from dateutil.parser import parse
 from django.db import connection
+from django.db.models import F
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP, OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
+from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import (OCPStorageLineItemDailySummary,
                                            OCPUsageLineItemDailySummary,
                                            OCPUsageReport,
@@ -557,3 +559,45 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
 
         self._commit_and_vacuum(table_name, agg_sql)
+
+    def populate_markup_cost(self, markup, cluster_id=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if cluster_id:
+                CostSummary.objects.filter(cluster_id=cluster_id).update(
+                    markup_cost=((
+                        F('pod_charge_cpu_core_hours')
+                        + F('pod_charge_memory_gigabyte_hours')
+                        + F('persistentvolumeclaim_charge_gb_month')
+                        + F('infra_cost'))
+                        * markup
+                    )
+                )
+                CostSummary.objects.filter(cluster_id=cluster_id).update(
+                    project_markup_cost=((
+                        F('pod_charge_cpu_core_hours')
+                        + F('pod_charge_memory_gigabyte_hours')
+                        + F('persistentvolumeclaim_charge_gb_month')
+                        + F('project_infra_cost'))
+                        * markup
+                    )
+                )
+            else:
+                CostSummary.objects.update(
+                    markup_cost=((
+                        F('pod_charge_cpu_core_hours')
+                        + F('pod_charge_memory_gigabyte_hours')
+                        + F('persistentvolumeclaim_charge_gb_month')
+                        + F('infra_cost'))
+                        * markup
+                    )
+                )
+                CostSummary.objects.update(
+                    project_markup_cost=((
+                        F('pod_charge_cpu_core_hours')
+                        + F('pod_charge_memory_gigabyte_hours')
+                        + F('persistentvolumeclaim_charge_gb_month')
+                        + F('project_infra_cost'))
+                        * markup
+                    )
+                )

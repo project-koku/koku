@@ -69,9 +69,12 @@ class CostModelDBAccessorTest(MasuTestCase):
              'tiered_rates': [{'value': 6.5, 'unit': 'USD'}]}
         ]
 
-        self.creator.create_cost_model(self.provider_uuid, 'OCP', rates)
-        # Reset the rate map in the accessor
+        markup = {'value': 10, 'unit': 'percent'}
+
+        self.creator.create_cost_model(self.provider_uuid, 'OCP', rates, markup)
+        # Reset the rate map and markups in the accessor
         self.accessor.rates = self.accessor._make_rate_by_metric_map()
+        self.accessor.markup = self.accessor._get_markup()
 
     def test_initializer(self):
         """Test initializer."""
@@ -138,7 +141,7 @@ class CostModelDBAccessorTest(MasuTestCase):
 
     def test_make_rate_by_metric_map(self):
         """Test to make sure a dictionary of metric to rates is returned."""
-        rates = self.accessor._get_base_entry()
+        rates = self.accessor._get_base_entry('rates')
         expected_map = {}
         for rate in rates:
             expected_map[rate.get('metric', {}).get('name')] = rate
@@ -148,3 +151,11 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertIn(rate, rates)
             self.assertIn(rate, expected_map.values())
             self.assertIn(metric, expected_map)
+
+    def test_get_not_emtpy_markup(self):
+        markup = self.accessor._get_base_entry('markup')
+        self.assertEqual(self.accessor._get_markup(), markup)
+
+    def test_get_emtpy_markup(self):
+        self.creator.create_cost_model(self.provider_uuid, 'OCP', [], {})
+        self.assertEqual(self.accessor._get_markup(), {})

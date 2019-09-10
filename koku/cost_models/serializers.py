@@ -56,7 +56,7 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
-    unit = serializers.ChoiceField(choices=MARKUP_CHOICES)
+    unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
 
     def validate_value(self, value):
         """Check that value is a positive value."""
@@ -271,7 +271,7 @@ class CostModelSerializer(serializers.Serializer):
 
     rates = RateSerializer(required=False, many=True)
 
-    markups = MarkupSerializer(required=False, many=True)
+    markup = MarkupSerializer(required=False)
 
     @property
     def metric_map(self):
@@ -293,7 +293,7 @@ class CostModelSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that the source type is acceptable."""
-        if data.get('markups') and data['source_type'] in SOURCE_TYPE_MAP.keys():
+        if data.get('markup') and data['source_type'] in SOURCE_TYPE_MAP.keys():
             return data
         if data['source_type'] not in self.metric_map.keys():
             raise serializers.ValidationError('{} is not a valid source.'.format(data['source_type']))
@@ -347,13 +347,10 @@ class CostModelSerializer(serializers.Serializer):
             validated_rates.append(serializer.validated_data)
         return validated_rates
 
-    def validate_markups(self, markups):
-        validated_markups = []
-        for markup in markups:
-            serializer = MarkupSerializer(data=markup)
-            serializer.is_valid(raise_exception=True)
-            validated_markups.append(serializer.validated_data)
-        return validated_markups
+    def validate_markups(self, markup):
+        serializer = MarkupSerializer(data=markup)
+        serializer.is_valid(raise_exception=True)
+        return markup
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
