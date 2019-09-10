@@ -29,7 +29,6 @@ from sources.kafka_listener import initialize_kafka_listener
 
 is_sources = ENVIRONMENT.bool('SOURCES', default=False)
 if is_sources:
-    print('Starting SourcesKafka handler')
     initialize_kafka_listener()
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX

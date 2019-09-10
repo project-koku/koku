@@ -33,7 +33,6 @@ from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientErro
 from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
 from sources import storage
 
-
 LOG = logging.getLogger(__name__)
 SOURCES_KAFKA_HOST = os.getenv('SOURCES_KAFKA_HOST', 'localhost')
 SOURCES_KAFKA_PORT = os.getenv('SOURCES_KAFKA_PORT', '29092')
@@ -74,19 +73,19 @@ def get_sources_msg_data(msg, app_type_id):
             event_type = extract_from_header(msg.headers, 'event_type')
             if event_type in ('Application.create', 'Application.destroy'):
                 if int(value.get('application_type_id')) == app_type_id:
-                    print("Application Message: ", str(msg))
+                    LOG.debug("Application Message: %s", str(msg))
                     msg_data['event_type'] = event_type
                     msg_data['offset'] = msg.offset
                     msg_data['source_id'] = int(value.get('source_id'))
                     msg_data['auth_header'] = extract_from_header(msg.headers, 'x-rh-identity')
             elif event_type in ('Source.destroy', ):
-                print("Source Message: ", str(msg))
+                LOG.debug("Source Message: %s", str(msg))
                 msg_data['event_type'] = event_type
                 msg_data['offset'] = msg.offset
                 msg_data['source_id'] = int(value.get('id'))
                 msg_data['auth_header'] = extract_from_header(msg.headers, 'x-rh-identity')
             else:
-                print("Other Message: ", str(msg))
+                LOG.debug("Other Message: %s", str(msg))
         except Exception as error:
             LOG.error('Unable load message. Error: %s', str(error))
             raise KafkaMsgHandlerError("Unable to load message")
@@ -100,7 +99,7 @@ async def sources_network_info(source_id, auth_header):
         source_details = sources_network.get_source_details()
     except SourcesHTTPClientError as conn_err:
         err_msg = f'Unable to get for Source {source_id} information. Reason: {str(conn_err)}'
-        print(err_msg)
+        LOG.error(err_msg)
         return
     source_name = source_details.get('name')
     source_type_id = int(source_details.get('source_type_id'))
@@ -119,11 +118,13 @@ async def sources_network_info(source_id, auth_header):
 
 
 async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
-    print("Waiting to process incoming kafka messages...")
+    LOG.info("Waiting to process incoming kafka messages...")
     while True:
         msg = await msg_pending_queue.get()
 
         msg_data = get_sources_msg_data(msg, application_source_id)
+        if msg_data:
+            LOG.info(f'Processing Message Details: {str(msg_data)}')
         if msg_data.get('event_type') == 'Application.create':
             storage.create_provider_event(msg_data.get('source_id'), msg_data.get('auth_header'), msg_data.get('offset'))
             await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
@@ -132,7 +133,7 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
 
 
 async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
-    print('Listener started.  Waiting for messages...')
+    LOG.info('Listener started.  Waiting for messages...')
     try:
         # Consume messages
         async for msg in consumer:
@@ -148,33 +149,32 @@ def execute_koku_provider_op(msg):
     koku_client = KokuHTTPClient(provider.auth_header)
     try:
         if operation == 'create':
-            print(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
+            LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
             koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
                                                        provider.billing_source)
-            print(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
+            LOG.info(f'Koku Provider UUID {str(koku_details.get("uuid"))} assigned to Source ID {str(provider.source_id)}.')
             storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
         elif operation == 'destroy':
             if provider.koku_uuid:
                 response = koku_client.destroy_provider(provider.koku_uuid)
-                print(f'Koku Provider UUID ({str(provider.koku_uuid)}) Removal Status Code: {str(response.status_code)}')
+                LOG.info(f'Koku Provider UUID ({str(provider.koku_uuid)}) Removal Status Code: {str(response.status_code)}')
             storage.destroy_provider_event(provider.source_id)
     except KokuHTTPClientError as koku_error:
         raise KafkaMsgHandlerError('Koku provider error: ', str(koku_error))
     except KokuHTTPClientNonRecoverableError as koku_error:
         err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
-        print(err_msg)
+        LOG.error(err_msg)
 
 
 async def synchronize_sources(process_queue):
-    print('Processing koku provider events...')
+    LOG.info('Processing koku provider events...')
     while True:
         msg = await process_queue.get()
         try:
             execute_koku_provider_op(msg)
         except KafkaMsgHandlerError as error:
-            print('Unable to process objects. Error: ', str(error))
+            LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(10)
-            print('Retry Failed. re-queuing...')
             await process_queue.put(msg)
 
 
@@ -208,8 +208,8 @@ def asyncio_listener_thread(event_loop):
             event_loop.run_until_complete(connect_consumer(consumer))
             break
         except KafkaMsgHandlerError as err:
-            print('Kafka connection failure.  Error: ', str(err))
-        print('Attempting kafka reconnect...')
+            err_msg = f'Kafka Connection Failure: {str(err)}. Reconnecting...'
+            LOG.error(err_msg)
         time.sleep(10)
 
     try:
@@ -223,7 +223,7 @@ def asyncio_listener_thread(event_loop):
             event_loop.create_task(synchronize_sources(process_queue))
             event_loop.run_forever()
     except SourcesHTTPClientError:
-        print("Unable to connect to Sources REST API.  Check configuration and restart server...")
+        LOG.error("Unable to connect to Sources REST API.  Check configuration and restart server...")
         exit(0)
     except KeyboardInterrupt:
         exit(0)
@@ -232,4 +232,4 @@ def asyncio_listener_thread(event_loop):
 def initialize_kafka_listener():
     event_loop_thread = threading.Thread(target=asyncio_listener_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
-    print('Listening for kafka events')
+    LOG.info('Listening for kafka events')

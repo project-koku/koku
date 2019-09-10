@@ -50,8 +50,5 @@ class KokuHTTPClient:
             response = requests.delete(url, headers=self._identity_header)
         except RequestException as conn_err:
             raise KokuHTTPClientError("Failed to delete provider. Connection Error: ", str(conn_err))
-        if response.status_code != 404:
-            print('Provider already deleted.')
-            #raise KokuHTTPClientNonRecoverableError("Unable to delete provider. Error: ", str(response.json()))
 
         return response

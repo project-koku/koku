@@ -340,7 +340,10 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
-
+        'sources': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
     },
 }
 
