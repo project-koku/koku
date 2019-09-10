@@ -198,9 +198,9 @@ class TagQueryHandler(QueryHandler):
 
                 tag_keys_query = tag_keys_query.annotate(
                     tag_keys=JSONBObjectKeys(F(source.get('db_column'))))\
-                        .values('tag_keys')\
-                        .distinct()\
-                        .all()
+                    .values('tag_keys')\
+                    .distinct()\
+                    .all()
 
                 tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
