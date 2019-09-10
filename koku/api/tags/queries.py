@@ -18,7 +18,7 @@
 import copy
 import logging
 
-from django.db.models import Q
+from django.db.models import F, Q
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -189,16 +189,19 @@ class TagQueryHandler(QueryHandler):
         with tenant_context(self.tenant):
             for source in self.data_sources:
                 tag_keys_query = source.get('db_table').objects
+
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
 
                 if type_filter and type_filter != source.get('type'):
                     continue
 
-                tag_keys_query = tag_keys_query.annotate(tag_keys=JSONBObjectKeys(source.get('db_column')))\
-                    .values('tag_keys')\
-                    .distinct()\
-                    .all()
+                tag_keys_query = tag_keys_query.annotate(
+                    tag_keys=JSONBObjectKeys(F(source.get('db_column'))))\
+                        .values('tag_keys')\
+                        .distinct()\
+                        .all()
+
                 tag_keys_query = [tag.get('tag_keys') for tag in tag_keys_query]
                 for tag_key in tag_keys_query:
                     tag_keys.append(tag_key)

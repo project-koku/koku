@@ -19,6 +19,7 @@
 import logging
 import random
 from decimal import Decimal, ROUND_HALF_UP
+from urllib.parse import quote_plus
 from uuid import UUID
 
 from django.db.models import Sum
@@ -29,6 +30,7 @@ from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.test.azure.helpers import (AZURE_SERVICES,
                                            AzureReportDataGenerator)
+from api.tags.azure.queries import AzureTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AzureCostEntryLineItemDailySummary,
                               AzureCostEntryProductService)

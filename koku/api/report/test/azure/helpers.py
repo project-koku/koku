@@ -22,6 +22,7 @@ from collections import UserDict
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
+from django.db.utils import IntegrityError
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
@@ -31,7 +32,8 @@ from reporting.models import (AzureCostEntryBill,
                               AzureCostEntryLineItemDaily,
                               AzureCostEntryLineItemDailySummary,
                               AzureCostEntryProductService,
-                              AzureMeter)
+                              AzureMeter,
+                              AzureTagsSummary)
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
 
@@ -321,6 +323,7 @@ class AzureReportDataGenerator:
                 for report_date in self.report_ranges[i]:
                     self._randomize_line_item(retained_fields=fixed_fields)
                     self._cost_entry_line_item_daily_summary(report_date)
+            self._tag_summary()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
@@ -329,7 +332,8 @@ class AzureReportDataGenerator:
                           AzureCostEntryLineItemDailySummary,
                           AzureCostEntryBill,
                           AzureCostEntryProductService,
-                          AzureMeter):
+                          AzureMeter,
+                          AzureTagsSummary):
                 table.objects.all().delete()
 
     # pylint: disable=no-self-use
@@ -464,6 +468,16 @@ class AzureReportDataGenerator:
             offer_id=line_item.offer_id)
         obj.save()
         return obj
+
+    def _tag_summary(self):
+        """Populate AzureTagsSummary."""
+        for key, val in self.config.tags.items():
+            try:
+                AzureTagsSummary.objects.get_or_create(key=key, values=[val])
+            except IntegrityError:
+                tags = AzureTagsSummary.objects.filter(key=key).first()
+                tags.values.append(val)
+                tags.save()
 
     def select_tags(self):
         """Return a random selection of the defined tags."""
