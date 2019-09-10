@@ -1,9 +1,24 @@
-import json
+#
+# Copyright 2019 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 import requests
 from requests.exceptions import RequestException
-#from iam.models import User, Customer
-from api.provider.models import Provider, ProviderBillingSource, ProviderAuthentication
-from api.provider.view import ProviderViewSet
+
+from sources.config import Config
 
 
 class KokuHTTPClientError(Exception):
@@ -17,7 +32,7 @@ class KokuHTTPClientNonRecoverableError(Exception):
 
 class KokuHTTPClient:
     def __init__(self, auth_header):
-        self._base_url = 'http://localhost:8000/api/cost-management/v1'
+        self._base_url = Config.KOKU_API_URL
         header = {}
         header['x-rh-identity'] = auth_header
         self._identity_header = header

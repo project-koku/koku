@@ -17,6 +17,8 @@
 import requests
 from requests.exceptions import RequestException
 
+from sources.config import Config
+
 
 class SourcesHTTPClientError(Exception):
     """SourcesHTTPClient Error"""
@@ -26,9 +28,9 @@ class SourcesHTTPClientError(Exception):
 class SourcesHTTPClient:
     def __init__(self, auth_header, source_id=None):
         self._source_id = source_id
-        self._sources_host = 'http://localhost:3000'
-        self._base_url = '{}/{}'.format(self._sources_host, '/api/v1.0')
-        self._internal_url = '{}/{}'.format(self._sources_host, '/internal/v1.0')
+        self._sources_host = Config.SOURCES_API_URL
+        self._base_url = '{}/{}'.format(self._sources_host, Config.SOURCES_API_PREFIX)
+        self._internal_url = '{}/{}'.format(self._sources_host, Config.SOURCES_INTERNAL_API_PREFIX)
 
         header = {}
         header['x-rh-identity'] = auth_header

@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,9 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for temporary force download endpoint."""
-
-import logging
+"""View for Sources AWS billing source endpoint."""
 
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -27,14 +25,12 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from sources.storage import add_provider_billing_source, SourcesStorageError
 
-logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
 
 @api_view(http_method_names=['POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def billing_source(request):
-    """Return download file async task ID."""
+    """Create billing source for AWS sources."""
     request_data = request.data
     try:
         add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))

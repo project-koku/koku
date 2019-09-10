@@ -1,5 +1,5 @@
 #
-#    Copyright 2018 Red Hat, Inc.
+#    Copyright 2019 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -25,11 +25,11 @@ from django.conf.urls import include, url
 from django.urls import path
 
 from koku.env import ENVIRONMENT
-from sources.kafka_listener import initialize_kafka_listener
+from sources.kafka_listener import initialize_sources_integration
 
 is_sources = ENVIRONMENT.bool('SOURCES', default=False)
 if is_sources:
-    initialize_kafka_listener()
+    initialize_sources_integration()
 
 API_PATH_PREFIX = settings.API_PATH_PREFIX
 if API_PATH_PREFIX != '':

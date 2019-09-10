@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -16,12 +16,11 @@
 #
 """Sources application configuration module."""
 import logging
-from koku.env import ENVIRONMENT
 
 from django.apps import AppConfig
-#from sources.kafka_listener import initialize_kafka_listener
 
 LOG = logging.getLogger(__name__)
+
 
 class SourcesConfig(AppConfig):
     """Sources application configuration."""
@@ -30,9 +29,3 @@ class SourcesConfig(AppConfig):
 
     def ready(self):
         """Determine if app is ready on application startup."""
-        # import pdb; pdb.set_trace()
-        is_sources = ENVIRONMENT.bool('SOURCES', default=False)
-        print(str(is_sources))
-        if is_sources:
-            LOG.info('Starting SourcesKafka handler')
-            #initialize_kafka_listener()
