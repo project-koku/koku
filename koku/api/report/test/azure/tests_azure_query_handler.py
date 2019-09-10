@@ -1355,7 +1355,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .filter(usage_date_time__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': group_by_key})\
                 .aggregate(
-                    **{'cost': Sum('unblended_cost')})
+                    **{'cost': Sum('pretax_cost')})
 
         query_params = {
             'filter': {
