@@ -21,6 +21,10 @@ from api.provider.models import Sources
 LOG = logging.getLogger(__name__)
 
 
+class SourcesStorageError(Exception):
+    """Kafka msg handler error."""
+
+
 def load_providers_to_create():
     providers_to_create = []
     all_providers = Sources.objects.all()
@@ -90,11 +94,12 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
 def add_provider_billing_source(source_id, billing_source):
     try:
         query = Sources.objects.get(source_id=source_id)
+        if query.source_type != 'AWS':
+            raise SourcesStorageError("Source is not AWS.")
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:
-        new_event = Sources(source_id=source_id, billing_source=billing_source)
-        new_event.save()
+        raise SourcesStorageError("Source does not exist")
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):

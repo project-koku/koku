@@ -25,7 +25,7 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.storage import add_provider_billing_source
+from sources.storage import add_provider_billing_source, SourcesStorageError
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -36,5 +36,9 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 def billing_source(request):
     """Return download file async task ID."""
     request_data = request.data
-    add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
-    return Response({'data': request.data})
+    try:
+        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
+        response = request_data
+    except SourcesStorageError as error:
+        response = str(error)
+    return Response({'AWS billing source creation:': response})
