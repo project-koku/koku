@@ -47,14 +47,14 @@ class AzureOrderBySerializer(OrderSerializer):
 
     _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
 
-    subscription_guid = StringOrListField(child=serializers.CharField(),
-                                          required=False)
-    resource_location = StringOrListField(child=serializers.CharField(),
-                                          required=False)
-    instance_type = StringOrListField(child=serializers.CharField(),
+    subscription_guid = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
+                                    required=False)
+    resource_location = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
+                                            required=False)
+    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
+                                     required=False)
+    service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
-    service = StringOrListField(child=serializers.CharField(),
-                                required=False)
 
 
 class AzureFilterSerializer(BaseFilterSerializer):
