@@ -18,7 +18,7 @@
 import copy
 import logging
 
-from django.db.models import (F, Value, Window)
+from django.db.models import (F, Q, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
@@ -153,6 +153,34 @@ class AzureReportQueryHandler(ReportQueryHandler):
         end_filter = QueryFilter(field='usage_date_time', operation='lte',
                                  parameter=end)
         return start_filter, end_filter
+
+    def _get_previous_totals_filter(self, filter_dates):
+        """Filter previous time range to exlude days from the current range.
+
+        Specifically this covers days in the current range that have not yet
+        happened, but that data exists for in the previous range.
+
+        Args:
+            filter_dates (list) A list of date strings of dates to filter
+
+        Returns:
+            (django.db.models.query_utils.Q) The OR date filter
+
+        """
+        date_delta = self._get_date_delta()
+        prev_total_filters = None
+
+        for i in range(len(filter_dates)):
+            date = self.string_to_date(filter_dates[i])
+            date = date - date_delta
+            filter_dates[i] = self.date_to_string(date)
+
+        for date in filter_dates:
+            if prev_total_filters:
+                prev_total_filters = prev_total_filters | Q(usage_date_time=date)
+            else:
+                prev_total_filters = Q(usage_date_time=date)
+        return prev_total_filters
 
     def execute_query(self):
         """Execute query and return provided data.
