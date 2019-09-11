@@ -30,13 +30,13 @@ from api.utils import UnitConverter
 class AzureGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'resource_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
 
     subscription_guid = StringOrListField(child=serializers.CharField(),
                                           required=False)
     resource_location = StringOrListField(child=serializers.CharField(),
                                           required=False)
-    resource_type = StringOrListField(child=serializers.CharField(),
+    instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
@@ -45,13 +45,13 @@ class AzureGroupBySerializer(GroupSerializer):
 class AzureOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'resource_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
 
     subscription_guid = StringOrListField(child=serializers.CharField(),
                                           required=False)
     resource_location = StringOrListField(child=serializers.CharField(),
                                           required=False)
-    resource_type = StringOrListField(child=serializers.CharField(),
+    instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
@@ -60,13 +60,13 @@ class AzureOrderBySerializer(OrderSerializer):
 class AzureFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'resource_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
 
     subscription_guid = StringOrListField(child=serializers.CharField(),
                                           required=False)
     resource_location = StringOrListField(child=serializers.CharField(),
                                           required=False)
-    resource_type = StringOrListField(child=serializers.CharField(),
+    instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     service = StringOrListField(child=serializers.CharField(),
                                 required=False)
