@@ -837,11 +837,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
                                           self.tenant,
                                           **{'report_type': 'costs'})
 
-        aggregates = handler._mapper.report_type_map.get('aggregates')
-        current_totals = self.get_totals_costs_by_time_scope(aggregates, self.this_month_filter)
-        expected_delta_value = Decimal(current_totals.get('cost'))
-        expected_delta_percent = None
-
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -849,8 +844,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNone(delta.get('percent'))
-        self.assertEqual(delta.get('value'), expected_delta_value)
-        self.assertEqual(delta.get('percent'), expected_delta_percent)
+        self.assertEqual(delta.get('value'), Decimal(0))
+        self.assertEqual(delta.get('percent'), None)
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
