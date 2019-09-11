@@ -119,8 +119,10 @@ class CostModelViewSet(mixins.CreateModelMixin,
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
+        valid_query_params = ['limit', 'offset', 'provider_uuid']
+        cost_models_params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         try:
-            model.objects.filter(**dict_)
+            model.objects.filter(**cost_models_params)
         except FieldError as fe:
             raise exception(fe)
 
@@ -130,13 +132,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
         Restricts the returned data to provider_uuid if supplied as a query parameter.
         """
         queryset = CostModel.objects.all()
-        provider_uuid = self.request.query_params.get('provider_uuid')
-        if not provider_uuid:
-            self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
-
-        if provider_uuid:
-            dict_ = {k: self.request.query_params[k] for k in self.request.query_params.keys() if k != 'provider_uuid'}
-            self.check_fields(dict_, CostModel, CostModelQueryException)
+        self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
         if not self.request.user.admin:
             read_access_list = self.request.user.access.get('rate').get('read')
             if '*' not in read_access_list:
