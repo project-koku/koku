@@ -16,10 +16,8 @@
 #
 """Test the Azure Provider query handler."""
 
-import logging
 import random
 from decimal import Decimal, ROUND_HALF_UP
-from pprint import pformat
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -35,8 +33,6 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AzureCostEntryLineItemDailySummary,
                               AzureCostEntryProductService)
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):

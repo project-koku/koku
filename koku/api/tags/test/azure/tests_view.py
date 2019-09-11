@@ -15,9 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Azure tag view."""
-import datetime
-import logging
-from pprint import pformat
 from urllib.parse import quote_plus, urlencode
 
 from django.urls import reverse
@@ -30,8 +27,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import AzureCostEntryLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureTagsViewTest(IamTestCase):
@@ -165,5 +160,4 @@ class AzureTagsViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json().get('data')
-        LOG.critical('XXX: %s', pformat(data))
         self.assertEqual(data, [])
