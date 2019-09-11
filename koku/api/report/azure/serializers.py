@@ -39,7 +39,7 @@ class AzureGroupBySerializer(GroupSerializer):
     instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     service_name = StringOrListField(child=serializers.CharField(),
-                                required=False)
+                                     required=False)
 
 
 class AzureOrderBySerializer(OrderSerializer):
@@ -54,7 +54,7 @@ class AzureOrderBySerializer(OrderSerializer):
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                             required=False)
     service_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                      required=False)
+                                           required=False)
 
 
 class AzureFilterSerializer(BaseFilterSerializer):
@@ -69,7 +69,7 @@ class AzureFilterSerializer(BaseFilterSerializer):
     instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
     service_name = StringOrListField(child=serializers.CharField(),
-                                required=False)
+                                     required=False)
 
 
 class AzureQueryParamSerializer(ParamSerializer):
