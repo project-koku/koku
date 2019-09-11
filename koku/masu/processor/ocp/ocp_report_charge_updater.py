@@ -185,10 +185,11 @@ class OCPReportChargeUpdater:
         try:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
                                      self._column_map) as cost_model_accessor:
-                markup = cost_model_accessor.markups.get('value', 0) / 100
+                markup = cost_model_accessor.get_markup()
+                markup_value = markup.get('value', 0) / 100
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
-                report_accessor.populate_markup_cost(markup, self._cluster_id)
+                report_accessor.populate_markup_cost(markup_value, self._cluster_id)
         except OCPReportChargeUpdaterError as error:
             LOG.error('Unable to update markup costs. Error: %s', str(error))
 
