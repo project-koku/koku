@@ -30,7 +30,7 @@ from api.utils import UnitConverter
 class AzureGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service_name')
 
     subscription_guid = StringOrListField(child=serializers.CharField(),
                                           required=False)
@@ -38,14 +38,14 @@ class AzureGroupBySerializer(GroupSerializer):
                                           required=False)
     instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
-    service = StringOrListField(child=serializers.CharField(),
+    service_name = StringOrListField(child=serializers.CharField(),
                                 required=False)
 
 
 class AzureOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service_name')
 
     subscription_guid = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                                 required=False)
@@ -53,14 +53,14 @@ class AzureOrderBySerializer(OrderSerializer):
                                                 required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                             required=False)
-    service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
+    service_name = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
 
 
 class AzureFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
+    _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service_name')
 
     subscription_guid = StringOrListField(child=serializers.CharField(),
                                           required=False)
@@ -68,7 +68,7 @@ class AzureFilterSerializer(BaseFilterSerializer):
                                           required=False)
     instance_type = StringOrListField(child=serializers.CharField(),
                                       required=False)
-    service = StringOrListField(child=serializers.CharField(),
+    service_name = StringOrListField(child=serializers.CharField(),
                                 required=False)
 
 
