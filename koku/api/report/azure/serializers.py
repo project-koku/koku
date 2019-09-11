@@ -48,11 +48,11 @@ class AzureOrderBySerializer(OrderSerializer):
     _opfields = ('subscription_guid', 'resource_location', 'instance_type', 'service')
 
     subscription_guid = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                    required=False)
+                                                required=False)
     resource_location = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                            required=False)
+                                                required=False)
     instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
-                                     required=False)
+                                            required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES,
                                       required=False)
 
