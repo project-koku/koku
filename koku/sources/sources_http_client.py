@@ -33,8 +33,8 @@ class SourcesHTTPClient:
         """Initialize the client."""
         self._source_id = source_id
         self._sources_host = Config.SOURCES_API_URL
-        self._base_url = '{}/{}'.format(self._sources_host, Config.SOURCES_API_PREFIX)
-        self._internal_url = '{}/{}'.format(self._sources_host, Config.SOURCES_INTERNAL_API_PREFIX)
+        self._base_url = '{}{}'.format(self._sources_host, Config.SOURCES_API_PREFIX)
+        self._internal_url = '{}{}'.format(self._sources_host, Config.SOURCES_INTERNAL_API_PREFIX)
 
         header = {'x-rh-identity': auth_header}
         self._identity_header = header

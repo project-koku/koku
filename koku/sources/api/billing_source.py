@@ -17,6 +17,7 @@
 
 """View for Sources AWS billing source endpoint."""
 
+from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
@@ -35,6 +36,8 @@ def billing_source(request):
     try:
         add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
         response = request_data
+        status_code = status.HTTP_201_CREATED
     except SourcesStorageError as error:
         response = str(error)
-    return Response({'AWS billing source creation:': response})
+        status_code = status.HTTP_400_BAD_REQUEST
+    return Response({'AWS billing source creation:': response}, status=status_code)

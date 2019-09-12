@@ -59,6 +59,15 @@ def _extract_from_header(headers, header_type):
     return None
 
 
+def _collect_pending_items():
+    """Gather all sources to create or delete."""
+    create_events = storage.load_providers_to_create()
+    destroy_events = storage.load_providers_to_delete()
+    pending_events = create_events + destroy_events
+    pending_events.sort(key=lambda item: item.get('offset'))
+    return pending_events
+
+
 def load_process_queue():
     """
     Re-populate the process queue for any Source events that need synchronization.
@@ -73,10 +82,7 @@ def load_process_queue():
         None
 
     """
-    create_events = storage.load_providers_to_create()
-    destroy_events = storage.load_providers_to_delete()
-    pending_events = create_events + destroy_events
-    pending_events.sort(key=lambda item: item.get('offset'))
+    pending_events = _collect_pending_items()
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
 
@@ -122,14 +128,39 @@ def get_sources_msg_data(msg, app_type_id):
                 msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
                 LOG.debug('Other Message: %s', str(msg))
-        except Exception as error:
+        except (AttributeError, ValueError, TypeError) as error:
             LOG.error('Unable load message. Error: %s', str(error))
             raise SourcesIntegrationError('Unable to load message')
 
     return msg_data
 
 
-async def sources_network_info(source_id, auth_header):
+def _sources_network_info_sync(source_id, auth_header):
+    """Get sources context synchronously."""
+    sources_network = SourcesHTTPClient(auth_header, source_id)
+    try:
+        source_details = sources_network.get_source_details()
+    except SourcesHTTPClientError as conn_err:
+        err_msg = f'Unable to get for Source {source_id} information. Reason: {str(conn_err)}'
+        LOG.error(err_msg)
+        return
+    source_name = source_details.get('name')
+    source_type_id = int(source_details.get('source_type_id'))
+
+    if source_type_id == 1:
+        source_type = 'OCP'
+        authentication = source_details.get('uid')
+    elif source_type_id == 2:
+        source_type = 'AWS'
+        authentication = sources_network.get_aws_role_arn()
+    else:
+        LOG.error(f'Unexpected source type ID: {source_type_id}')
+        return
+
+    storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
+
+
+async def sources_network_info(source_id, auth_header):  # pragma: no cover
     """
     Get additional sources context from Sources REST API.
 
@@ -148,27 +179,7 @@ async def sources_network_info(source_id, auth_header):
         None
 
     """
-    sources_network = SourcesHTTPClient(auth_header, source_id)
-    try:
-        source_details = sources_network.get_source_details()
-    except SourcesHTTPClientError as conn_err:
-        err_msg = f'Unable to get for Source {source_id} information. Reason: {str(conn_err)}'
-        LOG.error(err_msg)
-        return
-    source_name = source_details.get('name')
-    source_type_id = int(source_details.get('source_type_id'))
-
-    authentication = ''
-    if source_type_id == 1:
-        source_type = 'OCP'
-        authentication = source_details.get('uid')
-    elif source_type_id == 2:
-        source_type = 'AWS'
-        authentication = sources_network.get_aws_role_arn()
-    else:
-        source_type = 'UNK'
-
-    storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
+    _sources_network_info_sync(source_id, auth_header)
 
 
 async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
@@ -274,7 +285,7 @@ def execute_koku_provider_op(msg):
         LOG.error(err_msg)
 
 
-async def synchronize_sources(process_queue):
+async def synchronize_sources(process_queue):  # pragma: no cover
     """
     Synchronize Platform Sources with Koku Providers.
 
@@ -305,7 +316,7 @@ async def synchronize_sources(process_queue):
             await process_queue.put(msg)
 
 
-async def connect_consumer(consumer):
+async def connect_consumer(consumer):  # pragma: no cover
     """Connect consumer."""
     try:
         await consumer.start()
@@ -313,7 +324,7 @@ async def connect_consumer(consumer):
         raise SourcesIntegrationError('Unable to connect to kafka server. Reason: ', str(kafka_error))
 
 
-def asyncio_sources_thread(event_loop):
+def asyncio_sources_thread(event_loop):  # pragma: no cover
     """
     Configure Sources listener thread function to run the asyncio event loop.
 
@@ -356,7 +367,7 @@ def asyncio_sources_thread(event_loop):
         exit(0)
 
 
-def initialize_sources_integration():
+def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=asyncio_sources_thread, args=(EVENT_LOOP,))
     event_loop_thread.start()
