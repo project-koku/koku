@@ -33,7 +33,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from cost_models.models import CostModel, CostModelMap
+from cost_models.models import CostModel, CostModelAudit, CostModelMap
 from cost_models.serializers import CostModelSerializer
 from koku.rbac import RbacService
 
@@ -120,7 +120,7 @@ class CostModelViewTests(IamTestCase):
         url = reverse('costmodels-detail', kwargs={'uuid': response.data.get('uuid')})
         response = client.get(url, **self.headers)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuids'))
+        self.assertIsNotNone(response.data.get('providers'))
         for rate in response.data.get('rates', []):
             self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                              rate.get('metric', {}).get('name'))
@@ -179,7 +179,7 @@ class CostModelViewTests(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(response.data.get('uuid'))
-        self.assertIsNotNone(response.data.get('provider_uuids'))
+        self.assertIsNotNone(response.data.get('providers'))
         for rate in response.data.get('rates', []):
             self.assertEqual(self.ocp_metric,
                              rate.get('metric', {}).get('name'))
@@ -188,7 +188,7 @@ class CostModelViewTests(IamTestCase):
     def test_filter_cost_model(self):
         """Test that we can filter a cost model."""
         client = APIClient()
-        url = '%s?name=Cost,Production' % reverse('costmodels-list')
+        url = '%s?name=Cost,TTTest' % reverse('costmodels-list')
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -306,7 +306,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get('data')[0]
         self.assertIsNotNone(cost_model.get('uuid'))
-        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertIsNotNone(cost_model.get('providers'))
         self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                          cost_model.get('rates', [])[0].get('metric', {}).get('name'))
         self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),
@@ -326,7 +326,7 @@ class CostModelViewTests(IamTestCase):
 
         cost_model = response.data.get('data')[0]
         self.assertIsNotNone(cost_model.get('uuid'))
-        self.assertIsNotNone(cost_model.get('provider_uuids'))
+        self.assertIsNotNone(cost_model.get('providers'))
         self.assertEqual(self.fake_data['rates'][0]['metric']['name'],
                          cost_model.get('rates', [])[0].get('metric', {}).get('name'))
         self.assertEqual(self.fake_data['rates'][0]['tiered_rates'][0].get('value'),
@@ -505,3 +505,49 @@ class CostModelViewTests(IamTestCase):
                 caches['rbac'].clear()
                 response = client.delete(url, **request_context['request'].META)
                 self.assertEqual(response.status_code, test_case.get('expected_response'))
+
+    def test_cost_model_audit_table(self):
+        """Test that cost model history is logged in the audit table."""
+        tiered_rates = [
+            {
+                'value': round(Decimal(random.random()), 6),
+                'unit': 'USD',
+                'usage': {'usage_start': None, 'usage_end': None}
+            }
+        ]
+        fake_data = {
+            'name': 'Test Cost Model',
+            'description': 'Test',
+            'source_type': self.ocp_source_type,
+            'provider_uuids': [],
+            'rates': [
+                {
+                    'metric': {'name': self.ocp_metric},
+                    'tiered_rates': tiered_rates
+                }
+            ]
+        }
+
+        url = reverse('costmodels-list')
+        client = APIClient()
+        response = client.post(url, data=fake_data,
+                               format='json', **self.headers)
+        cost_model_uuid = response.data.get('uuid')
+
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'INSERT')
+
+        fake_data['provider_uuids'] = [self.provider.uuid]
+        url = reverse('costmodels-detail', kwargs={'uuid': cost_model_uuid})
+        response = client.put(url, data=fake_data,
+                              format='json', **self.headers)
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'UPDATE')
+
+        response = client.delete(url, format='json', **self.headers)
+
+        with tenant_context(self.tenant):
+            audit = CostModelAudit.objects.last()
+            self.assertEqual(audit.operation, 'DELETE')

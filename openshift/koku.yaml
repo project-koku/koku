@@ -229,10 +229,52 @@ objects:
                   name: ${NAME}-app
                   key: api-path-prefix
                   optional: false
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: false
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: false
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: s3-bucket-name
+                  name: ${NAME}-app
+                  optional: false
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                configMapKeyRef:
+                  key: s3-bucket-path
+                  name: ${NAME}-app
+                  optional: false
+            - name: S3_IA_TRANSITION
+              valueFrom:
+                configMapKeyRef:
+                  key: s3-ia-transition
+                  name: ${NAME}-app
+                  optional: false
+            - name: S3_GLACIER_TRANSITION
+              valueFrom:
+                configMapKeyRef:
+                  key: s3-glacier-transition
+                  name: ${NAME}-app
+                  optional: false
+            - name: ENABLE_S3_ARCHIVING
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: enable-s3-archiving
+                  optional: false
           command:
           - /bin/bash
           - -c
-          - ${HOME}/scripts/run_migrations.sh
+          - '${HOME}/scripts/run_migrations.sh && python3 ${HOME}/scripts/sync_s3_lifecycle.py'
           resources:
             requests:
               cpu: ${CPU_REQUEST}

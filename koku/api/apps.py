@@ -30,9 +30,9 @@ def _collect_db_metrics():
     # noqa: E402 pylint: disable=C0413
     import time
     from koku.metrics import DBSTATUS
-    DBSTATUS.collect()
-    time.sleep(120)
-    _collect_db_metrics()
+    while True:
+        DBSTATUS.collect()
+        time.sleep(120)
 
 
 class ApiConfig(AppConfig):
