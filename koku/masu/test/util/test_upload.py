@@ -32,7 +32,7 @@ class TestUploadUtils(MasuTestCase):
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(account, provider_type, report_date, table_name)
-            self.assertEquals('bucket/test_acct/test/2018/4/test_table.csv.gz', path)
+            self.assertEquals('bucket/test_acct/test/2018/04/test_table.csv.gz', path)
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_to_s3(self, mock_uploader):
