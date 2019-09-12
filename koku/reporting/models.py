@@ -31,7 +31,8 @@ from reporting.provider.azure.models import (AzureCostEntryBill,                
                                              AzureCostEntryLineItemDaily,         # noqa: F401
                                              AzureCostEntryLineItemDailySummary,  # noqa: F401
                                              AzureCostEntryProductService,        # noqa: F401
-                                             AzureMeter)                          # noqa: F401
+                                             AzureMeter,                          # noqa: F401
+                                             AzureTagsSummary)                    # noqa: F401
 from reporting.provider.ocp.costs.models import CostSummary                       # noqa: F401
 from reporting.provider.ocp.models import (OCPStorageLineItem,                    # noqa: F401
                                            OCPStorageLineItemDaily,               # noqa: F401

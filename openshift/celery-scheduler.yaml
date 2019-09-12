@@ -106,6 +106,12 @@ objects:
                   name: ${NAME}-processor
                   key: schedule-check-interval
                   optional: false
+            - name: UPLOAD_NORMALIZED_DATA_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-upload
+                  key: upload-normalized-data-interval
+                  optional: false
             - name: SCHEDULE_REPORT_CHECKS
               valueFrom:
                 configMapKeyRef:

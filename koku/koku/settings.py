@@ -397,3 +397,9 @@ CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
 BROKER_POOL_LIMIT = None
 CELERYD_CONCURRENCY = 2
 CELERYD_PREFETCH_MULTIPLIER = 1
+
+# AWS S3 Bucket Settings
+S3_BUCKET_NAME = ENVIRONMENT.get_value('S3_BUCKET_NAME', default='koku-reports')
+S3_BUCKET_PATH = ENVIRONMENT.get_value('S3_BUCKET_PATH', default='data_archive')
+S3_REGION = ENVIRONMENT.get_value('S3_REGION', default='us-east-1')
+ENABLE_S3_ARCHIVING = ENVIRONMENT.get_value('ENABLE_S3_ARCHIVING', default=True)
