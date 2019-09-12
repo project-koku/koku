@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 
 import boto3
+from django.conf import settings
 
 
 class UploaderInterface(ABC):
@@ -34,15 +35,16 @@ class AwsS3Uploader(UploaderInterface):
 
         """
         self.s3_bucket_name = s3_bucket_name
-        self.s3_client = boto3.client('s3')
+        self.s3_client = boto3.client('s3', settings.S3_REGION)
 
     def upload_file(self, local_path, remote_path):
         """
-        Upload a local file.
+        Upload a local file if the ENABLE_S3_ARCHIVING flag is set.
 
         Args:
             local_path (str): source path to local file
             remote_path (str): destination path for remote file
 
         """
-        self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
+        if settings.ENABLE_S3_ARCHIVING:
+            self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
