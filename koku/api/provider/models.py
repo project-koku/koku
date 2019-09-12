@@ -91,7 +91,7 @@ class ProviderBillingSource(models.Model):
             # NOT (bucket IS NOT NULL or '' AND data_source IS NOT NULL)
             CheckConstraint(
                 check=~models.Q(~(models.Q(bucket=None) | models.Q(bucket='')) \
-                                            & ~models.Q(data_source={})),
+                                & ~models.Q(data_source={})),
                 name='bucket_and_data_source_both_not_null'
             ),
         ]
