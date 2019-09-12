@@ -731,21 +731,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch('masu.processor.tasks.update_cost_summary_table')
     @patch('masu.processor.tasks.update_charge_info')
-    @patch(
-        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates'
-    )
-    @patch(
-        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates'
-    )
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_tables_ocp(
-        self, mock_cpu_rate, mock_mem_rate, mock_charge_info, mock_cost_summary
+        self, mock_markup, mock_rate_map, mock_charge_info, mock_cost_summary
     ):
         """Test that the summary table task runs."""
+        markup = {}
         mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
         cpu_rate = {'tiered_rates': [{'value': '2.5', 'unit': 'USD'}]}
+        rate_metric_map = {'cpu_core_usage_per_hour': cpu_rate, 'memory_gb_usage_per_hour': mem_rate}
 
-        mock_cpu_rate.return_value = cpu_rate
-        mock_mem_rate.return_value = mem_rate
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         provider = 'OCP'
         provider_ocp_uuid = self.ocp_test_provider_uuid

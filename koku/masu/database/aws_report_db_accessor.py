@@ -20,6 +20,7 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db.models import F
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
