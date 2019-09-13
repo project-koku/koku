@@ -60,7 +60,7 @@ class MarkupSerializer(serializers.Serializer):
 
     def validate_value(self, value):
         """Check that value is a positive value."""
-        if value <= 0:
+        if value < 0:
             raise serializers.ValidationError('A markup value must be positive.')
         return str(value)
 
@@ -346,12 +346,6 @@ class CostModelSerializer(serializers.Serializer):
             serializer.is_valid(raise_exception=True)
             validated_rates.append(serializer.validated_data)
         return validated_rates
-
-    def validate_markups(self, markup):
-        """Run validation on markup."""
-        serializer = MarkupSerializer(data=markup)
-        serializer.is_valid(raise_exception=True)
-        return markup
 
     def create(self, validated_data):
         """Create the cost model object in the database."""

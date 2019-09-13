@@ -26,6 +26,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
+from api.metrics.serializers import SOURCE_TYPE_MAP
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
 from cost_models.models import CostModel, CostModelMap
@@ -63,6 +64,7 @@ class CostModelSerializerTest(IamTestCase):
             'description': 'Test',
             'source_type': ocp_source_type,
             'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
+            'markup': {'value': 10, 'unit': 'percent'},
             'rates': [
                 {
                     'metric': {'name': ocp_metric},
@@ -76,6 +78,16 @@ class CostModelSerializerTest(IamTestCase):
         with tenant_context(self.tenant):
             CostModel.objects.all().delete()
             CostModelMap.objects.all().delete()
+
+    def test_valid_data(self):
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            self.assertIn(instance.source_type, SOURCE_TYPE_MAP.keys())
+            self.assertIsNotNone(instance.markup)
+            self.assertIsNotNone(instance.rates)
 
     def test_uuid_key_related_field(self):
         """Test the uuid key related field."""
@@ -91,6 +103,48 @@ class CostModelSerializerTest(IamTestCase):
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
         self.ocp_data.update({'provider_uuids': ['1dd7204c-72c4-4ec4-95bc-d5c447688b27']})
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_not_OCP_source_type_with_markup(self):
+        """Test that a source type is valid if it has markup."""
+        self.ocp_data['source_type'] = 'AWS'
+
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            self.assertIsNotNone(instance)
+            self.assertIsNotNone(instance.markup)
+
+    def test_error_source_type_with_markup(self):
+        """Test that non-existent source type is invalid."""
+        self.ocp_data['source_type'] = 'invalid-source'
+
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_on_source_type_without_markup(self):
+        """Test error when non OCP source is added without markup."""
+        self.ocp_data['source_type'] = 'AWS'
+        self.ocp_data['markup'] = {}
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_on_markup_less_than_zero(self):
+        """Test error when trying to create a markup less than zero."""
+        self.ocp_data.get('markup')['value'] = float(round(Decimal(random.random()), 6) * -1)
+
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
