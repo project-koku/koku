@@ -17,9 +17,13 @@
 
 """Test the common util functions."""
 
+import gzip
 import json
 from datetime import datetime
 from decimal import Decimal
+from os.path import exists
+
+from django.test import TestCase
 
 from masu.external import (
     AMAZON_WEB_SERVICES,
@@ -118,3 +122,28 @@ class CommonUtilTests(MasuTestCase):
                 test.get('provider_type')
             )
             self.assertEqual(ingest_method, test.get('expected_ingest'))
+
+
+class NamedTemporaryGZipTests(TestCase):
+    """Tests for NamedTemporaryGZip."""
+
+    def test_temp_gzip_is_removed(self):
+        """Test that the gzip file is removed."""
+        with common_utils.NamedTemporaryGZip() as temp_gzip:
+            file_name = temp_gzip.name
+            self.assertTrue(exists(file_name))
+
+        self.assertFalse(exists(file_name))
+
+    def test_gzip_is_readable(self):
+        """Test the the written gzip file is readable."""
+        test_data = "Test Read Gzip"
+        with common_utils.NamedTemporaryGZip() as temp_gzip:
+
+            temp_gzip.write(test_data)
+            temp_gzip.close()
+
+            with gzip.open(temp_gzip.name, 'rt') as f:
+                read_data = f.read()
+
+        self.assertEquals(test_data, read_data)
