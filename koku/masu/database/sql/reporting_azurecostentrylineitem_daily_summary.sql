@@ -1,7 +1,8 @@
 -- Place our query in a temporary table
 CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS (
     SELECT cost_entry_bill_id,
-                date(usage_date_time) AS usage_date_time,
+                date(usage_date_time) AS usage_start,
+                date(usage_date_time) AS usage_end,
                 subscription_guid, -- account ID
                 p.resource_location AS resource_location, -- region
                 p.service_name AS service_name, -- service
@@ -39,8 +40,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{uuid} AS 
 
 -- Clear out old entries first
 DELETE FROM {schema}.reporting_azurecostentrylineitem_daily_summary
-WHERE usage_date_time >= '{start_date}'
-    AND usage_date_time <= '{end_date}'
+WHERE usage_start >= '{start_date}'
+    AND usage_start <= '{end_date}'
     AND cost_entry_bill_id IN ({cost_entry_bill_ids})
 ;
 
@@ -54,7 +55,8 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
     offer_id,
     pretax_cost,
     usage_quantity,
-    usage_date_time,
+    usage_start,
+    usage_end,
     tags,
     instance_type,
     currency,
@@ -69,7 +71,8 @@ INSERT INTO {schema}.reporting_azurecostentrylineitem_daily_summary (
         offer_id,
         pretax_cost,
         usage_quantity,
-        usage_date_time,
+        usage_start,
+        usage_end,
         tags,
         instance_type,
         currency,
