@@ -187,7 +187,6 @@ class Sources(models.Model):
     pending_delete = models.BooleanField(default=False)
 
 
-
 class ProviderStatus(models.Model):
     """Koku provider status.
 
