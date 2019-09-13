@@ -97,7 +97,7 @@ class ProviderSerializerTest(IamTestCase):
         self.assertFalse('schema_name' in serializer.data['customer'])
 
     def test_create_ocp_provider(self):
-        """Test creating a provider."""
+        """Test creating an OCP provider."""
         cluster_id = 'my-ocp-cluster-1'
         provider = {'name': 'test_provider',
                     'type': Provider.PROVIDER_OCP,
@@ -194,6 +194,36 @@ class ProviderSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
+
+    def test_create_provider_two_providers_shared_billing_record(self):
+        """Test that the same blank billing entry is used for all OCP providers."""
+        cluster_id = 'my-ocp-cluster-1'
+        provider = {
+            'name': 'test_provider_one',
+            'type': Provider.PROVIDER_OCP,
+            'authentication': {
+                'provider_resource_name': cluster_id
+            },
+            'billing_source': {
+                'bucket': '',
+                'data_source': None
+            }
+        }
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                provider_one = serializer.save()
+
+        cluster_id = 'my-ocp-cluster-2'
+        provider['name'] = 'test_provider_two'
+        provider['authentication']['provider_resource_name'] = cluster_id
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                provider_two = serializer.save()
+
+        self.assertEqual(provider_one.billing_source_id, provider_two.billing_source_id)
 
 
 class AdminProviderSerializerTest(IamTestCase):
