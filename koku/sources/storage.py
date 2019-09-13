@@ -36,7 +36,7 @@ def screen_and_build_provider_sync_create_event(provider):
     else:
         if (provider.source_id and provider.name
                 and provider.auth_header and not provider.koku_uuid):
-            provider_event = {'operation': 'create',  'provider': provider, 'offset': provider.offset}
+            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
     return provider_event
 
 

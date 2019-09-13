@@ -84,7 +84,6 @@ def load_process_queue():
     """
     pending_events = _collect_pending_items()
     for event in pending_events:
-        print("PUTTING EVENT ON QUEUE: ", str(event))
         PROCESS_QUEUE.put_nowait(event)
 
 
