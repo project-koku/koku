@@ -196,10 +196,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.assertNotEqual(query.count(), initial_count)
 
             summary_entry = summary_table.objects.all().aggregate(
-                Min('usage_date_time'), Max('usage_date_time')
+                Min('usage_start'), Max('usage_start')
             )
-            result_start_date = summary_entry['usage_date_time__min']
-            result_end_date = summary_entry['usage_date_time__max']
+            result_start_date = summary_entry['usage_start__min']
+            result_end_date = summary_entry['usage_start__max']
 
             self.assertEqual(result_start_date, start_date)
             self.assertEqual(result_end_date, end_date)
@@ -207,7 +207,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             entry = query.order_by('-id')
 
             summary_columns = [
-                'usage_date_time',
+                'usage_start',
                 'usage_quantity',
                 'pretax_cost',
                 'offer_id',
