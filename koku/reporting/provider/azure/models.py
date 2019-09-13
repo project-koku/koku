@@ -148,7 +148,9 @@ class AzureCostEntryLineItemDailySummary(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_date_time = models.DateTimeField(null=False)
+    usage_start = models.DateTimeField(null=False)
+
+    usage_end = models.DateTimeField(null=True)
 
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9,
                                          null=True)
