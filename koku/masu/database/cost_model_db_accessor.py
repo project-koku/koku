@@ -57,6 +57,8 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
     def _make_rate_by_metric_map(self):
         """Convert the rates JSON list to a dict keyed on metric."""
+        if self._get_cost_model() is None:
+            return {}
         metric_rate_map = {}
         rates = self._get_cost_model().rates
         if not rates:
@@ -67,6 +69,8 @@ class CostModelDBAccessor(ReportDBAccessorBase):
 
     def get_markup(self):
         """Get the cost model for a provider."""
+        if self._get_cost_model() is None:
+            self.markup = {}
         if self.markup is None:
             self.markup = self._get_cost_model().markup
         return self.markup

@@ -80,6 +80,7 @@ class CostModelSerializerTest(IamTestCase):
             CostModelMap.objects.all().delete()
 
     def test_valid_data(self):
+        """Test rate and markup for valid entries."""
         with tenant_context(self.tenant):
             instance = None
             serializer = CostModelSerializer(data=self.ocp_data)

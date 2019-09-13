@@ -196,7 +196,7 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
 
         self.cost_model = self.creator.create_cost_model(self.provider_uuid, 'OCP')
 
-    def test_initializer(self):
+    def test_initializer_no_rate_no_markup(self):
         """Test initializer."""
         with CostModelDBAccessor(self.schema, self.provider_uuid,
                                  self.column_map) as cost_model_accessor:
@@ -208,3 +208,27 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
                                  self.column_map) as cost_model_accessor:
             cpu_usage_rate = cost_model_accessor.get_rates('cpu_core_usage_per_hour')
             self.assertIsNone(cpu_usage_rate)
+
+class CostModelDBAccessorNoCostModel(MasuTestCase):
+    """Test Cases for the CostModelDBAccessor object."""
+
+    def setUp(self):
+        """Set up a test with database objects."""
+        super().setUp()
+        self.provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
+        self.schema = 'acct10001'
+        self.column_map = ReportingCommonDBAccessor().column_map
+
+    def test_get_rates_no_cost_model(self):
+        """Test that get_rates returns empty dict when cost model does not exist."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid,
+                                 self.column_map) as cost_model_accessor:
+            cpu_usage_rate = cost_model_accessor.get_rates('cpu_core_usage_per_hour')
+            self.assertFalse(cpu_usage_rate)
+
+    def test_get_markup_no_cost_model(self):
+        """Test that get_markup returns empty dict when cost model does not exist."""
+        with CostModelDBAccessor(self.schema, self.provider_uuid,
+                                 self.column_map) as cost_model_accessor:
+            markup = cost_model_accessor.get_markup()
+            self.assertFalse(markup)

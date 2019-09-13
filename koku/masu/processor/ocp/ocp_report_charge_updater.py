@@ -186,7 +186,7 @@ class OCPReportChargeUpdater:
             with CostModelDBAccessor(self._schema, self._provider_uuid,
                                      self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
-                markup_value = markup.get('value', 0) / 100
+                markup_value = float(markup.get('value', 0)) / 100
 
             with OCPReportDBAccessor(self._schema, self._column_map) as report_accessor:
                 report_accessor.populate_markup_cost(markup_value, self._cluster_id)
