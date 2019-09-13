@@ -64,7 +64,7 @@ def query_and_upload_to_s3(schema, table, date_range, daily=False):
         cursor.db.set_schema(schema)
         for the_date in dates_to_iterate:
             upload_path = get_upload_path(
-                schema, table.provider, the_date, table.table_name, daily
+                schema, table.provider, the_date, table.output_name, daily
             )
             cursor.execute(
                 table.sql.format(schema=schema),
