@@ -32,7 +32,7 @@ class TestUploadUtils(MasuTestCase):
         table_name = 'test_table'
         with self.settings(S3_BUCKET_PATH='bucket'):
             path = get_upload_path(account, provider_type, report_date, table_name)
-            self.assertEquals('bucket/test_acct/test/2018/4/test_table.csv', path)
+            self.assertEquals('bucket/test_acct/test/2018/4/test_table.csv.gz', path)
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_to_s3(self, mock_uploader):
@@ -42,17 +42,6 @@ class TestUploadUtils(MasuTestCase):
         curr_month_range = calendar.monthrange(today.year, today.month)
         curr_month_first_day = date(year=today.year, month=today.month, day=1)
         curr_month_last_day = date(year=today.year, month=today.month, day=curr_month_range[1])
-
-        billing_start = today.replace(day=1)
-
-        cluster_id = 'testcluster'
-
-        manifest_dict = {
-            'assembly_id': '1234',
-            'billing_period_start_datetime': billing_start,
-            'num_total_files': 2,
-            'provider_id': self.aws_provider.id,
-        }
 
         bill = self.creator.create_cost_entry_bill(
             provider_id=self.aws_provider.id,
