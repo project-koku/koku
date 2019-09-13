@@ -54,6 +54,14 @@ TableExportSetting = collections.namedtuple(
     'TableExportSettings',
     ['provider', 'output_name', 'sql']
 )
+TableExportSetting.__doc__ = """\
+Settings for exporting table data using a custom SQL query.
+
+- provider (str): the provider service's name (e.g. "AWS", "AZURE")
+- output_name (str): a name to use when saving the query's results
+- iterate_daily (bool): if True, the query should be run once per day over a date range
+- sql (str): raw SQL query to execute to gather table data
+"""
 
 table_export_settings = [
     TableExportSetting(
