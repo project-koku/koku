@@ -42,33 +42,39 @@ def get_upload_path(account_name, provider_type, date, table_name, daily=False):
     return upload_path
 
 
-def query_and_upload_to_s3(schema, table, date_range, daily=False):
+def query_and_upload_to_s3(schema, table_export_setting, date_range):
     """
     Query the database and upload the results to s3.
 
     Args:
         schema (str): Account schema name in which to execute the query.
-        table (TableExportSetting): Settings for the table export.
+        table_export_setting (TableExportSetting): Settings for the table export.
         date_range (tuple): Pair of date objects of inclusive start and end dates.
-        daily (bool): If True, iterate query and upload for each day in date_range.
-            Else, query and upload exactly once.
 
     """
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
     start_date, end_date = date_range
+    iterate_daily = table_export_setting.iterate_daily
     dates_to_iterate = rrule(
-        DAILY, dtstart=start_date, until=end_date if daily else start_date
+        DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date
     )
 
     with connection.cursor() as cursor:
         cursor.db.set_schema(schema)
         for the_date in dates_to_iterate:
             upload_path = get_upload_path(
-                schema, table.provider, the_date, table.output_name, daily
+                schema,
+                table_export_setting.provider,
+                the_date,
+                table_export_setting.output_name,
+                iterate_daily,
             )
             cursor.execute(
-                table.sql.format(schema=schema),
-                {'start_date': start_date, 'end_date': end_date},
+                table_export_setting.sql.format(schema=schema),
+                {
+                    'start_date': the_date,
+                    'end_date': the_date if iterate_daily else end_date,
+                },
             )
             # Don't upload if result set is empty
             if cursor.rowcount == 0:

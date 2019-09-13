@@ -106,19 +106,10 @@ class TestUploadUtilsWithData(MasuTestCase):
         mock_uploader.return_value.upload_file.assert_called_once()
 
     @patch('masu.util.upload.AwsS3Uploader')
-    def test_query_and_upload_to_s3_daily(self, mock_uploader):
-        """Assert query_and_upload_to_s3 uploads to S3 with two daily files."""
-        date_range = (self.yesterday_date, self.today_date)
-        query_and_upload_to_s3(
-            self.schema, table_export_settings[0], date_range, daily=True
-        )
-        self.assertEqual(mock_uploader.return_value.upload_file.call_count, 2)
-
-    @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
         """Assert query_and_upload_to_s3 uploads nothing if no data is found."""
         date_range = (self.future_date, self.future_date)
         query_and_upload_to_s3(
-            self.schema, table_export_settings[0], date_range, daily=True
+            self.schema, table_export_settings[0], date_range
         )
         mock_uploader.return_value.upload_file.assert_not_called()
