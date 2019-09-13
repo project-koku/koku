@@ -51,8 +51,7 @@ def remove_expired_data():
 
 
 TableExportSetting = collections.namedtuple(
-    'TableExportSettings',
-    ['provider', 'output_name', 'sql']
+    'TableExportSetting', ['provider', 'output_name', 'iterate_daily', 'sql']
 )
 TableExportSetting.__doc__ = """\
 Settings for exporting table data using a custom SQL query.
@@ -65,7 +64,9 @@ Settings for exporting table data using a custom SQL query.
 
 table_export_settings = [
     TableExportSetting(
-        'aws', 'reporting_awscostentrylineitem',
+        'aws',
+        'reporting_awscostentrylineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_awscostentrylineitem
         LEFT OUTER JOIN {schema}.reporting_awscostentrybill
@@ -80,9 +81,12 @@ table_export_settings = [
             ON (reporting_awscostentrylineitem.cost_entry_pricing_id = reporting_awscostentrypricing.id)
         WHERE reporting_awscostentry.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_awscostentry.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
+        """,
+    ),
     TableExportSetting(
-        'ocp', 'reporting_ocpusagelineitem',
+        'ocp',
+        'reporting_ocpusagelineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_ocpusagelineitem
         LEFT OUTER JOIN {schema}.reporting_ocpusagereport
@@ -91,9 +95,12 @@ table_export_settings = [
             ON (reporting_ocpusagelineitem.report_period_id = reporting_ocpusagereportperiod.id)
         WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
+        """,
+    ),
     TableExportSetting(
-        'ocp', 'reporting_ocpstoragelineitem',
+        'ocp',
+        'reporting_ocpstoragelineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_ocpstoragelineitem
         LEFT OUTER JOIN {schema}.reporting_ocpusagereport
@@ -102,19 +109,25 @@ table_export_settings = [
             ON (reporting_ocpstoragelineitem.report_period_id = reporting_ocpusagereportperiod.id)
         WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
-    TableExportSetting('azure', 'reporting_azurecostentrylineitem_daily', """
-    SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
-    LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
-        ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
-    LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
-        ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
-            = reporting_azurecostentryproductservice.id)
-    LEFT OUTER JOIN {schema}.reporting_azuremeter
-        ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
-    WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
-    OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
-    """)
+        """,
+    ),
+    TableExportSetting(
+        'azure',
+        'reporting_azurecostentrylineitem_daily',
+        False,
+        """
+        SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
+        LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
+            ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
+        LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
+            ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
+                = reporting_azurecostentryproductservice.id)
+        LEFT OUTER JOIN {schema}.reporting_azuremeter
+            ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
+        WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
+        OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
+        """,
+    ),
 ]
 
 
