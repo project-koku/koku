@@ -144,6 +144,49 @@ class Provider(models.Model):
     created_timestamp = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
 
+class Sources(models.Model):
+    """Platform-Sources table.
+
+    Used for managing Platform-Sources.
+    """
+
+    class Meta:
+        """Meta for Sources."""
+
+        db_table = 'api_sources'
+
+    # Backend Platform-Services data.
+    # Source ID is unique identifier
+    source_id = models.IntegerField(primary_key=True)
+
+    # Source name.
+    name = models.CharField(max_length=256, null=True)
+
+    # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
+    auth_header = models.CharField(max_length=512, null=True)
+
+    # Kafka message offset for Platform-Sources kafka stream
+    offset = models.IntegerField(null=False)
+
+    # Koku Specific data.
+    # Provider type (i.e. AWS, OCP, AZURE)
+    source_type = models.CharField(max_length=50, null=False)
+
+    # Provider authentication (AWS roleARN, OCP Sources UID, etc.)
+    authentication = models.CharField(max_length=128, null=False)
+
+    # Provider billing source (AWS S3 bucket)
+    billing_source = models.CharField(max_length=128, null=True)
+
+    # Unique identifier for koku Provider
+    koku_uuid = models.CharField(max_length=512, null=True)
+
+    # When source has been deleted on Platform-Sources this is True indicating it hasn't been
+    # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully
+    # removed.
+    pending_delete = models.BooleanField(default=False)
+
+
 class ProviderStatus(models.Model):
     """Koku provider status.
 
