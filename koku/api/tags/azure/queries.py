@@ -32,8 +32,8 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     def _get_time_based_filters(self, delta=False):
         """Overridden from QueryHandler."""
-        start_filter = QueryFilter(field='usage_date_time', operation='gte',
+        start_filter = QueryFilter(field='usage_start', operation='gte',
                                    parameter=self.start_datetime)
-        end_filter = QueryFilter(field='usage_date_time', operation='lte',
+        end_filter = QueryFilter(field='usage_start', operation='lte',
                                  parameter=self.end_datetime)
         return start_filter, end_filter
