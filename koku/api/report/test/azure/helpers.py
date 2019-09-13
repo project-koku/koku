@@ -462,7 +462,8 @@ class AzureReportDataGenerator:
             service_name=line_item.cost_entry_product.service_name,
             resource_location=line_item.cost_entry_product.resource_location,
             tags=line_item.tags,
-            usage_date_time=line_item.usage_date_time,
+            usage_start=line_item.usage_date_time,
+            usage_end=line_item.usage_date_time,
             usage_quantity=line_item.usage_quantity,
             pretax_cost=line_item.pretax_cost,
             offer_id=line_item.offer_id)
