@@ -158,6 +158,9 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                       null=True)
 
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
+
     offer_id = models.PositiveIntegerField(null=True)
 
     currency = models.CharField(max_length=10, null=False, default='USD')
