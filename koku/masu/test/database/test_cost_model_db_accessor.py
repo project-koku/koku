@@ -176,7 +176,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             uuid = cost_model_accessor._get_cost_model().uuid
             self.assertEqual(cost_model_accessor._get_cost_model().uuid, uuid)
 
-class CostModelDBAccessorTestB(MasuTestCase):
+class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
 
     def setUp(self):
