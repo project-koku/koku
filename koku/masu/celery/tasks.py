@@ -52,7 +52,7 @@ def remove_expired_data():
 
 TableExportSetting = collections.namedtuple(
     'TableExportSettings',
-    ['provider', 'table_name', 'sql']
+    ['provider', 'output_name', 'sql']
 )
 
 table_export_settings = [
