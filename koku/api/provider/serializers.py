@@ -52,6 +52,12 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
     credentials = serializers.JSONField(allow_null=True, required=False)
 
+    def validate(self, data):
+        """Validate billing source."""
+        if data.get('credentials') is None:
+            data['credentials'] = {}
+        return data
+
     # pylint: disable=too-few-public-methods
     class Meta:
         """Metadata for the serializer."""
@@ -78,6 +84,14 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
         model = ProviderBillingSource
         fields = ('uuid', 'bucket', 'data_source')
+
+    def validate(self, data):
+        """Validate billing source."""
+        if data.get('data_source') is None:
+            data['data_source'] = {}
+        if data.get('bucket') is None:
+            data['bucket'] = ''
+        return data
 
 
 class ProviderSerializer(serializers.ModelSerializer):
@@ -128,7 +142,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             # Because of a unique together constraint, this is done
             # to allow for this field to be non-required for OCP
             # but will still have a blank no-op entry in the DB
-            billing_source = {'bucket': ''}
+            billing_source = {'bucket': '', 'data_source': {}}
             data_source = None
 
         authentication = validated_data.pop('authentication')
