@@ -84,15 +84,16 @@ def load_process_queue():
     """
     pending_events = _collect_pending_items()
     for event in pending_events:
+        print("PUTTING EVENT ON QUEUE: ", str(event))
         PROCESS_QUEUE.put_nowait(event)
 
 
 @receiver(post_save, sender=Sources)
-def storage_callback(sender, **kwargs):
+def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
-    pending_events = storage.load_providers_to_create()
-    for event in pending_events:
-        PROCESS_QUEUE.put_nowait(event)
+    process_event = storage.screen_and_build_provider_sync_create_event(instance)
+    if process_event:
+        PROCESS_QUEUE.put_nowait(process_event)
 
 
 def get_sources_msg_data(msg, app_type_id):

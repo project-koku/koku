@@ -26,6 +26,20 @@ class SourcesStorageError(Exception):
     """Sources Storage error."""
 
 
+def screen_and_build_provider_sync_create_event(provider):
+    """Determine if the source should be queued for synchronization."""
+    provider_event = {}
+    if provider.source_type == 'AWS':
+        if (provider.source_id and provider.name and provider.auth_header
+                and provider.billing_source and not provider.koku_uuid):
+            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
+    else:
+        if (provider.source_id and provider.name
+                and provider.auth_header and not provider.koku_uuid):
+            provider_event = {'operation': 'create',  'provider': provider, 'offset': provider.offset}
+    return provider_event
+
+
 def load_providers_to_create():
     """
     Build a list of Sources that has all information needed to create a Koku Provider.
@@ -45,18 +59,10 @@ def load_providers_to_create():
     providers_to_create = []
     all_providers = Sources.objects.all()
     for provider in all_providers:
-        if provider.source_type == 'AWS':
-            if (provider.source_id and provider.name and provider.auth_header
-                    and provider.billing_source and not provider.koku_uuid):
-                providers_to_create.append({'operation': 'create',
-                                            'provider': provider,
-                                            'offset': provider.offset})
-        else:
-            if (provider.source_id and provider.name
-                    and provider.auth_header and not provider.koku_uuid):
-                providers_to_create.append({'operation': 'create',
-                                            'provider': provider,
-                                            'offset': provider.offset})
+        source_event = screen_and_build_provider_sync_create_event(provider)
+        if source_event:
+            providers_to_create.append(source_event)
+
     return providers_to_create
 
 
