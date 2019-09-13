@@ -15,6 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Tag Query Handling."""
+from tenant_schemas.utils import tenant_context
+
 from api.query_filter import QueryFilter
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -37,3 +39,34 @@ class AzureTagQueryHandler(TagQueryHandler):
         end_filter = QueryFilter(field='usage_date_time', operation='lte',
                                  parameter=self.end_datetime)
         return start_filter, end_filter
+
+    def get_tags(self):
+        """Get a list of tags and values to validate filters."""
+        type_filter = self.parameter_filter.get('type')
+
+        merged_data = []
+        with tenant_context(self.tenant):
+            tag_keys = []
+            for source in self.data_sources:
+                if type_filter and type_filter != source.get('type'):
+                    continue
+
+                tag_keys = source.get('db_table').objects\
+                    .filter(self.query_filter)\
+                    .values(source.get('db_column'))\
+                    .distinct()\
+                    .all()
+
+                for item in tag_keys:
+                    tags = item.get('tags')
+                    if not tags:
+                        continue
+                    for key, value in tags.items():
+                        if not (key or value):
+                            LOG.warning('Bad value in tags: %s', item)
+                            LOG.info('Tag keys: %s', tag_keys)
+                            continue
+                        dikt = {'key': key, 'values': value}
+                        if dikt not in merged_data:
+                            merged_data.append(dikt)
+        return merged_data
