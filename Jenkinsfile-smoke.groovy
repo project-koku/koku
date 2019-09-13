@@ -10,7 +10,7 @@ if (env.CHANGE_ID) {
         ocDeployerBuilderPath: "hccm/hccm",
         ocDeployerComponentPath: "hccm/hccm",
         ocDeployerServiceSets: "hccm,platform,platform-mq",
-        iqePlugins: ["hccm-plugin"],
+        iqePlugins: ["iqe-hccm-plugin"],
         pytestMarker: "hccm_smoke",
     )
 }
