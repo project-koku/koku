@@ -206,6 +206,39 @@ services:
         - db
         - koku-rabbit
 
+  sources-client:
+      container_name: sources_client
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/
+      entrypoint:
+        - /koku/run_sources.sh
+      environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
+        - KOKU_API_PORT=${KOKU_API_PORT-8000}
+        - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+        - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
+        - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+      privileged: true
+      ports:
+          - 4000:8000
+      volumes:
+        - '.:/koku'
+      links:
+        - db
+        - koku-server
+      depends_on:
+        - db
+        - koku-server
+
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat
