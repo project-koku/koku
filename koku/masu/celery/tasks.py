@@ -56,7 +56,7 @@ TableExportSetting = collections.namedtuple(
 TableExportSetting.__doc__ = """\
 Settings for exporting table data using a custom SQL query.
 
-- provider (str): the provider service's name (e.g. "AWS", "AZURE")
+- provider (str): the provider service's name (e.g. "aws", "azure", "ocp")
 - output_name (str): a name to use when saving the query's results
 - iterate_daily (bool): if True, the query should be run once per day over a date range
 - sql (str): raw SQL query to execute to gather table data
@@ -126,6 +126,83 @@ table_export_settings = [
             ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
         WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
+        """,
+    ),
+    TableExportSetting(
+        'aws',
+        'reporting_awscostentrylineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, a.account_id, a.account_alias, b.*
+        FROM
+            {schema}.reporting_awscostentrylineitem_daily_summary ds
+            JOIN {schema}.reporting_awsaccountalias a ON a.id = ds.account_alias_id
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.cost_entry_bill_id
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'azure',
+        'reporting_azurecostentrylineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, b.*, m.*
+        FROM
+            {schema}.reporting_azurecostentrylineitem_daily_summary ds
+            JOIN {schema}.reporting_azurecostentrybill b ON b.id = ds.cost_entry_bill_id
+            JOIN {schema}.reporting_azuremeter m ON m.id = ds.meter_id
+        WHERE ds.usage_date_time BETWEEN %(start_date)s AND %(end_date)s
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpawscostlineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, a.account_id, aa.account_alias, b.*
+        FROM
+            {schema}.reporting_ocpawscostlineitem_daily_summary ds
+            JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpawscostlineitem_project_daily_summary',
+        True,
+        """
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        FROM
+            {schema}.reporting_ocpawscostlineitem_project_daily_summary ds
+            JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpstoragelineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*
+        FROM {schema}.reporting_ocpstoragelineitem_daily_summary ds
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpusagelineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*
+        FROM {schema}.reporting_ocpusagelineitem_daily_summary ds
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
         """,
     ),
 ]

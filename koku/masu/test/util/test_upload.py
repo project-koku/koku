@@ -91,6 +91,10 @@ class TestUploadUtilsWithData(MasuTestCase):
             self.customer.account_id, self.schema, bill, the_date
         )
 
+    def get_table_export_setting_by_name(self, name):
+        """Helper to get specific TableExportSetting for testing."""
+        return [s for s in table_export_settings if s.output_name == name].pop()
+
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_to_s3(self, mock_uploader):
         """Assert query_and_upload_to_s3 uploads to S3 with one file."""
@@ -102,14 +106,29 @@ class TestUploadUtilsWithData(MasuTestCase):
         )
 
         date_range = (curr_month_first_day, curr_month_last_day)
-        query_and_upload_to_s3(self.schema, table_export_settings[0], date_range)
+        table_export_setting = self.get_table_export_setting_by_name(
+            'reporting_awscostentrylineitem'
+        )
+        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
         mock_uploader.return_value.upload_file.assert_called_once()
 
     @patch('masu.util.upload.AwsS3Uploader')
     def test_query_and_upload_skips_if_no_data(self, mock_uploader):
         """Assert query_and_upload_to_s3 uploads nothing if no data is found."""
         date_range = (self.future_date, self.future_date)
-        query_and_upload_to_s3(
-            self.schema, table_export_settings[0], date_range
+        table_export_setting = self.get_table_export_setting_by_name(
+            'reporting_awscostentrylineitem'
         )
+        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
         mock_uploader.return_value.upload_file.assert_not_called()
+
+    @patch('masu.util.upload.AwsS3Uploader')
+    def test_query_and_upload_to_s3_multiple_days_multiple_rows(self, mock_uploader):
+        """Assert query_and_upload_to_s3 for multiple days uploads multiple files."""
+        date_range = (self.yesterday_date, self.today_date)
+        table_export_setting = self.get_table_export_setting_by_name(
+            'reporting_awscostentrylineitem_daily_summary'
+        )
+        query_and_upload_to_s3(self.schema, table_export_setting, date_range)
+        # expect one upload call for yesterday and one for today
+        self.assertEqual(mock_uploader.return_value.upload_file.call_count, 2)
