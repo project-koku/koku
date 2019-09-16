@@ -50,13 +50,13 @@ class AzureProviderMap(ProviderMap):
                         'field': 'resource_location',
                         'operation': 'icontains'
                     },
-                    'resource_type': {
-                        'field': 'cost_entry_product__resource_type',
+                    'instance_type': {
+                        'field': 'instance_type',
                         'operation': 'icontains'
                     }
                 },
                 'group_by_options': ['service_name', 'subscription_guid',
-                                     'resource_location', 'resource_type'],
+                                     'resource_location', 'instance_type'],
                 'tag_column': 'tags',
                 'report_type': {
                     'costs': {
