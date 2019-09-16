@@ -293,10 +293,10 @@
         },
         "azure-mgmt-dns": {
             "hashes": [
-                "sha256:3730b1b3f545a5aa43c0fff07418b362a789eb7d81286e2bed90ffef88bfa5d0",
-                "sha256:5b80546b0f182d7abe90c43025cd5ca7e6605224b4d5b872cca2456667f172ef"
+                "sha256:6ecdf4e67d8eb5db593ec331e6d9f350616e77c31225c91d266605e03e63b37f",
+                "sha256:cac173375bee9c23a045340eaf456807edb7fa8f265f3e96c8acf62a7fa5ef41"
             ],
-            "version": "==2.1.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-eventgrid": {
             "hashes": [
