@@ -22,7 +22,6 @@ from django.db.models import (F, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilter
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.queries import ReportQueryHandler
 
