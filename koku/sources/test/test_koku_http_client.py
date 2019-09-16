@@ -100,6 +100,6 @@ class KokuHTTPClientTest(TestCase):
         expected_uuid = faker.uuid4()
         with requests_mock.mock() as m:
             m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
-                     exc=Exception)
+                     status_code=400)
             with self.assertRaises(KokuHTTPClientError):
                 client.destroy_provider(expected_uuid)
