@@ -59,6 +59,10 @@ def create_parser():
                                 dest='ocp',
                                 action='store_true',
                                 help='Create an OCP source.')
+    provider_group.add_argument('--azure',
+                                dest='azure',
+                                action='store_true',
+                                help='Create an AZURE source.')
 
     return parser
 
@@ -87,7 +91,7 @@ class SourcesDataGenerator:
         self._identity_header = header
 
     def create_source(self, source_name, source_type):
-        type_map = {'aws': '2', 'ocp': '1'}
+        type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
 
         url = '{}/{}'.format(self._base_url, 'sources')
@@ -165,6 +169,14 @@ def main(args):
     elif parameters.get('ocp'):
         source_id = generator.create_source(source_name, 'ocp')
         print(f'Creating OCP Source. Source ID: {source_id}')
+
+        if create_application:
+            application_id = generator.create_application(source_id, 'cost_management')
+            print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
+
+    elif parameters.get('azure'):
+        source_id = generator.create_source(source_name, 'azure')
+        print(f'Creating AZURE Source. Source ID: {source_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
