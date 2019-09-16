@@ -23,6 +23,10 @@
             "description": "Operations about AWS report interaction"
         },
         {
+            "name": "Azure Report",
+            "description": "Operations about Azure report interaction"
+        },
+        {
             "name": "OpenShift Report",
             "description": "Operations about OpenShift report interaction"
         },
@@ -940,6 +944,72 @@
                 }]
             }
         },
+        "/reports/azure/costs/": {
+            "get": {
+                "tags": [
+                    "Azure Report"
+                ],
+                "summary": "Query to obtain cost reports",
+                "operationId": "getAzureCostReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/openshift/costs/": {
             "get": {
                 "tags": [
@@ -1072,6 +1142,72 @@
                 }]
             }
         },
+        "/reports/azure/instance-types/": {
+            "get": {
+                "tags": [
+                    "Azure Report"
+                ],
+                "summary": "Query to obtain Azure instance type data",
+                "operationId": "getAzureInstanceReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/aws/storage/": {
             "get": {
                 "tags": [
@@ -1079,6 +1215,72 @@
                 ],
                 "summary": "Query to obtain AWS storage data",
                 "operationId": "getAWSStorageReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/azure/storage/": {
+            "get": {
+                "tags": [
+                    "Azure Report"
+                ],
+                "summary": "Query to obtain AWS storage data",
+                "operationId": "getAzureStorageReports",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -1532,6 +1734,56 @@
                 ],
                 "summary": "Query to obtain AWS tags",
                 "operationId": "getAWSTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/azure/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain AWS tags",
+                "operationId": "getAzureTagData",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -2493,7 +2745,68 @@
                     }
                 }
             },
-            "ReportFilterOpenShift": {
+            "ReportAzureFilter": {
+                "type": "object",
+                "properties": {
+                    "limit": {
+                        "type": "integer",
+                        "description": "Limits the data points returns and aggregates remaining data.",
+                        "example": 5
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Offsets the data points returned when using limit.",
+                        "example": 5
+                    },
+                    "resolution": {
+                        "$ref": "#/components/schemas/ReportResolution"
+                    },
+                    "time_scope_value": {
+                        "$ref": "#/components/schemas/ReportTimeScopeValue"
+                    },
+                    "time_scope_units": {
+                        "$ref": "#/components/schemas/ReportTimeScopeUnits"
+                    },
+                    "resource_scope": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReportResourceScope"
+                        },
+                        "example": []
+                    },
+                    "subscription_guid": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service_name": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "resource_location": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "ReportOpenShiftFilter": {
                 "type": "object",
                 "properties": {
                     "limit": {
@@ -2692,6 +3005,47 @@
                 },
                 "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
             },
+            "ReportAzureGrouping": {
+                "type": "object",
+                "properties": {
+                    "subscription_guid": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "service_name": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "resource_location": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "instance_type": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "tag": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "example": {
+                    "subscription_guid": [
+                        "*"
+                    ]
+                },
+                "description": "The grouping to apply to the report. No grouping by default. When grouping by account the account_alias will be provided if avaiable."
+            },
             "ReportOpenShiftGrouping": {
                 "type": "object",
                 "properties": {
@@ -2837,6 +3191,64 @@
                         ]
                     },
                     "service": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    }
+                },
+                "example": {
+                    "cost": "asc"
+                },
+                "description": "The ordering to apply to the report. Default is ascending order for the data."
+            },
+            "ReportAzureOrdering": {
+                "type": "object",
+                "properties": {
+                    "cost": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "usage": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "delta": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "subscription_guid": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "resource_location": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "service_name": {
+                        "type": "string",
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ]
+                    },
+                    "instance_type": {
                         "type": "string",
                         "enum": [
                             "asc",
@@ -3076,13 +3488,29 @@
                         "$ref": "#/components/schemas/ReportDelta"
                     },
                     "group_by": {
-                        "$ref": "#/components/schemas/ReportGrouping"
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/ReportGrouping"},
+                            {"$ref": "#/components/schemas/ReportAzureGrouping"},
+                            {"$ref": "#/components/schemas/ReportOpenShiftGrouping"},
+                            {"$ref": "#/components/schemas/ReportOpenShiftAWSGrouping"}
+                        ]
                     },
                     "order_by": {
-                        "$ref": "#/components/schemas/ReportOrdering"
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/ReportOrdering"},
+                            {"$ref": "#/components/schemas/ReportAzureOrdering"},
+                            {"$ref": "#/components/schemas/ReportCostsOpenShiftOrdering"},
+                            {"$ref": "#/components/schemas/ReportInventoryOpenShiftOrdering"},
+                            {"$ref": "#/components/schemas/ReportOpenShiftAWSOrdering"}
+                        ]
                     },
                     "filter": {
-                        "$ref": "#/components/schemas/ReportFilter"
+                        "oneOf": [
+                            {"$ref": "#/components/schemas/ReportFilter"},
+                            {"$ref": "#/components/schemas/ReportAzureFilter"},
+                            {"$ref": "#/components/schemas/ReportOpenShiftFilter"},
+                            {"$ref": "#/components/schemas/ReportOpenShiftAWSFilter"}
+                        ]
                     },
                     "units": {
                         "description": "The units for the output data.",
@@ -3100,18 +3528,6 @@
                         "$ref": "#/components/schemas/PaginationLinks"
                     }
                 }
-            },
-            "ReportCostsOpenShift": {
-                "allOf": [{
-                    "$ref": "#/components/schemas/Report"
-                }, {
-                    "required": [
-                        "delta",
-                        "group_by",
-                        "order_by",
-                        "filter"
-                    ]
-                }]
             },
             "ReportCost": {
                 "allOf": [{

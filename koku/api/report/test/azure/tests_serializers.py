@@ -40,8 +40,8 @@ class AzureFilterSerializerTest(TestCase):
                          'time_scope_units': 'day',
                          'resource_location': FAKE.word(),
                          'subscription_guid': FAKE.uuid4(),
-                         'resource_type': FAKE.word(),
-                         'service': FAKE.word()}
+                         'instance_type': FAKE.word(),
+                         'service_name': FAKE.word()}
         serializer = AzureFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
@@ -49,8 +49,7 @@ class AzureFilterSerializerTest(TestCase):
         """Test parse of a filter param no time filter."""
         filter_params = {'resource_location': FAKE.word(),
                          'subscription_guid': FAKE.uuid4(),
-                         'resource_type': FAKE.word(),
-                         'service': FAKE.word()}
+                         'instance_type': FAKE.word()}
         serializer = AzureFilterSerializer(data=filter_params)
         self.assertTrue(serializer.is_valid())
 
@@ -148,11 +147,11 @@ class AzureGroupBySerializerTest(TestCase):
 
     def test_group_by_params_string_list_fields(self):
         """Test group_by params for handling string to list fields."""
-        group_params = {'resource_type': FAKE.word()}
+        group_params = {'instance_type': FAKE.word()}
         serializer = AzureGroupBySerializer(data=group_params)
         validation = serializer.is_valid()
         self.assertTrue(validation)
-        result = serializer.data.get('resource_type')
+        result = serializer.data.get('instance_type')
         self.assertIsInstance(result, list)
 
     def test_tag_keys_dynamic_field_validation_success(self):
@@ -191,7 +190,7 @@ class AzureOrderBySerializerTest(TestCase):
 
     def test_parse_order_by_params_success(self):
         """Test parse of a order_by param successfully."""
-        order_params = {'service': 'asc'}
+        order_params = {'instance_type': 'asc'}
         serializer = AzureOrderBySerializer(data=order_params)
         self.assertTrue(serializer.is_valid())
 
@@ -210,7 +209,7 @@ class AzureQueryParamSerializerTest(TestCase):
 
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
-        query_params = {'group_by': {'service': [FAKE.word()]},
+        query_params = {'group_by': {'instance_type': [FAKE.word()]},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
@@ -221,7 +220,7 @@ class AzureQueryParamSerializerTest(TestCase):
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
-        query_params = {'group_by': {'resource_type': [FAKE.word()]},
+        query_params = {'group_by': {'instance_type': [FAKE.word()]},
                         'filter': {'resolution': 'daily',
                                    'time_scope_value': '-10',
                                    'time_scope_units': 'day',
@@ -305,18 +304,18 @@ class AzureQueryParamSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_order_by_service_with_groupby(self):
-        """Test that order_by[service] works with a matching group-by."""
+        """Test that order_by[service_name] works with a matching group-by."""
         query_params = {
-            'group_by': {'service': 'asc'},
-            'order_by': {'service': 'asc'}
+            'group_by': {'service_name': 'asc'},
+            'order_by': {'service_name': 'asc'}
         }
         serializer = AzureQueryParamSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
-        """Test that order_by[service] fails without a matching group-by."""
+        """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {
-            'order_by': {'service': 'asc'}
+            'order_by': {'service_name': 'asc'}
         }
         serializer = AzureQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
