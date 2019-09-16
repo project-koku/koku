@@ -285,3 +285,54 @@ class AzureReportDBAccessorTest(MasuTestCase):
             found_value = query[0].markup_cost
 
             self.assertAlmostEqual(found_value, possible_value, 6)
+
+    @patch('masu.database.azure_report_db_accessor.AzureReportDBAccessor.vacuum_table')
+    def test_populate_markup_cost_no_billsids(self, mock_vaccum):
+        """Test that the daily summary table is populated."""
+        summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
+
+        bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
+        product = self.creator.create_azure_cost_entry_product()
+        meter = self.creator.create_azure_meter()
+        self.creator.create_azure_cost_entry_line_item(
+            bill, product, meter
+        )
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(
+            self.azure_provider.id
+        )
+        with schema_context(self.schema):
+            bill_ids = [str(bill.id) for bill in bills.all()]
+
+        table_name = AZURE_REPORT_TABLE_MAP['line_item']
+        line_item_table = getattr(self.accessor.report_schema, table_name)
+        tag_query = self.accessor._get_db_obj_query(table_name)
+        with schema_context(self.schema):
+            possible_values = {}
+            for item in tag_query:
+                possible_values.update({ item.cost_entry_bill_id: item.pretax_cost * decimal.Decimal(0.1) })
+
+            li_entry = line_item_table.objects.all().aggregate(
+                Min('usage_date_time'), Max('usage_date_time')
+            )
+            start_date = li_entry['usage_date_time__min']
+            end_date = li_entry['usage_date_time__max']
+
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = self.accessor._get_db_obj_query(summary_table_name)
+
+        self.accessor.populate_line_item_daily_summary_table(
+            start_date, end_date, bill_ids
+        )
+        self.accessor.populate_markup_cost(
+            0.1, None
+        )
+        with schema_context(self.schema):
+            found_values = {}
+            for item in query:
+                found_values.update({item.cost_entry_bill_id: item.markup_cost})
+
+        for k, v in found_values.items():
+            self.assertAlmostEqual(v, possible_values[k], 6)
