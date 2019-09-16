@@ -45,6 +45,10 @@
         {
             "name": "Data Export Request",
             "description": "Operations about data export requests"
+        },
+        {
+            "name": "Metrics",
+            "description": "Operations about cost model metrics."
         }
     ],
     "paths": {
@@ -364,6 +368,37 @@
                 "security": [{
                     "basic_auth": []
                 }]
+            }
+        },
+        "/metrics": {
+            "get": {
+                "tags": [
+                    "Metrics"
+                ],
+                "summary": "Obtain Metrics",
+                "operationId": "getMetrics",
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost model metrics.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Metrics"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/preferences/": {
@@ -2358,6 +2393,50 @@
                     },
                     "links": {
                         "$ref": "#/components/schemas/PaginationLinks"
+                    }
+                }
+            },
+            "Metrics": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/ListPagination"
+                }, {
+                    "type": "object",
+                    "required": [
+                        "data"
+                    ],
+                    "properties": {
+                        "data": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/MetricsOut"
+                            }
+                        }
+                    }
+                }]
+            },
+            "MetricsOut": {
+                "required": [
+                    "source_type",
+                    "metric",
+                    "label_metric",
+                    "label_measurement",
+                    "label_measurement_unit"
+                ],
+                "properties": {
+                    "source_type": {
+                        "type": "string"
+                    },
+                    "metric": {
+                        "type": "string"
+                    },
+                    "label_metric": {
+                        "type": "string"
+                    },
+                    "label_measurement": {
+                        "type": "string"
+                    },
+                    "label_measurement_unit": {
+                        "type": "string"
                     }
                 }
             },
