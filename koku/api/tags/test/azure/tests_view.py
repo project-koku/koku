@@ -98,7 +98,7 @@ class AzureTagsViewTest(IamTestCase):
                 self.assertIn('key', tag)
                 self.assertIn('values', tag)
                 self.assertIsNotNone(tag.get('key'))
-                self.assertTrue(isinstance(tag.get('values'), list))
+                self.assertIn(tag.get('values').__class__, [list, str])
                 self.assertTrue(tag.get('values'))
 
     def test_execute_tags_type_queries(self):
@@ -134,7 +134,7 @@ class AzureTagsViewTest(IamTestCase):
                 self.assertIn('key', tag)
                 self.assertIn('values', tag)
                 self.assertIsNotNone(tag.get('key'))
-                self.assertTrue(isinstance(tag.get('values'), list))
+                self.assertIn(tag.get('values').__class__, [list, str])
                 self.assertTrue(tag.get('values'))
 
     def test_execute_query_with_and_filter(self):
@@ -146,7 +146,7 @@ class AzureTagsViewTest(IamTestCase):
 
         with tenant_context(self.tenant):
             subs = AzureCostEntryLineItemDailySummary.objects\
-                .filter(usage_date_time__gte=self.ten_days_ago)\
+                .filter(usage_start__gte=self.ten_days_ago)\
                 .values('subscription_guid').distinct()
             subscription_guids = [sub.get('subscription_guid') for sub in subs]
         params = {

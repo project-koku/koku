@@ -15,11 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Azure Tag Query Handling."""
+import logging
+
 from tenant_schemas.utils import tenant_context
 
 from api.query_filter import QueryFilter
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureCostEntryLineItemDailySummary
+
+LOG = logging.getLogger(__name__)
 
 
 class AzureTagQueryHandler(TagQueryHandler):

@@ -1050,7 +1050,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
                     self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreater(value.get('usage', {}), Decimal(0))
+                    self.assertGreaterEqual(value.get('usage', {}).quantize(
+                        Decimal('.0001'), ROUND_HALF_UP), Decimal(0))
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
