@@ -27,7 +27,7 @@ gunicorn==19.9.0
 idna==2.8
 importlib-metadata==0.23
 jmespath==0.9.4
-kafka-python==1.4.3
+kafka-python==1.4.6
 kombu==4.6.4
 mccabe==0.6.1
 pint==0.9
