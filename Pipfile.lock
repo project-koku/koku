@@ -560,10 +560,10 @@
         },
         "azure-mgmt-trafficmanager": {
             "hashes": [
-                "sha256:126167eaa82b443b5b71394050ec292f45074701232bdbdda71f636e9b46516b",
-                "sha256:65796588ffbeac45bf73668977131c317b64d6a3f32faecdc5cbf9683d48132c"
+                "sha256:672f909459e70d41eb8d7bc619839cd60eb2cea2fd20dc7924b7e9670ea8aedf",
+                "sha256:fc8ae77022cfe52fda4379a2f31e0b857574d536e41291a7b569b5c0f4104186"
             ],
-            "version": "==0.50.0"
+            "version": "==0.51.0"
         },
         "azure-mgmt-web": {
             "hashes": [
