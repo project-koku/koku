@@ -1621,10 +1621,10 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:5e4d92f9a36359a745ddb113cabb662e6100e71072a1e566eb6ddfcc95fdb7ed",
-                "sha256:b6711690882013bc79e0eac55889d901596f0967165d80adfa338c5729db1c71"
+                "sha256:680af46846662bb38c5504b78bad9ed9e4f3ba2d54f54ba42494fdf94337fe30",
+                "sha256:f78d81b62d3147396ac33fc9d77579ddc42cc2a98dd9ea38886f616b33bc7fb2"
             ],
-            "version": "==16.7.3"
+            "version": "==16.7.5"
         },
         "wrapt": {
             "hashes": [
