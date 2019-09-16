@@ -483,10 +483,10 @@
         },
         "azure-mgmt-relay": {
             "hashes": [
-                "sha256:1411e734573ce6166ac7a75fbfc0afb7d6b3f47a94d0b4999b6adf2709eba87c",
-                "sha256:d9f987cf2998b8a354f331b2a71082c049193f1e1cd345812e14b9b821365acb"
+                "sha256:a7e8341b2920d1d45bdf73d2b7825c44427d33fb0d820aceb11c94432323bf68",
+                "sha256:dd73eb46116efa116306d2fbd9b6db555791e683c84cae13b4972ea5d81a7da1"
             ],
-            "version": "==0.1.0"
+            "version": "==0.2.0"
         },
         "azure-mgmt-reservations": {
             "hashes": [
