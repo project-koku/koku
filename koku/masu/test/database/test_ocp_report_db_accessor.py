@@ -16,6 +16,7 @@
 #
 
 """Test the OCPReportDBAccessor utility object."""
+import decimal
 import random
 from unittest.mock import patch
 
@@ -867,44 +868,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         )
         with schema_context(self.schema):
             self.assertEquals(cost_summary.count(), 26)
-
-    @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
-    def test_populate_markup_cost(self, mock_vacuum):
-        """Test that populate_markup_cost populates markup in cost summary table."""
-        cost_summary = self.accessor.get_cost_summary_for_clusterid(self.cluster_id)
-        with schema_context(self.schema):
-            self.assertEquals(cost_summary.count(), 0)
-
-        report_table_name = OCP_REPORT_TABLE_MAP['report']
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        cluster_id = 'testcluster'
-        self.creator.create_ocp_storage_line_item(
-            self.reporting_period, self.report
-        )
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(
-                Min('interval_start'), Max('interval_start')
-            )
-            start_date = report_entry['interval_start__min']
-            end_date = report_entry['interval_start__max']
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        self.accessor.populate_storage_line_item_daily_table(
-            start_date, end_date, cluster_id
-        )
-        self.accessor.populate_storage_line_item_daily_summary_table(
-            start_date, end_date, cluster_id
-        )
-
-        self.accessor.populate_cost_summary_table(
-            self.cluster_id, start_date=start_date, end_date=end_date
-        )
-        self.accessor.populate_markup_cost(0)
-        with schema_context(self.schema):
-            self.assertEquals(cost_summary.count(), 2) # TODO this test doesn't check that cost markup was populated
 
     def test_get_report_periods(self):
         """Test that report_periods getter is correct."""

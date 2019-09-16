@@ -16,6 +16,8 @@
 #
 
 """Test the AzureReportChargeUpdater object."""
+from unittest.mock import patch
+
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -85,6 +87,18 @@ class AzureReportChargeUpdaterTest(MasuTestCase):
 
     def test_azure_update_summary_charge_info(self):
         """Test to verify Azure derived cost summary is calculated."""
+        start_date = self.date_accessor.today_with_timezone('UTC')
+        bill_date = start_date.replace(day=1).date()
+
+        self.updater.update_summary_charge_info()
+
+        with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
+            bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
+            self.assertIsNotNone(bill.derived_cost_datetime)
+
+    @patch('masu.util.azure.common.get_bills_from_provider')
+    def test_azure_update_summary_no_bill_ids(self, mock_get_bills):
+        mock_get_bills.return_value = []
         start_date = self.date_accessor.today_with_timezone('UTC')
         bill_date = start_date.replace(day=1).date()
 

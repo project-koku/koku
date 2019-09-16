@@ -51,13 +51,13 @@ class AWSReportChargeUpdater:
 
     def _update_markup_cost(self, start_date, end_date):
         """Store markup costs."""
-        bills = get_bills_from_provider(
-            self._provider_uuid,
-            self._schema,
-            start_date,
-            end_date
-        )
         try:
+            bills = get_bills_from_provider(
+                self._provider_uuid,
+                self._schema,
+                start_date,
+                end_date
+            )
             with CostModelDBAccessor(self._schema, self._provider_uuid,
                                      self._column_map) as cost_model_accessor:
                 markup = cost_model_accessor.get_markup()
