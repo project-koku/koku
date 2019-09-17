@@ -370,7 +370,7 @@
                 }]
             }
         },
-        "/metrics": {
+        "/metrics/": {
             "get": {
                 "tags": [
                     "Metrics"
