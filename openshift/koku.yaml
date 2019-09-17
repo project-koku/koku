@@ -29,6 +29,7 @@ objects:
       prometheus.io/port: '8080'
     name: ${NAME}
   spec:
+    clusterIP: None
     ports:
     - name: 8080-tcp
       port: 8080

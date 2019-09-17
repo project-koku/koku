@@ -216,7 +216,7 @@ parameters:
 - displayName: S3 bucket name
   value: ''
   name: S3_BUCKET_NAME
-  required: true
+  required: false
 - displayName: S3 bucket path
   value: 'data_archive'
   name: S3_BUCKET_PATH
