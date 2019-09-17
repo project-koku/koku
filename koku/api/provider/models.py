@@ -173,10 +173,10 @@ class Sources(models.Model):
     source_type = models.CharField(max_length=50, null=False)
 
     # Provider authentication (AWS roleARN, OCP Sources UID, etc.)
-    authentication = models.CharField(max_length=128, null=False)
+    authentication = models.TextField(null=False)
 
     # Provider billing source (AWS S3 bucket)
-    billing_source = models.CharField(max_length=128, null=True)
+    billing_source = models.TextField(null=True)
 
     # Unique identifier for koku Provider
     koku_uuid = models.CharField(max_length=512, null=True)

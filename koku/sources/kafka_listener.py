@@ -153,6 +153,10 @@ def _sources_network_info_sync(source_id, auth_header):
     elif source_type_id == 2:
         source_type = 'AWS'
         authentication = sources_network.get_aws_role_arn()
+    elif source_type_id == 3:
+        source_type = 'AZURE'
+        authentication = sources_network.get_azure_credentials()
+        print(f'AZURE Authentication: {str(authentication)}')
     else:
         LOG.error(f'Unexpected source type ID: {source_type_id}')
         return
