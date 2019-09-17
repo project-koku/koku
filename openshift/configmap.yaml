@@ -193,7 +193,7 @@ parameters:
   required: true
   value: koku-redis.koku.svc.cluster.local
 - description: Port number for Redis service
-  displayName: Redis portKOKU_API_PATH_PREFIX
+  displayName: Redis port
   name: REDIS_PORT
   required: true
   value: "6379"
