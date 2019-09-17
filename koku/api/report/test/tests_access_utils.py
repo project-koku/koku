@@ -123,6 +123,7 @@ class AzureAccessUtilsTest(TestCase):
     """Test the azure access utils functions."""
 
     def setUp(self):
+        """Test setup."""
         super().setUp()
         self.guid1 = uuid4()
         self.guid2 = uuid4()
@@ -141,7 +142,7 @@ class AzureAccessUtilsTest(TestCase):
         self.assertEqual(query_parameters, out)
 
     def test_update_query_parameters_replace_wildcard(self):
-        """Test that a group by subscription_guid wildcard is replaced with only the subset of subscription_guids."""
+        """Test that a group by guid wildcard is replaced with only the subset of guids."""
         query_parameters = {
             'group_by': {'subscription_guid': ['*'], 'resource_location': ['*']}
         }
@@ -155,7 +156,7 @@ class AzureAccessUtilsTest(TestCase):
         self.assertEqual(expected, out)
 
     def test_update_query_parameters_gb_filtered_intersection(self):
-        """Test that a group by subscription_guid filtered list is replaced with only the intersection of subscription_guids."""
+        """Test that a group by guid filtered list is replaced with only intersection of guids."""
         query_parameters = {
             'group_by': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
         }
@@ -169,7 +170,7 @@ class AzureAccessUtilsTest(TestCase):
         self.assertEqual(expected, out)
 
     def test_update_query_parameters_empty_intersection(self):
-        """Test that a group by subscription_guid filtered list causes 403 when empty intersection of subscription_guids."""
+        """Test that a group by guid filtered list causes 403 when empty intersection of guids."""
         query_parameters = {
             'group_by': {'subscription_guid': [self.guid1, self.guid3], 'resource_location': ['*']}
         }
@@ -206,7 +207,7 @@ class AzureAccessUtilsTest(TestCase):
         self.assertEqual(expected, out)
 
     def test_update_query_parameters_filtered_intersection(self):
-        """Test that a filter by subscription_guid filtered list is replaced with only the intersection of subscription_guids."""
+        """Test that a filter by guid filtered list is replaced with only intersection of guids."""
         query_parameters = {
             'filter': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
         }

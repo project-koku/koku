@@ -70,7 +70,7 @@ def update_query_parameters_for_aws(query_parameters, access):
 
 def update_query_parameters_for_azure(query_parameters, access):
     """Alter query parameters based on user access."""
-    return _update_query_parameters(query_parameters, 'account', access, 'azure.subscription_guid')
+    return _update_query_parameters(query_parameters, 'subscription_guid', access, 'azure.subscription_guid')
 
 
 def update_query_parameters_for_openshift(query_parameters, access):
