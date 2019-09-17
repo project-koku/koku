@@ -38,6 +38,18 @@ def create_parser():
                         dest='s3_bucket',
                         required=False,
                         help='AWS S3 bucket with cost and usage report')
+    parser.add_argument('--client_id',
+                        dest='client_id',
+                        required=False,
+                        help='Azure Client ID')
+    parser.add_argument('--client_secret',
+                        dest='client_secret',
+                        required=False,
+                        help='Azure Client Secret')
+    parser.add_argument('--tenant_id',
+                        dest='tenant_id',
+                        required=False,
+                        help='Azure Tenant ID')
     parser.add_argument('--auth_header',
                         dest='auth_header',
                         required=False,
@@ -117,6 +129,16 @@ class SourcesDataGenerator:
         response = r.json()
         return response.get('id')
 
+    def create_azure_authentication(self, resource_id, username, password, tenant):
+        json_data = {'authtype': 'username_password', 'name': 'Azure default', 'password': str(password),
+                     'status': 'valid', 'status_details': 'Details Here', 'username': str(username),
+                     'extra': {'azure': {'tenant_id': str(tenant)}}, 'resource_type': 'Endpoint', 'resource_id': str(resource_id)}
+
+        url = '{}/{}'.format(self._base_url, 'authentications')
+        r = requests.post(url, headers=self._identity_header, json=json_data)
+        response = r.json()
+        return response.get('id')
+
     def create_application(self, source_id, source_type):
         type_map = {'catalog': '1', 'cost_management': '2', 'topo_inv': '3'}
         json_data = {'source_id': str(source_id), 'application_type_id': type_map.get(source_type)}
@@ -177,6 +199,13 @@ def main(args):
     elif parameters.get('azure'):
         source_id = generator.create_source(source_name, 'azure')
         print(f'Creating AZURE Source. Source ID: {source_id}')
+
+        endpoint_id = generator.create_endpoint(source_id)
+        client_id = parameters.get('client_id')
+        client_secret = parameters.get('client_secret')
+        tenant_id = parameters.get('tenant_id')
+        authentications_id = generator.create_azure_authentication(endpoint_id, client_id, client_secret, tenant_id)
+        print(f'Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentications_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
