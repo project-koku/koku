@@ -17,6 +17,7 @@
 """Provider Model Serializers."""
 import logging
 
+from django.core.exceptions import MultipleObjectsReturned
 from django.db import transaction
 from django.utils.translation import ugettext as _
 from providers.provider_access import ProviderAccessor
@@ -28,7 +29,6 @@ from api.iam.serializers import (AdminCustomerSerializer,
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource)
-
 LOG = logging.getLogger(__name__)
 
 
@@ -142,7 +142,12 @@ class ProviderSerializer(serializers.ModelSerializer):
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
-        bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+        try:
+            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+        except MultipleObjectsReturned:
+            dups = [str(bill.uuid) for bill in ProviderBillingSource.objects.filter(**billing_source)]
+            LOG.warning('There are duplicates in provider billing source: {}'.format(', '.join(dups)))
+            bill = ProviderBillingSource.objects.filter(**billing_source).first()
 
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
