@@ -49,6 +49,7 @@ pylint-django = "==2.0.11"
 pydocstyle = "==4.0.0"
 flake8-docstrings = "*"
 pyyaml = "*"
+tblib = "*"
 
 [requires]
 python_version = "3.6"

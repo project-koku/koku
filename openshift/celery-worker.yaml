@@ -131,6 +131,12 @@ objects:
                   name: ${NAME}-processor
                   key: schedule-check-interval
                   optional: false
+            - name: UPLOAD_NORMALIZED_DATA_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-upload
+                  key: upload-normalized-data-interval
+                  optional: false
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -305,6 +311,24 @@ objects:
                   name: ${NAME}-logging
                   key: django-logging-file
                   optional: true
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: s3-bucket-name
+                  optional: false
+            - name: S3_BUCKET_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: s3-bucket-path
+                  optional: false
+            - name: ENABLE_S3_ARCHIVING
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: enable-s3-archiving
+                  optional: false
           resources:
             requests:
               cpu: ${CPU_REQUEST}
@@ -315,6 +339,9 @@ objects:
           volumeMounts:
           - mountPath: /var/tmp/masu/
             name: ${NAME}-worker-data
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
         volumes:
         - name: ssl-cert
           projected:

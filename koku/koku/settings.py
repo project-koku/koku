@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'reporting',
     'reporting_common',
     'cost_models',
+    'sources',
 ]
 
 SHARED_APPS = (
@@ -97,6 +98,7 @@ SHARED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
+    'sources',
 )
 
 TENANT_APPS = (
@@ -128,9 +130,12 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 MASU = ENVIRONMENT.bool('MASU', default=False)
+SOURCES = ENVIRONMENT.bool('SOURCES', default=False)
 ROOT_URLCONF = 'koku.urls'
 if MASU:
     ROOT_URLCONF = 'masu.urls'
+elif SOURCES:
+    ROOT_URLCONF = 'sources.urls'
 
 TEMPLATES = [
     {
@@ -335,7 +340,10 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
-
+        'sources': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+        },
     },
 }
 
@@ -397,3 +405,9 @@ CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
 BROKER_POOL_LIMIT = None
 CELERYD_CONCURRENCY = 2
 CELERYD_PREFETCH_MULTIPLIER = 1
+
+# AWS S3 Bucket Settings
+S3_BUCKET_NAME = ENVIRONMENT.get_value('S3_BUCKET_NAME', default='koku-reports')
+S3_BUCKET_PATH = ENVIRONMENT.get_value('S3_BUCKET_PATH', default='data_archive')
+S3_REGION = ENVIRONMENT.get_value('S3_REGION', default='us-east-1')
+ENABLE_S3_ARCHIVING = ENVIRONMENT.get_value('ENABLE_S3_ARCHIVING', default=True)

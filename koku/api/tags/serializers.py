@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""OCP tag serializer logic."""
+"""Tag serializers."""
 from rest_framework import serializers
 
 from api.report.serializers import (StringOrListField,
@@ -24,6 +24,7 @@ from api.report.serializers import (StringOrListField,
 
 OCP_FILTER_OP_FIELDS = ['project']
 AWS_FILTER_OP_FIELDS = ['account']
+AZURE_FILTER_OP_FIELDS = ['subscription_guid']
 
 
 class FilterSerializer(serializers.Serializer):
@@ -130,6 +131,18 @@ class OCPAWSFilterSerializer(AWSFilterSerializer, OCPFilterSerializer):
                                       AWS_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
 
 
+class AzureFilterSerializer(FilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    subscription_guid = StringOrListField(child=serializers.CharField(),
+                                          required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the AzureFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, AZURE_FILTER_OP_FIELDS)
+
+
 class TagsQueryParamSerializer(serializers.Serializer):
     """Serializer for handling query parameters."""
 
@@ -196,3 +209,23 @@ class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer,
     """Serializer for handling OCP-on-AWS tag query parameters."""
 
     filter = OCPAWSFilterSerializer(required=False)
+
+
+class AzureTagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling Azure tag query parameters."""
+
+    filter = AzureFilterSerializer(required=False)
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+
+        """
+        validate_field(self, 'filter', AzureFilterSerializer, value)
+        return value

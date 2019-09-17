@@ -29,11 +29,12 @@ from tarfile import ReadError, TarFile
 
 import requests
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from kafka.errors import ConnectionError as KafkaConnectionError
+from kafka.errors import KafkaError
 
 from masu.config import Config
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.processor.tasks import get_report_files, summarize_reports
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.util.ocp import common as utils
 
 LOG = logging.getLogger(__name__)
@@ -172,8 +173,10 @@ async def send_confirmation(request_id, status):  # pragma: no cover
     )
     try:
         await producer.start()
-    except (KafkaConnectionError, TimeoutError):
+    except (KafkaError, TimeoutError) as err:
         await producer.stop()
+        LOG.exception(str(err))
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.  Closing producer.')
 
     try:
@@ -344,8 +347,10 @@ async def listen_for_messages(consumer):  # pragma: no cover
     """
     try:
         await consumer.start()
-    except KafkaConnectionError:
+    except KafkaError as err:
         await consumer.stop()
+        LOG.exception(str(err))
+        KAFKA_CONNECTION_ERRORS_COUNTER.inc()
         raise KafkaMsgHandlerError('Unable to connect to kafka server.')
 
     LOG.info('Listener started.  Waiting for messages...')

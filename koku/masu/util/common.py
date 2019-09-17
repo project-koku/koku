@@ -16,16 +16,19 @@
 #
 
 """Common util functions."""
+import gzip
 import logging
 import re
 from os import listdir, remove
+from tempfile import gettempdir
+from uuid import uuid4
 
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            LISTEN_INGEST,
-                           OCP_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM,
                            POLL_INGEST)
 
@@ -68,7 +71,7 @@ def ingest_method_for_provider(provider):
         AMAZON_WEB_SERVICES: POLL_INGEST,
         AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         AZURE: POLL_INGEST,
-        OCP_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        AZURE_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }
     return ingest_map.get(provider)
@@ -96,3 +99,28 @@ def clear_temp_directory(report_path, current_assembly_id, prefix=None):
                 except FileNotFoundError:
                     LOG.warning('Unable to locate file: %s', file_path)
     return removed_files
+
+
+class NamedTemporaryGZip:
+    """Context manager for a temporary GZip file.
+
+    Example:
+        with NamedTemporaryGZip() as temp_tz:
+            temp_tz.read()
+            temp_tz.write()
+
+    """
+
+    def __init__(self):
+        """Generate a random temporary file name."""
+        self.file_name = f'{gettempdir()}/{uuid4()}.gz'
+
+    def __enter__(self):
+        """Open a gz file as a fileobject."""
+        self.file = gzip.open(self.file_name, 'wt')
+        return self.file
+
+    def __exit__(self, *exc):
+        """Remove the temp file from disk."""
+        self.file.close()
+        remove(self.file_name)

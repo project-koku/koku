@@ -56,4 +56,9 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
                                'args': []}
     CELERY.conf.beat_schedule['remove-expired-data'] = REMOVE_EXPIRED_DATA_DEF
 
+CELERY.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
+    'task': 'masu.celery.tasks.upload_normalized_data',
+    'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
+}
+
 CELERY.autodiscover_tasks()

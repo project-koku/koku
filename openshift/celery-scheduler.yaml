@@ -47,6 +47,10 @@ objects:
         containers:
         - name: ${NAME}-scheduler
           image: ${NAME}-scheduler
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
           command:
             - /bin/bash
             - -c
@@ -101,6 +105,18 @@ objects:
                 configMapKeyRef:
                   name: ${NAME}-processor
                   key: schedule-check-interval
+                  optional: false
+            - name: UPLOAD_NORMALIZED_DATA_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-upload
+                  key: upload-normalized-data-interval
+                  optional: false
+            - name: SCHEDULE_REPORT_CHECKS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-processor
+                  key: schedule-report-checks
                   optional: false
             - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
               valueFrom:

@@ -86,7 +86,7 @@ class Config:
     # Data directory for processing incoming data
     TMP_DIR = '/var/tmp/masu'
 
-    # OCP-local simulates Insights report storage
+    # OCP intermediate report storage
     INSIGHTS_LOCAL_REPORT_DIR = '/var/tmp/insights_local'
 
     # Celery settings
@@ -97,6 +97,7 @@ class Config:
 
     AWS_DATETIME_STR_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
     OCP_DATETIME_STR_FORMAT = '%Y-%m-%d %H:%M:%S +0000 UTC'
+    AZURE_DATETIME_STR_FORMAT = '%Y-%m-%d'
 
     # Override the service's current date time time. Format: "%Y-%m-%d %H:%M:%S"
     MASU_DATE_OVERRIDE = os.getenv('MASU_DATE_OVERRIDE')

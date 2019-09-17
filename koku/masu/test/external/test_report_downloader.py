@@ -23,13 +23,13 @@ from masu.external import (
     AWS_LOCAL_SERVICE_PROVIDER,
     AMAZON_WEB_SERVICES,
     AZURE,
-    OCP_LOCAL_SERVICE_PROVIDER,
+    AZURE_LOCAL_SERVICE_PROVIDER,
+    OPENSHIFT_CONTAINER_PLATFORM,
 )
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
     AWSReportDownloaderError,
 )
-from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
 from masu.test import MasuTestCase
@@ -69,33 +69,33 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertIsNotNone(downloader._downloader)
 
     @patch(
-        'masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader.__init__',
-        return_value=None,
-    )
-    def test_initializer_aws_local(self, fake_downloader):
-        """Test to initializer for AWS-local downloader"""
-        downloader = ReportDownloader(
-            customer_name='customer name',
-            access_credential=self.fake_creds,
-            report_source='hereiam',
-            report_name='bestreport',
-            provider_type=AWS_LOCAL_SERVICE_PROVIDER,
-            provider_id=self.aws_provider_id,
-        )
-        self.assertIsNotNone(downloader._downloader)
-
-    @patch(
         'masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader.__init__',
         return_value=None,
     )
     def test_initializer_ocp(self, fake_downloader):
-        """Test to initializer for OCP downloader"""
+        """Test to initializer"""
         downloader = ReportDownloader(
             customer_name='customer name',
             access_credential=self.fake_creds,
             report_source='hereiam',
             report_name='bestreport',
-            provider_type=OCP_LOCAL_SERVICE_PROVIDER,
+            provider_type=OPENSHIFT_CONTAINER_PLATFORM,
+            provider_id=self.ocp_provider_id,
+        )
+        self.assertIsNotNone(downloader._downloader)
+
+    @patch(
+        'masu.external.downloader.aws_local.aws_local_report_downloader.AWSLocalReportDownloader.__init__',
+        return_value=None,
+    )
+    def test_initializer_ocp(self, fake_downloader):
+        """Test to initializer"""
+        downloader = ReportDownloader(
+            customer_name='customer name',
+            access_credential=self.fake_creds,
+            report_source='hereiam',
+            report_name='bestreport',
+            provider_type=OPENSHIFT_CONTAINER_PLATFORM,
             provider_id=self.ocp_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)
@@ -112,6 +112,22 @@ class ReportDownloaderTest(MasuTestCase):
             report_source='hereiam',
             report_name='bestreport',
             provider_type=AZURE,
+            provider_id=self.azure_provider_id,
+        )
+        self.assertIsNotNone(downloader._downloader)
+
+    @patch(
+        'masu.external.downloader.azure_local.azure_local_report_downloader.AzureLocalReportDownloader.__init__',
+        return_value=None,
+    )
+    def test_initializer_azure(self, fake_downloader):
+        """Test to initializer for Azure downloader"""
+        downloader = ReportDownloader(
+            customer_name='customer name',
+            access_credential=self.fake_creds,
+            report_source='hereiam',
+            report_name='bestreport',
+            provider_type=AZURE_LOCAL_SERVICE_PROVIDER,
             provider_id=self.azure_provider_id,
         )
         self.assertIsNotNone(downloader._downloader)

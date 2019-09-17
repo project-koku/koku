@@ -101,7 +101,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:9.6
+    image: postgres:10.6
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}
@@ -146,14 +146,19 @@ services:
         - DJANGO_SETTINGS_MODULE=koku.settings
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
+        - ENABLE_S3_ARCHIVING=False
+        - S3_BUCKET_NAME=koku-bucket
+        - S3_BUCKET_PATH=data_archive
       privileged: true
       volumes:
         - '.:/koku'
+        # - '~/azure_local:/tmp/local_container'
         # - '~/aws_local:/tmp/local_bucket'
         # - '~/aws_local_0:/tmp/local_bucket_0'
         # - '~/aws_local_1:/tmp/local_bucket_1'
         # - '~/aws_local_2:/tmp/local_bucket_2'
         # - '~/aws_local_3:/tmp/local_bucket_3'
+        # - '~/aws_local_4:/tmp/local_bucket_4'
         # - '~/insights_local:/var/tmp/insights_local'
       links:
           - koku-rabbit
@@ -201,6 +206,39 @@ services:
         - db
         - koku-rabbit
 
+  sources-client:
+      container_name: sources_client
+      build:
+          context: .
+          dockerfile: Dockerfile-env
+      working_dir: /koku/
+      entrypoint:
+        - /koku/run_sources.sh
+      environment:
+        - DATABASE_SERVICE_NAME=POSTGRES_SQL
+        - DATABASE_ENGINE=postgresql
+        - DATABASE_NAME=${DATABASE_NAME-postgres}
+        - POSTGRES_SQL_SERVICE_HOST=db
+        - POSTGRES_SQL_SERVICE_PORT=5432
+        - DATABASE_USER=${DATABASE_USER-postgres}
+        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+        - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
+        - KOKU_API_PORT=${KOKU_API_PORT-8000}
+        - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+        - SOURCES_KAFKA_HOST=${SOURCES_KAFKA_HOST-kafka}
+        - SOURCES_KAFKA_PORT=${SOURCES_KAFKA_PORT-29092}
+      privileged: true
+      ports:
+          - 4000:8000
+      volumes:
+        - '.:/koku'
+      links:
+        - db
+        - koku-server
+      depends_on:
+        - db
+        - koku-server
+
   koku-beat:
       container_name: koku_beat
       hostname: koku_beat
@@ -228,6 +266,7 @@ services:
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True
         - SCHEDULE_CHECK_INTERVAL=10000000
+        - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       privileged: true
       volumes:
         - '.:/koku'
@@ -235,9 +274,3 @@ services:
           - koku-rabbit
       depends_on:
           - koku-rabbit
-
-
-networks:
-  default:
-    external:
-      name: koku-network

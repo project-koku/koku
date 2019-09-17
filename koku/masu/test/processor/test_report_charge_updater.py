@@ -43,12 +43,12 @@ class ReportChargeUpdaterTest(MasuTestCase):
         mock_update.assert_called()
 
     @patch(
-        'masu.processor.report_charge_updater.OCPReportChargeUpdater.update_summary_charge_info'
+        'masu.processor.report_charge_updater.AzureReportChargeUpdater.update_summary_charge_info'
     )
-    def test_ocp_local_route(self, mock_update):
-        """Test that OCP-local charge updating works as expected."""
-        updater = ReportChargeUpdater(self.schema, self.ocp_test_provider_uuid)
-        self.assertIsInstance(updater._updater, OCPReportChargeUpdater)
+    def test_azure_local_route(self, mock_update):
+        """Test that AZURE-local charge updating works as expected."""
+        updater = ReportChargeUpdater(self.schema, self.azure_test_provider_uuid)
+        self.assertIsInstance(updater._updater, AzureReportChargeUpdater)
         updater.update_charge_info()
         mock_update.assert_called()
 

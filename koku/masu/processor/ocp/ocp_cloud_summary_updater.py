@@ -16,7 +16,7 @@
 #
 """Updates report summary tables in the database."""
 # pylint: skip-file
-
+import datetime
 import logging
 
 from tenant_schemas.utils import schema_context
@@ -27,6 +27,7 @@ from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
+from masu.util.ocp.common import get_cluster_id_from_provider
 
 LOG = logging.getLogger(__name__)
 
@@ -38,7 +39,12 @@ class OCPCloudReportSummaryUpdater:
         """Establish the database connection.
 
         Args:
-            schema (str): The customer schema to associate with
+            schema   (str) The customer schema to associate with.
+            provider (Provider db object) Database object for Provider.
+            manifest (str) The manifest to work with.
+
+        Returns:
+            None
 
         """
         self._schema_name = schema
@@ -49,14 +55,31 @@ class OCPCloudReportSummaryUpdater:
         self._date_accessor = DateAccessor()
 
     def _get_ocp_infra_map(self, start_date, end_date):
-        """Get the OCP on X infrastructure map."""
+        """Get the OCP on X infrastructure map.
+
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+
+        Returns:
+            infra_map (list) The OCP infrastructure map.
+
+        """
         infra_map = None
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
             infra_map = accessor.get_ocp_infrastructure_map(start_date, end_date)
         return infra_map
 
     def _get_infra_db_key_for_provider_type(self, provider_type):
-        """Get infrastructure map provider key."""
+        """Get infrastructure map provider key.
+
+        Args:
+            provider_type (str) The provider
+
+        Returns:
+            db_key (str) The infrastructure map provider key
+
+        """
         if provider_type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             db_key = 'aws_uuid'
         elif provider_type in (OPENSHIFT_CONTAINER_PLATFORM):
@@ -96,8 +119,6 @@ class OCPCloudReportSummaryUpdater:
 
         Args:
             provider   (Provider db object).  Database object for Provider.
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
             infra_map  (DB Object) Map from OCPReportDBAccessor().get_ocp_infrastructure_map()
 
         Returns
@@ -129,8 +150,8 @@ class OCPCloudReportSummaryUpdater:
             aws_bills = get_bills_from_provider(
                 aws_uuid,
                 self._schema_name,
-                start_date,
-                end_date
+                datetime.datetime.strptime(start_date, '%Y-%m-%d'),
+                datetime.datetime.strptime(end_date, '%Y-%m-%d')
             )
             aws_bill_ids = []
             with schema_context(self._schema_name):
@@ -152,6 +173,18 @@ class OCPCloudReportSummaryUpdater:
         else:
             LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
 
+    def update_cost_summary_table(self, start_date, end_date):
+        """Populate the cost summary tables.
+
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+
+        Returns
+            None
+
+        """
+        cluster_id = get_cluster_id_from_provider(self._provider.uuid)
         # This needs to always run regardless of whether the OpenShift
         # cluster is tied to a cloud provider
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:

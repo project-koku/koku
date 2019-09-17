@@ -29,6 +29,7 @@ from tenant_schemas.utils import tenant_context
 from api.provider.models import Provider
 from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSCostEntryBill
+from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
 
@@ -90,7 +91,9 @@ class ProviderManager:
             elif provider.type == 'AWS' or provider.type == 'AWS-local':
                 query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
                                                         billing_period_start=period_start).first()
-
+            elif provider.type == 'AZURE' or provider.type == 'AZURE-local':
+                query = AzureCostEntryBill.objects.filter(provider_id=provider.id,
+                                                          billing_period_start=period_start).first()
         if query and query.summary_data_creation_datetime:
             stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
         if query and query.summary_data_updated_datetime:

@@ -129,7 +129,7 @@ class OCPProviderMap(ProviderMap):
                                 + F('infra_cost')
                             )
                         },
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'USD',
                         'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
                     },
@@ -166,7 +166,7 @@ class OCPProviderMap(ProviderMap):
                                 + F('project_infra_cost')
                             )
                         },
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'USD',
                         'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
                     },
@@ -202,7 +202,7 @@ class OCPProviderMap(ProviderMap):
                             'request': Sum('pod_request_cpu_core_hours'),
                             'cost': Sum('pod_charge_cpu_core_hours')
                         },
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'USD',
                         'usage_units_key': 'Core-Hours',
                         'sum_columns': ['usage', 'request', 'limit', 'infrastructure_cost',
@@ -240,7 +240,7 @@ class OCPProviderMap(ProviderMap):
                             'request': Sum('pod_request_memory_gigabyte_hours'),
                             'cost': Sum('pod_charge_memory_gigabyte_hours')
                         },
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'USD',
                         'usage_units_key': 'GB-Hours',
                         'sum_columns': ['usage', 'request', 'limit', 'infrastructure_cost',
@@ -280,7 +280,7 @@ class OCPProviderMap(ProviderMap):
                             'request': Sum('volume_request_storage_gigabyte_months'),
                             'cost': Sum('persistentvolumeclaim_charge_gb_month')
                         },
-                        'filter': {},
+                        'filter': [{}],
                         'cost_units_key': 'USD',
                         'usage_units_key': 'GB-Mo',
                         'sum_columns': ['usage', 'request', 'infrastructure_cost',

@@ -406,6 +406,7 @@ docker-down:
 
 docker-down-db:
 	docker-compose stop db
+	docker ps -a -f name=koku_db -q | xargs docker container rm
 
 docker-logs:
 	docker-compose logs -f
@@ -415,7 +416,6 @@ docker-rabbit:
 
 docker-reinitdb: docker-down-db remove-db docker-up-db
 	sleep 5
-	$(MAKE) run-migrations
 	$(MAKE) create-test-customer
 
 docker-shell:

@@ -25,7 +25,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
-                           OCP_LOCAL_SERVICE_PROVIDER,
+                           AZURE_LOCAL_SERVICE_PROVIDER,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
@@ -90,11 +90,10 @@ class ReportSummaryUpdater:
         if self._provider.type in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
             return (AWSReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in AZURE:
+        if self._provider.type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return (AzureReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
-        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM,
-                                   OCP_LOCAL_SERVICE_PROVIDER):
+        if self._provider.type in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return (OCPReportSummaryUpdater(self._schema, self._provider, self._manifest),
                     OCPCloudReportSummaryUpdater(self._schema, self._provider, self._manifest))
 
@@ -166,6 +165,25 @@ class ReportSummaryUpdater:
         )
 
         self._ocp_cloud_updater.update_summary_tables(
+            start_date,
+            end_date
+        )
+
+    def update_cost_summary_table(self, start_date, end_date):
+        """
+        Update cost summary tables.
+
+        Args:
+            start_date (str, datetime): When to start.
+            end_date (str, datetime): When to end.
+
+        Returns:
+            None
+
+        """
+        start_date, end_date = self._format_dates(start_date, end_date)
+
+        self._ocp_cloud_updater.update_cost_summary_table(
             start_date,
             end_date
         )
