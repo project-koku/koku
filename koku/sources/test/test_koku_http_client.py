@@ -92,3 +92,14 @@ class KokuHTTPClientTest(TestCase):
                      exc=requests.exceptions.RequestException)
             with self.assertRaises(KokuHTTPClientError):
                 client.destroy_provider(expected_uuid)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_destroy_provider_error(self):
+        """Test to destroy a provider with a koku server error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                     status_code=400)
+            with self.assertRaises(KokuHTTPClientError):
+                client.destroy_provider(expected_uuid)
