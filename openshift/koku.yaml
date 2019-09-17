@@ -275,7 +275,7 @@ objects:
           command:
           - /bin/bash
           - -c
-          - '${HOME}/scripts/run_migrations.sh && python3 ${HOME}/scripts/sync_s3_lifecycle.py'
+          - '${HOME}/scripts/run_migrations.sh'
           resources:
             requests:
               cpu: ${CPU_REQUEST}

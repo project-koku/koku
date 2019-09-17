@@ -25,20 +25,13 @@ objects:initContainers
     annotations:
       description: Exposes and load balances the application pods
       service.alpha.openshift.io/dependencies: '[{"name": "${NAME}-db", "kind": "Service"}]'
-      prometheus.io/scrape: 'true'
-      prometheus.io/path: /metrics
-      prometheus.io/port: '9100'
     name: ${NAME}-sources
   spec:
     ports:
-    - name: 4000-tcp
-      port: 4000
+    - name: 8080-tcp
+      port: 8080
       protocol: TCP
-      targetPort: 4000
-    - name: 9100-tcp
-      port: 9100
-      protocol: TCP
-      targetPort: 9100
+      targetPort: 8080
     selector:
       name: ${NAME}-sources
 
@@ -147,6 +140,18 @@ objects:initContainers
                   name: ${NAME}-app
                   key: api-path-prefix
                   optional: false
+            - name: KOKU_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: koku-host
+                  optional: false
+            - name: KOKU_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: koku-port
+                  optional: false
             - name: APP_NAMESPACE
               valueFrom:
                 configMapKeyRef:
@@ -201,19 +206,37 @@ objects:initContainers
                   name: ${NAME}-messaging
                   key: rabbitmq-host
                   optional: false
-            - name: INSIGHTS_KAFKA_HOST
+            - name: SOURCES_KAFKA_HOST
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-messaging
                   key: kafka-host
                   optional: false
-            - name: INSIGHTS_KAFKA_PORT
+            - name: SOURCES_KAFKA_PORT
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-messaging
                   key: kafka-port
                   optional: false
-            - name: INSIGHTS_KAFKA_CONN_RETRY_INTERVAL
+            - name: SOURCES_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-kafka-topic
+                  optional: false
+            - name: SOURCES_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-host
+                  optional: false
+            - name: SOURCES_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-port
+                  optional: false
+            - name: RETRY_SECONDS
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-messaging
