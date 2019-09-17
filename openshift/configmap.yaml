@@ -193,7 +193,7 @@ parameters:
   required: true
   value: koku-redis.koku.svc.cluster.local
 - description: Port number for Redis service
-  displayName: Redis port
+  displayName: Redis portKOKU_API_PATH_PREFIX
   name: REDIS_PORT
   required: true
   value: "6379"
@@ -253,7 +253,7 @@ parameters:
 - displayName: S3 bucket name
   value: ''
   name: S3_BUCKET_NAME
-  required: false
+  required: true
 - displayName: S3 bucket path
   value: 'data_archive'
   name: S3_BUCKET_PATH

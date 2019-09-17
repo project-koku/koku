@@ -22,21 +22,14 @@ import os
 import re
 from collections import namedtuple
 from datetime import datetime
-from django.urls import reverse
-
 from subprocess import CompletedProcess, PIPE
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
 from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
-
-
-from masu.api import API_VERSION
-from masu.api.status import (
-    ApplicationStatus,
-    get_status,
-)
+from django.urls import reverse
+from sources.api.status import ApplicationStatus
 
 
 @override_settings(ROOT_URLCONF='sources.urls')
@@ -44,6 +37,7 @@ class StatusAPITest(TestCase):
     """Test Cases for the Status API."""
 
     def setUp(self):
+        """Test case setup."""
         super().setUp()
         logging.disable(logging.NOTSET)
 
@@ -54,7 +48,6 @@ class StatusAPITest(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertIn('api_version', body)
         self.assertIn('commit', body)
         self.assertIn('current_datetime', body)
         self.assertIn('database_status', body)
@@ -63,7 +56,6 @@ class StatusAPITest(TestCase):
         self.assertIn('platform_info', body)
         self.assertIn('python_version', body)
 
-        self.assertEqual(body['api_version'], API_VERSION)
         self.assertIsNotNone(body['commit'])
         self.assertIsNotNone(body['current_datetime'])
         self.assertIsNotNone(body['database_status'])
@@ -78,8 +70,8 @@ class StatusAPITest(TestCase):
         result = ApplicationStatus().commit
         self.assertEqual(result, 'fake_commit_hash')
 
-    @patch('masu.api.status.subprocess.run')
-    @patch('masu.api.status.os.environ.get', return_value=dict())
+    @patch('sources.api.status.subprocess.run')
+    @patch('sources.api.status.os.environ.get', return_value=dict())
     def test_commit_with_subprocess(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = 'buildnum'
@@ -97,11 +89,10 @@ class StatusAPITest(TestCase):
         mock_subprocess.assert_called_with(args['args'], stdout=PIPE)
         self.assertEqual(result, expected)
 
-    @patch('masu.api.status.subprocess.run')
-    @patch('masu.api.status.os.environ.get', return_value=dict())
+    @patch('sources.api.status.subprocess.run')
+    @patch('sources.api.status.os.environ.get', return_value=dict())
     def test_commit_with_subprocess_nostdout(self, mock_os, mock_subprocess):
         """Test the commit method via subprocess when stdout is none."""
-
         args = {
             'args': ['git', 'describe', '--always'],
             'returncode': 0,
@@ -115,7 +106,7 @@ class StatusAPITest(TestCase):
         mock_subprocess.assert_called_with(args['args'], stdout=PIPE)
         self.assertIsNone(result.stdout)
 
-    @patch('masu.api.status.platform.uname')
+    @patch('sources.api.status.platform.uname')
     def test_platform_info(self, mock_platform):
         """Test the platform_info method."""
         platform_record = namedtuple('Platform', ['os', 'version'])
@@ -125,7 +116,7 @@ class StatusAPITest(TestCase):
         self.assertEqual(result['os'], 'Red Hat')
         self.assertEqual(result['version'], '7.4')
 
-    @patch('masu.api.status.sys.version')
+    @patch('sources.api.status.sys.version')
     def test_python_version(self, mock_sys_ver):
         """Test the python_version method."""
         expected = 'Python 3.6'
@@ -133,7 +124,7 @@ class StatusAPITest(TestCase):
         result = ApplicationStatus().python_version
         self.assertEqual(result, expected)
 
-    @patch('masu.api.status.sys.modules')
+    @patch('sources.api.status.sys.modules')
     def test_modules(self, mock_modules):
         """Test the modules method."""
         expected = {'module1': 'version1', 'module2': 'version2'}
@@ -143,19 +134,19 @@ class StatusAPITest(TestCase):
         result = ApplicationStatus().modules
         self.assertEqual(result, expected)
 
-    @patch('masu.api.status.LOG.info')
+    @patch('sources.api.status.LOG.info')
     def test_startup_with_modules(self, mock_logger):
         """Test the startup method with a module list."""
         ApplicationStatus().startup()
         mock_logger.assert_called_with(ANY, ANY)
 
-    @patch('masu.api.status.ApplicationStatus.modules', new_callable=PropertyMock)
+    @patch('sources.api.status.ApplicationStatus.modules', new_callable=PropertyMock)
     def test_startup_without_modules(self, mock_mods):
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
-        expected = 'INFO:masu.api.status:Modules: None'
+        expected = 'INFO:sources.api.status:Modules: None'
 
-        with self.assertLogs('masu.api.status', level='INFO') as logger:
+        with self.assertLogs('sources.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             self.assertIn(expected, logger.output)
 
@@ -165,24 +156,24 @@ class StatusAPITest(TestCase):
         mock_date_string = '2018-07-25 10:41:59.993536'
         mock_date_obj = datetime.strptime(mock_date_string, '%Y-%m-%d %H:%M:%S.%f')
         mock_date.return_value = mock_date_obj
-        expected = 'INFO:masu.api.status:Current Date: {}'.format(
+        expected = 'INFO:sources.api.status:Current Date: {}'.format(
             mock_date.return_value
         )
-        with self.assertLogs('masu.api.status', level='INFO') as logger:
+        with self.assertLogs('sources.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
 
     def test_get_debug(self):
         """Test the startup method for debug state."""
-        expected = 'INFO:masu.api.status:DEBUG enabled: {}'.format(str(False))
-        with self.assertLogs('masu.api.status', level='INFO') as logger:
+        expected = 'INFO:sources.api.status:DEBUG enabled: {}'.format(str(False))
+        with self.assertLogs('sources.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
 
     def test_database_status(self):
-        """test that fetching database status works."""
-        expected = re.compile(r'INFO:masu.api.status:Database: \[{.*postgres.*}\]')
-        with self.assertLogs('masu.api.status', level='INFO') as logger:
+        """Test that fetching database status works."""
+        expected = re.compile(r'INFO:sources.api.status:Database: \[{.*postgres.*}\]')
+        with self.assertLogs('sources.api.status', level='INFO') as logger:
             ApplicationStatus().startup()
             results = None
             for line in logger.output:
@@ -191,22 +182,11 @@ class StatusAPITest(TestCase):
             self.assertIsNotNone(results)
 
     def test_database_status_fail(self):
-        """test that fetching database handles errors."""
-        expected = 'WARNING:masu.api.status:Unable to connect to DB: '
+        """Test that fetching database handles errors."""
+        expected = 'WARNING:sources.api.status:Unable to connect to DB: '
         with patch('django.db.backends.utils.CursorWrapper') as mock_cursor:
             mock_cursor = mock_cursor.return_value.__enter__.return_value
             mock_cursor.execute.side_effect = InterfaceError()
-            with self.assertLogs('masu.api.status', level='INFO') as logger:
+            with self.assertLogs('sources.api.status', level='INFO') as logger:
                 ApplicationStatus().startup()
                 self.assertIn(expected, logger.output)
-
-    def disablefornowtest_liveness(self):
-        """Test the liveness response."""
-        expected = {'alive': True}
-        app = create_app(test_config=dict())
-
-        with app.test_request_context('/?liveness'):
-            response = get_status()
-
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json, expected)

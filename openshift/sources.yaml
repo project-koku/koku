@@ -231,7 +231,7 @@ objects:
                   name: ${NAME}-messaging
                   key: kafka-retry-interval
                   optional: false
-            - name: LOG_LEVEL
+            - name: LOG_LEVELKOKU_API_PATH_PREFIX
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-logging

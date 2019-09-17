@@ -35,7 +35,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from masu.api import API_VERSION
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 
@@ -55,7 +54,6 @@ def get_status(request):
 
     app_status = ApplicationStatus()
     response = {
-        'api_version': app_status.api_version,
         'commit': app_status.commit,
         'current_datetime': app_status.current_datetime,
         'database_status': app_status.database_status,
@@ -71,13 +69,10 @@ def get_status(request):
 class ApplicationStatus():
     """A view that returns status JSON."""
 
-    api_version = API_VERSION
-
     def __init__(self):
         """Initialize an ApplicationStatus object."""
         self._events = dict()
         self.modules = {}
-
 
     @property
     def commit(self):
@@ -180,7 +175,6 @@ class ApplicationStatus():
 
     def startup(self):
         """Log startup information."""
-        LOG.info('API Version: %s', self.api_version)
         LOG.info('Commit: %s', self.commit)
         LOG.info('Current Date: %s', self.current_datetime)
         LOG.info('DEBUG enabled: %s', str(self.debug))
