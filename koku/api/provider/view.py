@@ -147,9 +147,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
         manager = ProviderManager(uuid)
         try:
-            manager.remove(request.user)
-        except Exception:
-            LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, uuid))
+            manager.remove(request)
+        except Exception as error:
+            LOG.error(f'{request.user} failed to remove provider uuid: {uuid}. Error: {str(error)}')
             raise ProviderDeleteException
 
         return Response(status=status.HTTP_204_NO_CONTENT)
