@@ -1,24 +1,19 @@
-#
-# (deprecated) This template defines resources used to deploy the Masu Flask application.
-#
-# This file will be removed after the koku/masu merge is completed.
-#
 kind: Template
 apiVersion: v1
 metadata:
   name: sources-template
   annotations:
     openshift.io/display-name: "Sources Integration"
-    description: "App and API for data ingestion engine for Koku"
+    description: "App and API for Koku integration with Platform-Sources"
     tags: "python,django"
     iconClass: "icon-python"
-    openshift.io/long-description: "This template defines resources needed to run the Masu application, including a build configuration and an application deployment configuration."
+    openshift.io/long-description: "This template defines resources needed to run the Sources integration service, including a build configuration and an application deployment configuration."
     openshift.io/provider-display-name: "Red Hat, Inc."
     openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
 labels:
   app: koku
   template: koku-sources
-objects:initContainers
+objects:
 - kind: Service
   apiVersion: v1
   metadata:
@@ -200,12 +195,6 @@ objects:initContainers
                   name: ${NAME}-logging
                   key: django-logging-file
                   optional: true
-            - name: RABBITMQ_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-messaging
-                  key: rabbitmq-host
-                  optional: false
             - name: SOURCES_KAFKA_HOST
               valueFrom:
                 configMapKeyRef:
@@ -242,18 +231,6 @@ objects:initContainers
                   name: ${NAME}-messaging
                   key: kafka-retry-interval
                   optional: false
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  key: aws-access-key-id
-                  name: ${NAME}-aws
-                  optional: false
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: aws-secret-access-key
-                  name: ${NAME}-aws
-                  optional: false
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
@@ -266,38 +243,12 @@ objects:initContainers
                   name: ${NAME}-monitoring
                   key: prometheus-dir
                   optional: true
-            - name: MASU_DATE_OVERRIDE
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-processor
-                  key: date-override
-                  optional: true
-            - name: MASU_RETAIN_NUM_MONTHS
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-processor
-                  key: retain-num-months
-                  optional: true
-            - name: INITIAL_INGEST_NUM_MONTHS
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-processor
-                  key: initial-ingest-num-months
-                  optional: true
-            - name: INITIAL_INGEST_OVERRIDE
-              valueFrom:
-                configMapKeyRef:
-                  name: ${NAME}-processor
-                  key: initial-ingest-override
-                  optional: true
             - name: DEBUG
               valueFrom:
                 configMapKeyRef:
                   name: ${NAME}-debug
                   key: debug
                   optional: true
-            - name: KAFKA_CONNECT
-              value: "False"
             - name: NAMESPACE
               valueFrom:
                 configMapKeyRef:
@@ -331,22 +282,22 @@ objects:initContainers
             - name: POD_CPU_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-masu
+                  containerName: ${NAME}-sources
                   resource: requests.cpu
             - name: POD_CPU_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-masu
+                  containerName: ${NAME}-sources
                   resource: limits.cpu
             - name: POD_MEMORY_REQUEST
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-masu
+                  containerName: ${NAME}-sources
                   resource: requests.memory
             - name: POD_MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
-                  containerName: ${NAME}-masu
+                  containerName: ${NAME}-sources
                   resource: limits.memory
           livenessProbe:
             failureThreshold: 3
@@ -392,25 +343,12 @@ objects:initContainers
     - imageChangeParams:
         automatic: true
         containerNames:
-          - ${NAME}-masu
+          - ${NAME}-sources
         from:
           kind: ImageStreamTag
           name: ${NAME}:latest
       type: ImageChange
 
-- apiVersion: autoscaling/v1
-  kind: HorizontalPodAutoscaler
-  metadata:
-    name: ${NAME}-masu
-    namespace: ${NAMESPACE}
-  spec:
-    maxReplicas: 1
-    minReplicas: 1
-    scaleTargetRef:
-      apiVersion: apps.openshift.io/v1
-      kind: DeploymentConfig
-      name: ${NAME}-masu
-    targetCPUUtilizationPercentage: 90
 parameters:
 - description: The name assigned to all frontend objects defined in this template.
   displayName: Name
@@ -422,23 +360,23 @@ parameters:
   name: NAMESPACE
   required: true
   value: koku
-- description: Initial amount of memory the Flower container will request.
-  displayName: Masu Memory Request
+- description: Initial amount of memory the Sources-Integration container will request.
+  displayName: Sources Memory Request
   name: MEMORY_REQUEST
   required: true
   value: 512Mi
-- description: Maximum amount of memory the Flower container can use.
-  displayName: Masu Memory Limit
+- description: Maximum amount of memory the Sources-Integration container can use.
+  displayName: Sources Memory Limit
   name: MEMORY_LIMIT
   required: true
   value: 1Gi
-- description: Initial amount of CPU the Flower container will request.
-  displayName: Masu CPU Limit
+- description: Initial amount of CPU the Sources-Integration container will request.
+  displayName: Sources CPU Limit
   name: CPU_REQUEST
   required: true
   value: '500m'
-- description: Maximum amount of CPU the Flower container can use.
-  displayName: Masu CPU Limit
+- description: Maximum amount of CPU the Sources-Integration container can use.
+  displayName: Sources CPU Limit
   name: CPU_LIMIT
   required: true
   value: '1'

@@ -179,12 +179,12 @@ parameters:
   value: "platform.sources.event-stream"
 - description: Hostname for Sources API service
   displayName: Sources host
-  name: SOURCES_HOST
+  name: SOURCES_API_HOST
   required: true
   value: localhost
 - description: Port number for Sources service
   displayName: Sources port
-  name: SOURCES_PORT
+  name: SOURCES_API_PORT
   required: true
   value: "3000"
 - description: Hostname for Redis service
@@ -229,7 +229,7 @@ parameters:
   value: koku.koku.svc.cluster.local
 - description: Port number for Koku service
   displayName: Koku port
-  name: Koku_PORT
+  name: KOKU_PORT
   required: true
   value: "8080"
 - description: Hostname for RBAC Auth service
