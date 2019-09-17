@@ -22,6 +22,7 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external import AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER, OPENSHIFT_CONTAINER_PLATFORM
@@ -157,6 +158,11 @@ class OCPCloudReportSummaryUpdater:
             with schema_context(self._schema_name):
                 aws_bill_ids = [str(bill.id) for bill in aws_bills]
 
+            with CostModelDBAccessor(self._schema_name, aws_uuid,
+                                     self._column_map) as cost_model_accessor:
+                markup = cost_model_accessor.get_markup()
+                markup_value = float(markup.get('value', 0)) / 100
+
             # OpenShift on AWS
             with AWSReportDBAccessor(self._schema_name, self._column_map) as accessor:
                 LOG.info('Updating OpenShift on AWS summary table for '
@@ -170,6 +176,7 @@ class OCPCloudReportSummaryUpdater:
                     cluster_id,
                     aws_bill_ids
                 )
+                accessor.populate_ocp_on_aws_markup_cost(markup_value, aws_bill_ids)
         else:
             LOG.info('Provider: %s is not part of an OCP-on-AWS configuration.', self._provider.name)
 
