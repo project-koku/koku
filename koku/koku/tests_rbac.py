@@ -363,7 +363,7 @@ class RbacServiceTest(TestCase):
             'provider': rw_access,
             'rate': rw_access,
             'aws.account': op_access,
-            'azure.subscription_guid': op_access,
+            'azure.subscription_guid': no_access,
             'openshift.cluster': no_access,
             'openshift.node': no_access,
             'openshift.project': no_access
