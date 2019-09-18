@@ -278,7 +278,7 @@ class CostModelSerializer(serializers.Serializer):
     def validate_source_type(self, value):
         """Validate that the source type is acceptable."""
         if value not in self.metric_map.keys():
-            raise serializers.ValidationError('{} is not a valide source.'.format(value))
+            raise serializers.ValidationError('{} is not a valid source.'.format(value))
         return value
 
     def _get_metric_display_data(self, source_type, metric):
