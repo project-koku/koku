@@ -1,8 +1,11 @@
 """Data export uploader."""
+import logging
 from abc import ABC, abstractmethod
 
 import boto3
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class UploaderInterface(ABC):
@@ -48,3 +51,9 @@ class AwsS3Uploader(UploaderInterface):
         """
         if settings.ENABLE_S3_ARCHIVING:
             self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
+        else:
+            logger.info(
+                'Skipping upload of %s to %s; upload feature is disabled',
+                local_path,
+                self.s3_bucket_name,
+            )
