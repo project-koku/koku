@@ -883,6 +883,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             day=1, hour=0, minute=0, second=0, microsecond=0
         ) + relativedelta.relativedelta(months=-1)
 
-        update_cost_summary_table(self.schema, provider_aws_uuid, None)
+        update_cost_summary_table(self.schema, provider_aws_uuid, start_date=start_date)
 
         mock_update.assert_called()
