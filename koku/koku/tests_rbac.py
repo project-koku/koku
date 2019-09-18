@@ -249,6 +249,7 @@ class RbacServiceTest(TestCase):
             'provider': rw_access,
             'rate': rw_access,
             'aws.account': read_access,
+            'azure.subscription_guid': read_access,
             'openshift.cluster': read_access,
             'openshift.node': read_access,
             'openshift.project': read_access
@@ -265,6 +266,7 @@ class RbacServiceTest(TestCase):
             'provider': rw_access,
             'rate': rw_access,
             'aws.account': read_access,
+            'azure.subscription_guid': read_access,
             'openshift.cluster': read_access,
             'openshift.node': read_access,
             'openshift.project': read_access
@@ -311,6 +313,7 @@ class RbacServiceTest(TestCase):
             'provider': rw_access,
             'rate': rw_access,
             'aws.account': read_access,
+            'azure.subscription_guid': read_access,
             'openshift.cluster': read_access,
             'openshift.node': read_access,
             'openshift.project': read_access
@@ -337,6 +340,7 @@ class RbacServiceTest(TestCase):
             'provider': op_access,
             'rate': no_rw_access,
             'aws.account': no_access,
+            'azure.subscription_guid': no_access,
             'openshift.cluster': no_access,
             'openshift.node': no_access,
             'openshift.project': no_access
@@ -358,6 +362,7 @@ class RbacServiceTest(TestCase):
             'provider': rw_access,
             'rate': rw_access,
             'aws.account': op_access,
+            'azure.subscription_guid': op_access,
             'openshift.cluster': no_access,
             'openshift.node': no_access,
             'openshift.project': no_access
@@ -385,6 +390,7 @@ class RbacServiceTest(TestCase):
             'provider': {'write': [], 'read': []},
             'rate': {'write': [], 'read': []},
             'aws.account': {'read': ['123456']},
+            'azure.subscription_guid': {'read': []},
             'openshift.cluster': {'read': []},
             'openshift.node': {'read': []},
             'openshift.project': {'read': []}
