@@ -18,6 +18,7 @@
 
 import random
 from decimal import Decimal, ROUND_HALF_UP
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -1378,3 +1379,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    @patch('api.report.azure.query_handler.update_query_parameters_for_azure')
+    def test_access_param(self, mocked):
+        """Test that query params are updated when access param is present."""
+        AzureReportQueryHandler({}, '', self.tenant, report_type='costs',
+                                access='my fake access')
+        mocked.assert_called()
