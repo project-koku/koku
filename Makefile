@@ -288,6 +288,17 @@ oc-create-masu:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
+oc-create-sources: OC_OBJECT := 'bc/$(NAME)-sources dc/$(NAME)-sources'
+oc-create-sources: OC_PARAMETER_FILE := sources.env
+oc-create-sources: OC_TEMPLATE_FILE := sources.yaml
+oc-create-sources: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
+oc-create-sources:
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
+
 oc-create-rabbitmq: OC_OBJECT := statefulsets/rabbitmq
 oc-create-rabbitmq: OC_PARAMETER_FILE := rabbitmq.env
 oc-create-rabbitmq: OC_TEMPLATE_FILE := rabbitmq.yaml
