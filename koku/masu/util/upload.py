@@ -28,7 +28,9 @@ def get_upload_path(account_name, provider_type, date, table_name, daily=False):
             year=date.year, month=date.month, day=date.day
         )
     else:
-        date_part = '{year}/{month:02d}'.format(year=date.year, month=date.month)
+        # Note: "00" is a magic path segment we use to indicate files that
+        # are relevant to the month but not to a specific day in that month.
+        date_part = '{year}/{month:02d}/00'.format(year=date.year, month=date.month)
     upload_path = (
         '{bucket_path}/{account_name}/{provider_type}/'
         '{date_part}/{table_name}.csv.gz'.format(
