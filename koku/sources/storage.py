@@ -29,9 +29,11 @@ class SourcesStorageError(Exception):
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    if provider.source_type == 'AWS':
+    if provider.source_type in ('AWS', 'AZURE'):
         if (provider.source_id and provider.name and provider.auth_header
                 and provider.billing_source and not provider.koku_uuid):
+            print(f'Authentication Type: {type(provider.authentication)}')
+            print(f'Billing Type: {type(provider.billing_source)}')
             provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
     else:
         if (provider.source_id and provider.name
@@ -176,19 +178,33 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         query = Sources.objects.get(source_id=source_id)
         query.name = name
         query.source_type = source_type
+        print(f'authentication type: {type(authentication)}')
         query.authentication = authentication
         query.save()
     except Sources.DoesNotExist:
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
-def add_provider_billing_source(source_id, billing_source):
+def add_subscription_id_to_credentials(source_id, subscription_id):
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        if query.source_type not in ('AZURE',):
+            raise SourcesStorageError('Source is not AZURE.')
+        auth_dict = query.authentication
+        auth_dict['credentials']['subscription_id'] = subscription_id
+        query.authentication = auth_dict
+        query.save()
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
+
+
+def add_provider_billing_source(source_id, billing_source, subscription_id=None):
     """
     Add AWS billing source to Sources database object.
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        billign_source (String) - S3 bucket
+        billing_source (String) - S3 bucket
 
     Returns:
         None
@@ -196,8 +212,14 @@ def add_provider_billing_source(source_id, billing_source):
     """
     try:
         query = Sources.objects.get(source_id=source_id)
-        if query.source_type != 'AWS':
-            raise SourcesStorageError('Source is not AWS.')
+        if query.source_type not in ('AWS', 'AZURE'):
+            raise SourcesStorageError('Source is not AWS nor AZURE.')
+        if subscription_id:
+            if query.source_type not in ('AZURE',):
+                raise SourcesStorageError('Source is not AZURE.')
+            auth_dict = query.authentication
+            auth_dict['credentials']['subscription_id'] = subscription_id
+            query.authentication = auth_dict
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:

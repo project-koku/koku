@@ -105,7 +105,7 @@ class SourcesHTTPClient:
         authentications_internal_response = r.json()
         password = authentications_internal_response.get('password')
 
-        azure_credentials = {'credentials': {'client_id': data_dict.get('username'),
-                                             'client_secret': password,
-                                             'tenant_id': data_dict.get('extra').get('azure').get('tenant_id')}}
+        azure_credentials = {'client_id': data_dict.get('username'),
+                             'client_secret': password,
+                             'tenant_id': data_dict.get('extra').get('azure').get('tenant_id')}
         return azure_credentials

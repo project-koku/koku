@@ -149,13 +149,13 @@ def _sources_network_info_sync(source_id, auth_header):
 
     if source_type_id == 1:
         source_type = 'OCP'
-        authentication = source_details.get('uid')
+        authentication = {'resource_name': source_details.get('uid')}
     elif source_type_id == 2:
         source_type = 'AWS'
-        authentication = sources_network.get_aws_role_arn()
+        authentication = {'resource_name': sources_network.get_aws_role_arn()}
     elif source_type_id == 3:
         source_type = 'AZURE'
-        authentication = sources_network.get_azure_credentials()
+        authentication = {'credentials': sources_network.get_azure_credentials()}
         print(f'AZURE Authentication: {str(authentication)}')
     else:
         LOG.error(f'Unexpected source type ID: {source_type_id}')

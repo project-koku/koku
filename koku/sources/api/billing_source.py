@@ -24,7 +24,7 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.storage import SourcesStorageError, add_provider_billing_source
+from sources.storage import SourcesStorageError, add_provider_billing_source, add_subscription_id_to_credentials
 
 
 @api_view(http_method_names=['POST'])
@@ -33,8 +33,12 @@ from sources.storage import SourcesStorageError, add_provider_billing_source
 def billing_source(request):
     """Create billing source for AWS sources."""
     request_data = request.data
+    subscription_id = None
     try:
-        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
+        if request_data.get('credentials'):
+            subscription_id = request_data.get('credentials').get('subscription_id')
+            # add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
+        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'), subscription_id)
         response = request_data
         status_code = status.HTTP_201_CREATED
     except SourcesStorageError as error:

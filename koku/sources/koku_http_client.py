@@ -16,6 +16,7 @@
 #
 """Koku HTTP Client."""
 import requests
+import json
 from requests.exceptions import RequestException
 from sources.config import Config
 
@@ -41,17 +42,35 @@ class KokuHTTPClient:
         header = {'x-rh-identity': auth_header, 'sources-client': 'True'}
         self._identity_header = header
 
+    @staticmethod
+    def _get_dict_from_text_field(value):
+        try:
+            db_dict = json.loads(value)
+        except ValueError:
+            db_dict = {}
+        return db_dict
+
     def create_provider(self, name, provider_type, authentication, billing_source):
         """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
         json_data = {'name': name, 'type': provider_type}
+        auth_value = None
+        if authentication.get('resource_name'):
+            auth_value = authentication.get('resource_name')
+            provider_resource_name = {'provider_resource_name': auth_value}
+            json_data['authentication'] = provider_resource_name
+        elif authentication.get('credentials'):
+            auth_value = authentication.get('credentials')
+            credential_name = {'credentials': auth_value}
+            json_data['authentication'] = credential_name
 
-        provider_resource_name = {'provider_resource_name': authentication}
-        json_data['authentication'] = provider_resource_name
-
-        bucket = {'bucket': billing_source if billing_source else ''}
-        json_data['billing_source'] = bucket
-
+        if billing_source.get('data_source'):
+            billing_value = billing_source
+            json_data['billing_source'] = billing_value
+        else:
+            bucket = {'bucket': billing_source if billing_source else ''}
+            json_data['billing_source'] = bucket
+        print('JSON DATA: ', str(json_data))
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:
