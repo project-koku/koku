@@ -38,8 +38,7 @@ class KokuHTTPClient:
     def __init__(self, auth_header):
         """Initialize the client."""
         self._base_url = Config.KOKU_API_URL
-        header = {}
-        header['x-rh-identity'] = auth_header
+        header = {'x-rh-identity': auth_header, 'sources-client': 'True'}
         self._identity_header = header
 
     def create_provider(self, name, provider_type, authentication, billing_source):
@@ -68,5 +67,6 @@ class KokuHTTPClient:
             response = requests.delete(url, headers=self._identity_header)
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to delete provider. Connection Error: ', str(conn_err))
-
+        if response.status_code != 204:
+            raise KokuHTTPClientError('Unable to remove koku provider. Response: ', str(response.status_code))
         return response

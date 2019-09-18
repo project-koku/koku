@@ -15,10 +15,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the AWS Query Handler."""
+from uuid import uuid4
+
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 
 from api.report.access_utils import (update_query_parameters_for_aws,
+                                     update_query_parameters_for_azure,
                                      update_query_parameters_for_openshift)
 
 
@@ -112,6 +115,108 @@ class AwsAccessUtilsTest(TestCase):
         out = update_query_parameters_for_aws(query_parameters, access)
         expected = {
             'filter': {'account': ['account1'], 'region': ['*']}
+        }
+        self.assertEqual(expected, out)
+
+
+class AzureAccessUtilsTest(TestCase):
+    """Test the azure access utils functions."""
+
+    def setUp(self):
+        """Test setup."""
+        super().setUp()
+        self.guid1 = uuid4()
+        self.guid2 = uuid4()
+        self.guid3 = uuid4()
+        self.guid4 = uuid4()
+
+    def test_update_query_parameters_with_wildcard(self):
+        """Test wildcard doesn't update query parameters."""
+        query_parameters = {
+            'group_by': {'subscription_guid': ['*'], 'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': ['*']}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        self.assertEqual(query_parameters, out)
+
+    def test_update_query_parameters_replace_wildcard(self):
+        """Test that a group by guid wildcard is replaced with only the subset of guids."""
+        query_parameters = {
+            'group_by': {'subscription_guid': ['*'], 'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': [self.guid1, self.guid2]}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        expected = {
+            'group_by': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
+        }
+        self.assertEqual(expected, out)
+
+    def test_update_query_parameters_gb_filtered_intersection(self):
+        """Test that a group by guid filtered list is replaced with only intersection of guids."""
+        query_parameters = {
+            'group_by': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': [self.guid1, self.guid3]}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        expected = {
+            'group_by': {'subscription_guid': [self.guid1], 'resource_location': ['*']}
+        }
+        self.assertEqual(expected, out)
+
+    def test_update_query_parameters_empty_intersection(self):
+        """Test that a group by guid filtered list causes 403 when empty intersection of guids."""
+        query_parameters = {
+            'group_by': {'subscription_guid': [self.guid1, self.guid3], 'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': [self.guid2, self.guid4]}
+        }
+        with self.assertRaises(PermissionDenied):
+            update_query_parameters_for_azure(query_parameters, access)
+
+    def test_update_query_parameters_add_subscription_guid_filter(self):
+        """Test that if no group_by or filter is present a filter of subscription_guids is added."""
+        query_parameters = {
+            'filter': {'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': [self.guid1, self.guid2]}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        expected = {
+            'filter': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
+        }
+        self.assertEqual(expected, out)
+
+    def test_update_query_parameters_add_subscription_guid_filter_obj(self):
+        """Test that if no group_by or filter is present a filter of subscription_guids is added."""
+        query_parameters = {}
+        access = {
+            'azure.subscription_guid': {'read': [self.guid1, self.guid2]}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        expected = {
+            'filter': {'subscription_guid': [self.guid1, self.guid2]}
+        }
+        self.assertEqual(expected, out)
+
+    def test_update_query_parameters_filtered_intersection(self):
+        """Test that a filter by guid filtered list is replaced with only intersection of guids."""
+        query_parameters = {
+            'filter': {'subscription_guid': [self.guid1, self.guid2], 'resource_location': ['*']}
+        }
+        access = {
+            'azure.subscription_guid': {'read': [self.guid1, self.guid3]}
+        }
+        out = update_query_parameters_for_azure(query_parameters, access)
+        expected = {
+            'filter': {'subscription_guid': [self.guid1], 'resource_location': ['*']}
         }
         self.assertEqual(expected, out)
 

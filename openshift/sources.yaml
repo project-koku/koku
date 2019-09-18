@@ -1,0 +1,430 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: sources-template
+  annotations:
+    openshift.io/display-name: "Sources Integration"
+    description: "App and API for Koku integration with Platform-Sources"
+    tags: "python,django"
+    iconClass: "icon-python"
+    openshift.io/long-description: "This template defines resources needed to run the Sources integration service, including a build configuration and an application deployment configuration."
+    openshift.io/provider-display-name: "Red Hat, Inc."
+    openshift.io/documentation-url: "https://koku.readthedocs.io/en/latest/"
+labels:
+  app: koku
+  template: koku-sources
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${NAME}-db", "kind": "Service"}]'
+    name: ${NAME}-sources
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      name: ${NAME}-sources
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${NAME}-sources
+  spec:
+    replicas: 1
+    selector:
+      name: ${NAME}-sources
+    resources:
+      requests:
+        cpu: ${CPU_REQUEST}
+        memory: ${MEMORY_REQUEST}
+      limits:
+        cpu: ${CPU_LIMIT}
+        memory: ${MEMORY_LIMIT}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+          name: ${NAME}-sources
+        name: ${NAME}-sources
+      spec:
+        containers:
+        - name: ${NAME}-sources
+          image: ${NAME}-sources
+          volumeMounts:
+          - name: ssl-cert
+            mountPath: /etc/ssl/certs
+            readOnly: true
+          env:
+            - name: DISABLE_MIGRATE
+              value: "true"
+            - name: SOURCES
+              value: "true"
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  key: database-user
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: database-password
+                  name: ${NAME}-db
+                  optional: false
+            - name: DATABASE_SERVICE_CERT
+              valueFrom:
+                secretKeyRef:
+                  key: database-client-cert
+                  name: ${NAME}-db
+                  optional: true
+            - name: DJANGO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: django-secret-key
+                  name: ${NAME}-secret
+                  optional: false
+            - name: DATABASE_ENGINE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-engine
+                  optional: false
+            - name: DATABASE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-name
+                  optional: false
+            - name: DATABASE_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-db
+                  key: database-service-name
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-host
+                  optional: false
+            - name: POSTGRES_SQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: koku-db
+                  key: database-port
+                  optional: false
+            - name: DJANGO_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: django-debug
+                  optional: false
+            - name: KOKU_API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: api-path-prefix
+                  optional: false
+            - name: KOKU_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: koku-host
+                  optional: false
+            - name: KOKU_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: koku-port
+                  optional: false
+            - name: APP_NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: APP_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-domain
+                  optional: true
+            - name: DEVELOPMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: development
+                  optional: true
+            - name: DJANGO_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-level
+                  optional: true
+            - name: DJANGO_LOG_FORMATTER
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-formatter
+                  optional: true
+            - name: DJANGO_LOG_HANDLERS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-handlers
+                  optional: true
+            - name: DJANGO_LOG_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-log-directory
+                  optional: true
+            - name: DJANGO_LOGGING_FILE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: django-logging-file
+                  optional: true
+            - name: SOURCES_KAFKA_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-host
+                  optional: false
+            - name: SOURCES_KAFKA_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-port
+                  optional: false
+            - name: SOURCES_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-kafka-topic
+                  optional: false
+            - name: SOURCES_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-host
+                  optional: false
+            - name: SOURCES_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-sources
+                  key: sources-port
+                  optional: false
+            - name: RETRY_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-messaging
+                  key: kafka-retry-interval
+                  optional: false
+            - name: LOG_LEVELKOKU_API_PATH_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-logging
+                  key: masu-log-level
+                  optional: true
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: true
+            - name: DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-debug
+                  key: debug
+                  optional: true
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: app-namespace
+                  optional: true
+            - name: CW_AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-access-key-id
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-secret-access-key
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-aws-region
+                  name: ${NAME}-aws
+                  optional: true
+            - name: CW_LOG_GROUP
+              valueFrom:
+                secretKeyRef:
+                  key: cloudwatch-log-group
+                  name: ${NAME}-aws
+                  optional: true
+            - name: POD_CPU_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}-sources
+                  resource: requests.cpu
+            - name: POD_CPU_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}-sources
+                  resource: limits.cpu
+            - name: POD_MEMORY_REQUEST
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}-sources
+                  resource: requests.memory
+            - name: POD_MEMORY_LIMIT
+              valueFrom:
+                resourceFieldRef:
+                  containerName: ${NAME}-sources
+                  resource: limits.memory
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: ${API_PATH_PREFIX}/v1/status/?liveness
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: ${API_PATH_PREFIX}/v1/status/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: ${CPU_REQUEST}
+              memory: ${MEMORY_REQUEST}
+            limits:
+              cpu: ${CPU_LIMIT}
+              memory: ${MEMORY_LIMIT}
+        volumes:
+        - name: ssl-cert
+          projected:
+            sources:
+            - secret:
+                name: ${NAME}-db
+                items:
+                  - key: database-client-cert
+                    path: server.pem
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ${NAME}-sources
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:latest
+      type: ImageChange
+
+parameters:
+- description: The name assigned to all frontend objects defined in this template.
+  displayName: Name
+  name: NAME
+  required: true
+  value: koku
+- description: The OpenShift Namespace where the ImageStream resides.
+  displayName: Namespace
+  name: NAMESPACE
+  required: true
+  value: koku
+- description: Initial amount of memory the Sources-Integration container will request.
+  displayName: Sources Memory Request
+  name: MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the Sources-Integration container can use.
+  displayName: Sources Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: Initial amount of CPU the Sources-Integration container will request.
+  displayName: Sources CPU Limit
+  name: CPU_REQUEST
+  required: true
+  value: '500m'
+- description: Maximum amount of CPU the Sources-Integration container can use.
+  displayName: Sources CPU Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- description: Initial amount of memory the build container will request.
+  displayName: Build Memory Request
+  name: BUILD_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- description: Maximum amount of memory the build container can use.
+  displayName: Build Memory Limit
+  name: BUILD_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- description: The custom PyPi index URL
+  displayName: Custom PyPi Index URL
+  name: PIP_INDEX_URL
+  required: false
+- description: The custom PipEnv PyPi index URL
+  displayName: Custom PipEnv PyPi Index URL
+  name: PIPENV_PYPI_MIRROR
+  required: false
+- description: Github trigger secret.  A difficult to guess string encoded as part
+    of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: GITHUB_WEBHOOK_SECRET
+  required: false
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: SOURCE_REPOSITORY_URL
+  required: true
+  value: https://github.com/project-koku/koku.git
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: SOURCE_REPOSITORY_REF
+  required: false
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository.
+  displayName: Context Directory
+  name: CONTEXT_DIR
+  required: false
+- description: The exposed hostname that will route to the app service, if left
+    blank a value will be defaulted.
+  displayName: Application Hostname
+  name: APPLICATION_DOMAIN
+  required: false
+- displayName: API path prefix
+  value: '/api'
+  name: API_PATH_PREFIX

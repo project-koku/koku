@@ -16,9 +16,9 @@
 #
 """Test the Azure Provider query handler."""
 
-import logging
 import random
 from decimal import Decimal, ROUND_HALF_UP
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import UUID
 
@@ -34,8 +34,6 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AzureCostEntryLineItemDailySummary,
                               AzureCostEntryProductService)
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):
@@ -1053,7 +1051,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
                     self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreater(value.get('usage', {}), Decimal(0))
+                    self.assertGreaterEqual(value.get('usage', {}).quantize(
+                        Decimal('.0001'), ROUND_HALF_UP), Decimal(0))
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
@@ -1380,3 +1379,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    @patch('api.report.azure.query_handler.update_query_parameters_for_azure')
+    def test_access_param(self, mocked):
+        """Test that query params are updated when access param is present."""
+        AzureReportQueryHandler({}, '', self.tenant, report_type='costs',
+                                access='my fake access')
+        mocked.assert_called()

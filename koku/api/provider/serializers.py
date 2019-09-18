@@ -27,7 +27,8 @@ from api.iam.serializers import (AdminCustomerSerializer,
                                  UserSerializer)
 from api.provider.models import (Provider,
                                  ProviderAuthentication,
-                                 ProviderBillingSource)
+                                 ProviderBillingSource,
+                                 Sources)
 
 LOG = logging.getLogger(__name__)
 
@@ -164,6 +165,14 @@ class ProviderSerializer(serializers.ModelSerializer):
         unique_count = Provider.objects.filter(authentication=auth)\
             .filter(billing_source=bill).count()
         if unique_count != 0:
+            existing_provider = Provider.objects.filter(authentication=auth)\
+                .filter(billing_source=bill).first()
+            source_query = Sources.objects.filter(authentication=auth.provider_resource_name)
+            if source_query.exists():
+                source_obj = source_query.first()
+                source_obj.koku_uuid = existing_provider.uuid
+                source_obj.save()
+                return existing_provider
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
 
