@@ -244,7 +244,31 @@ async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
         await consumer.stop()
 
 
-def execute_koku_provider_op(msg):
+def execute_koku_provider_op_sync(msg):
+    """Execute the 'create' or 'destroy Koku-Provider operations synchronously."""
+    provider = msg.get('provider')
+    operation = msg.get('operation')
+    koku_client = KokuHTTPClient(provider.auth_header)
+    try:
+        if operation == 'create':
+            LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
+            koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
+                                                       provider.billing_source)
+            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
+            storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
+        elif operation == 'destroy':
+            if provider.koku_uuid:
+                response = koku_client.destroy_provider(provider.koku_uuid)
+                LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
+            storage.destroy_provider_event(provider.source_id)
+    except KokuHTTPClientError as koku_error:
+        raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
+    except KokuHTTPClientNonRecoverableError as koku_error:
+        err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
+        LOG.error(err_msg)
+
+
+async def execute_koku_provider_op(msg):
     """
     Execute the 'create' or 'destroy Koku-Provider operations.
 
@@ -267,26 +291,7 @@ def execute_koku_provider_op(msg):
         None
 
     """
-    provider = msg.get('provider')
-    operation = msg.get('operation')
-    koku_client = KokuHTTPClient(provider.auth_header)
-    try:
-        if operation == 'create':
-            LOG.info(f'Creating Koku Provider for Source ID: {str(provider.source_id)}')
-            koku_details = koku_client.create_provider(provider.name, provider.source_type, provider.authentication,
-                                                       provider.billing_source)
-            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} assigned to Source ID {str(provider.source_id)}.')
-            storage.add_provider_koku_uuid(provider.source_id, koku_details.get('uuid'))
-        elif operation == 'destroy':
-            if provider.koku_uuid:
-                response = koku_client.destroy_provider(provider.koku_uuid)
-                LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
-            storage.destroy_provider_event(provider.source_id)
-    except KokuHTTPClientError as koku_error:
-        raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
-    except KokuHTTPClientNonRecoverableError as koku_error:
-        err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
-        LOG.error(err_msg)
+    execute_koku_provider_op_sync(msg)
 
 
 async def synchronize_sources(process_queue):  # pragma: no cover
@@ -313,7 +318,7 @@ async def synchronize_sources(process_queue):  # pragma: no cover
     while True:
         msg = await process_queue.get()
         try:
-            execute_koku_provider_op(msg)
+            await execute_koku_provider_op(msg)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
