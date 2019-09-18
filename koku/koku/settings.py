@@ -113,13 +113,18 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.cache.FetchFromCacheMiddleware',
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
+
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value('CACHE_TIMEOUT', default=3600)
 
 DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
 if DEVELOPMENT:
@@ -176,7 +181,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         },
         "rbac": {
@@ -184,7 +190,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         }
     }
