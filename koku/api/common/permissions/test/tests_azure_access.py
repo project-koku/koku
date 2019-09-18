@@ -45,7 +45,7 @@ class AzureAccessPermissionTest(TestCase):
 
     def test_has_perm_with_access_on_get(self):
         """Test that a user with access can execute."""
-        access = {'azure.account': {'read': ['*']}}
+        access = {'azure.subscription_guid': {'read': ['*']}}
         user = Mock(spec=User, access=access, admin=False)
         req = Mock(user=user, method='GET')
         access_perm = AzureAccessPermission()
@@ -54,7 +54,7 @@ class AzureAccessPermissionTest(TestCase):
 
     def test_has_perm_with_access_on_put(self):
         """Test that a user with access can execute."""
-        access = {'azure.account': {'read': ['*']}}
+        access = {'azure.subscription_guid': {'read': ['*']}}
         user = Mock(spec=User, access=access, admin=False)
         req = Mock(user=user, method='PUT')
         access_perm = AzureAccessPermission()

@@ -22,6 +22,7 @@ from django.db.models import (F, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
+from api.report.access_utils import update_query_parameters_for_azure
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -45,6 +46,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
         provider = 'AZURE'
 
         self._initialize_kwargs(kwargs)
+
+        if kwargs.get('access'):
+            query_parameters = update_query_parameters_for_azure(query_parameters,
+                                                                 kwargs.get('access'))
 
         # do not override mapper if its already set
         try:
