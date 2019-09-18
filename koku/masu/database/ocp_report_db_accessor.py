@@ -597,11 +597,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 markup_cost=((F('pod_charge_cpu_core_hours')
                               + F('pod_charge_memory_gigabyte_hours')
                               + F('persistentvolumeclaim_charge_gb_month')) * ocp_markup
-                              + F('infra_cost') * aws_markup)
+                             + F('infra_cost') * aws_markup)
             )
             CostSummary.objects.filter(cluster_id=cluster_id).update(
                 project_markup_cost=((F('pod_charge_cpu_core_hours')
                                       + F('pod_charge_memory_gigabyte_hours')
                                       + F('persistentvolumeclaim_charge_gb_month')) * ocp_markup
-                                      + F('project_infra_cost') * aws_markup)
+                                     + F('project_infra_cost') * aws_markup)
             )

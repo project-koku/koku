@@ -197,11 +197,11 @@ class OCPCloudReportSummaryUpdater:
         infra_map = self._get_ocp_infra_map(start_date, end_date)
         aws_uuid = self._get_aws_provider_uuid_from_map(self._provider, infra_map)
         with CostModelDBAccessor(self._schema_name, aws_uuid,
-                                    self._column_map) as cost_model_accessor:
+                                 self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             aws_markup_value = float(markup.get('value', 0)) / 100
         with CostModelDBAccessor(self._schema_name, self._provider.uuid,
-                                    self._column_map) as cost_model_accessor:
+                                 self._column_map) as cost_model_accessor:
             markup = cost_model_accessor.get_markup()
             ocp_markup_value = float(markup.get('value', 0)) / 100
 
