@@ -56,7 +56,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
-
+describe_cost_management_exports
         """
         super().__init__(**kwargs)
 
@@ -65,6 +65,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not kwargs.get('is_local'):
             self._azure_client = self._get_azure_client(auth_credential, billing_source)
             export_reports = self._azure_client.describe_cost_management_exports()
+            LOG.info('Found Azure Reports: ', str(export_reports))
             export_report = export_reports[0] if export_reports else {}
 
             self.export_name = export_report.get('name')
