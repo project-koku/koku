@@ -136,8 +136,25 @@ def get_sources_msg_data(msg, app_type_id):
     return msg_data
 
 
-def _sources_network_info_sync(source_id, auth_header):
-    """Get sources context synchronously."""
+def sources_network_info(source_id, auth_header):
+    """
+    Get additional sources context from Sources REST API.
+
+    Additional details retrieved from the network includes:
+        - Source Name
+        - Source ID Type -> AWS, Azure, or OCP
+        - Authentication: OCP -> Source uid; AWS -> Network call to Sources Authentication Store
+
+    Details are stored in the Sources database table.
+
+    Args:
+        source_id (Integer): Source identifier
+        auth_header (String): Authentication Header.
+
+    Returns:
+        None
+
+    """
     sources_network = SourcesHTTPClient(auth_header, source_id)
     try:
         source_details = sources_network.get_source_details()
@@ -162,28 +179,6 @@ def _sources_network_info_sync(source_id, auth_header):
         return
 
     storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
-
-
-async def sources_network_info(source_id, auth_header):  # pragma: no cover
-    """
-    Get additional sources context from Sources REST API.
-
-    Additional details retrieved from the network includes:
-        - Source Name
-        - Source ID Type -> AWS, Azure, or OCP
-        - Authentication: OCP -> Source uid; AWS -> Network call to Sources Authentication Store
-
-    Details are stored in the Sources database table.
-
-    Args:
-        source_id (Integer): Source identifier
-        auth_header (String): Authentication Header.
-
-    Returns:
-        None
-
-    """
-    _sources_network_info_sync(source_id, auth_header)
 
 
 async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
@@ -219,7 +214,10 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
                                           msg_data.get('offset'))
-            await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                 msg_data.get('source_id'),
+                                                 msg_data.get('auth_header'))
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 

@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Koku HTTP Client."""
-import requests
 import json
+
+import requests
 from requests.exceptions import RequestException
 from sources.config import Config
 
@@ -63,7 +64,7 @@ class KokuHTTPClient:
         if authentication.get('credentials'):
             auth = {'credentials': authentication.get('credentials')}
         else:
-            raise KokuHTTPClientError("Missing credentials")
+            raise KokuHTTPClientError('Missing credentials')
         return auth
 
     def _authentication_for_aws(self, authentication):

@@ -71,7 +71,7 @@ class SourcesStorageTest(TestCase):
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertIsNone(test_source.name)
         self.assertEqual(test_source.source_type, '')
-        self.assertEqual(test_source.authentication, '')
+        self.assertEqual(test_source.authentication, {})
 
         test_name = 'My Source Name'
         source_type = 'AWS'

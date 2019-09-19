@@ -140,7 +140,7 @@ class ProviderSerializerTest(IamTestCase):
         sources = Sources.objects.create(source_id=1,
                                          auth_header='testheader',
                                          offset=1,
-                                         authentication=cluster_id)
+                                         authentication={'resource_name': cluster_id})
         sources.save()
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)

@@ -264,12 +264,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': authentication})
 
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, 'AWS')
-        self.assertEqual(source_obj.authentication, authentication)
+        self.assertEqual(source_obj.authentication, {'resource_name': authentication})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_info_sync_ocp(self):
@@ -287,12 +287,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
 
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, 'OCP')
-        self.assertEqual(source_obj.authentication, source_uid)
+        self.assertEqual(source_obj.authentication, {'resource_name': source_uid})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_info_sync_connection_error(self):
@@ -308,9 +308,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   exc=SourcesHTTPClientError)
 
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertIsNone(source_obj.name)
         self.assertEquals(source_obj.source_type, '')
-        self.assertEquals(source_obj.authentication, '')
+        self.assertEquals(source_obj.authentication, {})

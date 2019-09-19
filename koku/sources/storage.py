@@ -211,6 +211,17 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
 
 
 def add_subscription_id_to_credentials(source_id, subscription_id):
+    """
+    Add AZURE subscription_id Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        subscription_id (String) - Subscription ID
+
+    Returns:
+        None
+
+    """
     try:
         query = Sources.objects.get(source_id=source_id)
         if query.source_type not in ('AZURE',):
