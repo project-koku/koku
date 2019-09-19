@@ -281,7 +281,7 @@ class ReportObjectCreator:
             return dt
         return timezone.make_aware(dt)
 
-    def create_cost_model(self, provider_uuid, source_type, rates):
+    def create_cost_model(self, provider_uuid, source_type, rates=[], markup={}):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['cost_model']
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
@@ -293,7 +293,8 @@ class ReportObjectCreator:
             'name': self.fake.pystr()[:8],
             'description': self.fake.pystr(),
             'source_type': source_type,
-            'rates': rates
+            'rates': rates,
+            'markup': markup
         }
 
 

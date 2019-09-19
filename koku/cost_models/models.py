@@ -50,6 +50,8 @@ class CostModel(models.Model):
 
     rates = JSONField(default=dict)
 
+    markup = JSONField(default=dict)
+
 
 class CostModelAudit(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -82,6 +84,8 @@ class CostModelAudit(models.Model):
     updated_timestamp = models.DateTimeField()
 
     rates = JSONField(default=dict)
+
+    markup = JSONField(default=dict)
 
 
 class CostModelMap(models.Model):
