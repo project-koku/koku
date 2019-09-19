@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Sources AWS and Azure billing source endpoint."""
+"""View for Sources Azure authentications endpoint."""
 
 from rest_framework import status
 from rest_framework.decorators import (api_view,
@@ -24,20 +24,23 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.storage import SourcesStorageError, add_provider_billing_source
+from sources.storage import SourcesStorageError, add_subscription_id_to_credentials
 
 
 @api_view(http_method_names=['POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def billing_source(request):
-    """Create billing source for AWS and Azure sources."""
+def authentications(request):
+    """Create Subscription-ID for Azure authentications."""
     request_data = request.data
+
     try:
-        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
+        if request_data.get('credentials'):
+            subscription_id = request_data.get('credentials').get('subscription_id')
+            add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
         response = request_data
         status_code = status.HTTP_201_CREATED
     except SourcesStorageError as error:
         response = str(error)
         status_code = status.HTTP_400_BAD_REQUEST
-    return Response({'Billing source creation:': response}, status=status_code)
+    return Response({'Azure Subscription ID creation:': response}, status=status_code)

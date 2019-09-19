@@ -15,10 +15,11 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import url
-from sources.api.views import billing_source
+from sources.api.views import authentications, billing_source
 
 
 # # pylint: disable=invalid-name
 urlpatterns = [
+    url(r'^authentications/$', authentications, name='authentications'),
     url(r'^billing_source/$', billing_source, name='billing-source'),
 ]
