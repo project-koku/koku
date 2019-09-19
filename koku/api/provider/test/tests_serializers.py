@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from api.iam.serializers import (UserSerializer,
                                  create_schema_name)
@@ -257,6 +258,52 @@ class ProviderSerializerTest(IamTestCase):
                 provider_two = serializer.save()
 
         self.assertEqual(provider_one.billing_source_id, provider_two.billing_source_id)
+
+    def test_create_gcp_provider(self):
+        """Test that the same blank billing entry is used for all OCP providers."""
+        provider = {
+            'name': 'test_provider_one',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'bucket': 'test_bucket',
+                'data_source': None
+            }
+        }
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
+    def test_create_gcp_provider_duplicate_bucket(self):
+        """Test that the same blank billing entry is used for all OCP providers."""
+        provider = {
+            'name': 'test_provider_one',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'bucket': 'test_bucket',
+                'data_source': None
+            }
+        }
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+            with self.assertRaises(ValidationError):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
 
 
 class AdminProviderSerializerTest(IamTestCase):
