@@ -35,7 +35,7 @@ def _aws_provider_ready_for_create(provider):
 
 
 def _ocp_provider_ready_for_create(provider):
-    """Determine if AWS provider is ready for provider creation."""
+    """Determine if OCP provider is ready for provider creation."""
     if (provider.source_id and provider.name
             and provider.auth_header and not provider.koku_uuid):
         return True
@@ -43,10 +43,11 @@ def _ocp_provider_ready_for_create(provider):
 
 
 def _azure_provider_ready_for_create(provider):
-    """Determine if AWS provider is ready for provider creation."""
+    """Determine if AZURE provider is ready for provider creation."""
     if (provider.source_id and provider.name and provider.auth_header
             and provider.billing_source and not provider.koku_uuid):
         billing_source = provider.billing_source.get('data_source', {})
+
         authentication = provider.authentication.get('credentials', {})
         required_auth_keys = ['client_id', 'tenant_id', 'client_secret', 'subscription_id']
         required_billing_keys = ['resource_group', 'storage_account']

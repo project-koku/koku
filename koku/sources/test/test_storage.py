@@ -25,8 +25,22 @@ from sources.storage import SourcesStorageError
 
 from api.provider.models import Sources
 
-
 faker = Faker()
+
+
+class MockProvider:
+    """Mock Provider Class."""
+
+    def __init__(self, source_id, name, source_type, auth, billing_source, auth_header, offset, koku_uuid=None):
+        """Init mock provider."""
+        self.source_id = source_id
+        self.name = name
+        self.source_type = source_type
+        self.authentication = auth
+        self.billing_source = billing_source
+        self.auth_header = auth_header
+        self.offset = offset
+        self.koku_uuid = koku_uuid
 
 
 class SourcesStorageTest(TestCase):
@@ -129,3 +143,89 @@ class SourcesStorageTest(TestCase):
             storage.add_provider_koku_uuid(self.test_source_id + 1, test_uuid)
         except Exception as error:
             self.fail(str(error))
+
+    def test_screen_and_build_provider_sync_create_event(self):
+        """Tests that provider create events are generated."""
+        test_matrix = [{'provider': MockProvider(1, 'AWS Provider', 'AWS',
+                                                 {'resource_name': 'arn:fake'},
+                                                 {'bucket': 'testbucket'},
+                                                 'authheader', 1),
+                        'expected_response': {'operation': 'create', 'offset': 1}},
+                       {'provider': MockProvider(1, 'AWS Provider', 'AWS',
+                                                 {'resource_name': 'arn:fake'},
+                                                 None,
+                                                 'authheader', 1),
+                        'expected_response': {}},
+                       {'provider': MockProvider(2, 'OCP Provider', 'OCP',
+                                                 {'resource_name': 'my-cluster-id'},
+                                                 {'bucket': ''},
+                                                 'authheader', 2),
+                        'expected_response': {'operation': 'create', 'offset': 2}},
+                       {'provider': MockProvider(2, None, 'OCP',
+                                                 {'resource_name': 'my-cluster-id'},
+                                                 {'bucket': ''},
+                                                 'authheader', 2),
+                        'expected_response': {}},
+                       {'provider': MockProvider(3, 'Azure Provider', 'AZURE',
+                                                 {'credentials': {'client_id': 'test_client_id',
+                                                                  'tenant_id': 'test_tenant_id',
+                                                                  'client_secret': 'test_client_secret',
+                                                                  'subscription_id': 'test_subscription_id'}},
+                                                 {'data_source': {'resource_group': 'test_resource_group',
+                                                                  'storage_account': 'test_storage_account'}},
+                                                 'authheader', 3),
+                        'expected_response': {'operation': 'create', 'offset': 3}}
+                       ]
+
+        for test in test_matrix:
+            response = storage.screen_and_build_provider_sync_create_event(test.get('provider'))
+
+            if response:
+                self.assertEqual(response.get('operation'), test.get('expected_response').get('operation'))
+                self.assertEqual(response.get('offset'), test.get('expected_response').get('offset'))
+            else:
+                self.assertEqual(response, {})
+
+    def test_add_subscription_id_to_credentials(self):
+        """Test to add subscription_id to AZURE credentials."""
+        test_source_id = 2
+        subscription_id = 'test_sub_id'
+        azure_obj = Sources(source_id=test_source_id,
+                            auth_header=self.test_header,
+                            offset=2,
+                            source_type='AZURE',
+                            name='Test Azure Source',
+                            authentication={'credentials': {'client_id': 'test_client',
+                                                            'tenant_id': 'test_tenant',
+                                                            'client_secret': 'test_secret'}},
+                            billing_source={'data_source': {'resource_group': 'RG1',
+                                                            'storage_account': 'test_storage'}})
+        azure_obj.save()
+        storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+
+        response_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(response_obj.authentication.get('credentials').get('subscription_id'), subscription_id)
+
+    def test_add_subscription_id_to_credentials_non_azure(self):
+        """Test to add subscription_id to a non-AZURE credentials."""
+        test_source_id = 3
+        subscription_id = 'test_sub_id'
+        ocp_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          authentication={'resource_name': 'arn:test'},
+                          billing_source={'bucket': 'test-bucket'})
+        ocp_obj.save()
+
+        with self.assertRaises(SourcesStorageError):
+            storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+
+    def test_add_subscription_id_to_credentials_non_existent(self):
+        """Test to add subscription_id to a non-existent Source."""
+        test_source_id = 4
+        subscription_id = 'test_sub_id'
+
+        with self.assertRaises(SourcesStorageError):
+            storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
