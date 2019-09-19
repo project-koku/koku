@@ -87,7 +87,7 @@ class SourcesClientDataGenerator:
         self._identity_header = header
 
     def create_s3_bucket(self, source_id, billing_source):
-        json_data = {'source_id': source_id, 'billing_source': str(billing_source)}
+        json_data = {'source_id': source_id, 'billing_source': {'bucket': billing_source}}
 
         url = '{}/{}/'.format(self._base_url, 'billing_source')
         response = requests.post(url, headers=self._identity_header, json=json_data)

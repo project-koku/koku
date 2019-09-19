@@ -26,19 +26,45 @@ class SourcesStorageError(Exception):
     """Sources Storage error."""
 
 
+def _aws_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _ocp_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (provider.source_id and provider.name
+            and provider.auth_header and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _azure_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and not provider.koku_uuid):
+        billing_source = provider.billing_source.get('data_source', {})
+        authentication = provider.authentication.get('credentials', {})
+        required_auth_keys = ['client_id', 'tenant_id', 'client_secret', 'subscription_id']
+        required_billing_keys = ['resource_group', 'storage_account']
+        if set(billing_source.keys()) == set(required_billing_keys)\
+                and set(authentication.keys()) == set(required_auth_keys):
+            return True
+    return False
+
+
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    if provider.source_type in ('AWS', 'AZURE'):
-        if (provider.source_id and provider.name and provider.auth_header
-                and provider.billing_source and not provider.koku_uuid):
-            print(f'Authentication Type: {type(provider.authentication)}')
-            print(f'Billing Type: {type(provider.billing_source)}')
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-    else:
-        if (provider.source_id and provider.name
-                and provider.auth_header and not provider.koku_uuid):
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
+    screen_map = {'AWS': _aws_provider_ready_for_create,
+                  'OCP': _ocp_provider_ready_for_create,
+                  'AZURE': _azure_provider_ready_for_create}
+    screen_fn = screen_map.get(provider.source_type)
+    if screen_fn and screen_fn(provider):
+        provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
     return provider_event
 
 
@@ -178,7 +204,6 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         query = Sources.objects.get(source_id=source_id)
         query.name = name
         query.source_type = source_type
-        print(f'authentication type: {type(authentication)}')
         query.authentication = authentication
         query.save()
     except Sources.DoesNotExist:
@@ -198,9 +223,9 @@ def add_subscription_id_to_credentials(source_id, subscription_id):
         raise SourcesStorageError('Source does not exist')
 
 
-def add_provider_billing_source(source_id, billing_source, subscription_id=None):
+def add_provider_billing_source(source_id, billing_source):
     """
-    Add AWS billing source to Sources database object.
+    Add AWS or AZURE billing source to Sources database object.
 
     Args:
         source_id (Integer) - Platform-Sources identifier
@@ -214,12 +239,6 @@ def add_provider_billing_source(source_id, billing_source, subscription_id=None)
         query = Sources.objects.get(source_id=source_id)
         if query.source_type not in ('AWS', 'AZURE'):
             raise SourcesStorageError('Source is not AWS nor AZURE.')
-        if subscription_id:
-            if query.source_type not in ('AZURE',):
-                raise SourcesStorageError('Source is not AZURE.')
-            auth_dict = query.authentication
-            auth_dict['credentials']['subscription_id'] = subscription_id
-            query.authentication = auth_dict
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:

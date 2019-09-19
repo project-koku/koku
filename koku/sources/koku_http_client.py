@@ -67,10 +67,11 @@ class KokuHTTPClient:
         if billing_source.get('data_source'):
             billing_value = billing_source
             json_data['billing_source'] = billing_value
-        else:
-            bucket = {'bucket': billing_source if billing_source else ''}
+        elif billing_source.get('bucket'):
+            bucket = {'bucket': billing_source.get('bucket')}
             json_data['billing_source'] = bucket
-        print('JSON DATA: ', str(json_data))
+        else:
+            json_data['billing_source'] = {'bucket': ''}
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:

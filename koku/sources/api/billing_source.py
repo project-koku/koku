@@ -33,12 +33,11 @@ from sources.storage import SourcesStorageError, add_provider_billing_source, ad
 def billing_source(request):
     """Create billing source for AWS sources."""
     request_data = request.data
-    subscription_id = None
     try:
         if request_data.get('credentials'):
             subscription_id = request_data.get('credentials').get('subscription_id')
-            # add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
-        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'), subscription_id)
+            add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
+        add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
         response = request_data
         status_code = status.HTTP_201_CREATED
     except SourcesStorageError as error:
