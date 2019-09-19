@@ -27,6 +27,7 @@ from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
 CURRENCY_CHOICES = (('USD', 'USD'),)
+MARKUP_CHOICES = (('percent', '%'),)
 
 
 class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -49,6 +50,19 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def display_value(self, instance):
         """Override display_value, just show uuid."""
         return instance.uuid
+
+
+class MarkupSerializer(serializers.Serializer):
+    """Serializer for cost markup."""
+
+    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
+
+    def validate_value(self, value):
+        """Check that value is a positive value."""
+        if value < 0:
+            raise serializers.ValidationError('A markup value must be positive.')
+        return str(value)
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -257,6 +271,8 @@ class CostModelSerializer(serializers.Serializer):
 
     rates = RateSerializer(required=False, many=True)
 
+    markup = MarkupSerializer(required=False)
+
     @property
     def metric_map(self):
         """Map metrics and display names."""
@@ -275,11 +291,13 @@ class CostModelSerializer(serializers.Serializer):
             internal_map[value] = key
         return internal_map
 
-    def validate_source_type(self, value):
+    def validate(self, data):
         """Validate that the source type is acceptable."""
-        if value not in self.metric_map.keys():
-            raise serializers.ValidationError('{} is not a valid source.'.format(value))
-        return value
+        if data.get('markup') and data['source_type'] in SOURCE_TYPE_MAP.keys():
+            return data
+        if data['source_type'] not in self.metric_map.keys():
+            raise serializers.ValidationError('{} is not a valid source.'.format(data['source_type']))
+        return data
 
     def _get_metric_display_data(self, source_type, metric):
         """Return API display metadata."""
