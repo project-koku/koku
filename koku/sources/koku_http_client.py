@@ -50,28 +50,83 @@ class KokuHTTPClient:
             db_dict = {}
         return db_dict
 
+    @staticmethod
+    def _build_provider_resource_name_auth(authentication):
+        if authentication.get('resource_name'):
+            auth = {'provider_resource_name': authentication.get('resource_name')}
+        else:
+            raise KokuHTTPClientError('Missing provider_resource_name')
+        return auth
+
+    @staticmethod
+    def _build_credentials_auth(authentication):
+        if authentication.get('credentials'):
+            auth = {'credentials': authentication.get('credentials')}
+        else:
+            raise KokuHTTPClientError("Missing credentials")
+        return auth
+
+    def _authentication_for_aws(self, authentication):
+        return self._build_provider_resource_name_auth(authentication)
+
+    def _authentication_for_ocp(self, authentication):
+        return self._build_provider_resource_name_auth(authentication)
+
+    def _authentication_for_azure(self, authentication):
+        return self._build_credentials_auth(authentication)
+
+    def get_authentication_for_provider(self, provider_type, authentication):
+        """Build authentication json data for provider type."""
+        provider_map = {'AWS': self._authentication_for_aws,
+                        'OCP': self._authentication_for_ocp,
+                        'AZURE': self._authentication_for_azure}
+        provider_fn = provider_map.get(provider_type)
+        if provider_fn:
+            return provider_fn(authentication)
+
+    @staticmethod
+    def _build_provider_bucket(billing_source):
+        if billing_source.get('bucket') is not None:
+            billing = {'bucket': billing_source.get('bucket')}
+        else:
+            raise KokuHTTPClientError('Missing bucket')
+        return billing
+
+    @staticmethod
+    def _build_provider_data_source(billing_source):
+        if billing_source.get('data_source'):
+            billing = {'data_source': billing_source.get('data_source')}
+        else:
+            raise KokuHTTPClientError('Missing data_source')
+        return billing
+
+    def _billing_source_for_aws(self, billing_source):
+        return self._build_provider_bucket(billing_source)
+
+    def _billing_source_for_ocp(self, billing_source):
+        billing_source['bucket'] = ''
+        return self._build_provider_bucket(billing_source)
+
+    def _billing_source_for_azure(self, billing_source):
+        return self._build_provider_data_source(billing_source)
+
+    def get_billing_source_for_provider(self, provider_type, billing_source):
+        """Build billing source json data for provider type."""
+        provider_map = {'AWS': self._billing_source_for_aws,
+                        'OCP': self._billing_source_for_ocp,
+                        'AZURE': self._billing_source_for_azure}
+        provider_fn = provider_map.get(provider_type)
+        if provider_fn:
+            return provider_fn(billing_source)
+
     def create_provider(self, name, provider_type, authentication, billing_source):
         """Koku HTTP call to create provider."""
         url = '{}/{}/'.format(self._base_url, 'providers')
-        json_data = {'name': name, 'type': provider_type}
-        auth_value = None
-        if authentication.get('resource_name'):
-            auth_value = authentication.get('resource_name')
-            provider_resource_name = {'provider_resource_name': auth_value}
-            json_data['authentication'] = provider_resource_name
-        elif authentication.get('credentials'):
-            auth_value = authentication.get('credentials')
-            credential_name = {'credentials': auth_value}
-            json_data['authentication'] = credential_name
-
-        if billing_source.get('data_source'):
-            billing_value = billing_source
-            json_data['billing_source'] = billing_value
-        elif billing_source.get('bucket'):
-            bucket = {'bucket': billing_source.get('bucket')}
-            json_data['billing_source'] = bucket
-        else:
-            json_data['billing_source'] = {'bucket': ''}
+        json_data = {'name': name, 'type': provider_type,
+                     'authentication': self.get_authentication_for_provider(provider_type,
+                                                                            authentication),
+                     'billing_source': self.get_billing_source_for_provider(provider_type,
+                                                                            billing_source)}
         try:
             r = requests.post(url, headers=self._identity_header, json=json_data)
         except RequestException as conn_err:

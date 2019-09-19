@@ -288,6 +288,7 @@ def execute_koku_provider_op(msg):
         err_msg = f'Unable to {operation} provider for Source ID: {str(provider.source_id)}. Reason: {str(koku_error)}'
         LOG.error(err_msg)
 
+
 async def synchronize_sources(process_queue):  # pragma: no cover
     """
     Synchronize Platform Sources with Koku Providers.
