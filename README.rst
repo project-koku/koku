@@ -23,7 +23,6 @@ Prerequisites
 
 * Docker
 * PostgreSQL
-* Node.js
 
 For Mac OSX
 ^^^^^^^^^^^
@@ -35,10 +34,6 @@ For Mac OSX
     Install PostgreSQL: ::
 
         brew install postgresql
-
-    Install Node.js: ::
-
-        brew install node
 
 
 Development
@@ -125,22 +120,6 @@ There is a known limitation with docker-compose and Linux environments with SELi
 If a docker container running Postgres is not feasible, it is possible to run Postgres locally as documented in the Postgres tutorial_. The default port for local Postgres installations is `5432`. Make sure to modify the `.env` file accordingly. To initialize the database run ::
 
     make run-migrations
-
-API Documentation Generation
-----------------------------
-
-Generate the project API documenttion by running the following command ::
-
-  make gen-apidoc
-
-Server
-^^^^^^
-
-Generate the API documentation and collect the static files. To run a local dev Django server, use ::
-
-    make serve
-
-Now point a browser to **http://127.0.0.1:8000/apidoc/index.html**.
 
 Testing and Linting
 -------------------
