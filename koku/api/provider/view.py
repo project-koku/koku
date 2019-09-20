@@ -23,8 +23,7 @@ from operator import and_
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
-from django.views.decorators.cache import cache_control, never_cache
-from django.views.decorators.vary import vary_on_headers
+from django.views.decorators.cache import never_cache
 from django_filters import CharFilter, FilterSet
 from django_filters.filters import BaseCSVFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -34,7 +33,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 
-from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
@@ -123,8 +121,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         """Create a Provider."""
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    @cache_control(private=True)
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -135,8 +132,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
         return response
 
-    @cache_control(private=True)
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)

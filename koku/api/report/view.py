@@ -18,8 +18,8 @@
 """View for Reports."""
 import logging
 
-from django.views.decorators.vary import vary_on_headers
 from django.utils.translation import ugettext as _
+from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
 from rest_framework import status
