@@ -425,7 +425,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .aggregate(
                     **{
                         'usage': Sum('usage_amount'),
-                        'cost': Sum('unblended_cost')
+                        'cost': Sum(F('unblended_cost') + F('markup_cost'))
                     }
                 )
 
@@ -463,7 +463,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 .aggregate(
                     **{
                         'usage': Sum('usage_amount'),
-                        'cost': Sum('unblended_cost')
+                        'cost': Sum(F('unblended_cost') + F('markup_cost'))
                     }
                 )
 

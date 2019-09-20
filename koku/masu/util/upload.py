@@ -21,6 +21,7 @@ def get_upload_path(account_name, provider_type, date, table_name, daily=False):
         daily (bool): If true, include the day of month in the path.
 
     Returns:
+        upload_path (str): Path that file should be stored at in S3.
 
     """
     if daily:
