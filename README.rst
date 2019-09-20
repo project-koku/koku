@@ -126,22 +126,6 @@ If a docker container running Postgres is not feasible, it is possible to run Po
 
     make run-migrations
 
-API Documentation Generation
-----------------------------
-
-Generate the project API documenttion by running the following command ::
-
-  make gen-apidoc
-
-Server
-^^^^^^
-
-Generate the API documentation and collect the static files. To run a local dev Django server, use ::
-
-    make serve
-
-Now point a browser to **http://127.0.0.1:8000/apidoc/index.html**.
-
 Testing and Linting
 -------------------
 
