@@ -158,7 +158,6 @@ class ProviderSerializer(serializers.ModelSerializer):
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
-
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         # We can re-use a billing source or a auth, but not the same combination.

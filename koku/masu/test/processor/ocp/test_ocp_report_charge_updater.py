@@ -24,6 +24,7 @@ import uuid
 from tenant_schemas.utils import schema_context
 
 from masu.database import OCP_REPORT_TABLE_MAP
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -567,21 +568,22 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             self.assertEqual(usage, usage_dictionary[key])
             self.assertEqual(round(float(calculated_charge), 1), entry.get('expected_charge'))
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_request_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_request_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
-    def test_update_summary_charge_info_mem_cpu(self, mock_db_mem_usage_rate, mock_db_mem_request_rate, mock_db_cpu_usage_rate, mock_db_cpu_request_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info_mem_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory."""
+        markup = {}
         mem_rate_usage = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         mem_rate_request = {'tiered_rates': [{'value': '150', 'unit': 'USD'}]}
         cpu_rate_usage = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
         cpu_rate_request = {'tiered_rates': [{'value': '250', 'unit': 'USD'}]}
+        rate_metric_map = {'cpu_core_usage_per_hour': cpu_rate_usage,
+                           'cpu_core_request_per_hour': cpu_rate_request,
+                           'memory_gb_usage_per_hour': mem_rate_usage,
+                           'memory_gb_request_per_hour': mem_rate_request}
 
-        mock_db_mem_usage_rate.return_value = mem_rate_usage
-        mock_db_mem_request_rate.return_value = mem_rate_request
-        mock_db_cpu_usage_rate.return_value = cpu_rate_usage
-        mock_db_cpu_request_rate.return_value = cpu_rate_request
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         cpu_usage_rate_value = float(cpu_rate_usage.get('tiered_rates')[0].get('value'))
         cpu_request_rate_value = float(cpu_rate_request.get('tiered_rates')[0].get('value'))
@@ -611,15 +613,18 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 cpu_charge = (cpu_usage_value * cpu_usage_rate_value) + (cpu_request_value * cpu_request_rate_value)
                 self.assertAlmostEqual(float(cpu_charge), float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
-    def test_update_summary_charge_info_cpu(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu."""
+        markup = {}
         mem_rate = None
         cpu_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
 
-        mock_db_mem_usage_rate.return_value = mem_rate
-        mock_db_cpu_usage_rate.return_value = cpu_rate
+        rate_metric_map = {'cpu_core_usage_per_hour': cpu_rate, 'memory_gb_usage_per_hour': mem_rate}
+
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         cpu_rate_value = float(cpu_rate.get('tiered_rates')[0].get('value'))
 
@@ -640,15 +645,17 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertAlmostEqual(0.0, float(item.pod_charge_memory_gigabyte_hours), places=6)
                 self.assertAlmostEqual(float(cpu_usage_value*cpu_rate_value), float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
-    def test_update_summary_charge_info_mem(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info_mem(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory."""
+        markup = {}
         mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         cpu_rate = None
+        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
 
-        mock_db_mem_usage_rate.return_value = mem_rate
-        mock_db_cpu_usage_rate.return_value = cpu_rate
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
 
@@ -669,15 +676,18 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertAlmostEqual(float(mem_usage_value*mem_rate_value), float(item.pod_charge_memory_gigabyte_hours), places=6)
                 self.assertAlmostEqual(0.0, float(item.pod_charge_cpu_core_hours), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_request_per_month_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_storage_gb_usage_per_month_rates')
-    def test_update_summary_storage_charge(self, mock_db_storage_usage_rate, mock_db_storage_request_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_storage_charge(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for storage."""
+        markup = {}
         usage_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         request_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
+        rate_metric_map = {'storage_gb_usage_per_month': usage_rate,
+                           'storage_gb_request_per_month': request_rate}
 
-        mock_db_storage_usage_rate.return_value = usage_rate
-        mock_db_storage_request_rate.return_value = request_rate
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         usage_rate_value = float(usage_rate.get('tiered_rates')[0].get('value'))
         request_rate_value = float(request_rate.get('tiered_rates')[0].get('value'))
@@ -702,10 +712,75 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 expected_request_charge = request_rate_value * float(item.volume_request_storage_gigabyte_months)
                 self.assertAlmostEqual(float(storage_charge), float(expected_usage_charge + expected_request_charge), places=6)
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
-    def test_update_summary_charge_info_mem_cpu_malformed_mem(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_markup_charge(self, mock_markup, mock_rate_map):
+        markup = {'value': 10, 'unit': 'percent'}
+        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
+        cpu_rate = None
+        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
+
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
+
+        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
+        markup_percentage = float(markup.get('value')) / 100
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        self.updater.update_summary_charge_info()
+
+        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                markup_value = float(item.markup)
+                self.assertAlmostEqual(float(markup_value), float(mem_rate_value * markup_percentage), places=6)
+
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_markup_charge_no_clusterid(self, mock_markup, mock_rate_map):
+        markup = {'value': 10, 'unit': 'percent'}
+        mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
+        cpu_rate = None
+        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
+
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
+
+        mem_rate_value = float(mem_rate.get('tiered_rates')[0].get('value'))
+        markup_percentage = float(markup.get('value')) / 100
+
+        usage_period = self.accessor.get_current_usage_period()
+        start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
+        end_date = usage_period.report_period_end.date() + relativedelta(days=+1)
+
+        self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
+        self.updater._update_pod_charge()
+        self.updater._update_storage_charge()
+
+        self.updater._cluster_id = None
+        self.updater._update_markup_cost()
+
+        table_name = OCP_REPORT_TABLE_MAP['cost_summary']
+
+        with schema_context(self.schema):
+            items = self.accessor._get_db_obj_query(table_name).all()
+            for item in items:
+                markup_value = float(item.markup)
+                self.assertAlmostEqual(float(markup_value), float(mem_rate_value * markup_percentage), places=6)
+
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info_mem_cpu_malformed_mem(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory with malformed memory rates."""
+        markup = {}
         mem_rate = {"tiered_rates": [{
             "usage": {
                 "usage_start": None,
@@ -741,10 +816,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         }
         cpu_rate = {'tiered_rates': [{'value': '200', 'unit': 'USD'}]}
 
-        mock_db_mem_usage_rate.return_value = mem_rate
-        mock_db_cpu_usage_rate.return_value = cpu_rate
-
-        cpu_rate_value = float(cpu_rate.get('tiered_rates')[0].get('value'))
+        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
@@ -763,10 +837,11 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
                 self.assertIsNone(item.pod_charge_cpu_core_hours)
 
 
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates')
-    @patch('masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates')
-    def test_update_summary_charge_info_mem_cpu_malformed_cpu(self, mock_db_mem_usage_rate, mock_db_cpu_usage_rate):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info_mem_cpu_malformed_cpu(self, mock_markup, mock_rate_map):
         """Test that OCP charge information is updated for cpu and memory with malformed cpu rates."""
+        markup = {}
         mem_rate = {'tiered_rates': [{'value': '100', 'unit': 'USD'}]}
         cpu_rate = {"tiered_rates": [{
             "usage": {
@@ -802,8 +877,9 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         }]
         }
 
-        mock_db_mem_usage_rate.return_value = mem_rate
-        mock_db_cpu_usage_rate.return_value = cpu_rate
+        rate_metric_map = {'memory_gb_usage_per_hour': mem_rate, 'cpu_core_usage_per_hour': cpu_rate}
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         usage_period = self.accessor.get_current_usage_period()
         start_date = usage_period.report_period_start.date() + relativedelta(days=-1)
