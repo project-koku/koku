@@ -34,35 +34,47 @@ class MockBlobProperties:
 
 
 class MockContainer:
-    def __init__(self, container_name, export_directory):
+    def __init__(self, container_name, export_directory, subscription_id, resource_group, storage_account_name):
         self.container = container_name
         self.root_folder_path = export_directory
+        self.resource_id = (f'/subscriptions/{subscription_id}/resourceGroups/'
+                            f'{resource_group}/providers/Microsoft.Storage/'
+                            f'storageAccounts/{storage_account_name}')
 
 
 class MockBlobDeliveryInfo:
-    def __init__(self, container_name, export_directory):
-        self.destination = MockContainer(container_name, export_directory)
+    def __init__(self, container_name, export_directory, subscription_id, resource_group, storage_account_name):
+        self.destination = MockContainer(container_name, export_directory,
+                                         subscription_id, resource_group, storage_account_name)
 
 
 class MockBlob:
-    def __init__(self, container_name, last_modified, export_directory):
+    def __init__(self, container_name, last_modified, export_directory,
+                 subscription_id, resource_group, storage_account_name):
         self.name = '{}_{}_day_{}'.format(container_name, 'blob', last_modified.day)
-        self.delivery_info = MockBlobDeliveryInfo(container_name, export_directory)
+        self.delivery_info = MockBlobDeliveryInfo(container_name, export_directory, subscription_id, resource_group,
+                                                  storage_account_name)
         self.properties = MockBlobProperties(last_modified)
 
 
 class MockBlobService:
-    def __init__(self, context_container_name, current_day_time, export_directory):
+    def __init__(self, context_container_name, current_day_time, export_directory, subscription_id, resource_group,
+                 storage_account_name):
         self._container_name = context_container_name
         self._current_day_time = current_day_time
         self._export_directory = export_directory
+        self._subscription_id = subscription_id
+        self._resource_group = resource_group
+        self._storage_account_name = storage_account_name
 
     def list_blobs(self, container_name):
         today = self._current_day_time
         yesterday = today - relativedelta(days=1)
         if container_name == self._container_name:
-            blob_list = [MockBlob(self._container_name, today, self._export_directory),
-                         MockBlob(self._container_name, yesterday, self._export_directory)]
+            blob_list = [MockBlob(self._container_name, today, self._export_directory,
+                                  self._subscription_id, self._resource_group, self._storage_account_name),
+                         MockBlob(self._container_name, yesterday, self._export_directory,
+                                  self._subscription_id, self._resource_group, self._storage_account_name)]
             return blob_list
         else:
             return []
@@ -72,47 +84,66 @@ class MockBlobService:
 
 
 class MockStorageAccount:
-    def __init__(self, context_container_name, current_date_time, export_directory):
+    def __init__(self, context_container_name, current_date_time, export_directory, subscription_id, resource_group,
+                 storage_account_name):
         self._container_name = context_container_name
         self._current_date_time = current_date_time
         self._export_directory = export_directory
+        self._subscription_id = subscription_id
+        self._resource_group = resource_group
+        self._storage_account_name = storage_account_name
 
     def create_block_blob_service(self):
-        return MockBlobService(self._container_name, self._current_date_time, self._export_directory)
+        return MockBlobService(self._container_name, self._current_date_time, self._export_directory,
+                               self._subscription_id, self._resource_group, self._storage_account_name)
 
 
 class MockLists:
-    def __init__(self, context_container_name, current_day_time, export_directory):
-        self.value = MockBlobService(context_container_name, current_day_time, export_directory).list_blobs(context_container_name)
+    def __init__(self, context_container_name, current_day_time, export_directory,
+                 subscription_id, storage_group, storage_account_name):
+        self.value = MockBlobService(context_container_name, current_day_time, export_directory,
+                                     subscription_id, storage_group, storage_account_name).list_blobs(
+            context_container_name)
 
 
 class MockExports:
-    def __init__(self, context_container_name, current_day_time, export_directory):
+    def __init__(self, context_container_name, current_day_time, export_directory,
+                 subscription_id, storage_group, storage_account_name):
         self._container_name = context_container_name
         self._current_day_time = current_day_time
         self._export_directory = export_directory
+        self._subscription_id = subscription_id
+        self._storage_group = storage_group
+        self._storage_account_name = storage_account_name
 
     def list(self, scope):
-        return MockLists(self._container_name, self._current_day_time, self._export_directory)
+        return MockLists(self._container_name, self._current_day_time, self._export_directory,
+                         self._subscription_id, self._storage_group, self._storage_account_name)
 
 
 class MockCostManagementClient:
-    def __init__(self, context_container_name, current_day_time, export_directory):
-        self.exports = MockExports(context_container_name, current_day_time, export_directory)
+    def __init__(self, context_container_name, current_day_time, export_directory,
+                 subscription_id, storage_group, storage_account_name):
+        self.exports = MockExports(context_container_name, current_day_time, export_directory,
+                                   subscription_id, storage_group, storage_account_name)
 
 
 class MockAzureClientFactory:
-    def __init__(self, subscription_id, container_name, current_date_time, export_directory):
+    def __init__(self, subscription_id, container_name, current_date_time, export_directory,
+                 storage_group, storage_account_name):
         self._subscription_id = subscription_id
         self._container_name = container_name
         self._current_date_time = current_date_time
         self._export_directory = export_directory
+        self._storage_group = storage_group
+        self._storage_account_name = storage_account_name
 
     def describe_cost_management_exports(self):
         return [{"name": self.export_name, "container": self.container, "directory": self.directory}]
 
     def cloud_storage_account(self, resource_group_name, storage_account_name):
-        return MockStorageAccount(self._container_name, self._current_date_time, self._export_directory)
+        return MockStorageAccount(self._container_name, self._current_date_time, self._export_directory,
+                                  self._subscription_id, resource_group_name, storage_account_name)
 
     @property
     def credentials(self):
@@ -128,7 +159,7 @@ class MockAzureClientFactory:
     @property
     def cost_management_client(self):
         """Get cost management client with subscription and credentials."""
-        return MockCostManagementClient(self._container_name, self._current_date_time, self._export_directory)
+        return MockCostManagementClient(self._container_name, self._current_date_time, self._export_directory, self._subscription_id, self._storage_group, self._storage_account_name)
 
 
 class AzureServiceTest(MasuTestCase):
@@ -152,7 +183,9 @@ class AzureServiceTest(MasuTestCase):
         mock_factory.return_value = MockAzureClientFactory(self.subscription_id,
                                                            self.container_name,
                                                            self.current_date_time,
-                                                           self.export_directory)
+                                                           self.export_directory,
+                                                           self.resource_group_name,
+                                                           self.storage_account_name)
 
         self.client = AzureService(
             subscription_id=self.subscription_id,
