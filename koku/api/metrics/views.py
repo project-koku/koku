@@ -22,6 +22,7 @@ from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
+from api.common import RH_IDENTITY_HEADER
 from api.metrics.models import CostModelMetricsMap
 from api.metrics.serializers import CostModelMetricMapSerializer
 
@@ -51,7 +52,7 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
 
         return queryset
 
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):
         """Obtain the list of CostModelMetrics for the tenant."""
         return super().list(request=request, args=args, kwargs=kwargs)

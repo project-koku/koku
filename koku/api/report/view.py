@@ -28,6 +28,7 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 from tenant_schemas.utils import tenant_context
 
+from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.models import Tenant, User
 from api.report.aws.query_handler import AWSReportQueryHandler
@@ -460,7 +461,7 @@ class ReportView(APIView):
     It providers one GET endpoint for the reports.
     """
 
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def get(self, request):
         """Get Report Data."""
         return _generic_report(request,

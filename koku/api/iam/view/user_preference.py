@@ -25,6 +25,7 @@ from rest_framework.permissions import AllowAny
 import api.iam.models as models
 import api.iam.serializers as serializers
 from api.common.permissions.object_owner import IsObjectOwner
+from api.common import RH_IDENTITY_HEADER
 
 
 class UserPreferenceViewSet(mixins.CreateModelMixin,
@@ -119,7 +120,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         return super().create(request=request, args=args, kwargs=kwargs)
 
     @cache_control(private=True)
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
@@ -176,7 +177,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         return super().list(request=request, args=args, kwargs=kwargs)
 
     @cache_control(private=True)
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 

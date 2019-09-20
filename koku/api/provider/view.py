@@ -34,6 +34,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.serializers import UUIDField
 
+from api.common import RH_IDENTITY_HEADER
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
@@ -123,7 +124,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         return super().create(request=request, args=args, kwargs=kwargs)
 
     @cache_control(private=True)
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -135,7 +136,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         return response
 
     @cache_control(private=True)
-    @vary_on_headers('User-Agent', 'Cookie')
+    @vary_on_headers(RH_IDENTITY_HEADER)
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
