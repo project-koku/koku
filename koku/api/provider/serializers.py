@@ -170,6 +170,8 @@ class ProviderSerializer(serializers.ModelSerializer):
                 sources_auth = {'resource_name': auth.provider_resource_name}
             elif existing_provider.type in ('AZURE', ):
                 sources_auth = {'credentials': auth.credentials}
+            else:
+                sources_auth = {}
             source_query = Sources.objects.filter(authentication=sources_auth)
             if source_query.exists():
                 source_obj = source_query.first()
