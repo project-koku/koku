@@ -153,7 +153,7 @@ services:
       volumes:
         - '.:/koku'
         # - '~/azure_local:/tmp/local_container'
-        - '~/aws_local:/tmp/local_bucket'
+        # - '~/aws_local:/tmp/local_bucket'
         # - '~/aws_local_0:/tmp/local_bucket_0'
         # - '~/aws_local_1:/tmp/local_bucket_1'
         # - '~/aws_local_2:/tmp/local_bucket_2'
