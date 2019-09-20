@@ -16,6 +16,8 @@
 #
 
 """View for User Preferences."""
+from django.views.decorators.cache import cache_control, never_cache
+from django.views.decorators.vary import vary_on_headers
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
 from rest_framework.permissions import AllowAny
@@ -66,6 +68,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         user_b = models.User.objects.get(uuid=uuid)
         return user_a == user_b
 
+    @never_cache
     def create(self, request, *args, **kwargs):
         """Create a user preference.
 
@@ -115,6 +118,8 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
 
         return super().create(request=request, args=args, kwargs=kwargs)
 
+    @cache_control(private=True)
+    @vary_on_headers('User-Agent', 'Cookie')
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
@@ -170,6 +175,8 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         """
         return super().list(request=request, args=args, kwargs=kwargs)
 
+    @cache_control(private=True)
+    @vary_on_headers('User-Agent', 'Cookie')
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 
@@ -200,6 +207,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         """
         return super().retrieve(request=request, args=args, kwargs=kwargs)
 
+    @never_cache
     def destroy(self, request, *args, **kwargs):
         """Delete a user preference.
 
@@ -218,6 +226,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         """
         return super().destroy(request=request, args=args, kwargs=kwargs)
 
+    @never_cache
     def update(self, request, *args, **kwargs):
         """Update a user preference.
 

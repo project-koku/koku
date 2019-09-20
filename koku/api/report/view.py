@@ -18,6 +18,7 @@
 """View for Reports."""
 import logging
 
+from django.views.decorators.vary import vary_on_headers
 from django.utils.translation import ugettext as _
 from pint.errors import DimensionalityError, UndefinedUnitError
 from querystring_parser import parser
@@ -459,6 +460,7 @@ class ReportView(APIView):
     It providers one GET endpoint for the reports.
     """
 
+    @vary_on_headers('User-Agent', 'Cookie')
     def get(self, request):
         """Get Report Data."""
         return _generic_report(request,

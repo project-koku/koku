@@ -19,6 +19,7 @@
 
 import logging
 
+from django.views.decorators.cache import never_cache
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
@@ -31,6 +32,7 @@ from masu.celery.tasks import check_report_updates
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
+@never_cache
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

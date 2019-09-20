@@ -18,6 +18,7 @@
 """Views for CostModelMetricsMap."""
 import logging
 
+from django.views.decorators.vary import vary_on_headers
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
 
@@ -49,3 +50,8 @@ class CostModelMetricsMapViewSet(mixins.ListModelMixin, viewsets.GenericViewSet)
             queryset = queryset.filter(source_type=source_type)
 
         return queryset
+
+    @vary_on_headers('User-Agent', 'Cookie')
+    def list(self, request, *args, **kwargs):
+        """Obtain the list of CostModelMetrics for the tenant."""
+        return super().list(request=request, args=args, kwargs=kwargs)
