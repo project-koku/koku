@@ -24,13 +24,11 @@ from django.core.exceptions import FieldError, ValidationError
 from django.db.models import Q
 from django.utils.encoding import force_text
 from django.views.decorators.cache import never_cache
-from django.views.decorators.vary import vary_on_headers
 from django_filters import CharFilter, FilterSet, UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.common import RH_IDENTITY_HEADER
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
@@ -150,7 +148,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
         """Create a rate."""
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of rates for the tenant."""
         try:
@@ -160,7 +158,7 @@ class CostModelViewSet(mixins.CreateModelMixin,
 
         return response
 
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a rate."""
         return super().retrieve(request=request, args=args, kwargs=kwargs)

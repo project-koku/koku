@@ -16,15 +16,13 @@
 #
 
 """View for User Preferences."""
-from django.views.decorators.cache import cache_control, never_cache
-from django.views.decorators.vary import vary_on_headers
+from django.views.decorators.cache import never_cache
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import exceptions, mixins, viewsets
 from rest_framework.permissions import AllowAny
 
 import api.iam.models as models
 import api.iam.serializers as serializers
-from api.common import RH_IDENTITY_HEADER
 from api.common.permissions.object_owner import IsObjectOwner
 
 
@@ -119,8 +117,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
 
         return super().create(request=request, args=args, kwargs=kwargs)
 
-    @cache_control(private=True)
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of preferences for the user.
 
@@ -176,8 +173,7 @@ class UserPreferenceViewSet(mixins.CreateModelMixin,
         """
         return super().list(request=request, args=args, kwargs=kwargs)
 
-    @cache_control(private=True)
-    @vary_on_headers(RH_IDENTITY_HEADER)
+    @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a user preference.
 
