@@ -56,7 +56,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             auth_credential  (Dict) Dictionary containing Azure authentication details.
             report_name      (String) Name of the Cost Usage Report to download (optional)
             billing_source   (Dict) Dictionary containing Azure Storage blob details.
-describe_cost_management_exports
+
         """
         super().__init__(**kwargs)
 
