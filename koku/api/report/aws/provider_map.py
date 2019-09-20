@@ -94,7 +94,7 @@ class AWSProviderMap(ProviderMap):
                         'filter': [{}],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'cost': 'desc'},
                     },
                     'instance_type': {
@@ -132,7 +132,7 @@ class AWSProviderMap(ProviderMap):
                         'usage_units_fallback': 'Hrs',
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
-                                        'derived_cost', 'markup_cost', 'count'],
+                                        'derived_cost', 'markup_costs', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'storage': {
@@ -167,7 +167,7 @@ class AWSProviderMap(ProviderMap):
                         'cost_units_fallback': 'USD',
                         'usage_units_key': 'unit',
                         'usage_units_fallback': 'GB-Mo',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },
                 },

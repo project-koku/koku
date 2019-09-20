@@ -78,7 +78,7 @@ class AzureProviderMap(ProviderMap):
                         'filter': [{}],
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'cost': 'desc'},
                     },
                     'instance_type': {
@@ -115,7 +115,7 @@ class AzureProviderMap(ProviderMap):
                         # 'usage_units_fallback': 'Hrs',  # Waiting on MSFT
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
-                                        'derived_cost', 'markup_cost', 'count'],
+                                        'derived_cost', 'markup_costs', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'storage': {
@@ -149,7 +149,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_fallback': 'USD',
                         # 'usage_units_key': 'unit',
                         # 'usage_units_fallback': 'GB-Mo',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'cpu': {
@@ -181,7 +181,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_fallback': 'USD',
                         # 'usage_units_key': '',
                         # 'usage_units_fallback': 'Core-Hrs',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },
                 },

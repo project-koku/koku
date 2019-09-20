@@ -135,7 +135,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         'filter': [{}],
                         'cost_units_key': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                     },
                     'costs_by_project': {
                         'tables': {
@@ -177,7 +177,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         'filter': [{}],
                         'cost_units_key': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'project_markup_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'project_markup_costs'],
                     },
                     'cpu': {
                         'aggregates': {
