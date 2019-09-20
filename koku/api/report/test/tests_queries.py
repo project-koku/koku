@@ -25,7 +25,7 @@ from urllib.parse import quote_plus
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
-from django.db.models import Count, DateTimeField, Max, Sum, Value
+from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
 from faker import Faker
@@ -563,7 +563,8 @@ class ReportQueryTest(IamTestCase):
             summary = AWSCostEntryLineItemDailySummary(**entry,
                                                        account_alias=list(alias).pop())
             summary.save()
-            self.current_month_total += entry['unblended_cost']
+            self.current_month_total += entry['unblended_cost'] + entry['unblended_cost'] * Decimal(0.1)
+        AWSCostEntryLineItemDailySummary.objects.update(markup_cost=F('unblended_cost') * 0.1)
 
     def _populate_tag_summary_table(self):
         """Populate pod label key and values."""
@@ -897,7 +898,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
@@ -911,7 +912,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
@@ -928,7 +929,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -956,7 +957,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -984,7 +985,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1012,7 +1013,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1042,7 +1043,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1103,7 +1104,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1135,7 +1136,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1172,7 +1173,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1205,7 +1206,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1263,7 +1264,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1323,7 +1324,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1349,7 +1350,7 @@ class ReportQueryTest(IamTestCase):
 
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1397,7 +1398,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         for data_item in data:
@@ -1422,7 +1423,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data), 1)
@@ -1450,7 +1451,7 @@ class ReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get('total'))
         total = query_output.get('total')
         self.assertIsNotNone(total.get('cost'))
-        self.assertEqual(total.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
         self.assertEqual(len(data[0].get('accounts')), 3)
@@ -1480,12 +1481,12 @@ class ReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             curr = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.this_month_start,
-                usage_end__lte=dh.this_month_end).aggregate(value=Sum('unblended_cost'))
+                usage_end__lte=dh.this_month_end).aggregate(value=Sum(F('unblended_cost') + F('markup_cost')))
             current_total = Decimal(curr.get('value'))
 
             prev = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.last_month_start,
-                usage_end__lte=dh.last_month_end).aggregate(value=Sum('unblended_cost'))
+                usage_end__lte=dh.last_month_end).aggregate(value=Sum(F('unblended_cost') + F('markup_cost')))
             prev_total = Decimal(prev.get('value'))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -1543,7 +1544,7 @@ class ReportQueryTest(IamTestCase):
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNone(delta.get('percent'))
-        self.assertEqual(delta.get('value'), expected_delta_value)
+        self.assertAlmostEqual(delta.get('value'), expected_delta_value, 6)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
     def test_execute_query_orderby_delta(self):
@@ -1667,7 +1668,7 @@ class ReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{'cost_units': expected_units})
 
-        self.assertEqual(result.get('cost', {}).get('value'), self.current_month_total)
+        self.assertAlmostEqual(result.get('cost', {}).get('value'), self.current_month_total, 6)
         self.assertEqual(result.get('cost', {}).get('units'), expected_units)
 
     def test_percent_delta(self):
@@ -1694,7 +1695,7 @@ class ReportQueryTest(IamTestCase):
         expected = [
             {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
             {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
-            {'account': '2 Others', 'account_alias': '2 Others', 'cost': 0,
+            {'account': '2 Others', 'account_alias': '2 Others', 'cost': 0, 'markup_costs': 0,
              'derived_cost': 0, 'infrastructure_cost': 0, 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
@@ -1719,7 +1720,7 @@ class ReportQueryTest(IamTestCase):
             {'service': '1', 'total': 5, 'rank': 1},
             {'service': '2', 'total': 4, 'rank': 2},
             {'cost': 0, 'derived_cost': 0, 'infrastructure_cost': 0,
-             'service': '2 Others', 'total': 5, 'rank': 3}
+             'markup_costs': 0, 'service': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -2047,7 +2048,7 @@ class ReportQueryTest(IamTestCase):
             totals = AWSCostEntryLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{f'tags__{filter_key}': filter_value})\
-                .aggregate(**{'cost': Sum('unblended_cost')})
+                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
@@ -2084,7 +2085,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': filter_key})\
                 .aggregate(
-                    **{'cost': Sum('unblended_cost')})
+                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
@@ -2121,7 +2122,7 @@ class ReportQueryTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': group_by_key})\
                 .aggregate(
-                    **{'cost': Sum('unblended_cost')})
+                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
