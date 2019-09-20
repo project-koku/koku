@@ -23,7 +23,6 @@ Prerequisites
 
 * Docker
 * PostgreSQL
-* Node.js
 
 For Mac OSX
 ^^^^^^^^^^^
@@ -35,10 +34,6 @@ For Mac OSX
     Install PostgreSQL: ::
 
         brew install postgresql
-
-    Install Node.js: ::
-
-        brew install node
 
 
 Development
