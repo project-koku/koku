@@ -39,10 +39,10 @@ For Mac OSX
     Install Node.js: ::
 
         brew install node
-    Install Python3: ::
-
-        brew install python
-
+    Install Python3.6: ::
+  
+        brew unlink python # ONLY if you have installed (with brew) another version of python 3
+        brew install --ignore-dependencies https://raw.githubusercontent.com/Homebrew/homebrew-core/f2a764ef944b1080be64bd88dca9a1d80130c558/Formula/python.rb
 
 Development
 ===========
