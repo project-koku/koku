@@ -39,6 +39,9 @@ For Mac OSX
     Install Node.js: ::
 
         brew install node
+    Install Python3: ::
+
+        brew install python
 
 
 Development
