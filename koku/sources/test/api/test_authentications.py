@@ -17,6 +17,7 @@
 
 """Test the authentications endpoint view."""
 import json
+
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -45,13 +46,13 @@ class AuthenticationsSourceTests(TestCase):
 
         params = {
             'source_id': 1,
-            'credentials': {'subscription_id': 'test-subscription-id'}
+            'credentials': subscription_id
         }
         test_name = 'Azure Test'
 
         credential_dict = {'credentials': {'client_id': 'test_client',
-                                                            'tenant_id': 'test_tenant',
-                                                            'client_secret': 'test_secret'}}
+                                           'tenant_id': 'test_tenant',
+                                           'client_secret': 'test_secret'}}
         azure_obj = Sources(source_id=self.test_source_id,
                             auth_header=self.test_header,
                             offset=self.test_offset,
@@ -70,3 +71,58 @@ class AuthenticationsSourceTests(TestCase):
         expected_authentication = credential_dict
         expected_authentication['credentials']['subscription_id'] = subscription_id.get('subscription_id')
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).authentication, expected_authentication)
+
+    def test_post_authentications_non_azure(self):
+        """Test the POT authentications endpoint for a non-Azure provider."""
+        subscription_id = {'subscription_id': 'test-subscription-id'}
+
+        params = {
+            'source_id': 1,
+            'credentials': subscription_id
+        }
+        test_name = 'OCP Test'
+
+        credential_dict = {'resource_name': 'my-ocp-cluster'}
+        ocp_obj = Sources(source_id=self.test_source_id,
+                          auth_header=self.test_header,
+                          offset=self.test_offset,
+                          source_type='OCP',
+                          name=test_name,
+                          authentication=credential_dict,
+                          billing_source={'bucket': ''})
+        ocp_obj.save()
+
+        response = self.client.post(reverse('authentications'), json.dumps(params), content_type='application/json')
+        body = response.json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(str('Source is not AZURE'), str(body))
+
+    def test_post_authentications_malformed_json(self):
+        """Test the POT authentications endpoint for a Azure provider with bad json data."""
+        subscription_id = {'not-subscription': 'test-subscription-id'}
+
+        params = {
+            'source_id': 1,
+            'credentials': subscription_id
+        }
+        test_name = 'Azure Test'
+
+        credential_dict = {'credentials': {'client_id': 'test_client',
+                                           'tenant_id': 'test_tenant',
+                                           'client_secret': 'test_secret'}}
+        azure_obj = Sources(source_id=self.test_source_id,
+                            auth_header=self.test_header,
+                            offset=self.test_offset,
+                            source_type='AZURE',
+                            name=test_name,
+                            authentication=credential_dict,
+                            billing_source={'data_source': {'resource_group': 'RG1',
+                                                            'storage_account': 'test_storage'}})
+        azure_obj.save()
+
+        response = self.client.post(reverse('authentications'), json.dumps(params), content_type='application/json')
+        body = response.json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(str('Subscription ID not found'), str(body))

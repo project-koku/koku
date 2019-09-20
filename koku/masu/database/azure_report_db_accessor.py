@@ -20,6 +20,7 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db.models import F
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -27,6 +28,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
+                                             AzureCostEntryLineItemDailySummary,
                                              AzureCostEntryProductService,
                                              AzureMeter)
 
@@ -139,3 +141,15 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name)\
                 .filter(billing_period_start=start_date)
+
+    def populate_markup_cost(self, markup, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids:
+                for bill_id in bill_ids:
+                    AzureCostEntryLineItemDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(markup_cost=(F('pretax_cost') * markup))
+            else:
+                AzureCostEntryLineItemDailySummary.objects.\
+                    update(markup_cost=(F('pretax_cost') * markup))

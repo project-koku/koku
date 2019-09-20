@@ -111,21 +111,21 @@ class SourcesStorageTest(TestCase):
 
     def test_add_provider_billing_source(self):
         """Tests that add an AWS billing source to a Source."""
-        s3_bucket = 'test-bucket'
+        s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id, 'AWS Account', 'AWS', 'testauth')
         storage.add_provider_billing_source(self.test_source_id, s3_bucket)
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, s3_bucket)
 
     def test_add_provider_billing_source_non_aws(self):
         """Tests that add a non-AWS billing source to a Source."""
-        s3_bucket = 'test-bucket'
+        s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id, 'OCP Account', 'OCP', 'testauth')
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source(self.test_source_id, s3_bucket)
 
     def test_add_provider_billing_source_non_existent(self):
         """Tests that add a billing source to a non-existent Source."""
-        s3_bucket = 'test-bucket'
+        s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id + 1, 'AWS Account', 'AWS', 'testauth')
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source(self.test_source_id, s3_bucket)
@@ -229,3 +229,41 @@ class SourcesStorageTest(TestCase):
 
         with self.assertRaises(SourcesStorageError):
             storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+
+    def test_validate_billing_source(self):
+        """Test to validate that the billing source dictionary is valid."""
+        test_matrix = [{'provider_type': 'AWS', 'billing_source': {'bucket': 'test-bucket'},
+                        'exception': False},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
+                                                                                     'storage_account': 'bar'}},
+                        'exception': False},
+                       {'provider_type': 'AWS', 'billing_source': {'nobucket': 'test-bucket'},
+                        'exception': True},
+                       {'provider_type': 'AWS', 'billing_source': {},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {'nodata_source': {'resource_group': 'foo',
+                                                                                       'storage_account': 'bar'}},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'noresource_group': 'foo',
+                                                                                     'storage_account': 'bar'}},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo',
+                                                                                     'nostorage_account': 'bar'}},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'resource_group': 'foo'}},
+                        'exception': True},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'storage_account': 'bar'}},
+                        'exception': True},
+                       ]
+
+        for test in test_matrix:
+            if test.get('exception'):
+                with self.assertRaises(SourcesStorageError):
+                    storage._validate_billing_source(test.get('provider_type'), test.get('billing_source'))
+            else:
+                try:
+                    storage._validate_billing_source(test.get('provider_type'), test.get('billing_source'))
+                except Exception as error:
+                    self.fail(str(error))

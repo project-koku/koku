@@ -235,6 +235,21 @@ def add_subscription_id_to_credentials(source_id, subscription_id):
         raise SourcesStorageError('Source does not exist')
 
 
+def _validate_billing_source(provider_type, billing_source):
+    """Validate billing source parameters."""
+    if provider_type == 'AWS':
+        if not billing_source.get('bucket'):
+            raise SourcesStorageError('Missing AWS bucket.')
+    elif provider_type == 'AZURE':
+        data_source = billing_source.get('data_source')
+        if not data_source:
+            raise SourcesStorageError('Missing AZURE data_source.')
+        if not data_source.get('resource_group'):
+            raise SourcesStorageError('Missing AZURE resource_group')
+        if not data_source.get('storage_account'):
+            raise SourcesStorageError('Missing AZURE storage_account')
+
+
 def add_provider_billing_source(source_id, billing_source):
     """
     Add AWS or AZURE billing source to Sources database object.
@@ -251,6 +266,7 @@ def add_provider_billing_source(source_id, billing_source):
         query = Sources.objects.get(source_id=source_id)
         if query.source_type not in ('AWS', 'AZURE'):
             raise SourcesStorageError('Source is not AWS nor AZURE.')
+        _validate_billing_source(query.source_type, billing_source)
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:

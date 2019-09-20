@@ -37,7 +37,11 @@ def authentications(request):
     try:
         if request_data.get('credentials'):
             subscription_id = request_data.get('credentials').get('subscription_id')
-            add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
+            if subscription_id:
+                add_subscription_id_to_credentials(request_data.get('source_id'), subscription_id)
+            else:
+                raise SourcesStorageError('Subscription ID not found')
+
         response = request_data
         status_code = status.HTTP_201_CREATED
     except SourcesStorageError as error:

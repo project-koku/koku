@@ -194,7 +194,9 @@ class QueryHandler:
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter', 'resolution')
+        self.resolution = self.get_query_param_data('filter',
+                                                    'resolution',
+                                                    default='daily')
 
         if self.resolution == 'monthly':
             self.date_to_string = lambda dt: dt.strftime('%Y-%m')
@@ -248,8 +250,9 @@ class QueryHandler:
         if self.time_scope_units:
             return self.time_scope_units
 
-        time_scope_units = self.get_query_param_data('filter', 'time_scope_units')
-
+        time_scope_units = self.get_query_param_data('filter',
+                                                     'time_scope_units',
+                                                     default='day')
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
@@ -263,8 +266,9 @@ class QueryHandler:
         if self.time_scope_value:
             return self.time_scope_value
 
-        time_scope_value = self.get_query_param_data('filter', 'time_scope_value')
-
+        time_scope_value = self.get_query_param_data('filter',
+                                                     'time_scope_value',
+                                                     default=-10)
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
