@@ -200,10 +200,10 @@
         },
         "azure-mgmt-consumption": {
             "hashes": [
-                "sha256:36ea28bb2ed4bec7e4d643444085ba4debed20a01fbd87f599896a4bda3318bd",
-                "sha256:9a85a89f30f224d261749be20b4616a0eb8948586f7f0f20573b8ea32f265189"
+                "sha256:035d4b74ca7c47e2683bea17105fd9014c27060336fb6255324ac86b27f70f5b",
+                "sha256:af319ad6e3ec162a7578563f149e3cdd7d833a62ec80761cfd93caf79467610b"
             ],
-            "version": "==2.0.0"
+            "version": "==3.0.0"
         },
         "azure-mgmt-containerinstance": {
             "hashes": [
