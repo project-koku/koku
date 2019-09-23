@@ -60,7 +60,10 @@ class MarkupSerializer(serializers.Serializer):
 
     def to_internal_value(self, data):
         """Convert Decimal value to string."""
-        data['value'] = str(data.get('value'))
+        value = data.get('value')
+        if value is None:
+            return data
+        data['value'] = str(value)
         return data
 
 
