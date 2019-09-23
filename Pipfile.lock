@@ -179,10 +179,10 @@
         },
         "azure-mgmt-cognitiveservices": {
             "hashes": [
-                "sha256:36b406ee4b6652cd144a99309cd823ac1c726b0160120c14e4c35cb668f3f8ff",
-                "sha256:c3247f2786b996a5f328ebdaf65d31507571979e004de7a5ed0ff280f95d80b4"
+                "sha256:06245a7200bd1ed8a7a8ad3bce282011d6ba2faaae847f337cafd53d5d1efbd4",
+                "sha256:33c5ef0194f1147978afbf082574822cab39c869e5b67888acd379c65731fb85"
             ],
-            "version": "==3.0.0"
+            "version": "==5.0.0"
         },
         "azure-mgmt-commerce": {
             "hashes": [
