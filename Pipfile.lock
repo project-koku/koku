@@ -279,10 +279,10 @@
         },
         "azure-mgmt-devspaces": {
             "hashes": [
-                "sha256:220f1610c2cda584e4212611679868d8cc5bdd789d3f0dfa1259b64fc968f580",
-                "sha256:4710dd59fc219ebfa4272dbbad58bf62093b52ce22bfd32a5c0279d2149471b5"
+                "sha256:72d0dadeeb34d53680ea17c875c1b41c49b556b7b8907e13cfbeb2af43cc3d3b",
+                "sha256:f3b4c8be069d4deec23f8ec75f5cc99d98795d7c95b521d77b411e1453d67237"
             ],
-            "version": "==0.1.0"
+            "version": "==0.2.0"
         },
         "azure-mgmt-devtestlabs": {
             "hashes": [
