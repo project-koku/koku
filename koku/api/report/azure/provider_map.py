@@ -100,7 +100,8 @@ class AzureProviderMap(ProviderMap):
                             'count': Max('instance_count'),
                             'count_units': Value('instance_types', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
-                            # 'usage_units': 'Hrs'
+                            # Waiting on MSFT for usage_units default
+                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Instance Type Placeholder'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
                         'filter': [{
@@ -111,8 +112,8 @@ class AzureProviderMap(ProviderMap):
                         'group_by': ['instance_type'],
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
-                        # 'usage_units_key': 'unit',
-                        # 'usage_units_fallback': 'Hrs',  # Waiting on MSFT
+                        'usage_units_key': 'unit_of_measure',
+                        'usage_units_fallback': 'Instance Type Placeholder',  # Waiting on MSFT
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
                                         'derived_cost', 'markup_costs', 'count'],
@@ -137,7 +138,8 @@ class AzureProviderMap(ProviderMap):
                             'count': Max('instance_count'),
                             'count_units': Value('instances', output_field=CharField()),
                             'usage': Sum('usage_quantity'),
-                            # 'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
+                            # Waiting on MSFT for usage_units default
+                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Storage Type Placeholder'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
                         'filter': [{
@@ -147,8 +149,8 @@ class AzureProviderMap(ProviderMap):
                         }],
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
-                        # 'usage_units_key': 'unit',
-                        # 'usage_units_fallback': 'GB-Mo',
+                        'usage_units_key': 'unit_of_measure',
+                        'usage_units_fallback': 'Storage Type Placeholder',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },
@@ -168,8 +170,8 @@ class AzureProviderMap(ProviderMap):
                             'cost': Sum(F('pretax_cost') + F('markup_cost')),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
-                            # 'usage_units': Coalesce(Max('meter__meter_subcategory'),   # FIXME: Probably Wrong
-                            #                         Value('Core-Hrs'))
+                            # Waiting on MSFT for usage_units default
+                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Cpu Type Placeholder'))
                         },
                         'delta_key': {'usage': Sum('usage_quantity')},
                         'filter': [{
@@ -179,8 +181,8 @@ class AzureProviderMap(ProviderMap):
                         }],
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
-                        # 'usage_units_key': '',
-                        # 'usage_units_fallback': 'Core-Hrs',
+                        'usage_units_key': 'unit_of_measure',
+                        'usage_units_fallback': 'Cpu Type Placeholder',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },

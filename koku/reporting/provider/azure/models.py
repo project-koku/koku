@@ -117,6 +117,8 @@ class AzureCostEntryLineItemDaily(models.Model):
 
     offer_id = models.PositiveIntegerField(null=True)
 
+    unit_of_measure = models.CharField(max_length=63, null=True)
+
 
 class AzureCostEntryLineItemDailySummary(models.Model):
     """A line item in a cost entry.
@@ -168,6 +170,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
 
     instance_count = models.IntegerField(null=True)
+
+    unit_of_measure = models.CharField(max_length=63, null=True)
 
 
 class AzureTagsSummary(models.Model):
