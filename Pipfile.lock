@@ -567,10 +567,10 @@
         },
         "azure-mgmt-web": {
             "hashes": [
-                "sha256:8ea0794eef22a257773c13269b94855ab79d36c342ad15a98135403c9785cc0a",
-                "sha256:f4ddb4850314325db688241caa323fa80d811dc4590454d87f5c5b558557ea51"
+                "sha256:b6ddc3020cd44d1cc64331c9f4fe71478c83a5c911e3a3cf67be70a55204e46e",
+                "sha256:cd9997a4c5303aaec6d8366739602fa73ef308992bfdc09f5d923afa3635c194"
             ],
-            "version": "==0.35.0"
+            "version": "==0.42.0"
         },
         "azure-nspkg": {
             "hashes": [
