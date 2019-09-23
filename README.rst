@@ -64,7 +64,9 @@ psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely
     The following environment variables can be set in the koku repo's .env file
         LDFLAGS="-L/usr/local/opt/openssl/lib"
         CPPFLAGS="-I/usr/local/opt/openssl/include"
-    Run the following commands:
+    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment. 
+    
+    Alternatively, run the following commands:
         `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
         `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
         
