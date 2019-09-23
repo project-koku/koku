@@ -16,6 +16,8 @@
 #
 
 """Test the AWSReportDBAccessor utility object."""
+from unittest.mock import patch
+
 import psycopg2
 
 from masu.database import AWS_CUR_TABLE_MAP
@@ -93,8 +95,11 @@ class AWSReportChargeUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
-    def test_update_summary_charge_info(self):
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
+    def test_update_summary_charge_info(self, mock_markup):
         """Test to verify AWS derived cost summary is calculated."""
+        markup = {'value': 10, 'unit': 'percent'}
+        mock_markup.return_value = markup
         start_date = self.date_accessor.today_with_timezone('UTC')
         bill_date = start_date.replace(day=1).date()
 

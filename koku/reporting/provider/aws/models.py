@@ -305,6 +305,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
                                          null=True)
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
     blended_rate = models.DecimalField(max_digits=17, decimal_places=9,
                                        null=True)
     blended_cost = models.DecimalField(max_digits=17, decimal_places=9,

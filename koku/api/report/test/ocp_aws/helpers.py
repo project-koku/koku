@@ -269,6 +269,7 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                 az = region + random.choice(['a', 'b', 'c'])
                 usage_amount = Decimal(random.uniform(0, 100))
                 unblended_cost = Decimal(random.uniform(0, 10)) * usage_amount
+                project_costs = {row.get('namespace'): float(Decimal(random.random()) * unblended_cost)}
 
                 data = {
                     'cluster_id': self.cluster_id,
@@ -291,7 +292,8 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
                     'usage_amount': usage_amount,
                     'normalized_usage_amount': usage_amount,
                     'unblended_cost': unblended_cost,
-                    'project_costs': {row.get('namespace'): float(Decimal(random.random()) * unblended_cost)}
+                    'markup_cost': unblended_cost * Decimal(0.1),
+                    'project_costs': project_costs,
                 }
                 line_item = OCPAWSCostLineItemDailySummary(**data)
                 line_item.save()
