@@ -21,233 +21,19 @@ import logging
 from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError, UndefinedUnitError
-from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
-from tenant_schemas.utils import tenant_context
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import ReportPagination, ReportRankedPagination
-from api.models import Tenant, User
+from api.query_params import QueryParameters
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
 
-class ClassMapper(object):
-    """Data structure object to organize class references."""
-
-    # main mapping data structure
-    # this data should be considered static and read-only.
-    CLASS_MAP = [
-        {
-            'provider': 'aws',
-            'reports': [
-                {
-                    'report': 'default',
-                    'serializer': QueryParamSerializer,
-                    'query_handler': AWSReportQueryHandler,
-                    'tag_handler': [AWSTagsSummary]
-                },
-                {
-                    'report': 'tags',
-                    'serializer': AWSTagsQueryParamSerializer,
-                    'query_handler': AWSTagQueryHandler,
-                    'tag_handler': [AWSTagsSummary]
-                }
-            ]
-        },
-        {
-            'provider': 'ocp',
-            'reports': [
-                {
-                    'report': 'default',
-                    'serializer': OCPInventoryQueryParamSerializer,
-                    'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary,
-                                    OCPStorageVolumeClaimLabelSummary,
-                                    OCPStorageVolumeLabelSummary]
-                },
-                {
-                    'report': 'costs',
-                    'serializer': OCPCostQueryParamSerializer,
-                    'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary,
-                                    OCPStorageVolumeClaimLabelSummary,
-                                    OCPStorageVolumeLabelSummary]
-                },
-                {
-                    'report': 'tags',
-                    'serializer': OCPTagsQueryParamSerializer,
-                    'query_handler': OCPTagQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary,
-                                    OCPStorageVolumeClaimLabelSummary,
-                                    OCPStorageVolumeLabelSummary]
-                },
-                {
-                    'report': 'volume',
-                    'serializer': OCPInventoryQueryParamSerializer,
-                    'query_handler': OCPReportQueryHandler,
-                    'tag_handler': [OCPUsagePodLabelSummary,
-                                    OCPStorageVolumeClaimLabelSummary,
-                                    OCPStorageVolumeLabelSummary]
-                }
-            ]
-        },
-        {
-            'provider': 'ocp_aws',
-            'reports': [
-                {
-                    'report': 'default',
-                    'serializer': OCPAWSQueryParamSerializer,
-                    'query_handler': OCPAWSReportQueryHandler,
-                    'tag_handler': [AWSTagsSummary]
-                },
-                {
-                    'report': 'instance_type',
-                    'serializer': OCPAWSQueryParamSerializer,
-                    'query_handler': OCPAWSReportQueryHandler,
-                    'tag_handler': [AWSTagsSummary]
-                },
-                {
-                    'report': 'tags',
-                    'serializer': OCPAWSTagsQueryParamSerializer,
-                    'query_handler': OCPAWSTagQueryHandler,
-                    'tag_handler': [AWSTagsSummary]
-                },
-            ]
-        },
-        {
-            'provider': 'azure',
-            'reports': [
-                {
-                    'report': 'default',
-                    'serializer': AzureQueryParamSerializer,
-                    'query_handler': AzureReportQueryHandler,
-                    'tag_handler': [AzureTagsSummary]
-                },
-                {
-                    'report': 'instance_type',
-                    'serializer': AzureQueryParamSerializer,
-                    'query_handler': AzureReportQueryHandler,
-                    'tag_handler': [AzureTagsSummary]
-                },
-                {
-                    'report': 'tags',
-                    'serializer': AzureTagsQueryParamSerializer,
-                    'query_handler': AzureTagQueryHandler,
-                    'tag_handler': [AzureTagsSummary]
-                },
-            ]
-        }
-    ]
-
-    def reports(self, provider):
-        """Return list of report dictionaries."""
-        for item in self.CLASS_MAP:
-            if provider == item.get('provider'):
-                return item.get('reports')
-
-    def report_types(self, provider):
-        """Return list of report names."""
-        reports = self.reports(provider)
-        return [rep.get('report') for rep in reports]
-
-    def get_report(self, provider, report):
-        """Return the specified report dict.
-
-        Return default report dict if named report not found.
-
-        """
-        reports = self.reports(provider)
-        for rep in reports:
-            if report == rep.get('report'):
-                return rep
-
-        if report == 'default':
-            # avoid infinite recursion
-            return {}
-
-        return self.get_report(provider, 'default')
-
-    def serializer(self, provider, report):
-        """Return Serializer class from CLASS_MAP."""
-        report = self.get_report(provider, report)
-        return report.get('serializer')
-
-    def query_handler(self, provider, report):
-        """Return QueryHandler class from CLASS_MAP."""
-        report = self.get_report(provider, report)
-        return report.get('query_handler')
-
-    def tag_handler(self, provider, report):
-        """Return TagHandler class from CLASS_MAP."""
-        report = self.get_report(provider, report)
-        return report.get('tag_handler')
-
-
-def get_tag_keys(request, summary_model):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    with tenant_context(tenant):
-        tags = summary_model.objects.values('key')
-        tag_list = [':'.join(['tag', tag.get('key')]) for tag in tags]
-        tag_list.extend([':'.join(['and:tag', tag.get('key')]) for tag in tags])
-        tag_list.extend([':'.join(['or:tag', tag.get('key')]) for tag in tags])
-
-    return tag_list
-
-
-def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwargs):
-    """Process query parameters and raise any validation errors.
-
-    Args:
-        url_data    (String): the url string
-    Returns:
-        (Boolean): True if query params are valid, False otherwise
-        (Dict): Dictionary parsed from query params string
-
-    """
-    try:
-        query_params = parser.parse(url_data)
-    except parser.MalformedQueryStringError:
-        LOG.error('Invalid query parameter format %s.', url_data)
-        error = {'details': _(f'Invalid query parameter format.')}
-        raise ValidationError(error)
-
-    if tag_keys:
-        tag_keys = process_tag_query_params(query_params, tag_keys)
-        qps = provider_serializer(data=query_params, tag_keys=tag_keys, context=kwargs)
-    else:
-        qps = provider_serializer(data=query_params, context=kwargs)
-
-    output = None
-    validation = qps.is_valid()
-    if not validation:
-        output = qps.errors
-    else:
-        output = qps.data
-
-    return (validation, output)
-
-
-def process_tag_query_params(query_params, tag_keys):
-    """Reduce the set of tag keys based on those being queried."""
-    tag_key_set = set(tag_keys)
-    param_tag_keys = set()
-    for key, value in query_params.items():
-        if isinstance(value, dict) or isinstance(value, list):
-            for inner_param_key in value:
-                if inner_param_key in tag_key_set:
-                    param_tag_keys.add(inner_param_key)
-        elif value in tag_key_set:
-            param_tag_keys.add(value)
-        if key in tag_key_set:
-            param_tag_keys.add(key)
-
-    return param_tag_keys
 
 
 def get_paginator(filter_query_params, count):
@@ -258,30 +44,6 @@ def get_paginator(filter_query_params, count):
     else:
         paginator = ReportPagination()
     return paginator
-
-
-def get_tenant(user):
-    """Get the tenant for the given user.
-
-    Args:
-        user    (DjangoUser): user to get the associated tenant
-    Returns:
-        (Tenant): Object used to get tenant specific data tables
-    Raises:
-        (ValidationError): If no tenant could be found for the user
-
-    """
-    tenant = None
-    if user:
-        try:
-            customer = user.customer
-            tenant = Tenant.objects.get(schema_name=customer.schema_name)
-        except User.DoesNotExist:
-            pass
-    if tenant is None:
-        error = {'details': _('Invalid user definition')}
-        raise ValidationError(error)
-    return tenant
 
 
 def _find_unit():
@@ -364,73 +126,6 @@ def _convert_units(converter, data, to_unit):
     return data
 
 
-def _generic_report(request, provider, report):
-    """Generically query for reports.
-
-    Args:
-        request (Request): The HTTP request object
-        provider (String): Provider name (e.g. 'aws' or 'ocp')
-        report (String): Report name (e.g. 'cost', 'cpu', 'memory'); used to access ReportMap
-
-    Returns:
-        (Response): The report in a Response object
-
-    """
-    LOG.debug(f'API: {request.path} USER: {request.user.username}')
-    tenant = get_tenant(request.user)
-
-    cm = ClassMapper()
-    provider_query_hdlr = cm.query_handler(provider, report)
-    provider_parameter_serializer = cm.serializer(provider, report)
-
-    tag_keys = []
-    if report != 'tags':
-        tag_models = cm.tag_handler(provider, report)
-        for tag_model in tag_models:
-            tag_keys.extend(get_tag_keys(request, tag_model))
-
-    url_data = request.GET.urlencode()
-    validation, params = process_query_parameters(
-        url_data,
-        provider_parameter_serializer,
-        tag_keys,
-        request=request
-    )
-
-    if not validation:
-        return Response(
-            data=params,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    handler = provider_query_hdlr(params,
-                                  url_data,
-                                  tenant,
-                                  accept_type=request.META.get('HTTP_ACCEPT'),
-                                  report_type=report,
-                                  tag_keys=tag_keys,
-                                  access=request.user.access)
-    output = handler.execute_query()
-    max_rank = handler.max_rank
-
-    if 'units' in params:
-        from_unit = _find_unit()(output['data'])
-        if from_unit:
-            try:
-                to_unit = params['units']
-                unit_converter = UnitConverter()
-                output = _fill_in_missing_units(from_unit)(output)
-                output = _convert_units(unit_converter, output, to_unit)
-            except (DimensionalityError, UndefinedUnitError):
-                error = {'details': _('Unit conversion failed.')}
-                raise ValidationError(error)
-
-    paginator = get_paginator(params.get('filter', {}), max_rank)
-    paginated_result = paginator.paginate_queryset(output, request)
-    LOG.debug(f'DATA: {output}')
-    return paginator.get_paginated_response(paginated_result)
-
-
 class ReportView(APIView):
     """
     A shared view for all koku reports.
@@ -441,7 +136,44 @@ class ReportView(APIView):
 
     @vary_on_headers(RH_IDENTITY_HEADER)
     def get(self, request):
-        """Get Report Data."""
-        return _generic_report(request,
-                               report=self.report,
-                               provider=self.provider)
+        """Get Report Data.
+
+        This method is responsible for passing request data to the reporting APIs.
+
+        Args:
+            request (Request): The HTTP request object
+
+        Returns:
+            (Response): The report in a Response object
+
+        """
+        LOG.debug(f'API: {request.path} USER: {request.user.username}')
+
+        try:
+            params = QueryParameters(request=request,
+                                     report_type=self.report,
+                                     serializer=self._serializer,
+                                     tag_handler=self._tag_handler)
+        except ValidationError as exc:
+            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        handler = self._query_handler(params)
+        output = handler.execute_query()
+        max_rank = handler.max_rank
+
+        if 'units' in params.parameters:
+            from_unit = _find_unit()(output['data'])
+            if from_unit:
+                try:
+                    to_unit = params.parameters.get('units')
+                    unit_converter = UnitConverter()
+                    output = _fill_in_missing_units(from_unit)(output)
+                    output = _convert_units(unit_converter, output, to_unit)
+                except (DimensionalityError, UndefinedUnitError):
+                    error = {'details': _('Unit conversion failed.')}
+                    raise ValidationError(error)
+
+        paginator = get_paginator(params.parameters.get('filter', {}), max_rank)
+        paginated_result = paginator.paginate_queryset(output, request)
+        LOG.debug(f'DATA: {output}')
+        return paginator.get_paginated_response(paginated_result)

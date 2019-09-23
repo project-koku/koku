@@ -41,59 +41,29 @@ def strip_tag_prefix(tag):
 class ReportQueryHandler(QueryHandler):
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters, tenant, **kwargs):
+    def __init__(self, parameters):
         """Establish report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
-        LOG.debug(f'Query Params: {query_parameters}')
+        LOG.debug(f'Query Params: {parameters}')
+        super().__init__(parameters)
+
         self._accept_type = None
         self._group_by = None
         self._access = {}
 
-        assert getattr(self, '_report_type'), \
-            'kwargs["report_type"] is missing!'
         default_ordering = self._mapper._report_type_map.get('default_ordering')
 
-        super().__init__(query_parameters, tenant, default_ordering, **kwargs)
 
-        self._delta = self.query_parameters.get('delta')
-        self._offset = self.get_query_param_data('filter', 'offset', default=0)
+        self._delta = parameters.delta
+        self._offset = parameters.get_filter('offset', default=0)
         self.query_delta = {'value': None, 'percent': None}
 
         self.query_filter = self._get_filter()
         self.query_exclusions = self._get_exclusions()
-
-    def _initialize_kwargs(self, kwargs):
-        """Initialize class attributes from view kwargs.
-
-        Params:
-            kwargs (dict) - kwargs dict received from __init__()
-        """
-        # view parameters
-        elements = ['accept_type', 'delta', 'report_type', 'tag_keys', 'access']
-        for key, value in kwargs.items():
-            if key in elements:
-                # don't overwrite existing attributes.
-                try:
-                    getattr(self, f'_{key}')
-                except AttributeError:
-                    setattr(self, f'_{key}', value)
-
-        for key in elements:
-            # set defaults for required attributes.
-            try:
-                getattr(self, f'_{key}')
-            except AttributeError:
-                if key == 'tag_keys':
-                    setattr(self, f'_{key}', [])
-                else:
-                    setattr(self, f'_{key}', None)
 
     def initialize_totals(self):
         """Initialize the total response column values."""

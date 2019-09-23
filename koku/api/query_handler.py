@@ -53,22 +53,20 @@ class TruncDayString(TruncDay):
 class QueryHandler:
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters,
-                 tenant, default_ordering, **kwargs):
+    def __init__(self, parameters):
         """Establish query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            tenant    (String): the tenant to use to access CUR data
-            default_ordering (String) default ordering of response items
-            kwargs    (Dict): A dictionary for internal query alteration based on path
-
+            parameters    (QueryParameters): parameter object for query
         """
-        LOG.debug(f'Query Params: {query_parameters}')
+        LOG.debug(f'Query Params: {parameters}')
 
-        self.tenant = tenant
-        self.default_ordering = default_ordering
-        self.kwargs = kwargs
+        self.tenant = parameters.tenant
+        self.accept_type = parameters.accept_type
+        self.access = parameters.access
+
+        self.default_ordering = None
+        self.kwargs = parameters    # XXX: temporary, until QH refactor is further along.
         self.resolution = None
         self.time_interval = []
         self.time_scope_units = None

@@ -41,22 +41,18 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
+    def __init__(self, parameters):
         """Establish AWS report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
         provider = 'AWS'
+        super().__init__(parameters)
 
-        self._initialize_kwargs(kwargs)
-
-        if kwargs.get('access'):
+        # FIXME - needs to be realigned to new parameters object
+        if parameters.access:
             query_parameters = update_query_parameters_for_aws(query_parameters,
                                                                kwargs.get('access'))
 
@@ -65,14 +61,14 @@ class AWSReportQueryHandler(ReportQueryHandler):
             getattr(self, '_mapper')
         except AttributeError:
             self._mapper = AWSProviderMap(provider=provider,
-                                          report_type=kwargs.get('report_type'))
+                                          report_type=parameters.report_type)
 
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self.query_parameters = query_parameters
-        self.url_data = url_data
-        self._limit = self.get_query_param_data('filter', 'limit')
+        # FIXME
+        # self.query_parameters = query_parameters
+        # self.url_data = url_data
+        self._limit = parameters.get_filter('limit')
 
-        super().__init__(query_parameters, tenant, **kwargs)
 
     @property
     def annotations(self):
