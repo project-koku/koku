@@ -17,12 +17,13 @@
 
 """View for AWS tags."""
 
-from rest_framework.permissions import AllowAny
+from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.serializers import AWSTagsQueryParamSerializer
+from api.tags.view import TagView
+from reporting.provider.aws.models import AWSTagsSummary
 
-from api.report.view import ReportView
 
-
-class AWSTagView(ReportView):
+class AWSTagView(TagView):
     """Get AWS tags.
 
     @api {get} /cost-management/v1/tags/aws/
@@ -56,6 +57,7 @@ class AWSTagView(ReportView):
 
     """
 
-    permission_classes = [AllowAny]
     provider = 'aws'
-    report = 'tags'
+    _serializer = AWSTagsQueryParamSerializer
+    _query_handler = AWSTagQueryHandler
+    _tag_handler = [AWSTagsSummary]
