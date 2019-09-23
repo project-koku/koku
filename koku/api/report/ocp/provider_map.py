@@ -87,15 +87,16 @@ class OCPProviderMap(ProviderMap):
                                     output_field=DecimalField()
                                 )
                             ),
+                            'markup_cost': Sum(F('markup_cost')),
                             'cost': Sum(
                                 ExpressionWrapper(
                                     F('pod_charge_cpu_core_hours')
                                     + F('pod_charge_memory_gigabyte_hours')
                                     + F('persistentvolumeclaim_charge_gb_month')
-                                    + F('infra_cost'),
+                                    + F('infra_cost')
+                                    + F('markup_cost'),
                                     output_field=DecimalField()
                                 )
-
                             ),
                         },
                         'default_ordering': {'cost': 'desc'},
@@ -109,12 +110,14 @@ class OCPProviderMap(ProviderMap):
                                     output_field=DecimalField()
                                 )
                             ),
+                            'markup_costs': Sum(F('markup_cost')),
                             'cost': Sum(
                                 ExpressionWrapper(
                                     F('pod_charge_cpu_core_hours')
                                     + F('pod_charge_memory_gigabyte_hours')
                                     + F('persistentvolumeclaim_charge_gb_month')
-                                    + F('infra_cost'),
+                                    + F('infra_cost')
+                                    + F('markup_cost'),
                                     output_field=DecimalField()
                                 )
                             ),
@@ -127,11 +130,12 @@ class OCPProviderMap(ProviderMap):
                                 + F('pod_charge_memory_gigabyte_hours')
                                 + F('persistentvolumeclaim_charge_gb_month')
                                 + F('infra_cost')
+                                + F('markup_cost')
                             )
                         },
                         'filter': [{}],
                         'cost_units_key': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                     },
                     'costs_by_project': {
                         'tables': {
@@ -141,20 +145,24 @@ class OCPProviderMap(ProviderMap):
                             'infrastructure_cost': Sum(F('project_infra_cost')),
                             'derived_cost': Sum(F('pod_charge_cpu_core_hours')
                                                 + F('pod_charge_memory_gigabyte_hours')),
+                            'project_markup_cost': Sum(F('project_markup_cost')),
                             'cost': Sum(F('pod_charge_cpu_core_hours')
                                         + F('pod_charge_memory_gigabyte_hours')
                                         + F('persistentvolumeclaim_charge_gb_month')
-                                        + F('project_infra_cost')),
+                                        + F('project_infra_cost')
+                                        + F('project_markup_cost')),
                         },
                         'default_ordering': {'cost': 'desc'},
                         'annotations': {
                             'infrastructure_cost': Sum(F('project_infra_cost')),
                             'derived_cost': Sum(F('pod_charge_cpu_core_hours')
                                                 + F('pod_charge_memory_gigabyte_hours')),
+                            'project_markup_costs': Sum(F('project_markup_cost')),
                             'cost': Sum(F('pod_charge_cpu_core_hours')
                                         + F('pod_charge_memory_gigabyte_hours')
                                         + F('persistentvolumeclaim_charge_gb_month')
-                                        + F('project_infra_cost')),
+                                        + F('project_infra_cost')
+                                        + F('project_markup_cost')),
                             'cost_units': Value('USD', output_field=CharField())
                         },
                         'capacity_aggregate': {},
@@ -164,11 +172,12 @@ class OCPProviderMap(ProviderMap):
                                 + F('pod_charge_memory_gigabyte_hours')
                                 + F('persistentvolumeclaim_charge_gb_month')
                                 + F('project_infra_cost')
+                                + F('project_markup_cost')
                             )
                         },
                         'filter': [{}],
                         'cost_units_key': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'project_markup_costs'],
                     },
                     'cpu': {
                         'aggregates': {

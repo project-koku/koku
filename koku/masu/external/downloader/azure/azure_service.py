@@ -39,6 +39,8 @@ class AzureService:
     def __init__(self, subscription_id, tenant_id, client_id, client_secret,
                  resource_group_name, storage_account_name, cloud='public'):
         """Establish connection information."""
+        self._resource_group_name = resource_group_name
+        self._storage_account_name = storage_account_name
         self._factory = AzureClientFactory(subscription_id, tenant_id, client_id, client_secret, cloud)
         self._cloud_storage_account = self._factory.cloud_storage_account(resource_group_name, storage_account_name)
         try:
@@ -96,9 +98,13 @@ class AzureService:
         cost_management_client = self._factory.cost_management_client
         scope = f'/subscriptions/{self._factory.subscription_id}'
         management_reports = cost_management_client.exports.list(scope)
+        expected_resource_id = (f'/subscriptions/{self._factory.subscription_id}/resourceGroups/'
+                                f'{self._resource_group_name}/providers/Microsoft.Storage/'
+                                f'storageAccounts/{self._storage_account_name}')
         export_reports = []
         for report in management_reports.value:
-            report_def = {'name': report.name, 'container': report.delivery_info.destination.container,
-                          'directory': report.delivery_info.destination.root_folder_path}
-            export_reports.append(report_def)
+            if report.delivery_info.destination.resource_id == expected_resource_id:
+                report_def = {'name': report.name, 'container': report.delivery_info.destination.container,
+                              'directory': report.delivery_info.destination.root_folder_path}
+                export_reports.append(report_def)
         return export_reports
