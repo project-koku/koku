@@ -81,7 +81,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             AzureReportDataGenerator(self.tenant, config=self.generator.config).add_data_to_tenant()
 
         handler = AzureReportQueryHandler({}, '', self.tenant,
-                                          report_type='cpu')
+                                          report_type='instance_type')
 
         aggregates = handler._mapper.report_type_map.get('aggregates')
         filters = self.ten_day_filter
@@ -1052,8 +1052,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
-                    self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreaterEqual(value.get('usage', {}).quantize(
+                    self.assertIsInstance(value.get('usage', {}), dict)
+                    self.assertGreaterEqual(value.get('usage', {}).get('value', {}).quantize(
                         Decimal('.0001'), ROUND_HALF_UP), Decimal(0))
 
     def test_query_storage_with_totals(self):
@@ -1091,8 +1091,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
-                    self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreater(value.get('usage', {}), Decimal(0))
+                    self.assertIsInstance(value.get('usage', {}), dict)
+                    self.assertGreater(value.get('usage', {}).get('value', {}), Decimal(0))
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""

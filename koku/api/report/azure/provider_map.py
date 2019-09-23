@@ -154,38 +154,6 @@ class AzureProviderMap(ProviderMap):
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
                         'default_ordering': {'usage': 'desc'},
                     },
-                    'cpu': {
-                        'aggregates': {
-                            'usage': Sum('usage_quantity'),
-                            'infrastructure_cost': Sum('pretax_cost'),
-                            'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_cost': Sum('markup_cost'),
-                            'cost': Sum(F('pretax_cost') + F('markup_cost')),
-                        },
-                        'aggregate_key': 'usage_quantity',
-                        'annotations': {
-                            'infrastructure_cost': Sum('pretax_cost'),
-                            'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum('markup_cost'),
-                            'cost': Sum(F('pretax_cost') + F('markup_cost')),
-                            'cost_units': Coalesce(Max('currency'), Value('USD')),
-                            'usage': Sum('usage_quantity'),
-                            # Waiting on MSFT for usage_units default
-                            'usage_units': Coalesce(Max('unit_of_measure'), Value('Cpu Type Placeholder'))
-                        },
-                        'delta_key': {'usage': Sum('usage_quantity')},
-                        'filter': [{
-                            'field': 'service_name',
-                            'operation': 'contains',
-                            'parameter': 'Virtual Machines'
-                        }],
-                        'cost_units_key': 'currency',
-                        'cost_units_fallback': 'USD',
-                        'usage_units_key': 'unit_of_measure',
-                        'usage_units_fallback': 'Cpu Type Placeholder',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
-                        'default_ordering': {'usage': 'desc'},
-                    },
                 },
                 'start_date': 'costentrybill__billing_period_start',
                 'tables': {
