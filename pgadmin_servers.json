@@ -1,0 +1,13 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "Koku",
+            "Group": "Servers",
+            "Port": 5432,
+            "Username": "postgres",
+            "Host": "koku_db",
+            "SSLMode": "prefer",
+            "MaintenanceDB": "postgres"
+        }
+    }
+}
