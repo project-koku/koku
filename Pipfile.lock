@@ -405,10 +405,10 @@
         },
         "azure-mgmt-monitor": {
             "hashes": [
-                "sha256:838867a150694837e9c6141760ff0f20fe9e5b7ab88f9ba868fde1810855895e",
-                "sha256:f1a58d483e3292ba4f7bbf3104573130c9265d6c9262e26b60cbfa950b5601e4"
+                "sha256:8216ab3ec57994303c47a0977e853a8a3fff4778e08dc3575e669522cadcf9de",
+                "sha256:8b7267ff8c43f6504d83c9f8770fa27d9d422cbb2575fef2ff4db39c87c0bffe"
             ],
-            "version": "==0.5.2"
+            "version": "==0.7.0"
         },
         "azure-mgmt-msi": {
             "hashes": [
