@@ -144,10 +144,10 @@
         },
         "azure-mgmt-authorization": {
             "hashes": [
-                "sha256:2b8504763ea8b1b475f2c3533b171bedb91ffae459f48f1f885ec8536df91093",
-                "sha256:535de12ff4f628b62b939ae17cc6186226d7783bf02f242cdd3512ee03a6a40e"
+                "sha256:31e875a34ac2c5d6fefe77b4a8079a8b2bdbe9edb957e47e8b44222fb212d6a7",
+                "sha256:9d64295cf4210ec14e98fb024a6b4d79d68ef50cdb3804f0b53f8567e52d847f"
             ],
-            "version": "==0.50.0"
+            "version": "==0.60.0"
         },
         "azure-mgmt-batch": {
             "hashes": [
