@@ -44,7 +44,7 @@ objects:
     name: postgresql
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.access.redhat.com/rhscl/postgresql-10-rhel7
+    dockerImageRepository: registry.redhat.io/rhscl/postgresql-10-rhel7
     lookupPolicy:
       local: false
     tags:
@@ -63,7 +63,7 @@ objects:
     name: redis
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.access.redhat.com/rhscl/redis-5-rhel7
+    dockerImageRepository: registry.redhat.io/rhscl/redis-5-rhel7
     lookupPolicy:
       local: false
     tags:
@@ -82,14 +82,14 @@ objects:
     name: rhel
     namespace: ${NAMESPACE}
   spec:
-    dockerImageRepository: registry.access.redhat.com/rhel7/rhel
+    dockerImageRepository: registry.redhat.io/rhel7/rhel
     lookupPolicy:
       local: false
     tags:
     - annotations: null
       from:
         kind: DockerImage
-        name: registry.access.redhat.com/rhel7/rhel:latest
+        name: registry.redhat.io/rhel7/rhel:latest
       name: latest
       referencePolicy:
         type: Source
