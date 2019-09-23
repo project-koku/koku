@@ -247,6 +247,13 @@ class AzureServiceTest(MasuTestCase):
     @patch('masu.external.downloader.azure.azure_service.AzureClientFactory')
     def test_describe_cost_management_exports_wrong_account(self, mock_factory):
         """Test that cost management exports are not returned from incorrect account."""
+        mock_factory.return_value = MockAzureClientFactory(self.subscription_id,
+                                                           self.container_name,
+                                                           self.current_date_time,
+                                                           self.export_directory,
+                                                           self.resource_group_name,
+                                                           self.storage_account_name)
+
         client = AzureService(
             subscription_id=self.subscription_id,
             tenant_id=self.tenant_id,
