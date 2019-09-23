@@ -563,10 +563,11 @@ class OCPReportViewTest(IamTestCase):
                 .filter(usage_start__date__gte=self.dh.this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                        F('project_infra_cost')
+                        F('pod_charge_cpu_core_hours')  # noqa: W504
+                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
+                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
+                        + F('project_infra_cost')
+                        + F('markup_cost')
                     )
                 ).get('total')
             expected_total = cost if cost is not None else 0
@@ -603,10 +604,11 @@ class OCPReportViewTest(IamTestCase):
                 .filter(usage_start__date__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                        F('infra_cost')
+                        F('pod_charge_cpu_core_hours')  # noqa: W504
+                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
+                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
+                        + F('infra_cost')
+                        + F('markup_cost')
                     )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
@@ -617,10 +619,11 @@ class OCPReportViewTest(IamTestCase):
                 .values(*['date'])\
                 .annotate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                        F('infra_cost')
+                        F('pod_charge_cpu_core_hours')  # noqa: W504
+                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
+                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
+                        + F('infra_cost')
+                        + F('markup_cost')
                     )
                 )
 
@@ -631,10 +634,11 @@ class OCPReportViewTest(IamTestCase):
                 .values(*['date'])\
                 .annotate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours') +  # noqa: W504
-                        F('pod_charge_memory_gigabyte_hours') +  # noqa: W504
-                        F('persistentvolumeclaim_charge_gb_month') +  # noqa: W504
-                        F('infra_cost')
+                        F('pod_charge_cpu_core_hours')  # noqa: W504
+                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
+                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
+                        + F('infra_cost')
+                        + F('markup_cost')
                     )
                 )
 
@@ -1026,7 +1030,8 @@ class OCPReportViewTest(IamTestCase):
                 .aggregate(cost=Sum(F('pod_charge_cpu_core_hours')                 # noqa: W503
                                     + F('pod_charge_memory_gigabyte_hours')        # noqa: W503
                                     + F('persistentvolumeclaim_charge_gb_month')   # noqa: W503
-                                    + F('infra_cost')))                            # noqa: W503
+                                    + F('infra_cost')                              # noqa: W503
+                                    + F('markup_cost')))
 
         url = reverse('reports-openshift-costs')
         client = APIClient()
