@@ -23,9 +23,13 @@ import calendar
 import collections
 from datetime import date
 
+from botocore.exceptions import ClientError
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 
+from api.dataexport.models import DataExportRequest
+from api.dataexport.syncer import AwsS3Syncer
 from koku.celery import CELERY as celery
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
@@ -233,3 +237,28 @@ def upload_normalized_data():
 
             # Upload last month's reports
             query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
+
+
+@celery.task(name='masu.celery.tasks.sync_data_to_customer', queue_name='customer_data_sync')
+def sync_data_to_customer(dump_request_uuid):
+    """Scheduled task to sync normalized data to our customers S3 bucket."""
+    dump_request = DataExportRequest.objects.get(uuid=dump_request_uuid)
+    dump_request.status = DataExportRequest.PROCESSING
+    dump_request.save()
+
+    try:
+        syncer = AwsS3Syncer(settings.S3_BUCKET_NAME)
+        syncer.sync_bucket(
+            dump_request.created_by.customer.schema_name,
+            dump_request.bucket_name,
+            (dump_request.start_date, dump_request.end_date))
+    except ClientError:
+        LOG.exception(
+            f'Encountered an error while processing DataExportRequest '
+            f'{dump_request.uuid}, for {dump_request.created_by}.')
+        dump_request.status = DataExportRequest.ERROR
+        dump_request.save()
+        return
+
+    dump_request.status = DataExportRequest.COMPLETE
+    dump_request.save()

@@ -17,6 +17,7 @@
 
 """View for Sources AWS and Azure billing source endpoint."""
 
+from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -27,6 +28,7 @@ from rest_framework.settings import api_settings
 from sources.storage import SourcesStorageError, add_provider_billing_source
 
 
+@never_cache
 @api_view(http_method_names=['POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

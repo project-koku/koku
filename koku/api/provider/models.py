@@ -118,12 +118,14 @@ class Provider(models.Model):
     if settings.DEBUG:
         PROVIDER_AWS_LOCAL = 'AWS-local'
         PROVIDER_AZURE_LOCAL = 'AZURE-local'
+        PROVIDER_GCP_LOCAL = 'GCP-local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_GCP, PROVIDER_GCP),
                             (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                            (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),)
+                            (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                            (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),

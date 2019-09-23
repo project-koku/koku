@@ -1,4 +1,6 @@
 """Collection of tests for customer-initiated data export requests API."""
+from unittest.mock import patch
+
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -8,7 +10,8 @@ from api.iam.test.iam_test_case import IamTestCase
 class DataExportRequestViewSetTest(IamTestCase):
     """DataExportRequestViewSet test case."""
 
-    def test_second_request_with_same_dates_fails(self):
+    @patch('api.dataexport.serializers.sync_data_to_customer')
+    def test_second_request_with_same_dates_fails(self, mock_sync):
         """
         Test saving a request and then the same request again.
 

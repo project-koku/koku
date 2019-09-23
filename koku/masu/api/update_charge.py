@@ -19,6 +19,7 @@
 
 import logging
 
+from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -32,6 +33,7 @@ from masu.processor.tasks import update_charge_info
 LOG = logging.getLogger(__name__)
 
 
+@never_cache
 @api_view(http_method_names=['GET', 'DELETE'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
