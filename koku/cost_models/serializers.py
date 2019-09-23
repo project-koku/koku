@@ -58,11 +58,13 @@ class MarkupSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
 
-    def validate_value(self, value):
-        """Check that value is a positive value."""
-        if value < 0:
-            raise serializers.ValidationError('A markup value must be positive.')
-        return str(value)
+    def to_internal_value(self, data):
+        """Convert Decimal value to string."""
+        value = data.get('value')
+        if value is None:
+            return data
+        data['value'] = str(value)
+        return data
 
 
 class TieredRateSerializer(serializers.Serializer):
