@@ -8,7 +8,7 @@ botocore==1.12.233
 bs4==0.0.1
 celery-prometheus-exporter==1.7.0
 celery==4.3.0
-certifi==2019.6.16
+certifi==2019.9.11
 chardet==3.0.4
 django-cors-headers==3.0.2
 django-environ==0.4.5
