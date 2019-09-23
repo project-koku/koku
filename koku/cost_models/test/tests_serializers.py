@@ -142,16 +142,6 @@ class CostModelSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
-    def test_error_on_markup_less_than_zero(self):
-        """Test error when trying to create a markup less than zero."""
-        self.ocp_data.get('markup')['value'] = float(round(Decimal(random.random()), 6) * -1)
-
-        with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
-            with self.assertRaises(serializers.ValidationError):
-                if serializer.is_valid(raise_exception=True):
-                    serializer.save()
-
     def test_error_on_invalid_metric(self):
         """Test error on an invalid metric rate."""
         self.ocp_data.get('rates', [])[0]['metric']['name'] = 'invalid_metric'
