@@ -244,6 +244,20 @@ class AzureServiceTest(MasuTestCase):
             self.assertEquals(export.get('directory'), self.export_directory)
             self.assertIn('{}_{}'.format(self.container_name, 'blob'), export.get('name'))
 
+    @patch('masu.external.downloader.azure.azure_service.AzureClientFactory')
+    def test_describe_cost_management_exports_wrong_account(self, mock_factory):
+        """Test that cost management exports are not returned from incorrect account."""
+        client = AzureService(
+            subscription_id=self.subscription_id,
+            tenant_id=self.tenant_id,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            resource_group_name=self.resource_group_name,
+            storage_account_name='wrongaccount')
+
+        exports = client.describe_cost_management_exports()
+        self.assertEquals(exports, [])
+
     def test_download_cost_export(self):
         """Test that cost management exports are downloaded."""
         key = '{}_{}_day_{}'.format(self.container_name, 'blob', self.current_date_time.day)
