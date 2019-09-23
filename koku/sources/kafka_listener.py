@@ -46,6 +46,7 @@ SOURCES_OCP_SOURCE_TYPE = 1
 SOURCES_AWS_SOURCE_TYPE = 2
 SOURCES_AZURE_SOURCE_TYPE = 3
 
+
 class SourcesIntegrationError(Exception):
     """Sources Integration error."""
 

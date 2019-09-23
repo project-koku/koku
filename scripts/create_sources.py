@@ -161,7 +161,7 @@ class SourcesDataGenerator:
                      'extra': {'azure': {'tenant_id': str(tenant)}}, 'resource_type': 'Endpoint',
                      'resource_id': str(resource_id)}
 
-        url = '{}/{}'.format(self._base_url, 'authentication')
+        url = '{}/{}'.format(self._base_url, 'authentications')
         r = requests.post(url, headers=self._identity_header, json=json_data)
         response = r.json()
         return response.get('id')
