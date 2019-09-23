@@ -115,7 +115,7 @@ class SourcesClientDataGenerator:
     def create_azure_subscription_id(self, source_id, subscription_id):
         json_data = {'source_id': source_id, 'credentials': {'subscription_id': subscription_id}}
 
-        url = '{}/{}/'.format(self._base_url, 'authentications')
+        url = '{}/{}/'.format(self._base_url, 'authentication')
         response = requests.post(url, headers=self._identity_header, json=json_data)
         return response
 
@@ -150,7 +150,7 @@ class SourcesDataGenerator:
                      'status_details': 'Details Here', 'username': 'username', 'resource_type': 'Endpoint',
                      'resource_id': str(resource_id)}
 
-        url = '{}/{}'.format(self._base_url, 'authentications')
+        url = '{}/{}'.format(self._base_url, 'authentication')
         r = requests.post(url, headers=self._identity_header, json=json_data)
         response = r.json()
         return response.get('id')
@@ -161,7 +161,7 @@ class SourcesDataGenerator:
                      'extra': {'azure': {'tenant_id': str(tenant)}}, 'resource_type': 'Endpoint',
                      'resource_id': str(resource_id)}
 
-        url = '{}/{}'.format(self._base_url, 'authentications')
+        url = '{}/{}'.format(self._base_url, 'authentication')
         r = requests.post(url, headers=self._identity_header, json=json_data)
         response = r.json()
         return response.get('id')
@@ -207,10 +207,10 @@ def main(args):
         print(f'Creating AWS Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
-        authentications_id = generator.create_aws_authentication(endpoint_id, 'user@example.com', role_arn)
+        authentication_id = generator.create_aws_authentication(endpoint_id, 'user@example.com', role_arn)
 
         print(
-            f'AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentications_id}')
+            f'AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
@@ -250,9 +250,9 @@ def main(args):
         client_id = parameters.get('client_id')
         client_secret = parameters.get('client_secret')
         tenant_id = parameters.get('tenant_id')
-        authentications_id = generator.create_azure_authentication(endpoint_id, client_id, client_secret, tenant_id)
+        authentication_id = generator.create_azure_authentication(endpoint_id, client_id, client_secret, tenant_id)
         print(
-            f'Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentications_id}')
+            f'Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')

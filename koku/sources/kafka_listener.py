@@ -42,7 +42,9 @@ KAFKA_APPLICATION_DESTROY = 'Application.destroy'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
-
+SOURCES_OCP_SOURCE_TYPE = 1
+SOURCES_AWS_SOURCE_TYPE = 2
+SOURCES_AZURE_SOURCE_TYPE = 3
 
 class SourcesIntegrationError(Exception):
     """Sources Integration error."""
@@ -165,13 +167,13 @@ def sources_network_info(source_id, auth_header):
     source_name = source_details.get('name')
     source_type_id = int(source_details.get('source_type_id'))
 
-    if source_type_id == 1:
+    if source_type_id == SOURCES_OCP_SOURCE_TYPE:
         source_type = 'OCP'
         authentication = {'resource_name': source_details.get('uid')}
-    elif source_type_id == 2:
+    elif source_type_id == SOURCES_AWS_SOURCE_TYPE:
         source_type = 'AWS'
         authentication = {'resource_name': sources_network.get_aws_role_arn()}
-    elif source_type_id == 3:
+    elif source_type_id == SOURCES_AZURE_SOURCE_TYPE:
         source_type = 'AZURE'
         authentication = {'credentials': sources_network.get_azure_credentials()}
     else:

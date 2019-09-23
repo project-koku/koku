@@ -30,8 +30,8 @@ from sources.storage import SourcesStorageError, add_subscription_id_to_credenti
 @api_view(http_method_names=['POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def authentications(request):
-    """Create Subscription-ID for Azure authentications."""
+def authentication(request):
+    """Create Subscription-ID for Azure authentication."""
     request_data = request.data
 
     try:

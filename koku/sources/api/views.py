@@ -19,4 +19,4 @@
 # flake8: noqa
 # pylint: disable=unused-import
 from sources.api.billing_source import billing_source
-from sources.api.authentications import authentications
+from sources.api.authentication import authentication

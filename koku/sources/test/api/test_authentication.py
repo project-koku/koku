@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Test the authentications endpoint view."""
+"""Test the authentication endpoint view."""
 import json
 
 from django.test import TestCase
@@ -30,8 +30,8 @@ faker = Faker()
 
 
 @override_settings(ROOT_URLCONF='sources.urls')
-class AuthenticationsSourceTests(TestCase):
-    """Test Cases for the authentications endpoint."""
+class AuthenticationSourceTests(TestCase):
+    """Test Cases for the authentication endpoint."""
 
     def setUp(self):
         """Test case setup."""
@@ -41,7 +41,7 @@ class AuthenticationsSourceTests(TestCase):
         self.koku_uuid = faker.uuid4()
 
     def test_post_authentications(self):
-        """Test the POST authentications endpoint."""
+        """Test the POST authentication endpoint."""
         subscription_id = {'subscription_id': 'test-subscription-id'}
 
         params = {
@@ -63,7 +63,7 @@ class AuthenticationsSourceTests(TestCase):
                                                             'storage_account': 'test_storage'}})
         azure_obj.save()
 
-        response = self.client.post(reverse('authentications'), json.dumps(params), content_type='application/json')
+        response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
         body = response.json()
 
         self.assertEqual(response.status_code, 201)
@@ -73,7 +73,7 @@ class AuthenticationsSourceTests(TestCase):
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).authentication, expected_authentication)
 
     def test_post_authentications_non_azure(self):
-        """Test the POT authentications endpoint for a non-Azure provider."""
+        """Test the POT authentication endpoint for a non-Azure provider."""
         subscription_id = {'subscription_id': 'test-subscription-id'}
 
         params = {
@@ -92,14 +92,14 @@ class AuthenticationsSourceTests(TestCase):
                           billing_source={'bucket': ''})
         ocp_obj.save()
 
-        response = self.client.post(reverse('authentications'), json.dumps(params), content_type='application/json')
+        response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
         self.assertIn(str('Source is not AZURE'), str(body))
 
     def test_post_authentications_malformed_json(self):
-        """Test the POT authentications endpoint for a Azure provider with bad json data."""
+        """Test the POT authentication endpoint for a Azure provider with bad json data."""
         subscription_id = {'not-subscription': 'test-subscription-id'}
 
         params = {
@@ -121,7 +121,7 @@ class AuthenticationsSourceTests(TestCase):
                                                             'storage_account': 'test_storage'}})
         azure_obj.save()
 
-        response = self.client.post(reverse('authentications'), json.dumps(params), content_type='application/json')
+        response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
