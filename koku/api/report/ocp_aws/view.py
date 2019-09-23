@@ -19,10 +19,22 @@
 
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
+from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
 from api.report.view import ReportView
+from reporting.provider.aws.models import AWSTagsSummary
 
 
-class OCPAWSCostView(ReportView):
+class OCPAWSView(ReportView):
+    """OCP+AWS Base View."""
+    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
+    provider = 'ocp_aws'
+    _serializer = OCPAWSQueryParamSerializer
+    _query_handler = OCPAWSReportQueryHandler
+    _tag_handler = [AWSTagsSummary]
+
+
+class OCPAWSCostView(OCPAWSView):
     """Get OpenShift on AWS cost usage data.
 
     @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift cost data
@@ -46,12 +58,10 @@ class OCPAWSCostView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
     report = 'costs'
-    provider = 'ocp_aws'
 
 
-class OCPAWSStorageView(ReportView):
+class OCPAWSStorageView(OCPAWSView):
     """Get OpenShift on AWS storage usage data.
 
     @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/storage/ Get OpenShift on AWS storage usage.
@@ -121,12 +131,10 @@ class OCPAWSStorageView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
     report = 'storage'
-    provider = 'ocp_aws'
 
 
-class OCPAWSInstanceTypeView(ReportView):
+class OCPAWSInstanceTypeView(OCPAWSView):
     """Get OpenShift on AWS instance usage data.
 
     @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/instance-types/ Get instance data
@@ -224,6 +232,4 @@ class OCPAWSInstanceTypeView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
     report = 'instance_type'
-    provider = 'ocp_aws'

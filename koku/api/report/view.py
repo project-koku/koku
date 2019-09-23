@@ -31,29 +31,7 @@ from tenant_schemas.utils import tenant_context
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.models import Tenant, User
-from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.aws.serializers import QueryParamSerializer
-from api.report.azure.query_handler import AzureReportQueryHandler
-from api.report.azure.serializers import AzureQueryParamSerializer
-from api.report.ocp.query_handler import OCPReportQueryHandler
-from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
-                                        OCPInventoryQueryParamSerializer)
-from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
-from api.report.ocp_aws.serializers import OCPAWSQueryParamSerializer
-from api.tags.aws.queries import AWSTagQueryHandler
-from api.tags.azure.queries import AzureTagQueryHandler
-from api.tags.ocp.queries import OCPTagQueryHandler
-from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
-from api.tags.serializers import (AWSTagsQueryParamSerializer,
-                                  AzureTagsQueryParamSerializer,
-                                  OCPAWSTagsQueryParamSerializer,
-                                  OCPTagsQueryParamSerializer)
 from api.utils import UnitConverter
-from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.azure.models import AzureTagsSummary
-from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
-                                           OCPStorageVolumeLabelSummary,
-                                           OCPUsagePodLabelSummary)
 
 LOG = logging.getLogger(__name__)
 
