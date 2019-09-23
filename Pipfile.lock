@@ -221,10 +221,10 @@
         },
         "azure-mgmt-containerservice": {
             "hashes": [
-                "sha256:150fa5437726a97428ab107e4de155c950f8065834f43aa2dff5924d20d4b42c",
-                "sha256:b75ceac9a18be75c4f6b1ee4e5320a3c75c78472b49d4ff7d374502d914f7594"
+                "sha256:2a6c46244b86f261113a1ea7ff41868f0005b19c77add6be27c8c3b37b3e9c80",
+                "sha256:cfc91bdc3b7913420bdb6082349a348d132a43abb1cd8950156d1245ddd8508f"
             ],
-            "version": "==4.4.0"
+            "version": "==7.0.0"
         },
         "azure-mgmt-cosmosdb": {
             "hashes": [
