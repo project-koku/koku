@@ -58,6 +58,11 @@ class MarkupSerializer(serializers.Serializer):
     value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
 
+    def to_internal_value(self, data):
+        """Convert Decimal value to string."""
+        data['value'] = str(data.get('value'))
+        return data
+
 
 class TieredRateSerializer(serializers.Serializer):
     """Serializer for Tiered Rate."""
