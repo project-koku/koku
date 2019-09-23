@@ -22,7 +22,7 @@ from rest_framework import permissions
 class AzureAccessPermission(permissions.BasePermission):
     """Determines if a user can view Azure data."""
 
-    resource_type = 'azure.account'
+    resource_type = 'azure.subscription_guid'
 
     def has_permission(self, request, view):
         """Check permission to view Azure data."""

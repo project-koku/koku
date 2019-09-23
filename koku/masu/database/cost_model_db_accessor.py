@@ -18,15 +18,16 @@
 
 import logging
 
-from django.db import connection
+from tenant_schemas.utils import schema_context
 
+from cost_models.models import CostModel
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 
 LOG = logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-public-methods
-class OCPRateDBAccessor(ReportDBAccessorBase):
+class CostModelDBAccessor(ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema, provider_uuid, column_map):
@@ -41,35 +42,43 @@ class OCPRateDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self.provider_uuid = provider_uuid
         self.column_map = column_map
-        self.rates = self._make_rate_by_metric_map()
+        self.cost_model = None
+        self.markup = None
+        self.rates = None
 
-    def _get_base_entry(self):
-        """Get base metric query."""
-        query_sql = f"""
-            SELECT cost_model_table.rates
-            FROM {self.schema}.cost_model as cost_model_table
-            JOIN {self.schema}.cost_model_map as map
-                ON cost_model_table.uuid = map.cost_model_id
-            WHERE map.provider_uuid = '{self.provider_uuid}'
-            """
-        with connection.cursor() as cursor:
-            cursor.execute(query_sql)
-            results = cursor.fetchall()
-
-        return results[0][0] if len(results) == 1 else None
+    def _get_cost_model(self):
+        """Get the cost model for a provider."""
+        if self.cost_model is None:
+            with schema_context(self.schema):
+                self.cost_model = CostModel.objects.filter(
+                    costmodelmap__provider_uuid=self.provider_uuid
+                ).first()
+        return self.cost_model
 
     def _make_rate_by_metric_map(self):
         """Convert the rates JSON list to a dict keyed on metric."""
+        if self._get_cost_model() is None:
+            return {}
         metric_rate_map = {}
-        rates = self._get_base_entry()
+        rates = self._get_cost_model().rates
         if not rates:
             return {}
         for rate in rates:
             metric_rate_map[rate.get('metric', {}).get('name')] = rate
         return metric_rate_map
 
+    def get_markup(self):
+        """Get the cost model for a provider."""
+        if self._get_cost_model() is None:
+            self.markup = {}
+        if self.markup is None:
+            self.markup = self._get_cost_model().markup
+        return self.markup
+
     def get_rates(self, value):
         """Get the rates."""
+        if self.rates is None:
+            self.rates = self._make_rate_by_metric_map()
         return self.rates.get(value)
 
     def get_cpu_core_usage_per_hour_rates(self):

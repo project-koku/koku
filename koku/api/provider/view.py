@@ -23,6 +23,7 @@ from operator import and_
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
+from django.views.decorators.cache import never_cache
 from django_filters import CharFilter, FilterSet
 from django_filters.filters import BaseCSVFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -115,10 +116,12 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 LOG.error('No customer found for user %s.', user)
         return queryset
 
+    @never_cache
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
         return super().create(request=request, args=args, kwargs=kwargs)
 
+    @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -129,6 +132,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
         return response
 
+    @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -138,6 +142,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         response.data['stats'] = manager.provider_statistics(tenant)
         return response
 
+    @never_cache
     def destroy(self, request, *args, **kwargs):
         """Delete a provider."""
         # throws ValidationError if pk is not a valid UUID
