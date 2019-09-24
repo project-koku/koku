@@ -43,24 +43,21 @@ class KokuHTTPClient:
         header = {'x-rh-identity': auth_header, 'sources-client': 'True'}
         self._identity_header = header
 
-    @staticmethod
-    def _get_dict_from_text_field(value):
+    def _get_dict_from_text_field(self, value):
         try:
             db_dict = json.loads(value)
         except ValueError:
             db_dict = {}
         return db_dict
 
-    @staticmethod
-    def _build_provider_resource_name_auth(authentication):
+    def _build_provider_resource_name_auth(self, authentication):
         if authentication.get('resource_name'):
             auth = {'provider_resource_name': authentication.get('resource_name')}
         else:
             raise KokuHTTPClientError('Missing provider_resource_name')
         return auth
 
-    @staticmethod
-    def _build_credentials_auth(authentication):
+    def _build_credentials_auth(self, authentication):
         if authentication.get('credentials'):
             auth = {'credentials': authentication.get('credentials')}
         else:
