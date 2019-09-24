@@ -111,6 +111,17 @@ services:
     volumes:
       - ./pg_data:/var/lib/pgsql/data
 
+  pgadmin:
+    container_name: pgAdmin
+    image: dpage/pgadmin4
+    environment:
+    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres}
+    - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
+    ports:
+    - "${PGADMIN_PORT-8432}:80"
+    volumes:
+      - ./pgadmin_servers.json:/pgadmin4/servers.json
+
   koku-rabbit:
       container_name: koku_rabbit
       hostname: rabbit
