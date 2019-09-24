@@ -122,3 +122,5 @@ scripts/aws_pricing/
 
 # Mac OSX
 .DS_Store
+#pgAdmin servers.json
+pgadmin_servers.json
