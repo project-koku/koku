@@ -70,7 +70,7 @@ class AzureProviderMap(ProviderMap):
                         'annotations': {
                             'infrastructure_cost': Sum('pretax_cost'),
                             'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum('markup_cost'),
+                            'markup_cost': Sum('markup_cost'),
                             'cost': Sum(F('pretax_cost') + F('markup_cost')),
                             'cost_units': Coalesce(Max('currency'), Value('USD'))
                         },
@@ -78,7 +78,7 @@ class AzureProviderMap(ProviderMap):
                         'filter': [{}],
                         'cost_units_key': 'currency',
                         'cost_units_fallback': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'cost': 'desc'},
                     },
                     'instance_type': {
@@ -94,7 +94,7 @@ class AzureProviderMap(ProviderMap):
                         'annotations': {
                             'infrastructure_cost': Sum('pretax_cost'),
                             'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum('markup_cost'),
+                            'markup_cost': Sum('markup_cost'),
                             'cost': Sum(F('pretax_cost') + F('markup_cost')),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Max('instance_count'),
@@ -115,7 +115,7 @@ class AzureProviderMap(ProviderMap):
                         # 'usage_units_fallback': 'Hrs',  # Waiting on MSFT
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
-                                        'derived_cost', 'markup_costs', 'count'],
+                                        'derived_cost', 'markup_cost', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'storage': {
@@ -131,7 +131,7 @@ class AzureProviderMap(ProviderMap):
                         'annotations': {
                             'infrastructure_cost': Sum('pretax_cost'),
                             'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum('markup_cost'),
+                            'markup_cost': Sum('markup_cost'),
                             'cost': Sum(F('pretax_cost') + F('markup_cost')),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'count': Max('instance_count'),
@@ -149,7 +149,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_fallback': 'USD',
                         # 'usage_units_key': 'unit',
                         # 'usage_units_fallback': 'GB-Mo',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
+                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'cpu': {
@@ -164,7 +164,7 @@ class AzureProviderMap(ProviderMap):
                         'annotations': {
                             'infrastructure_cost': Sum('pretax_cost'),
                             'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum('markup_cost'),
+                            'markup_cost': Sum('markup_cost'),
                             'cost': Sum(F('pretax_cost') + F('markup_cost')),
                             'cost_units': Coalesce(Max('currency'), Value('USD')),
                             'usage': Sum('usage_quantity'),
@@ -181,7 +181,7 @@ class AzureProviderMap(ProviderMap):
                         'cost_units_fallback': 'USD',
                         # 'usage_units_key': '',
                         # 'usage_units_fallback': 'Core-Hrs',
-                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
+                        'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
                 },
