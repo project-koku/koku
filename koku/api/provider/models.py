@@ -168,7 +168,7 @@ class Sources(models.Model):
     name = models.CharField(max_length=256, null=True)
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
-    auth_header = models.CharField(max_length=512, null=True)
+    auth_header = models.TextField(null=True)
 
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
