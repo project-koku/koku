@@ -26,17 +26,46 @@ class SourcesStorageError(Exception):
     """Sources Storage error."""
 
 
+def _aws_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _ocp_provider_ready_for_create(provider):
+    """Determine if OCP provider is ready for provider creation."""
+    if (provider.source_id and provider.name
+            and provider.auth_header and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _azure_provider_ready_for_create(provider):
+    """Determine if AZURE provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and not provider.koku_uuid):
+        billing_source = provider.billing_source.get('data_source', {})
+
+        authentication = provider.authentication.get('credentials', {})
+        required_auth_keys = ['client_id', 'tenant_id', 'client_secret', 'subscription_id']
+        required_billing_keys = ['resource_group', 'storage_account']
+        if set(billing_source.keys()) == set(required_billing_keys)\
+                and set(authentication.keys()) == set(required_auth_keys):
+            return True
+    return False
+
+
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    if provider.source_type == 'AWS':
-        if (provider.source_id and provider.name and provider.auth_header
-                and provider.billing_source and not provider.koku_uuid):
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-    else:
-        if (provider.source_id and provider.name
-                and provider.auth_header and not provider.koku_uuid):
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
+    screen_map = {'AWS': _aws_provider_ready_for_create,
+                  'OCP': _ocp_provider_ready_for_create,
+                  'AZURE': _azure_provider_ready_for_create}
+    screen_fn = screen_map.get(provider.source_type)
+    if screen_fn and screen_fn(provider):
+        provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
     return provider_event
 
 
@@ -182,13 +211,13 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
-def add_provider_billing_source(source_id, billing_source):
+def add_subscription_id_to_credentials(source_id, subscription_id):
     """
-    Add AWS billing source to Sources database object.
+    Add AZURE subscription_id Sources database object.
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        billign_source (String) - S3 bucket
+        subscription_id (String) - Subscription ID
 
     Returns:
         None
@@ -196,8 +225,48 @@ def add_provider_billing_source(source_id, billing_source):
     """
     try:
         query = Sources.objects.get(source_id=source_id)
-        if query.source_type != 'AWS':
-            raise SourcesStorageError('Source is not AWS.')
+        if query.source_type not in ('AZURE',):
+            raise SourcesStorageError('Source is not AZURE.')
+        auth_dict = query.authentication
+        auth_dict['credentials']['subscription_id'] = subscription_id
+        query.authentication = auth_dict
+        query.save()
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
+
+
+def _validate_billing_source(provider_type, billing_source):
+    """Validate billing source parameters."""
+    if provider_type == 'AWS':
+        if not billing_source.get('bucket'):
+            raise SourcesStorageError('Missing AWS bucket.')
+    elif provider_type == 'AZURE':
+        data_source = billing_source.get('data_source')
+        if not data_source:
+            raise SourcesStorageError('Missing AZURE data_source.')
+        if not data_source.get('resource_group'):
+            raise SourcesStorageError('Missing AZURE resource_group')
+        if not data_source.get('storage_account'):
+            raise SourcesStorageError('Missing AZURE storage_account')
+
+
+def add_provider_billing_source(source_id, billing_source):
+    """
+    Add AWS or AZURE billing source to Sources database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        billing_source (String) - S3 bucket
+
+    Returns:
+        None
+
+    """
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        if query.source_type not in ('AWS', 'AZURE'):
+            raise SourcesStorageError('Source is not AWS nor AZURE.')
+        _validate_billing_source(query.source_type, billing_source)
         query.billing_source = billing_source
         query.save()
     except Sources.DoesNotExist:

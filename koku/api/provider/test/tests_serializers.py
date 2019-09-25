@@ -141,13 +141,46 @@ class ProviderSerializerTest(IamTestCase):
         sources = Sources.objects.create(source_id=1,
                                          auth_header='testheader',
                                          offset=1,
-                                         authentication=cluster_id)
+                                         authentication={'resource_name': cluster_id})
         sources.save()
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
                 source_obj = Sources.objects.get(source_id=1)
+                self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
+
+    def test_create_ocp_source_with_existing_provider_azure(self):
+        """Test creating an Azure Source when the provider already exists."""
+        credentials = {'foo': 'bar'}
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AZURE,
+                    'authentication': {
+                        'credentials': credentials
+                    }}
+
+        instance = None
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
+        # Add Source without provider uuid
+        sources = Sources.objects.create(source_id=2,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         authentication={'credentials': credentials})
+        sources.save()
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+                source_obj = Sources.objects.get(source_id=2)
                 self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
 
     def test_create_provider_with_exception(self):
