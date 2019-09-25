@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Azure Provider."""
+import random
 from unittest.mock import patch
 
 from azure.common import AzureException
@@ -57,6 +58,36 @@ class AzureProviderTestCase(TestCase):
                        'client_secret': FAKE.word()}
         source_name = {'resource_group': FAKE.word(),
                        'storage_account': FAKE.word()}
+        with self.assertRaises(ValidationError):
+            AzureProvider().cost_usage_source_is_reachable(credentials,
+                                                           source_name)
+
+    @patch('providers.azure.client.ServicePrincipalCredentials')
+    def test_missing_creds_parameters_exception(self, _):
+        """Test that ValidationError is raised when there are missing parameters."""
+        fields = ['subscription_id', 'tenant_id', 'client_id', 'client_secret']
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+        del credentials[random.choice(fields)]
+        with self.assertRaises(ValidationError):
+            AzureProvider().cost_usage_source_is_reachable(credentials,
+                                                           source_name)
+
+    @patch('providers.azure.client.ServicePrincipalCredentials')
+    def test_missing_source_parameters_exception(self, _):
+        """Test that ValidationError is raised when there are missing parameters."""
+        fields = ['resource_group', 'storage_account']
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+        del source_name[random.choice(fields)]
         with self.assertRaises(ValidationError):
             AzureProvider().cost_usage_source_is_reachable(credentials,
                                                            source_name)
