@@ -97,24 +97,45 @@ class OCPAWSProviderMap(ProviderMap):
                 'report_type': {
                     'costs': {
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_cost': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                         },
                         'annotations': {
+                            # Cost is the first column in annotations so that it
+                            # can reference the original database column 'markup_cost'
+                            # If cost comes after the markup_cost annotaton, then
+                            # Django will reference the annotated value, which is
+                            # a Sum() and things will break trying to add
+                            # a column with the sum of another column.
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Value(0, output_field=DecimalField()),
-                            'markup_costs': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                         },
                         'count': None,
-                        'delta_key': {'cost': Sum(F('unblended_cost') + F('markup_cost'))},
+                        'delta_key': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            )
+                        },
                         'filter': [{}],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
-                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_costs'],
+                        'sum_columns': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'cost': 'desc'},
                     },
                     'costs_by_project': {
@@ -123,42 +144,67 @@ class OCPAWSProviderMap(ProviderMap):
                             'total': OCPAWSCostLineItemProjectDailySummary
                         },
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))\
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_cost': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                         },
                         'annotations': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))\
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_costs': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD'))
                         },
                         'count': None,
-                        'delta_key': {'cost': Sum(F('pod_cost') + F('project_markup_cost'))},
+                        'delta_key': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))\
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            )
+                        },
                         'filter': [{}],
                         'cost_units_key': 'currency_code',
                         'cost_units_fallback': 'USD',
-                        'sum_columns': ['infrastructure_cost', 'project_markup_costs',
+                        'sum_columns': ['infrastructure_cost', 'markup_cost',
                                         'derived_cost', 'cost'],
                         'default_ordering': {'cost': 'desc'},
                     },
                     'storage': {
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_cost': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum(F('usage_amount')),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                         },
                         'annotations': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_costs': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum(F('usage_amount')),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -175,7 +221,7 @@ class OCPAWSProviderMap(ProviderMap):
                         'usage_units_key': 'unit',
                         'usage_units_fallback': 'GB-Mo',
                         'sum_columns': ['usage', 'infrastructure_cost',
-                                        'markup_costs', 'derived_cost', 'cost'],
+                                        'markup_cost', 'derived_cost', 'cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'storage_by_project': {
@@ -184,19 +230,29 @@ class OCPAWSProviderMap(ProviderMap):
                             'total': OCPAWSCostLineItemProjectDailySummary
                         },
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_cost': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum('usage_amount'),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
                         },
                         'annotations': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_costs': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'usage': Sum('usage_amount'),
                             'usage_units': Coalesce(Max('unit'), Value('GB-Mo'))
@@ -213,15 +269,20 @@ class OCPAWSProviderMap(ProviderMap):
                         'usage_units_key': 'unit',
                         'usage_units_fallback': 'GB-Mo',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost',
-                                        'project_markup_costs'],
+                                        'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'instance_type': {
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_cost': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum(F('usage_amount')),
@@ -229,10 +290,15 @@ class OCPAWSProviderMap(ProviderMap):
                         },
                         'aggregate_key': 'usage_amount',
                         'annotations': {
+                            'cost': Sum(
+                                Coalesce(F('unblended_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum(F('unblended_cost')),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'markup_costs': Sum(F('markup_cost')),
-                            'cost': Sum(F('unblended_cost') + F('markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
@@ -253,7 +319,7 @@ class OCPAWSProviderMap(ProviderMap):
                         'usage_units_fallback': 'Hrs',
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
-                                        'markup_costs', 'derived_cost', 'count'],
+                                        'markup_cost', 'derived_cost', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
                     'instance_type_by_project': {
@@ -262,10 +328,15 @@ class OCPAWSProviderMap(ProviderMap):
                             'total': OCPAWSCostLineItemProjectDailySummary
                         },
                         'aggregates': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_cost': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'usage': Sum('usage_amount'),
@@ -273,10 +344,15 @@ class OCPAWSProviderMap(ProviderMap):
                         },
                         'aggregate_key': 'usage_amount',
                         'annotations': {
+                            'cost': Sum(
+                                Coalesce(F('pod_cost'), Value(0, output_field=DecimalField()))
+                                + Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'infrastructure_cost': Sum('pod_cost'),
                             'derived_cost': Sum(Value(0, output_field=DecimalField())),
-                            'project_markup_costs': Sum('project_markup_cost'),
-                            'cost': Sum(F('pod_cost') + F('project_markup_cost')),
+                            'markup_cost': Sum(
+                                Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
+                            ),
                             'cost_units': Coalesce(Max('currency_code'), Value('USD')),
                             'count': Count('resource_id', distinct=True),
                             'count_units': Value('instances', output_field=CharField()),
@@ -297,7 +373,7 @@ class OCPAWSProviderMap(ProviderMap):
                         'usage_units_fallback': 'Hrs',
                         'count_units_fallback': 'instances',
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost',
-                                        'project_markup_costs', 'derived_cost', 'count'],
+                                        'markup_cost', 'derived_cost', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
                 },
