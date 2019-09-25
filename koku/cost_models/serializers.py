@@ -55,16 +55,9 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
 
-    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    value = serializers.DecimalField(required=False, max_digits=19,
+                                     decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
-
-    def to_internal_value(self, data):
-        """Convert Decimal value to string."""
-        value = data.get('value')
-        if value is None:
-            return data
-        data['value'] = str(value)
-        return data
 
 
 class TieredRateSerializer(serializers.Serializer):
