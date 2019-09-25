@@ -19,6 +19,7 @@
 from uuid import uuid4
 
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 
 from api.provider.models import Provider
@@ -50,7 +51,7 @@ class CostModel(models.Model):
 
     rates = JSONField(default=dict)
 
-    markup = JSONField(default=dict)
+    markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
 
 class CostModelAudit(models.Model):
@@ -85,7 +86,7 @@ class CostModelAudit(models.Model):
 
     rates = JSONField(default=dict)
 
-    markup = JSONField(default=dict)
+    markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
 
 class CostModelMap(models.Model):
