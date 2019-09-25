@@ -38,6 +38,30 @@ def create_parser():
                         dest='s3_bucket',
                         required=False,
                         help='AWS S3 bucket with cost and usage report')
+    parser.add_argument('--resource_group',
+                        dest='resource_group',
+                        required=False,
+                        help='AZURE Storage Resource Group')
+    parser.add_argument('--storage_account',
+                        dest='storage_account',
+                        required=False,
+                        help='AZURE Storage Account')
+    parser.add_argument('--subscription_id',
+                        dest='subscription_id',
+                        required=False,
+                        help='AZURE Subscription ID')
+    parser.add_argument('--client_id',
+                        dest='client_id',
+                        required=False,
+                        help='Azure Client ID')
+    parser.add_argument('--client_secret',
+                        dest='client_secret',
+                        required=False,
+                        help='Azure Client Secret')
+    parser.add_argument('--tenant_id',
+                        dest='tenant_id',
+                        required=False,
+                        help='Azure Tenant ID')
     parser.add_argument('--auth_header',
                         dest='auth_header',
                         required=False,
@@ -59,6 +83,10 @@ def create_parser():
                                 dest='ocp',
                                 action='store_true',
                                 help='Create an OCP source.')
+    provider_group.add_argument('--azure',
+                                dest='azure',
+                                action='store_true',
+                                help='Create an AZURE source.')
 
     return parser
 
@@ -71,9 +99,23 @@ class SourcesClientDataGenerator:
         self._identity_header = header
 
     def create_s3_bucket(self, source_id, billing_source):
-        json_data = {'source_id': source_id, 'billing_source': str(billing_source)}
+        json_data = {'source_id': source_id, 'billing_source': {'bucket': billing_source}}
 
         url = '{}/{}/'.format(self._base_url, 'billing_source')
+        response = requests.post(url, headers=self._identity_header, json=json_data)
+        return response
+
+    def create_azure_storage(self, source_id, resource_group, storage_account):
+        json_data = {'source_id': source_id, 'billing_source': {'data_source': {'resource_group': resource_group,
+                                                                                'storage_account': storage_account}}}
+        url = '{}/{}/'.format(self._base_url, 'billing_source')
+        response = requests.post(url, headers=self._identity_header, json=json_data)
+        return response
+
+    def create_azure_subscription_id(self, source_id, subscription_id):
+        json_data = {'source_id': source_id, 'credentials': {'subscription_id': subscription_id}}
+
+        url = '{}/{}/'.format(self._base_url, 'authentication')
         response = requests.post(url, headers=self._identity_header, json=json_data)
         return response
 
@@ -87,7 +129,7 @@ class SourcesDataGenerator:
         self._identity_header = header
 
     def create_source(self, source_name, source_type):
-        type_map = {'aws': '2', 'ocp': '1'}
+        type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
 
         url = '{}/{}'.format(self._base_url, 'sources')
@@ -106,6 +148,17 @@ class SourcesDataGenerator:
     def create_aws_authentication(self, resource_id, username, password):
         json_data = {'authtype': 'arn', 'name': 'AWS default', 'password': str(password), 'status': 'valid',
                      'status_details': 'Details Here', 'username': 'username', 'resource_type': 'Endpoint',
+                     'resource_id': str(resource_id)}
+
+        url = '{}/{}'.format(self._base_url, 'authentication')
+        r = requests.post(url, headers=self._identity_header, json=json_data)
+        response = r.json()
+        return response.get('id')
+
+    def create_azure_authentication(self, resource_id, username, password, tenant):
+        json_data = {'authtype': 'username_password', 'name': 'Azure default', 'password': str(password),
+                     'status': 'valid', 'status_details': 'Details Here', 'username': str(username),
+                     'extra': {'azure': {'tenant_id': str(tenant)}}, 'resource_type': 'Endpoint',
                      'resource_id': str(resource_id)}
 
         url = '{}/{}'.format(self._base_url, 'authentications')
@@ -154,9 +207,10 @@ def main(args):
         print(f'Creating AWS Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
-        authentications_id = generator.create_aws_authentication(endpoint_id, 'user@example.com', role_arn)
+        authentication_id = generator.create_aws_authentication(endpoint_id, 'user@example.com', role_arn)
 
-        print(f'AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentications_id}')
+        print(
+            f'AWS Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
@@ -165,6 +219,40 @@ def main(args):
     elif parameters.get('ocp'):
         source_id = generator.create_source(source_name, 'ocp')
         print(f'Creating OCP Source. Source ID: {source_id}')
+
+        if create_application:
+            application_id = generator.create_application(source_id, 'cost_management')
+            print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
+
+    elif parameters.get('azure'):
+        storage_account = parameters.get('storage_account')
+        resource_group = parameters.get('resource_group')
+        subscription_id = parameters.get('subscription_id')
+        source_id_param = parameters.get('source_id')
+
+        if storage_account and resource_group and source_id_param:
+            sources_client = SourcesClientDataGenerator(identity_header)
+            billing_source_response = sources_client.create_azure_storage(source_id_param, resource_group,
+                                                                          storage_account)
+            print(f'Associating Azure storage account and resource group: {billing_source_response.content}')
+            return
+
+        if subscription_id and source_id_param:
+            sources_client = SourcesClientDataGenerator(identity_header)
+            authentication_response = sources_client.create_azure_subscription_id(source_id_param, subscription_id)
+            print(f'Associating Azure Subscription ID: {authentication_response.content}')
+            return
+
+        source_id = generator.create_source(source_name, 'azure')
+        print(f'Creating AZURE Source. Source ID: {source_id}')
+
+        endpoint_id = generator.create_endpoint(source_id)
+        client_id = parameters.get('client_id')
+        client_secret = parameters.get('client_secret')
+        tenant_id = parameters.get('tenant_id')
+        authentication_id = generator.create_azure_authentication(endpoint_id, client_id, client_secret, tenant_id)
+        print(
+            f'Azure Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
 
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
