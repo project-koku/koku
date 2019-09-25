@@ -120,7 +120,6 @@ class AzureCostEntryLineItemDaily(models.Model):
     offer_id = models.PositiveIntegerField(null=True)
 
 
-
 class AzureCostEntryLineItemDailySummary(models.Model):
     """A line item in a cost entry.
 
