@@ -1,8 +1,11 @@
 language: python
 
-python:
-  - "3.6"
-  - "3.7"
+matrix:
+  include:
+    - python: 3.7
+      env: TOXENV=for_travis
+    - python: 3.6
+      env: TOXENV=for_travis
 
 dist: xenial # needed for py37
 
