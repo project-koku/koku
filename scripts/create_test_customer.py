@@ -116,140 +116,108 @@ class KokuCustomerOnboarder:
             print(f'Response: [{response.status_code}] {response.text}')
         return response
 
-    def create_provider_db(self):
-        """Create a Koku Provider by inserting into the Koku DB."""
+    def create_provider_db(self, provider_type):
+        """Create a single provider, auth, and billing source in the DB."""
         dbinfo = {'database': os.getenv('DATABASE_NAME'),
                   'user': os.getenv('DATABASE_USER'),
                   'password': os.getenv('DATABASE_PASSWORD'),
                   'port': os.getenv('POSTGRES_SQL_SERVICE_PORT'),
                   'host': os.getenv('POSTGRES_SQL_SERVICE_HOST')}
-
         with psycopg2.connect(**dbinfo) as conn:
             cursor = conn.cursor()
 
-            provider_name = self.customer.get('providers')\
-                                         .get('aws_provider')\
-                                         .get('authentication')\
-                                         .get('provider_resource_name')
-            auth_sql = """
-                INSERT INTO api_providerauthentication (uuid,
-                                                        provider_resource_name)
-                VALUES ('{uuid}', '{resource}')
-                ;
-            """.format(uuid=uuid4(), resource=provider_name)
+        if provider_type.lower() == 'aws':
+            provider = 'aws_provider'
+        elif provider_type.lower() == 'ocp':
+            provider = 'ocp_provider'
+        elif provider_type.lower() == 'azure':
+            provider = 'azure_provider'
 
-            cursor.execute(auth_sql)
-            conn.commit()
-            print('Created AWS provider authentication')
+        provider_resource_name = self.customer.get('providers')\
+            .get(provider)\
+            .get('authentication')\
+            .get('provider_resource_name')
+        credentials = self.customer.get('providers')\
+            .get(provider)\
+            .get('authentication')\
+            .get('credentials', {})
 
-            credentials = self.customer.get('providers')\
-                                         .get('azure_provider')\
-                                         .get('authentication')\
-                                         .get('credentials')
+        bucket = self.customer.get('providers')\
+            .get(provider)\
+            .get('billing_source')\
+            .get('bucket', '')
+        data_source = self.customer.get('providers')\
+            .get(provider)\
+            .get('billing_source')\
+            .get('data_source', {})
 
-            auth_azure_sql = """
-                INSERT INTO api_providerauthentication (uuid,
-                                                        credentials)
-                VALUES (%s, %s)
-                ;
-            """
-            values =[str(uuid4()), json_dumps(credentials)]
+        billing_sql = """
+            SELECT id FROM api_providerbillingsource
+            WHERE bucket = %s
+                AND data_source = %s
 
-            cursor.execute(auth_azure_sql, values)
-            conn.commit()
-            print('Created Azure provider authentication')
+        """
+        values =[bucket, json_dumps(data_source)]
+        cursor.execute(billing_sql, values)
+        try:
+            billing_id = cursor.fetchone()
+            if billing_id:
+                billing_id = billing_id[0]
+        except psycopg2.ProgrammingError:
+            pass
+        finally:
+            if billing_id is None:
 
-            provider_name = self.customer.get('providers')\
-                                         .get('ocp_provider')\
-                                         .get('authentication')\
-                                         .get('provider_resource_name')
-            auth_ocp_sql = """
-                INSERT INTO api_providerauthentication (uuid,
-                                                        provider_resource_name)
-                VALUES ('{uuid}', '{resource}')
-                ;
-            """.format(uuid=uuid4(), resource=provider_name)
+                billing_sql = """
+                    INSERT INTO api_providerbillingsource (uuid, bucket, data_source)
+                    VALUES (%s, %s, %s)
+                    RETURNING id
+                    ;
+                """
+                values =[str(uuid4()), bucket, json_dumps(data_source)]
+                cursor.execute(billing_sql, values)
+                billing_id = cursor.fetchone()[0]
+        conn.commit()
 
-            cursor.execute(auth_ocp_sql)
-            conn.commit()
-            print('Created OCP provider authentication')
+        auth_sql = """
+            INSERT INTO api_providerauthentication (uuid,
+                                                    provider_resource_name,
+                                                    credentials)
+            VALUES (%s, %s, %s)
+            RETURNING id
+            ;
+        """
+        values =[str(uuid4()), provider_resource_name, json_dumps(credentials)]
 
-            bucket = self.customer.get('providers')\
-                                  .get('aws_provider')\
-                                  .get('bucket')
-            billing_sql = """
-                INSERT INTO api_providerbillingsource (uuid, bucket)
-                VALUES ('{uuid}', '{bucket}')
-                ;
-            """.format(uuid=uuid4(), bucket=bucket)
+        cursor.execute(auth_sql, values)
+        auth_id = cursor.fetchone()[0]
+        conn.commit()
 
-            cursor.execute(billing_sql)
-            conn.commit()
-            print('Created AWS provider billing source')
+        provider_sql = """
+            INSERT INTO api_provider (uuid, name, type, authentication_id, billing_source_id,
+                                    created_by_id, customer_id, setup_complete)
+            VALUES(%s, %s, %s, %s, %s, 1, 1, False)
+            RETURNING id
+            ;
+        """
+        values = [str(uuid4()), provider, provider_type, auth_id, billing_id]
 
-            data_source = self.customer.get('providers')\
-                                  .get('azure_provider')\
-                                  .get('data_source')
-            billing_sql = """
-                INSERT INTO api_providerbillingsource (uuid, data_source)
-                VALUES (%s, %s)
-                ;
-            """
-            values =[str(uuid4()), json_dumps(data_source)]
+        cursor.execute(provider_sql, values)
+        conn.commit()
 
-            cursor.execute(billing_sql, values)
-            conn.commit()
-            print('Created Azure provider billing source')
 
-            provider_name = self.customer.get('providers')\
-                                         .get('aws_provider')\
-                                         .get('provider_name')
-            provider_sql = """
-            INSERT INTO api_provider (uuid, name, type, authentication_id,
-                                      billing_source_id, created_by_id,
-                                      customer_id, setup_complete)
-            VALUES('{uuid}', '{name}', 'AWS', 1, 1, 1, 1, False)
-                ;
-            """.format(uuid=uuid4(), name=provider_name)
+    def create_providers_db(self):
+        """Create a Koku Provider by inserting into the Koku DB."""
+        for provider_type in ['AWS', 'OCP', 'Azure']:
+            self.create_provider_db(provider_type)
+            print(f'Created {provider_type} provider.')
 
-            cursor.execute(provider_sql)
-
-            print('Created AWS provider')
-
-            provider_name = self.customer.get('providers')\
-                                         .get('ocp_provider')\
-                                         .get('provider_name')
-            provider_ocp_sql = """
-            INSERT INTO api_provider (uuid, name, type, authentication_id,
-                                      created_by_id, customer_id,
-                                      setup_complete)
-            VALUES('{uuid}', '{name}', 'OCP', 2, 1, 1, False)
-                ;
-            """.format(uuid=uuid4(), name=provider_name)
-
-            cursor.execute(provider_ocp_sql)
-            conn.commit()
-            print('Created OCP provider')
-
-            provider_name = self.customer.get('providers')\
-                                         .get('azure_provider')\
-                                         .get('provider_name')
-            provider_sql = """
-            INSERT INTO api_provider (uuid, name, type, authentication_id,
-                                      billing_source_id, created_by_id,
-                                      customer_id, setup_complete)
-            VALUES('{uuid}', '{name}', 'AZURE', 3, 2, 1, 1, False)
-                ;
-            """.format(uuid=uuid4(), name=provider_name)
-
-            cursor.execute(provider_sql)
-            print('Created Azure provider')
 
     def onboard(self):
         """Execute Koku onboarding steps."""
         self.create_customer()
         if self._config.get('bypass_api'):
-            self.create_provider_db()
+            self.create_providers_db()
         else:
             self.create_provider_api()
 
