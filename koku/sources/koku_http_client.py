@@ -82,16 +82,14 @@ class KokuHTTPClient:
         if provider_fn:
             return provider_fn(authentication)
 
-    @staticmethod
-    def _build_provider_bucket(billing_source):
+    def _build_provider_bucket(self, billing_source):
         if billing_source.get('bucket') is not None:
             billing = {'bucket': billing_source.get('bucket')}
         else:
             raise KokuHTTPClientError('Missing bucket')
         return billing
 
-    @staticmethod
-    def _build_provider_data_source(billing_source):
+    def _build_provider_data_source(self, billing_source):
         if billing_source.get('data_source'):
             billing = {'data_source': billing_source.get('data_source')}
         else:
