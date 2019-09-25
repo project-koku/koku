@@ -79,6 +79,8 @@ class AzureMeter(models.Model):
 
     currency = models.CharField(max_length=10, null=False)
 
+    unit_of_measure = models.CharField(max_length=63, null=True)
+
 
 class AzureCostEntryLineItemDaily(models.Model):
     """A line item in a cost entry.
@@ -117,7 +119,6 @@ class AzureCostEntryLineItemDaily(models.Model):
 
     offer_id = models.PositiveIntegerField(null=True)
 
-    unit_of_measure = models.CharField(max_length=63, null=True)
 
 
 class AzureCostEntryLineItemDailySummary(models.Model):

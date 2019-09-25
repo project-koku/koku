@@ -119,6 +119,13 @@
         "provider_type":"AZURE"
     },
     {
+        "database_column":"unit_of_measure",
+        "database_table":"reporting_azuremeter",
+        "provider_column_name":"UnitOfMeasure",
+        "report_type":"AZURE-CUR",
+        "provider_type":"AZURE"
+    },
+    {
         "database_column":"subscription_guid",
         "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"SubscriptionGuid",
@@ -157,13 +164,6 @@
         "database_column":"offer_id",
         "database_table":"reporting_azurecostentrylineitem_daily",
         "provider_column_name":"OfferId",
-        "report_type":"AZURE-CUR",
-        "provider_type":"AZURE"
-    },
-        {
-        "database_column":"unit_of_measure",
-        "database_table":"reporting_azurecostentrylineitem_daily",
-        "provider_column_name":"UnitOfMeasure",
         "report_type":"AZURE-CUR",
         "provider_type":"AZURE"
     }
