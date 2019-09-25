@@ -1,11 +1,8 @@
 language: python
 
-matrix:
-  include:
-    - python: 3.7
-      env: TOXENV=for_travis
-    - python: 3.6
-      env: TOXENV=for_travis
+python:
+  - "3.6"
+  - "3.7"
 
 dist: xenial # needed for py37
 
@@ -25,6 +22,7 @@ env:
   POSTGRES_SQL_SERVICE_PORT=5432
   DATABASE_USER=postgres
   DATABASE_PASSWORD=''
+  TOXENV=for_travis
 
 before_install:
   - sudo rm -f /etc/boto.cfg
