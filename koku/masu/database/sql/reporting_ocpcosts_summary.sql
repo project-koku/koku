@@ -1,3 +1,59 @@
+CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
+    SELECT ocp_aws.usage_start,
+        ocp_aws.cluster_id,
+        ocp_aws.cluster_alias,
+        ocp_aws.namespace,
+        ocp_aws.data_source,
+        ocp_aws.pod,
+        ocp_aws.node,
+        ocp_aws.pod_labels,
+        sum(ocp_aws.unblended_cost) AS infra_cost,
+        sum(ocp_aws.pod_cost) AS project_infra_cost
+    FROM acct10001.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    WHERE date(ocp_aws.usage_start) >= '{start_date}'
+        AND date(ocp_aws.usage_start) <= '{end_date}'
+        AND ocp_aws.cluster_id = '{cluster_id}'
+    GROUP BY ocp_aws.usage_start,
+        ocp_aws.cluster_id,
+        ocp_aws.cluster_alias,
+        ocp_aws.namespace,
+        ocp_aws.data_source,
+        ocp_aws.pod,
+        ocp_aws.node,
+        ocp_aws.pod_labels
+)
+;
+
+UPDATE reporting_ocpusagelineitem_daily_summary ods
+    SET infra_cost = ic.infra_cost,
+        project_infra_cost = ic.project_infra_cost
+    FROM reporting_ocp_infrastructure_cost2 AS ic
+    WHERE ic.data_source = 'Pod'
+        AND ods.usage_start = ic.usage_start
+        AND ods.cluster_id = ic.cluster_id
+        AND ods.cluster_alias = ic.cluster_alias
+        AND ods.namespace = ic.namespace
+        AND ods.data_source = ic.data_source
+        AND ods.pod = ic.pod
+        AND ods.node = ic.node
+        AND ods.pod_labels = ic.pod_labels
+;
+
+UPDATE reporting_ocpusagelineitem_daily_summary ods
+    SET infra_cost = ic.infra_cost,
+        project_infra_cost = ic.project_infra_cost
+    FROM reporting_ocp_infrastructure_cost2 AS ic
+    WHERE ic.data_source = 'Storage'
+        AND ods.usage_start = ic.usage_start
+        AND ods.cluster_id = ic.cluster_id
+        AND ods.cluster_alias = ic.cluster_alias
+        AND ods.namespace = ic.namespace
+        AND ods.data_source = ic.data_source
+        AND ods.pod = ic.pod
+        AND ods.node = ic.node
+        AND ods.volume_labels = ic.pod_labels
+;
+
 CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
     SELECT usageli.usage_start,
         usageli.usage_end,
@@ -16,6 +72,7 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
     WHERE date(usageli.usage_start) >= '{start_date}'
         AND date(usageli.usage_start) <= '{end_date}'
         AND usageli.cluster_id = '{cluster_id}'
+        AND usageli.data_source='Pod'
 
     UNION ALL
 
@@ -32,10 +89,11 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0::decimal) AS persistentvolumeclaim_charge_gb_month,
         0::decimal as infra_cost,
         0::decimal as project_infra_cost
-    FROM {schema}.reporting_ocpstoragelineitem_daily_summary as storageli
+    FROM {schema}.reporting_ocpusagelineitem_daily_summary as storageli
     WHERE date(storageli.usage_start) >= '{start_date}'
         AND date(storageli.usage_start) <= '{end_date}'
         AND storageli.cluster_id = '{cluster_id}'
+        AND storageli.data_source='Storage'
 
     UNION ALL
 
