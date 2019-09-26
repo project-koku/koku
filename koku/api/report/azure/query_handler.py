@@ -73,15 +73,15 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        # units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
+        units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
-            # 'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
+            'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
         }
-        # if self._mapper.usage_units_key:
-        #     units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
-        #     annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
-        #                                           Value(units_fallback))
+        if self._mapper.usage_units_key:
+            units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+            annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
+                                                  Value(units_fallback))
 
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
