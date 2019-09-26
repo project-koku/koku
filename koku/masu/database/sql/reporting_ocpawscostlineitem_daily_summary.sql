@@ -990,6 +990,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{uuid} AS (
 CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid} AS (
     SELECT li.cluster_id,
         li.cluster_alias,
+        'Pod' as data_source,
         li.namespace,
         li.pod,
         li.node,
@@ -1034,6 +1035,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{uuid}
 
     SELECT li.cluster_id,
         li.cluster_alias,
+        'Storage' as data_source,
         li.namespace,
         li.pod,
         li.node,
@@ -1149,6 +1151,7 @@ WHERE date(usage_start) >= '{start_date}'
 INSERT INTO {schema}.reporting_ocpawscostlineitem_project_daily_summary (
     cluster_id,
     cluster_alias,
+    data_source,
     namespace,
     pod,
     node,
@@ -1172,6 +1175,7 @@ INSERT INTO {schema}.reporting_ocpawscostlineitem_project_daily_summary (
 )
     SELECT cluster_id,
         cluster_alias,
+        data_source,
         namespace,
         pod,
         node,
