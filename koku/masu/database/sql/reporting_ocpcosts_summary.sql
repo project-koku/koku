@@ -27,7 +27,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infra_cost = ic.infra_cost,
         project_infra_cost = ic.project_infra_cost
-    FROM reporting_ocp_infrastructure_cost2 AS ic
+    FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Pod'
         AND ods.usage_start = ic.usage_start
         AND ods.cluster_id = ic.cluster_id
@@ -42,7 +42,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
 UPDATE reporting_ocpusagelineitem_daily_summary ods
     SET infra_cost = ic.infra_cost,
         project_infra_cost = ic.project_infra_cost
-    FROM reporting_ocp_infrastructure_cost2 AS ic
+    FROM reporting_ocp_infrastructure_cost AS ic
     WHERE ic.data_source = 'Storage'
         AND ods.usage_start = ic.usage_start
         AND ods.cluster_id = ic.cluster_id
