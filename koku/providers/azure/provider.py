@@ -98,7 +98,7 @@ class AzureProvider(ProviderInterface):
             storage_accounts = azure_client.storage_client.storage_accounts
             storage_account = storage_accounts.get_properties(resource_group,
                                                               storage_account)
-        except (AdalError, AzureException, ClientException, TypeError) as exc:
+        except (AdalError, AzureException, ClientException) as exc:
             raise ValidationError(error_obj(key, str(exc)))
 
         return True
