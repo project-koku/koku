@@ -79,6 +79,16 @@ class SourcesHTTPClientTest(TestCase):
                 client.get_cost_management_application_type_id()
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_cost_management_application_type_id_not_found(self):
+        """Test to get application type id with invalid prefix."""
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/application_types?filter[name]=/insights/platform/cost-management',
+                  status_code=404, json={'data': [{'id': self.application_type}]})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_cost_management_application_type_id()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_get_aws_role_arn(self):
         """Test to get AWS Role ARN from authentication service."""
         resource_id = 2

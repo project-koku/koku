@@ -57,6 +57,9 @@ class SourcesHTTPClient:
         except RequestException as conn_error:
             raise SourcesHTTPClientError('Unable to get cost management application ID Type. Reason: ', str(conn_error))
 
+        if r.status_code != 200:
+            raise SourcesHTTPClientError(f'Status Code: {r.status_code}. Response: {r.text}')
+
         endpoint_response = r.json()
         application_type_id = endpoint_response.get('data')[0].get('id')
         return int(application_type_id)

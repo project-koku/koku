@@ -30,6 +30,7 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from sources.api.status import ApplicationStatus
+from sources.sources_http_client import SourcesHTTPClientError
 
 
 @override_settings(ROOT_URLCONF='sources.urls')
@@ -55,6 +56,7 @@ class StatusAPITest(TestCase):
         self.assertIn('modules', body)
         self.assertIn('platform_info', body)
         self.assertIn('python_version', body)
+        self.assertIn('sources_status', body)
 
         self.assertIsNotNone(body['commit'])
         self.assertIsNotNone(body['current_datetime'])
@@ -63,6 +65,7 @@ class StatusAPITest(TestCase):
         self.assertIsNotNone(body['modules'])
         self.assertIsNotNone(body['platform_info'])
         self.assertIsNotNone(body['python_version'])
+        self.assertIsNotNone(body['sources_status'])
 
     @patch.dict(os.environ, {'OPENSHIFT_BUILD_COMMIT': 'fake_commit_hash'})
     def test_commit_with_env(self):
@@ -122,6 +125,22 @@ class StatusAPITest(TestCase):
         expected = 'Python 3.6'
         mock_sys_ver.replace.return_value = expected
         result = ApplicationStatus().python_version
+        self.assertEqual(result, expected)
+
+    @patch('sources.api.status.SourcesHTTPClient.get_cost_management_application_type_id')
+    def test_sources_status(self, mock_status):
+        """Test the sources_backend method."""
+        expected = 'Cost Management Application ID: 2'
+        mock_status.return_value = 2
+        result = ApplicationStatus().sources_backend
+        self.assertEqual(result, expected)
+
+    @patch('sources.api.status.SourcesHTTPClient.get_cost_management_application_type_id')
+    def test_sources_status_disconnected(self, mock_status):
+        """Test the sources_backend method while not connected."""
+        expected = 'Not connected'
+        mock_status.side_effect = SourcesHTTPClientError
+        result = ApplicationStatus().sources_backend
         self.assertEqual(result, expected)
 
     @patch('sources.api.status.sys.modules')

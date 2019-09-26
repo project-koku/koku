@@ -211,8 +211,7 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
         msg = await msg_pending_queue.get()
 
         msg_data = get_sources_msg_data(msg, application_source_id)
-        if msg_data:
-            LOG.info(f'Processing Message Details: {str(msg_data)}')
+        LOG.info(f'Processing Message: {str(msg)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
@@ -366,8 +365,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             event_loop.create_task(process_messages(pending_process_queue, PROCESS_QUEUE, cost_management_type_id))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
-    except SourcesHTTPClientError:
-        LOG.error('Unable to connect to Sources REST API.  Check configuration and restart server...')
+    except SourcesHTTPClientError as error:
+        LOG.error(f'Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}')
         exit(0)
     except KeyboardInterrupt:
         exit(0)
