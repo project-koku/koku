@@ -709,11 +709,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_volume_gigabyte_months(self, mock_vacuum):
         """Test that gets pod volume usage/request."""
         self._populate_storage_summary()
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=self.cluster_id
+            cluster_id=self.cluster_id,
+            data_source='Storage'
         )
 
         expected_usage_reports = {
@@ -752,10 +753,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_volume_gigabyte_months_no_cluster_id(self, mock_vacuum):
         """Test that gets pod volume usage/request without cluster id."""
         self._populate_storage_summary()
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).all()
+        reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Storage').all()
 
         expected_usage_reports = {
             entry.id: entry.persistentvolumeclaim_usage_gigabyte_months

@@ -32,7 +32,6 @@ from api.utils import DateHelper
 from reporting.models import (CostSummary,
                               OCPStorageLineItem,
                               OCPStorageLineItemDaily,
-                              OCPStorageLineItemDailySummary,
                               OCPUsageLineItem,
                               OCPUsageLineItemDaily,
                               OCPUsageLineItemDailySummary,
@@ -179,7 +178,6 @@ class OCPReportDataGenerator:
                           OCPUsageLineItemDailySummary,
                           OCPStorageLineItem,
                           OCPStorageLineItemDaily,
-                          OCPStorageLineItemDailySummary,
                           OCPUsageReport,
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
@@ -398,6 +396,7 @@ class OCPReportDataGenerator:
                 F('cluster_capacity_memory_byte_seconds') / 3600 * 2,
                 output_field=DecimalField()
             ) * math.pow(2, -30),
+            'data_source': Value('Pod', output_field=CharField())
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
@@ -426,7 +425,7 @@ class OCPReportDataGenerator:
 
     def _populate_storage_charge_info(self):
         """Populate the storage charge information in summary table."""
-        entries = OCPStorageLineItemDailySummary.objects.all()
+        entries = OCPUsageLineItemDailySummary.objects.all()
         for entry in entries:
             storage_usage = entry.persistentvolumeclaim_usage_gigabyte_months
             storage_request = entry.volume_request_storage_gigabyte_months
@@ -547,13 +546,14 @@ class OCPReportDataGenerator:
             'persistentvolumeclaim_usage_gigabyte_months': ExpressionWrapper(
                 F('persistentvolumeclaim_usage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
                 output_field=DecimalField()
-            )
+            ),
+            'data_source': Value('Storage', output_field=CharField())
         }
 
         entries = OCPStorageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
 
         for entry in entries:
-            summary = OCPStorageLineItemDailySummary(**entry)
+            summary = OCPUsageLineItemDailySummary(**entry)
             summary.save()
 
     def _populate_pod_label_summary_table(self):
