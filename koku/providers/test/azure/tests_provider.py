@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test Azure Provider."""
-import random
 from unittest.mock import patch
 
 from azure.common import AzureException
