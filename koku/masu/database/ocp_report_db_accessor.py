@@ -244,11 +244,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
     def get_pod_usage_cpu_core_hours(self, cluster_id=None):
         """Make a mapping of cpu pod usage hours."""
         table = OCPUsageLineItemDailySummary
+        filters = {
+            'cluster_id': cluster_id,
+            'data_source': 'Pod'
+        }
         with schema_context(self.schema):
-            if cluster_id:
-                reports = self._get_db_obj_query(table).filter(cluster_id=cluster_id)
-            else:
-                reports = self._get_db_obj_query(table).all()
+            reports = self._get_reports(table, filters)
             return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
 
     def _get_reports(self, table, filters=None):
