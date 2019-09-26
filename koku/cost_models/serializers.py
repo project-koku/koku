@@ -55,14 +55,9 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
 
-    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    value = serializers.DecimalField(required=False, max_digits=19,
+                                     decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
-
-    def validate_value(self, value):
-        """Check that value is a positive value."""
-        if value < 0:
-            raise serializers.ValidationError('A markup value must be positive.')
-        return str(value)
 
 
 class TieredRateSerializer(serializers.Serializer):

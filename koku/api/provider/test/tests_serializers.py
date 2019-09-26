@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from api.iam.serializers import (UserSerializer,
                                  create_schema_name)
@@ -140,13 +141,46 @@ class ProviderSerializerTest(IamTestCase):
         sources = Sources.objects.create(source_id=1,
                                          auth_header='testheader',
                                          offset=1,
-                                         authentication=cluster_id)
+                                         authentication={'resource_name': cluster_id})
         sources.save()
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             serializer = ProviderSerializer(data=provider, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
                 source_obj = Sources.objects.get(source_id=1)
+                self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
+
+    def test_create_ocp_source_with_existing_provider_azure(self):
+        """Test creating an Azure Source when the provider already exists."""
+        credentials = {'foo': 'bar'}
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AZURE,
+                    'authentication': {
+                        'credentials': credentials
+                    }}
+
+        instance = None
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
+        # Add Source without provider uuid
+        sources = Sources.objects.create(source_id=2,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         authentication={'credentials': credentials})
+        sources.save()
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+                source_obj = Sources.objects.get(source_id=2)
                 self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
 
     def test_create_provider_with_exception(self):
@@ -257,6 +291,52 @@ class ProviderSerializerTest(IamTestCase):
                 provider_two = serializer.save()
 
         self.assertEqual(provider_one.billing_source_id, provider_two.billing_source_id)
+
+    def test_create_gcp_provider(self):
+        """Test that the same blank billing entry is used for all OCP providers."""
+        provider = {
+            'name': 'test_provider_one',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'bucket': 'test_bucket',
+                'data_source': None
+            }
+        }
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data['customer'].get('schema_name')
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertIsNone(schema_name)
+        self.assertFalse('schema_name' in serializer.data['customer'])
+
+    def test_create_gcp_provider_duplicate_bucket(self):
+        """Test that the same blank billing entry is used for all OCP providers."""
+        provider = {
+            'name': 'test_provider_one',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'bucket': 'test_bucket',
+                'data_source': None
+            }
+        }
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+
+            with self.assertRaises(ValidationError):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
 
 
 class AdminProviderSerializerTest(IamTestCase):
