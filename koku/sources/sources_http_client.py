@@ -82,3 +82,30 @@ class SourcesHTTPClient:
         password = authentications_internal_response.get('password')
 
         return password
+
+    def get_azure_credentials(self):
+        """Get the Azure Crednetials from Sources Authentication service."""
+        endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
+        r = requests.get(endpoint_url, headers=self._identity_header)
+        endpoint_response = r.json()
+        resource_id = endpoint_response.get('data')[0].get('id')
+
+        authentications_url = \
+            '{}/authentications?filter[resource_type]=Endpoint&[authtype]=username_password&[resource_id]={}'.format(
+                self._base_url,
+                str(resource_id))
+        r = requests.get(authentications_url, headers=self._identity_header)
+        authentications_response = r.json()
+        data_dict = authentications_response.get('data')[0]
+        authentications_id = data_dict.get('id')
+
+        authentications_internal_url = '{}/authentications/{}?expose_encrypted_attribute[]=password'.format(
+            self._internal_url, str(authentications_id))
+        r = requests.get(authentications_internal_url, headers=self._identity_header)
+        authentications_internal_response = r.json()
+        password = authentications_internal_response.get('password')
+
+        azure_credentials = {'client_id': data_dict.get('username'),
+                             'client_secret': password,
+                             'tenant_id': data_dict.get('extra').get('azure').get('tenant_id')}
+        return azure_credentials

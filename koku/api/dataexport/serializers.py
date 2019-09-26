@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.validators import DataExportRequestValidator
+from masu.celery.tasks import sync_data_to_customer
 
 
 class DataExportRequestSerializer(serializers.ModelSerializer):
@@ -40,4 +41,5 @@ class DataExportRequestSerializer(serializers.ModelSerializer):
             end_date=validated_data['end_date'],
             bucket_name=validated_data['bucket_name'],
         )
+        sync_data_to_customer.delay(dump_request.uuid)
         return dump_request

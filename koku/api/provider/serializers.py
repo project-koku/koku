@@ -158,7 +158,6 @@ class ProviderSerializer(serializers.ModelSerializer):
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
         bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
-
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         # We can re-use a billing source or a auth, but not the same combination.
@@ -167,7 +166,13 @@ class ProviderSerializer(serializers.ModelSerializer):
         if unique_count != 0:
             existing_provider = Provider.objects.filter(authentication=auth)\
                 .filter(billing_source=bill).first()
-            source_query = Sources.objects.filter(authentication=auth.provider_resource_name)
+            if existing_provider.type in ('AWS', 'OCP'):
+                sources_auth = {'resource_name': auth.provider_resource_name}
+            elif existing_provider.type in ('AZURE', ):
+                sources_auth = {'credentials': auth.credentials}
+            else:
+                sources_auth = {}
+            source_query = Sources.objects.filter(authentication=sources_auth)
             if source_query.exists():
                 source_obj = source_query.first()
                 source_obj.koku_uuid = existing_provider.uuid

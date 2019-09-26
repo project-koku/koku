@@ -466,6 +466,7 @@ class AzureReportDataGenerator:
             usage_end=line_item.usage_date_time,
             usage_quantity=line_item.usage_quantity,
             pretax_cost=line_item.pretax_cost,
+            markup_cost=line_item.pretax_cost * 0.1,
             offer_id=line_item.offer_id)
         obj.save()
         return obj

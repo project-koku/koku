@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Sources AWS billing source endpoint."""
+"""View for Sources AWS and Azure billing source endpoint."""
 
+from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -27,11 +28,12 @@ from rest_framework.settings import api_settings
 from sources.storage import SourcesStorageError, add_provider_billing_source
 
 
+@never_cache
 @api_view(http_method_names=['POST'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def billing_source(request):
-    """Create billing source for AWS sources."""
+    """Create billing source for AWS and Azure sources."""
     request_data = request.data
     try:
         add_provider_billing_source(request_data.get('source_id'), request_data.get('billing_source'))
@@ -40,4 +42,4 @@ def billing_source(request):
     except SourcesStorageError as error:
         response = str(error)
         status_code = status.HTTP_400_BAD_REQUEST
-    return Response({'AWS billing source creation:': response}, status=status_code)
+    return Response({'Billing source creation:': response}, status=status_code)

@@ -461,6 +461,18 @@ class OCPReportDataGenerator:
         for entry in usage_entries:
             summary = CostSummary(**entry)
             summary.save()
+        CostSummary.objects.update(
+            markup_cost=((F('pod_charge_cpu_core_hours')
+                          + F('pod_charge_memory_gigabyte_hours')
+                          + F('persistentvolumeclaim_charge_gb_month')
+                          + F('infra_cost')) * 0.1)
+        )
+        CostSummary.objects.update(
+            project_markup_cost=((F('pod_charge_cpu_core_hours')
+                                  + F('pod_charge_memory_gigabyte_hours')
+                                  + F('persistentvolumeclaim_charge_gb_month')
+                                  + F('project_infra_cost')) * 0.1)
+        )
 
     def create_storage_line_items(self, report_period, report):
         """Create OCP hourly usage line items."""

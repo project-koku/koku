@@ -30,7 +30,7 @@ class ProviderMap:
 
     PACK_DEFINITIONS = {
         'cost': {
-            'keys': ['cost', 'infrastructure_cost', 'derived_cost'],
+            'keys': ['cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
             'units': 'cost_units'
         },
         'usage': {
