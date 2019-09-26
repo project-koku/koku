@@ -42,7 +42,6 @@ script:
 
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
-  - coveralls
   - ./cc-test-reporter after-build
 
 notifications:
