@@ -22,7 +22,6 @@ from providers.provider_access import ProviderAccessor
 
 from api.report.provider_map import ProviderMap
 from reporting.models import (CostSummary,
-                              OCPStorageLineItemDailySummary,
                               OCPUsageLineItemDailySummary)
 
 
@@ -248,7 +247,7 @@ class OCPProviderMap(ProviderMap):
                     },
                     'volume': {
                         'tables': {
-                            'query': OCPStorageLineItemDailySummary
+                            'query': OCPUsageLineItemDailySummary
                         },
                         'tag_column': 'volume_labels',
                         'aggregates': {
@@ -280,7 +279,7 @@ class OCPProviderMap(ProviderMap):
                             'request': Sum('volume_request_storage_gigabyte_months'),
                             'cost': Sum('persistentvolumeclaim_charge_gb_month')
                         },
-                        'filter': [{}],
+                        'filter': [{'data_source': 'Storage'}],
                         'cost_units_key': 'USD',
                         'usage_units_key': 'GB-Mo',
                         'sum_columns': ['usage', 'request', 'infrastructure_cost',

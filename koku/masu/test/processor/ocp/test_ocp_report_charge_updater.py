@@ -702,10 +702,10 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
         self.accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self.cluster_id)
         self.updater.update_summary_charge_info()
 
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         with schema_context(self.schema):
-            items = self.accessor._get_db_obj_query(table_name).all()
+            items = self.accessor._get_db_obj_query(table_name).filter(data_source='Storage').all()
             for item in items:
                 storage_charge = float(item.persistentvolumeclaim_charge_gb_month)
                 expected_usage_charge = usage_rate_value * float(item.persistentvolumeclaim_usage_gigabyte_months)
