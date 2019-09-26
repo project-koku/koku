@@ -27,6 +27,7 @@ from masu.external import (
     AZURE,
     AZURE_LOCAL_SERVICE_PROVIDER,
     OPENSHIFT_CONTAINER_PLATFORM,
+    GCP,
 )
 from masu.external.downloader.aws.aws_report_downloader import (
     AWSReportDownloader,
@@ -39,6 +40,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import (
     AzureLocalReportDownloader,
 )
+from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader, ReportDownloaderError
 
@@ -130,6 +132,15 @@ class ReportDownloaderTest(MasuTestCase):
         self.assertDownloaderSetsProviderDownloader(
             AZURE_LOCAL_SERVICE_PROVIDER, AzureLocalReportDownloader
         )
+        mock_downloader_init.assert_called()
+
+    @patch(
+        'masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader.__init__',
+        return_value=None,
+    )
+    def test_init_with_gcp(self, mock_downloader_init):
+        """Assert ReportDownloader creation sets the GCP downloader."""
+        self.assertDownloaderSetsProviderDownloader(GCP, GCPReportDownloader)
         mock_downloader_init.assert_called()
 
     @patch(
