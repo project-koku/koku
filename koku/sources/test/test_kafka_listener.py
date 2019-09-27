@@ -249,12 +249,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                              auth_header=test_auth_header,
                              offset=1)
         aws_source.save()
-
+        source_type_id = 1
+        mock_source_name = 'amazon'
         resource_id = 2
         authentication_id = 3
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
@@ -282,11 +285,13 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                              auth_header=test_auth_header,
                              offset=1)
         ocp_source.save()
-
+        source_type_id = 3
+        mock_source_name = 'openshift'
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
-
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
             source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
@@ -308,14 +313,17 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                                auth_header=test_auth_header,
                                offset=1)
         azure_source.save()
-
+        source_type_id = 2
+        mock_source_name = 'azure'
         resource_id = 3
         authentication_id = 4
         authentications_response = {'id': authentication_id, 'username': username,
                                     'extra': {'azure': {'tenant_id': tenent_id}}}
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
