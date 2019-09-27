@@ -42,9 +42,9 @@ KAFKA_APPLICATION_DESTROY = 'Application.destroy'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
-SOURCES_OCP_SOURCE_TYPE = 1
-SOURCES_AWS_SOURCE_TYPE = 2
-SOURCES_AZURE_SOURCE_TYPE = 3
+SOURCES_OCP_SOURCE_NAME = 'openshift'
+SOURCES_AWS_SOURCE_NAME = 'amazon'
+SOURCES_AZURE_SOURCE_NAME = 'azure'
 
 
 class SourcesIntegrationError(Exception):
@@ -167,14 +167,15 @@ def sources_network_info(source_id, auth_header):
         return
     source_name = source_details.get('name')
     source_type_id = int(source_details.get('source_type_id'))
+    source_type_name = sources_network.get_source_type_name(source_type_id)
 
-    if source_type_id == SOURCES_OCP_SOURCE_TYPE:
+    if source_type_name == SOURCES_OCP_SOURCE_NAME:
         source_type = 'OCP'
         authentication = {'resource_name': source_details.get('uid')}
-    elif source_type_id == SOURCES_AWS_SOURCE_TYPE:
+    elif source_type_name == SOURCES_AWS_SOURCE_NAME:
         source_type = 'AWS'
         authentication = {'resource_name': sources_network.get_aws_role_arn()}
-    elif source_type_id == SOURCES_AZURE_SOURCE_TYPE:
+    elif source_type_name == SOURCES_AZURE_SOURCE_NAME:
         source_type = 'AZURE'
         authentication = {'credentials': sources_network.get_azure_credentials()}
     else:
@@ -211,8 +212,7 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
         msg = await msg_pending_queue.get()
 
         msg_data = get_sources_msg_data(msg, application_source_id)
-        if msg_data:
-            LOG.info(f'Processing Message Details: {str(msg_data)}')
+        LOG.info(f'Processing Message: {str(msg)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
@@ -366,8 +366,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             event_loop.create_task(process_messages(pending_process_queue, PROCESS_QUEUE, cost_management_type_id))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
-    except SourcesHTTPClientError:
-        LOG.error('Unable to connect to Sources REST API.  Check configuration and restart server...')
+    except SourcesHTTPClientError as error:
+        LOG.error(f'Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}')
         exit(0)
     except KeyboardInterrupt:
         exit(0)
