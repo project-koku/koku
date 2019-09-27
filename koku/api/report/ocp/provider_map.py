@@ -17,7 +17,6 @@
 """Provider Mapper for OCP Reports."""
 
 from django.db.models import CharField, DecimalField, F, Max, Sum, Value
-from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from providers.provider_access import ProviderAccessor
 
@@ -87,9 +86,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'infrastructure_cost': Sum(F('infra_cost')),
                             'derived_cost': Sum(
-                                Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'), Value(0, output_field=DecimalField()))
+                                Coalesce(F('pod_charge_cpu_core_hours'),
+                                         Value(0, output_field=DecimalField()))
+                                + Coalesce(F('pod_charge_memory_gigabyte_hours'),
+                                           Value(0, output_field=DecimalField()))
+                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                           Value(0, output_field=DecimalField()))
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
@@ -107,9 +109,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'infrastructure_cost': Sum(F('infra_cost')),
                             'derived_cost': Sum(
-                                Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'), Value(0, output_field=DecimalField()))
+                                Coalesce(F('pod_charge_cpu_core_hours'),
+                                         Value(0, output_field=DecimalField()))
+                                + Coalesce(F('pod_charge_memory_gigabyte_hours'),
+                                           Value(0, output_field=DecimalField()))
+                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                           Value(0, output_field=DecimalField()))
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
@@ -146,9 +151,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'infrastructure_cost': Sum(F('project_infra_cost')),
                             'derived_cost': Sum(
-                                Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'), Value(0, output_field=DecimalField()))
+                                Coalesce(F('pod_charge_cpu_core_hours'),
+                                         Value(0, output_field=DecimalField()))
+                                + Coalesce(F('pod_charge_memory_gigabyte_hours'),
+                                           Value(0, output_field=DecimalField()))
+                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                            Value(0, output_field=DecimalField()))
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
@@ -166,9 +174,12 @@ class OCPProviderMap(ProviderMap):
                             ),
                             'infrastructure_cost': Sum(F('project_infra_cost')),
                             'derived_cost': Sum(
-                                Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
-                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'), Value(0, output_field=DecimalField()))
+                                Coalesce(F('pod_charge_cpu_core_hours'),
+                                         Value(0, output_field=DecimalField()))
+                                + Coalesce(F('pod_charge_memory_gigabyte_hours'),
+                                           Value(0, output_field=DecimalField()))
+                                + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                           Value(0, output_field=DecimalField()))
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))
