@@ -327,7 +327,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
-                  f'&[authtype]=username_password&[resource_id]={resource_id}'),
+                  f'&[authtype]=access_key_secret_key&[resource_id]={resource_id}'),
                   status_code=200, json={'data': [authentications_response]})
             m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
                   f'?expose_encrypted_attribute[]=password'),
