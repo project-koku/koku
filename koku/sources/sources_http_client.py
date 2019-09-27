@@ -87,16 +87,15 @@ class SourcesHTTPClient:
         return password
 
     def get_azure_credentials(self):
-        """Get the Azure Crednetials from Sources Authentication service."""
+        """Get the Azure Credentials from Sources Authentication service."""
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
         r = requests.get(endpoint_url, headers=self._identity_header)
         endpoint_response = r.json()
         resource_id = endpoint_response.get('data')[0].get('id')
 
         authentications_url = \
-            '{}/authentications?filter[resource_type]=Endpoint&[authtype]=username_password&[resource_id]={}'.format(
-                self._base_url,
-                str(resource_id))
+            (f'{self._base_url}/authentications?filter[resource_type]=Endpoint&'
+             f'[authtype]=access_key_secret_key&[resource_id]={str(resource_id)}')
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
         data_dict = authentications_response.get('data')[0]
