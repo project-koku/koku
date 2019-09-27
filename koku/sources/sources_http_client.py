@@ -64,6 +64,22 @@ class SourcesHTTPClient:
         application_type_id = endpoint_response.get('data')[0].get('id')
         return int(application_type_id)
 
+    def get_source_type_name(self, type_id):
+        """Get the source name for a give type id."""
+        application_type_url = '{}/source_types?filter[id]={}'.format(
+            self._base_url, type_id)
+        try:
+            r = requests.get(application_type_url, headers=self._identity_header)
+        except RequestException as conn_error:
+            raise SourcesHTTPClientError('Unable to get source name. Reason: ', str(conn_error))
+
+        if r.status_code != 200:
+            raise SourcesHTTPClientError(f'Status Code: {r.status_code}. Response: {r.text}')
+
+        endpoint_response = r.json()
+        source_name = endpoint_response.get('data')[0].get('name')
+        return source_name
+
     def get_aws_role_arn(self):
         """Get the roleARN from Sources Authentication service."""
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(self._base_url, str(self._source_id))
