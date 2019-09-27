@@ -156,7 +156,7 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(F('pod_charge_memory_gigabyte_hours'),
                                            Value(0, output_field=DecimalField()))
                                 + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                            Value(0, output_field=DecimalField()))
+                                           Value(0, output_field=DecimalField()))
                             ),
                             'markup_cost': Sum(
                                 Coalesce(F('project_markup_cost'), Value(0, output_field=DecimalField()))

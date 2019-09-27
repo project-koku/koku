@@ -262,6 +262,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         Returns:
             (QuerySet): Django queryset of objects queried on
+
         """
         with schema_context(self.schema):
             if filters:
