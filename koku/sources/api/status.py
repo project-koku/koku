@@ -34,9 +34,12 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from sources.config import Config as SourcesConfig
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
+
 
 LOG = logging.getLogger(__name__)
 
@@ -60,7 +63,8 @@ def get_status(request):
         'debug': app_status.debug,
         'modules': app_status.modules,
         'platform_info': app_status.platform_info,
-        'python_version': app_status.python_version
+        'python_version': app_status.python_version,
+        'sources_status': app_status.sources_backend
     }
     return Response(response)
 
@@ -172,6 +176,17 @@ class ApplicationStatus():
         :returns: Boolean indicating debug status.
         """
         return Config.DEBUG
+
+    @property
+    def sources_backend(self):
+        """Return Sources Backend connection status."""
+        try:
+            cost_management_type_id = SourcesHTTPClient(SourcesConfig.SOURCES_FAKE_HEADER).\
+                get_cost_management_application_type_id()
+            return f'Cost Management Application ID: {cost_management_type_id}'
+
+        except SourcesHTTPClientError:
+            return 'Not connected'
 
     def startup(self):
         """Log startup information."""

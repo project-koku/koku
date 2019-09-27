@@ -15,9 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Provider serializers."""
+import random
 import uuid
 from unittest.mock import patch
 
+from faker import Faker
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -27,6 +29,8 @@ from api.iam.serializers import (UserSerializer,
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, Sources
 from api.provider.serializers import AdminProviderSerializer, ProviderSerializer
+
+FAKE = Faker()
 
 
 class ProviderSerializerTest(IamTestCase):
@@ -150,39 +154,6 @@ class ProviderSerializerTest(IamTestCase):
                 source_obj = Sources.objects.get(source_id=1)
                 self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
 
-    def test_create_ocp_source_with_existing_provider_azure(self):
-        """Test creating an Azure Source when the provider already exists."""
-        credentials = {'foo': 'bar'}
-        provider = {'name': 'test_provider',
-                    'type': Provider.PROVIDER_AZURE,
-                    'authentication': {
-                        'credentials': credentials
-                    }}
-
-        instance = None
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=provider, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
-
-        schema_name = serializer.data['customer'].get('schema_name')
-        self.assertIsInstance(instance.uuid, uuid.UUID)
-        self.assertIsNone(schema_name)
-        self.assertFalse('schema_name' in serializer.data['customer'])
-
-        # Add Source without provider uuid
-        sources = Sources.objects.create(source_id=2,
-                                         auth_header='testheader',
-                                         offset=1,
-                                         authentication={'credentials': credentials})
-        sources.save()
-        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
-            serializer = ProviderSerializer(data=provider, context=self.request_context)
-            if serializer.is_valid(raise_exception=True):
-                instance = serializer.save()
-                source_obj = Sources.objects.get(source_id=2)
-                self.assertEqual(source_obj.koku_uuid, str(instance.uuid))
-
     def test_create_provider_with_exception(self):
         """Test creating a provider with a provider exception."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
@@ -291,6 +262,50 @@ class ProviderSerializerTest(IamTestCase):
                 provider_two = serializer.save()
 
         self.assertEqual(provider_one.billing_source_id, provider_two.billing_source_id)
+
+    def test_missing_creds_parameters_exception(self):
+        """Test that ValidationError is raised when there are missing parameters."""
+        fields = ['subscription_id', 'tenant_id', 'client_id', 'client_secret']
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+        del credentials[random.choice(fields)]
+
+        provider = {
+            'name': FAKE.word(),
+            'type': Provider.PROVIDER_AZURE,
+            'authentication': {'credentials': credentials},
+            'billing_source': {'data_source': source_name}
+        }
+
+        with self.assertRaises(ValidationError):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
+
+    def test_missing_source_parameters_exception(self):
+        """Test that ValidationError is raised when there are missing parameters."""
+        fields = ['resource_group', 'storage_account']
+        credentials = {'subscription_id': FAKE.uuid4(),
+                       'tenant_id': FAKE.uuid4(),
+                       'client_id': FAKE.uuid4(),
+                       'client_secret': FAKE.word()}
+        source_name = {'resource_group': FAKE.word(),
+                       'storage_account': FAKE.word()}
+        del source_name[random.choice(fields)]
+
+        provider = {
+            'name': FAKE.word(),
+            'type': Provider.PROVIDER_AZURE,
+            'authentication': credentials,
+            'billing_source': {'data_source': source_name}
+        }
+
+        with self.assertRaises(ValidationError):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
 
     def test_create_gcp_provider(self):
         """Test that the same blank billing entry is used for all OCP providers."""
