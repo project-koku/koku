@@ -33,10 +33,10 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.azure.serializers import AzureQueryParamSerializer
+from api.report.azure.view import AzureCostView
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
-                             _generic_report,
                              get_paginator,
                              process_query_parameters,
                              )
@@ -289,8 +289,8 @@ class AzureReportViewTest(IamTestCase):
         self.assertEqual(report_total * 1E9, result_total)
 
     @patch('api.report.azure.query_handler.AzureReportQueryHandler')
-    def test_generic_report_with_units_success(self, mock_handler):
-        """Test unit conversion succeeds in generic report."""
+    def test_costview_with_units_success(self, mock_handler):
+        """Test unit conversion succeeds in AzureCostView."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
             'group_by[subscription_guid]': '*',
@@ -311,7 +311,7 @@ class AzureReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        response = _generic_report(request, provider='azure', report='costs')
+        response = AzureCostView().get(request)
         self.assertIsInstance(response, Response)
 
     def test_find_unit_list(self):

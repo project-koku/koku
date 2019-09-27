@@ -25,6 +25,7 @@ from reporting.provider.aws.models import AWSTagsSummary
 
 class AWSView(ReportView):
     """AWS Base View."""
+
     permission_classes = [AwsAccessPermission]
     provider = 'aws'
     _serializer = QueryParamSerializer

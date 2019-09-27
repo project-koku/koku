@@ -18,10 +18,10 @@
 """View for OpenShift Usage Reports."""
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
-from api.report.view import ReportView
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
                                         OCPInventoryQueryParamSerializer)
+from api.report.view import ReportView
 from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
                                            OCPStorageVolumeLabelSummary,
                                            OCPUsagePodLabelSummary)
@@ -29,6 +29,7 @@ from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
 
 class OCPView(ReportView):
     """OCP Base View."""
+
     permission_classes = [OpenShiftAccessPermission]
     provider = 'ocp'
     _serializer = OCPInventoryQueryParamSerializer
@@ -367,7 +368,7 @@ class OCPCostView(OCPView):
     _serializer = OCPCostQueryParamSerializer
 
 
-class OCPVolumeView(ReportView):
+class OCPVolumeView(OCPView):
     """Get OpenShift volume usage data.
 
     @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data

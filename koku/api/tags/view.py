@@ -24,5 +24,6 @@ from api.report.view import ReportView
 
 class TagView(ReportView):
     """Base Tag View."""
+
     permission_classes = [AllowAny]
     report = 'tags'

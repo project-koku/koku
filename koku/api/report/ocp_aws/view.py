@@ -27,6 +27,7 @@ from reporting.provider.aws.models import AWSTagsSummary
 
 class OCPAWSView(ReportView):
     """OCP+AWS Base View."""
+
     permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
     provider = 'ocp_aws'
     _serializer = OCPAWSQueryParamSerializer

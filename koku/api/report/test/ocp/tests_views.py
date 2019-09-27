@@ -34,8 +34,8 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.query_handler import TruncDayString
+from api.report.ocp.view import OCPCpuView, OCPMemoryView
 from api.report.test.ocp.helpers import OCPReportDataGenerator
-from api.report.view import _generic_report
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import CostSummary, OCPUsageLineItemDailySummary
@@ -205,8 +205,8 @@ class OCPReportViewTest(IamTestCase):
         self.data_generator.remove_data_from_reporting_common()
 
     @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
-    def test_generic_report_ocp_cpu_success(self, mock_handler):
-        """Test OCP cpu generic report."""
+    def test_ocpcpuview_success(self, mock_handler):
+        """Test OCP cpu view report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
         params = {
             'group_by[node]': '*',
@@ -228,13 +228,13 @@ class OCPReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        response = _generic_report(request, report='cpu', provider='ocp')
+        response = OCPCpuView().get(request)
         self.assertIsInstance(response, Response)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
-    def test_generic_report_ocp_mem_success(self, mock_handler):
-        """Test OCP memory generic report."""
+    def test_ocpmemview_success(self, mock_handler):
+        """Test OCP memory view report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
         params = {
             'group_by[node]': '*',
@@ -256,7 +256,7 @@ class OCPReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        response = _generic_report(request, report='memory', provider='ocp')
+        response = OCPMemoryView().get(request)
         self.assertIsInstance(response, Response)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
