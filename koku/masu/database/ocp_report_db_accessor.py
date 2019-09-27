@@ -245,9 +245,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of cpu pod usage hours."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Pod'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.pod_usage_cpu_core_hours for entry in reports}
@@ -264,7 +265,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
         with schema_context(self.schema):
             if filters:
-                reports = self._get_db_obj_query(table).filter(**filters)
+                reports = self._get_db_obj_query(table).filter(**filters).all()
             else:
                 reports = self._get_db_obj_query(table).all()
             return reports
@@ -273,9 +274,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of cpu pod request hours."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Pod'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.pod_request_cpu_core_hours for entry in reports}
@@ -284,9 +286,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of memory_usage hours."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Pod'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports}
@@ -295,9 +298,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of memory_request_hours."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Pod'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.pod_request_memory_gigabyte_hours for entry in reports}
@@ -306,11 +310,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of persistentvolumeclaim_usage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Storage'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
-
             reports = self._get_reports(table, filters)
             # pylint: disable=line-too-long
             return {entry.id: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
@@ -319,9 +323,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """Make a mapping of volume_request_storage_gigabyte_months."""
         table = OCPUsageLineItemDailySummary
         filters = {
-            'cluster_id': cluster_id,
             'data_source': 'Storage'
         }
+        if cluster_id:
+            filters['cluster_id'] = cluster_id
         with schema_context(self.schema):
             reports = self._get_reports(table, filters)
             return {entry.id: entry.volume_request_storage_gigabyte_months for entry in reports}
