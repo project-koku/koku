@@ -103,11 +103,6 @@ class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
 
 
-class OCPAWSAuthenticationSerializer(AWSAuthenticationSerializer,
-                                     OCPAuthenticationSerializer):
-    """OCP+AWS auth serializer."""
-
-
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     """Serializer for the Provider Billing Source model."""
 
@@ -158,11 +153,6 @@ class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """OCP billing source serializer."""
 
 
-class OCPAWSBillingSourceSerializer(AWSBillingSourceSerializer,
-                                    OCPBillingSourceSerializer):
-    """OCP+AWS billing source serializer."""
-
-
 # Registry of authentication serializers.
 AUTHENTICATION_SERIALIZERS = {'AWS': AWSAuthenticationSerializer,
                               'AWS-local': AWSAuthenticationSerializer,
@@ -170,7 +160,7 @@ AUTHENTICATION_SERIALIZERS = {'AWS': AWSAuthenticationSerializer,
                               'AZURE-local': AzureAuthenticationSerializer,
                               'GCP': GCPAuthenticationSerializer,
                               'OCP': OCPAuthenticationSerializer,
-                              'OCP_AWS': OCPAWSAuthenticationSerializer}
+                              'OCP_AWS': AWSAuthenticationSerializer}
 
 
 # Registry of billing_source serializers.
@@ -180,7 +170,7 @@ BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
                               'AZURE-local': AzureBillingSourceSerializer,
                               'GCP': GCPBillingSourceSerializer,
                               'OCP': OCPBillingSourceSerializer,
-                              'OCP_AWS': OCPAWSBillingSourceSerializer}
+                              'OCP_AWS': AWSBillingSourceSerializer}
 
 
 class ProviderSerializer(serializers.ModelSerializer):
