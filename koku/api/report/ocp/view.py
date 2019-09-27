@@ -18,10 +18,28 @@
 """View for OpenShift Usage Reports."""
 
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
+from api.report.ocp.query_handler import OCPReportQueryHandler
+from api.report.ocp.serializers import (OCPCostQueryParamSerializer,
+                                        OCPInventoryQueryParamSerializer)
 from api.report.view import ReportView
+from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
+                                           OCPStorageVolumeLabelSummary,
+                                           OCPUsagePodLabelSummary)
 
 
-class OCPMemoryView(ReportView):
+class OCPView(ReportView):
+    """OCP Base View."""
+
+    permission_classes = [OpenShiftAccessPermission]
+    provider = 'ocp'
+    _serializer = OCPInventoryQueryParamSerializer
+    _query_handler = OCPReportQueryHandler
+    _tag_handler = [OCPUsagePodLabelSummary,
+                    OCPStorageVolumeClaimLabelSummary,
+                    OCPStorageVolumeLabelSummary]
+
+
+class OCPMemoryView(OCPView):
     """Get OpenShift memory usage data.
 
     @api {get} /cost-management/v1/reports/openshift/memory/ Get memory usage data
@@ -121,12 +139,10 @@ class OCPMemoryView(ReportView):
 
     """
 
-    permission_classes = [OpenShiftAccessPermission]
     report = 'memory'
-    provider = 'ocp'
 
 
-class OCPCpuView(ReportView):
+class OCPCpuView(OCPView):
     """Get OpenShift compute usage data.
 
     @api {get} /cost-management/v1/reports/openshift/compute/ Get compute usage data
@@ -230,12 +246,10 @@ class OCPCpuView(ReportView):
 
     """
 
-    permission_classes = [OpenShiftAccessPermission]
     report = 'cpu'
-    provider = 'ocp'
 
 
-class OCPCostView(ReportView):
+class OCPCostView(OCPView):
     """Get OpenShift cost data.
 
     @api {get} /cost-management/v1/reports/openshift/costs/ Get OpenShift costs data
@@ -350,12 +364,11 @@ class OCPCostView(ReportView):
 
     """
 
-    permission_classes = [OpenShiftAccessPermission]
     report = 'costs'
-    provider = 'ocp'
+    _serializer = OCPCostQueryParamSerializer
 
 
-class OCPVolumeView(ReportView):
+class OCPVolumeView(OCPView):
     """Get OpenShift volume usage data.
 
     @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data
@@ -428,6 +441,4 @@ class OCPVolumeView(ReportView):
 
     """
 
-    permission_classes = [OpenShiftAccessPermission]
     report = 'volume'
-    provider = 'ocp'

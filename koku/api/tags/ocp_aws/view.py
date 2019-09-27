@@ -17,12 +17,13 @@
 
 """View for OCP-on-AWS tags."""
 
-from rest_framework.permissions import AllowAny
+from api.tags.ocp_aws.queries import OCPAWSTagQueryHandler
+from api.tags.serializers import OCPAWSTagsQueryParamSerializer
+from api.tags.view import TagView
+from reporting.provider.aws.models import AWSTagsSummary
 
-from api.report.view import ReportView
 
-
-class OCPAWSTagView(ReportView):
+class OCPAWSTagView(TagView):
     """Get OpenShift-on-AWS tags.
 
     @api {get} /cost-management/v1/tags/openshift/infrastructures/aws/
@@ -56,6 +57,7 @@ class OCPAWSTagView(ReportView):
 
     """
 
-    permission_classes = [AllowAny]
     provider = 'ocp_aws'
-    report = 'tags'
+    _serializer = OCPAWSTagsQueryParamSerializer
+    _query_handler = OCPAWSTagQueryHandler
+    _tag_handler = [AWSTagsSummary]

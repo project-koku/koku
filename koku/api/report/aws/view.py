@@ -17,10 +17,23 @@
 #
 """AWS views."""
 from api.common.permissions.aws_access import AwsAccessPermission
+from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.aws.serializers import QueryParamSerializer
 from api.report.view import ReportView
+from reporting.provider.aws.models import AWSTagsSummary
 
 
-class AWSCostView(ReportView):
+class AWSView(ReportView):
+    """AWS Base View."""
+
+    permission_classes = [AwsAccessPermission]
+    provider = 'aws'
+    _serializer = QueryParamSerializer
+    _query_handler = AWSReportQueryHandler
+    _tag_handler = [AWSTagsSummary]
+
+
+class AWSCostView(AWSView):
     """Get cost data.
 
     @api {get} /cost-management/v1/reports/aws/costs/ Get cost data
@@ -106,12 +119,10 @@ class AWSCostView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission]
     report = 'costs'
-    provider = 'aws'
 
 
-class AWSInstanceTypeView(ReportView):
+class AWSInstanceTypeView(AWSView):
     """Get inventory data.
 
     @api {get} /cost-management/v1/reports/aws/instance-types/ Get inventory instance type data
@@ -232,12 +243,10 @@ class AWSInstanceTypeView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission]
     report = 'instance_type'
-    provider = 'aws'
 
 
-class AWSStorageView(ReportView):
+class AWSStorageView(AWSView):
     """Get inventory storage data.
 
     @api {get} /cost-management/v1/reports/aws/storage/ Get inventory storage data
@@ -350,6 +359,4 @@ class AWSStorageView(ReportView):
 
     """
 
-    permission_classes = [AwsAccessPermission]
     report = 'storage'
-    provider = 'aws'
