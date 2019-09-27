@@ -68,7 +68,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filter is None:
             filter = self.this_month_filter
         with tenant_context(self.tenant):
-            return CostSummary.objects\
+            return OCPUsageLineItemDailySummary.objects\
                 .filter(**filter)\
                 .aggregate(**aggregates)
 

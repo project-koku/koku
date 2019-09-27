@@ -19,6 +19,8 @@
 from dateutil.relativedelta import relativedelta
 from unittest.mock import patch
 from decimal import Decimal
+import random
+import string
 import uuid
 
 from tenant_schemas.utils import schema_context
@@ -72,13 +74,19 @@ class OCPReportChargeUpdaterTest(MasuTestCase):
             provider_uuid=self.ocp_provider_uuid,
             provider_id=provider_id
         )
+        pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+        namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
         self.creator.create_ocp_usage_line_item(
             reporting_period,
-            report
+            report,
+            pod=pod,
+            namespace=namespace
         )
         self.creator.create_ocp_storage_line_item(
             reporting_period,
-            report
+            report,
+            pod=pod,
+            namespace=namespace
         )
         self.creator.create_ocp_usage_line_item(
             reporting_period,
