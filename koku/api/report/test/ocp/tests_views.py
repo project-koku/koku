@@ -200,7 +200,6 @@ class OCPReportViewTest(IamTestCase):
             }
         }
 
-
     @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
     def test_generic_report_ocp_cpu_success(self, mock_handler):
         """Test OCP cpu generic report."""
@@ -563,7 +562,7 @@ class OCPReportViewTest(IamTestCase):
                         Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                    Value(0, output_field=DecimalField()))
+                                   Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
@@ -605,7 +604,7 @@ class OCPReportViewTest(IamTestCase):
                         Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                    Value(0, output_field=DecimalField()))
+                                   Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
@@ -621,7 +620,7 @@ class OCPReportViewTest(IamTestCase):
                         Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                    Value(0, output_field=DecimalField()))
+                                   Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
@@ -637,7 +636,7 @@ class OCPReportViewTest(IamTestCase):
                         Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                    Value(0, output_field=DecimalField()))
+                                   Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
@@ -1028,11 +1027,12 @@ class OCPReportViewTest(IamTestCase):
             totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
-                .aggregate(cost=Sum(
+                .aggregate(
+                    cost=Sum(
                         Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
-                                    Value(0, output_field=DecimalField()))
+                                   Value(0, output_field=DecimalField()))
                         + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
                         + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
