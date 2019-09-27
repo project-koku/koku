@@ -407,7 +407,7 @@ class OCPReportDataGenerator:
 
     def _populate_charge_info(self):
         """Populate the charge information in summary table."""
-        entries = OCPUsageLineItemDailySummary.objects.all()
+        entries = OCPUsageLineItemDailySummary.objects.filter(data_source='Pod').all()
         for entry in entries:
             mem_usage = entry.pod_usage_memory_gigabyte_hours
             mem_request = entry.pod_request_memory_gigabyte_hours
@@ -425,7 +425,7 @@ class OCPReportDataGenerator:
 
     def _populate_storage_charge_info(self):
         """Populate the storage charge information in summary table."""
-        entries = OCPUsageLineItemDailySummary.objects.all()
+        entries = OCPUsageLineItemDailySummary.objects.filter(data_source='Storage').all()
         for entry in entries:
             storage_usage = entry.persistentvolumeclaim_usage_gigabyte_months
             storage_request = entry.volume_request_storage_gigabyte_months
@@ -589,7 +589,7 @@ class OCPReportDataGenerator:
             cursor.execute(raw_sql)
 
     def _populate_volume_claim_label_summary_table(self):
-        """Populate pod label key and values."""
+        """Populate volume claim label key and values."""
         raw_sql = """
             INSERT INTO reporting_ocpstoragevolumeclaimlabel_summary
             SELECT l.key,
@@ -609,7 +609,7 @@ class OCPReportDataGenerator:
             cursor.execute(raw_sql)
 
     def _populate_volume_label_summary_table(self):
-        """Populate pod label key and values."""
+        """Populate volume label key and values."""
         raw_sql = """
             INSERT INTO reporting_ocpstoragevolumelabel_summary
             SELECT l.key,
