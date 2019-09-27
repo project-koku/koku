@@ -368,7 +368,7 @@ class OCPCostView(OCPView):
     _serializer = OCPCostQueryParamSerializer
 
 
-class OCPVolumeView(ReportView):
+class OCPVolumeView(OCPView):
     """Get OpenShift volume usage data.
 
     @api {get} /cost-management/v1/reports/openshift/volume/ Get volume usage data

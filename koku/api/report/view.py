@@ -238,8 +238,7 @@ class ReportView(APIView):
 
         tag_keys = []
         if self.report != 'tags':
-            tag_models = self._tag_handler(self.provider, self.report)
-            for tag_model in tag_models:
+            for tag_model in self._tag_handler:
                 tag_keys.extend(get_tag_keys(request, tag_model))
 
         url_data = request.GET.urlencode()
