@@ -9,7 +9,7 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
         ocp_aws.pod_labels,
         sum(ocp_aws.unblended_cost) AS infra_cost,
         sum(ocp_aws.pod_cost) AS project_infra_cost
-    FROM acct10001.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    FROM {schema}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
     WHERE date(ocp_aws.usage_start) >= '{start_date}'
         AND date(ocp_aws.usage_start) <= '{end_date}'
         AND ocp_aws.cluster_id = '{cluster_id}'
