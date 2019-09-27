@@ -40,4 +40,4 @@ from api.status.views import StatusView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.ocp.view import OCPTagView
-from api.tags.ocp_aws.views import OCPAWSTagView
+from api.tags.ocp_aws.view import OCPAWSTagView
