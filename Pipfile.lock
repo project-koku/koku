@@ -441,10 +441,10 @@
         },
         "azure-mgmt-policyinsights": {
             "hashes": [
-                "sha256:49b88331bf823a030182ff492b728828c35758c7e49c8898a403bce5b210ba49",
-                "sha256:ff94cb12d6e01bf1470c2a6af4ce6960669ab4209106153879ff97addc569ce1"
+                "sha256:b27f5ac367b69e225ab02fa2d1ea20cbbfe948ff43b0af4698cd8cbde0063908",
+                "sha256:f2df831b61c6dcc36e0aa9403db44b92edf70234c0f685c4d82cdc01962d35cb"
             ],
-            "version": "==0.1.0"
+            "version": "==0.3.1"
         },
         "azure-mgmt-powerbiembedded": {
             "hashes": [
