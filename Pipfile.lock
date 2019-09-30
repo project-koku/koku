@@ -532,10 +532,10 @@
         },
         "azure-mgmt-signalr": {
             "hashes": [
-                "sha256:37a79dfe21af4addbd9cdf248a260387caabdfdd60d2ba6f3174d28e96660655",
-                "sha256:8a6266a59a5c69102e274806ccad3ac74b06fd2c226e16426bbe248fc2174903"
+                "sha256:0a6c876434f1a51bfbf1c4cea3f7167329f4ea86c12ba8ce8123d8f4b9896221",
+                "sha256:eca29e4b9a2ba1698f90a462d15edc6383b92e0bf06af7770898cd093271a611"
             ],
-            "version": "==0.1.1"
+            "version": "==0.3.0"
         },
         "azure-mgmt-sql": {
             "hashes": [
