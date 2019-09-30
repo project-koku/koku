@@ -553,10 +553,10 @@
         },
         "azure-mgmt-subscription": {
             "hashes": [
-                "sha256:309b23f0de65f26da80c801e913b0c3b2aea8b90ba583d919f81fe6f329d3f1b",
-                "sha256:a37925fb820cb86dfb57559846cc97c7e066fe0e64da7594175f4a4f5e50783c"
+                "sha256:504b4c42ba859070c3c50637ec07ca36aca600e613fcccaa398db22822fe21f1",
+                "sha256:850f86de5078f61f3a9bd81cb2b938ea25ce9a266c9fe22c7fca94a2b5968c16"
             ],
-            "version": "==0.2.0"
+            "version": "==0.5.0"
         },
         "azure-mgmt-trafficmanager": {
             "hashes": [
