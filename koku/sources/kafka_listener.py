@@ -39,6 +39,7 @@ EVENT_LOOP = asyncio.new_event_loop()
 PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 KAFKA_APPLICATION_CREATE = 'Application.create'
 KAFKA_APPLICATION_DESTROY = 'Application.destroy'
+KAFKA_AUTHENTICATION_CREATE = 'Authentication.create'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
@@ -129,6 +130,11 @@ def get_sources_msg_data(msg, app_type_id):
                 msg_data['event_type'] = event_type
                 msg_data['offset'] = msg.offset
                 msg_data['source_id'] = int(value.get('id'))
+                msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
+            elif event_type in (KAFKA_AUTHENTICATION_CREATE, ):
+                LOG.debug('Authentication Message: %s', str(msg))
+                msg_data['event_type'] = event_type
+                msg_data['resource_id'] = int(value.get('resource_id'))
                 msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
                 LOG.debug('Other Message: %s', str(msg))
