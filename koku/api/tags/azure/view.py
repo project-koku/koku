@@ -16,12 +16,13 @@
 #
 """View for AWS tags."""
 
-from rest_framework.permissions import AllowAny
+from api.tags.azure.queries import AzureTagQueryHandler
+from api.tags.serializers import AzureTagsQueryParamSerializer
+from api.tags.view import TagView
+from reporting.provider.azure.models import AzureTagsSummary
 
-from api.report.view import ReportView
 
-
-class AzureTagView(ReportView):
+class AzureTagView(TagView):
     """Get Azure tags.
 
     @api {get} /cost-management/v1/tags/azure/
@@ -55,6 +56,7 @@ class AzureTagView(ReportView):
 
     """
 
-    permission_classes = [AllowAny]
     provider = 'azure'
-    report = 'tags'
+    _serializer = AzureTagsQueryParamSerializer
+    _query_handler = AzureTagQueryHandler
+    _tag_handler = [AzureTagsSummary]
