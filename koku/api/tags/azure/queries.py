@@ -70,7 +70,9 @@ class AzureTagQueryHandler(TagQueryHandler):
                             LOG.warning('Bad value in tags: %s', item)
                             LOG.info('Tag keys: %s', tag_keys)
                             continue
-                        dikt = {'key': key, 'values': value}
+                        values = []
+                        values.append(value)
+                        dikt = {'key': key, 'values': values}
                         if dikt not in merged_data:
                             merged_data.append(dikt)
         return merged_data
