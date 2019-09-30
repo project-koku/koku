@@ -32,11 +32,11 @@ class OCPView(ReportView):
 
     permission_classes = [OpenShiftAccessPermission]
     provider = 'ocp'
-    _serializer = OCPInventoryQueryParamSerializer
-    _query_handler = OCPReportQueryHandler
-    _tag_handler = [OCPUsagePodLabelSummary,
-                    OCPStorageVolumeClaimLabelSummary,
-                    OCPStorageVolumeLabelSummary]
+    serializer = OCPInventoryQueryParamSerializer
+    query_handler = OCPReportQueryHandler
+    tag_handler = [OCPUsagePodLabelSummary,
+                   OCPStorageVolumeClaimLabelSummary,
+                   OCPStorageVolumeLabelSummary]
 
 
 class OCPMemoryView(OCPView):

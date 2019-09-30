@@ -41,6 +41,8 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""
 
+    provider = 'AWS'
+
     def __init__(self, parameters):
         """Establish AWS report query handler.
 
@@ -48,26 +50,19 @@ class AWSReportQueryHandler(ReportQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        provider = 'AWS'
-        super().__init__(parameters)
-
-        # FIXME - needs to be realigned to new parameters object
-        if parameters.access:
-            query_parameters = update_query_parameters_for_aws(query_parameters,
-                                                               kwargs.get('access'))
-
         # do not override mapper if its already set
         try:
             getattr(self, '_mapper')
         except AttributeError:
-            self._mapper = AWSProviderMap(provider=provider,
+            self._mapper = AWSProviderMap(provider=self.provider,
                                           report_type=parameters.report_type)
 
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        # FIXME
-        # self.query_parameters = query_parameters
-        # self.url_data = url_data
         self._limit = parameters.get_filter('limit')
+
+        # FIXME: super() needs to be called after _mapper is set
+        # FIXME: super() needs to be called after _limit is set
+        super().__init__(parameters)
 
 
     @property
@@ -99,7 +94,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.query_parameters)
+        output = copy.deepcopy(self.parameters)
         output['data'] = self.query_data
         output['total'] = self.query_sum
 

@@ -49,14 +49,15 @@ class ReportQueryHandler(QueryHandler):
 
         """
         LOG.debug(f'Query Params: {parameters}')
+
+        # FIXME: ReportQueryHandler needs super() called first, but child classes need to call
+        # super() last due to intialization ordering issues.
         super().__init__(parameters)
 
         self._accept_type = None
         self._group_by = None
         self._access = {}
-
-        default_ordering = self._mapper._report_type_map.get('default_ordering')
-
+        self._tag_keys = parameters.tag_keys
 
         self._delta = parameters.delta
         self._offset = parameters.get_filter('offset', default=0)
@@ -75,7 +76,7 @@ class ReportQueryHandler(QueryHandler):
     def get_tag_filter_keys(self):
         """Get tag keys from filter arguments."""
         tag_filters = []
-        filters = self.query_parameters.get('filter', {})
+        filters = self.parameters.get('filter', {})
         for filt in filters:
             if filt in self._tag_keys:
                 tag_filters.append(filt)
@@ -84,7 +85,7 @@ class ReportQueryHandler(QueryHandler):
     def get_tag_group_by_keys(self):
         """Get tag keys from group by arguments."""
         tag_groups = []
-        filters = self.query_parameters.get('group_by', {})
+        filters = self.parameters.get('group_by', {})
         for filt in filters:
             if filt in self._tag_keys:
                 tag_groups.append(filt)
@@ -115,8 +116,8 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get('filters')
         for q_param, filt in fields.items():
-            group_by = self.get_query_param_data('group_by', q_param, list())
-            filter_ = self.get_query_param_data('filter', q_param, list())
+            group_by = self.parameters.get_group_by(q_param, list())
+            filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 if isinstance(filt, list):
@@ -158,8 +159,8 @@ class ReportQueryHandler(QueryHandler):
                 'field': tag_db_name,
                 'operation': 'icontains'
             }
-            group_by = self.get_query_param_data('group_by', tag, list())
-            filter_ = self.get_query_param_data('filter', tag, list())
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
@@ -189,8 +190,8 @@ class ReportQueryHandler(QueryHandler):
                 'field': tag_db_name,
                 'operation': 'icontains'
             }
-            group_by = self.get_query_param_data('group_by', tag, list())
-            filter_ = self.get_query_param_data('filter', tag, list())
+            group_by = self.parameters.get_group_by(tag, list())
+            filter_ = self.parameters.get_filter(tag, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
@@ -210,8 +211,8 @@ class ReportQueryHandler(QueryHandler):
 
         for q_param, filt in fields.items():
             q_param = operator + ':' + q_param
-            group_by = self.get_query_param_data('group_by', q_param, list())
-            filter_ = self.get_query_param_data('filter', q_param, list())
+            group_by = self.parameters.get_group_by(q_param, list())
+            filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))    # uniquify the list
             logical_operator = operator
             # This is a flexibilty feature allowing a user to set
@@ -309,13 +310,13 @@ class ReportQueryHandler(QueryHandler):
         """Create list for group_by parameters."""
         group_by = []
         for item in self.group_by_options:
-            group_data = self.get_query_param_data('group_by', item)
+            group_data = self.parameters.get_group_by(item)
             if not group_data:
-                group_data = self.get_query_param_data('group_by', 'and:' + item)
+                group_data = self.parameters.get_group_by('and:' + item)
             if not group_data:
-                group_data = self.get_query_param_data('group_by', 'or:' + item)
+                group_data = self.parameters.get_group_by('or:' + item)
             if group_data:
-                group_pos = self.url_data.index(item)
+                group_pos = self.parameters.url_data.index(item)
                 group_by.append((item, group_pos))
 
         tag_group_by = self._get_tag_group_by()
@@ -340,10 +341,10 @@ class ReportQueryHandler(QueryHandler):
         tag_groups = self.get_tag_group_by_keys()
         for tag in tag_groups:
             tag_db_name = tag_column + '__' + strip_tag_prefix(tag)
-            group_data = self.get_query_param_data('group_by', tag)
+            group_data = self.parameters.get_group_by(tag)
             if group_data:
                 tag = quote_plus(tag)
-                group_pos = self.url_data.index(tag)
+                group_pos = self.parameters.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
         return group_by
 
@@ -563,7 +564,7 @@ class ReportQueryHandler(QueryHandler):
         date_grouped_data = self.date_group_data(data_list)
         if data_list:
             self.max_rank = max(entry.get('rank') for entry in data_list)
-        is_offset = 'offset' in self.query_parameters.get('filter', {})
+        is_offset = 'offset' in self.parameters.get('filter', {})
 
         for date in date_grouped_data:
             ranked_list = self._perform_rank_summation(

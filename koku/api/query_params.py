@@ -17,16 +17,20 @@
 """Query parameter parsing for query handler."""
 
 import logging
+from collections import OrderedDict
 
+from django.core.exceptions import PermissionDenied
 from django.utils.translation import ugettext as _
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.models import Tenant, User
+from api.report.queries import ReportQueryHandler
+
 
 LOG = logging.getLogger(__name__)
-
+VALID_PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
 
 class QueryParameters:
     """Query parameter container object.
@@ -43,23 +47,38 @@ class QueryParameters:
 
     """
 
-    def __init__(self, request, report_type, serializer, tag_handler):
-        """Constructor."""
+    def __init__(self, request, caller):
+        """Constructor.
+
+        Validated parameters will be set in the `parameters` attribute.
+
+        Args:
+            request (Request) the HttpRequest object
+            caller (ReportView) the View object handling the request
+        """
+
+        self._tenant = None
 
         self.request = request
-        self.report_type = report_type
-        self.serializer = serializer
-        self.tag_handler = tag_handler
+        self.report_type = caller.report_type
+        self.serializer = caller.serializer
+        self.query_handler = caller.query_handler
+        self.tag_handler = caller.tag_handler
 
         self.tag_keys = []
         if self.report_type != 'tags':
             for tag_model in self.tag_handler:
                 self.tag_keys.extend(self._get_tag_keys(tag_model))
 
-        validation, params = self._process_query_parameters()
-        if not validation:
-            raise ValidationError(detail=params)
-        self.parameters = params
+        self._validate()   # sets self.parameters
+        for prov in VALID_PROVIDERS:
+            if caller.query_handler.provider == prov:
+                getattr(self, f'_set_access_{prov.lower()}')()
+
+        if 'filter' not in self.parameters:
+            self.parameters['filter'] = OrderedDict()
+
+        self._set_time_scope_defaults()
 
     def __repr__(self):
         """Unambiguous representation."""
@@ -71,21 +90,6 @@ class QueryParameters:
         # TODO: show the parameter values in output.
         return super().__str__()
 
-    @property
-    def accept_type(self):
-        """Return accept_type property."""
-        return self.request.META.get('HTTP_ACCEPT')
-
-    @property
-    def access(self):
-        """Return access property."""
-        return self.request.user.access
-
-    @property
-    def delta(self):
-        """Return delta property."""
-        raise NotImplementedError    # FIXME
-
     def _get_tag_keys(self, model):
         """Get a list of tag keys to validate filters."""
         with tenant_context(self.tenant):
@@ -94,69 +98,6 @@ class QueryParameters:
             tag_list.extend([':'.join(['and:tag', tag.get('key')]) for tag in tags])
             tag_list.extend([':'.join(['or:tag', tag.get('key')]) for tag in tags])
         return tag_list
-
-    @property
-    def tenant(self):
-        """Get the tenant for the given user.
-
-        Returns:
-            (Tenant): Object used to get tenant specific data tables
-        Raises:
-            (ValidationError): If no tenant could be found for the user
-
-        """
-        tenant = None
-        if self.user:
-            try:
-                customer = self.user.customer
-                tenant = Tenant.objects.get(schema_name=customer.schema_name)
-            except User.DoesNotExist:
-                pass
-        if tenant is None:
-            error = {'details': _('Invalid user definition')}
-            raise ValidationError(error)
-        return tenant
-
-    @property
-    def user(self):
-        """Return user property."""
-        return self.request.user
-
-    def get_filter(self, filt, default=None):
-        """Get a filter parameter."""
-        return self.parameters.get('filter').get(filt, default)
-
-    def _process_query_parameters(self):
-        """Process query parameters and raise any validation errors.
-
-        Returns:
-            (Boolean): True if query params are valid, False otherwise
-            (Dict): Dictionary parsed from query params string
-
-        """
-        url_data = self.request.GET.urlencode()
-        try:
-            query_params = parser.parse(url_data)
-        except parser.MalformedQueryStringError:
-            LOG.error('Invalid query parameter format %s.', url_data)
-            error = {'details': _(f'Invalid query parameter format.')}
-            raise ValidationError(error)
-
-        if self.tag_keys:
-            self.tag_keys = self._process_tag_query_params(query_params)
-            qps = self.serializer(data=query_params, tag_keys=self.tag_keys,
-                                  context={'request': self.request})
-        else:
-            qps = self.serializer(data=query_params, context={'request': self.request})
-
-        output = None
-        validation = qps.is_valid()
-        if not validation:
-            output = qps.errors
-        else:
-            output = qps.data
-
-        return (validation, output)
 
     def _process_tag_query_params(self, query_params):
         """Reduce the set of tag keys based on those being queried."""
@@ -173,3 +114,188 @@ class QueryParameters:
                 param_tag_keys.add(key)
 
         return param_tag_keys
+
+    def _set_access(self, filter_key, access_key, raise_exception=True):
+        """Alter query parameters based on user access."""
+        access_list = self.access.get(access_key, {}).get('read', [])
+        access_filter_applied = False
+        if ReportQueryHandler.has_wildcard(access_list):
+            return
+
+        # check group by
+        group_by = self.parameters.get('group_by', {})
+        if group_by.get(filter_key):
+            items = set(group_by.get(filter_key))
+            result = get_replacement_result(items, access_list, raise_exception=True)
+            if result:
+                self.parameters['group_by'][filter_key] = result
+                access_filter_applied = True
+
+        if not access_filter_applied:
+            if self.parameters.get('filter', {}).get(filter_key):
+                items = set(self.parameters.get('filter', {}).get(filter_key))
+                result = get_replacement_result(items, access_list, raise_exception)
+                if result:
+                    if self.parameters.get('filter') is None:
+                        self.parameters['filter'] = {}
+                    self.parameters['filter'][filter_key] = result
+            elif access_list:
+                if self.parameters.get('filter') is None:
+                    self.parameters['filter'] = {}
+                self.parameters['filter'][filter_key] = access_list
+
+    def _set_access_aws(self):
+        """Alter query parameters based on user access."""
+        self._set_access('account', 'aws.account')
+
+    def _set_access_azure(self):
+        """Alter query parameters based on user access."""
+        self._set_access('subscription_guid', 'azure.subscription_guid')
+
+    def _set_access_openshift(self):
+        """Alter query parameters based on user access."""
+        params = [('cluster', True), ('node', False), ('project', False)]
+        for name, exc in params:
+            self._set_access(name, f'openshift.{name}',
+                             raise_exception=exc)
+
+    def _set_time_scope_defaults(self):
+        """Set the default filter parameters."""
+        time_scope_units = self.get_filter('time_scope_units')
+        time_scope_value = self.get_filter('time_scope_value')
+        resolution = self.get_filter('resolution')
+
+        if not time_scope_value:
+            if time_scope_units == 'month':
+                time_scope_value = -1
+            else:
+                time_scope_value = -10
+
+        if not time_scope_units:
+            if int(time_scope_value) in [-1, -2]:
+                time_scope_units = 'month'
+            else:
+                time_scope_units = 'day'
+
+        if not resolution:
+            if int(time_scope_value) in [-1, -2]:
+                resolution = 'monthly'
+            else:
+                resolution = 'daily'
+
+        self.parameters.set_filter(time_scope_value=str(time_scope_value),
+                                   time_scope_units=str(time_scope_units),
+                                   resolution=str(resolution))
+
+    def _validate(self):
+        """Validate query parameters.
+
+        Raises:
+            ValidationError
+
+        Returns:
+            (Boolean): True if query params are valid, False otherwise
+            (Dict): Dictionary parsed from query params string
+
+        """
+        try:
+            query_params = parser.parse(self.url_data)
+        except parser.MalformedQueryStringError:
+            LOG.error('Invalid query parameter format %s.', self.url_data)
+            error = {'details': _(f'Invalid query parameter format.')}
+            raise ValidationError(error)
+
+        if self.tag_keys:
+            self.tag_keys = self._process_tag_query_params(query_params)
+            qps = self.serializer(data=query_params, tag_keys=self.tag_keys,
+                                  context={'request': self.request})
+        else:
+            qps = self.serializer(data=query_params, context={'request': self.request})
+
+        if qps.is_valid():
+            self.parameters = qps.data
+        raise ValidationError(detail=qps.errors)
+
+    @property
+    def accept_type(self):
+        """Return accept_type property."""
+        return self.request.META.get('HTTP_ACCEPT')
+
+    @property
+    def access(self):
+        """Return access property."""
+        return self.request.user.access
+
+    @property
+    def delta(self):
+        """Return delta property."""
+        return self.get('delta')
+
+    @property
+    def tenant(self):
+        """Tenant property."""
+        if not self._tenant:
+            self._tenant = get_tenant(self.user)
+        return self._tenant
+
+    @property
+    def url_data(self):
+        """Get the url_data."""
+        return self.request.GET.urlencode()
+
+    @property
+    def user(self):
+        """Return user property."""
+        return self.request.user
+
+    def get(self, item, default=None):
+        """Convenience method gets parameter data."""
+        return self.parameters.get(item, default)
+
+    def get_filter(self, filt, default=None):
+        """Get a filter parameter."""
+        return self.get('filter').get(filt, default)
+
+    def get_group_by(self, key, default=None):
+        """Get a group_by parameter key."""
+        return self.get('group_by').get(key, default)
+
+    def set_filter(self, **kwargs):
+        """Set one or more filter paramters."""
+        for key, val in kwargs.items():
+            self.parameters['filter'][key] = val
+
+
+def get_replacement_result(param_res_list, access_list, raise_exception=True):
+    """Adjust param list based on access list."""
+    if ReportQueryHandler.has_wildcard(param_res_list):
+        return access_list
+    if not access_list and not raise_exception:
+        return list(param_res_list)
+    intersection = param_res_list & set(access_list)
+    if not intersection:
+        raise PermissionDenied()
+    return list(intersection)
+
+def get_tenant(user):
+    """Get the tenant for the given user.
+
+    Args:
+        user    (DjangoUser): user to get the associated tenant
+    Returns:
+        (Tenant): Object used to get tenant specific data tables
+    Raises:
+        (ValidationError): If no tenant could be found for the user
+
+    """
+    tenant = None
+    if user:
+        try:
+            customer = user.customer
+            tenant = Tenant.objects.get(schema_name=customer.schema_name)
+        except User.DoesNotExist:
+            pass
+    if tenant is None:
+        error = {'details': _('Invalid user definition')}
+        raise ValidationError(error)
+    return tenant

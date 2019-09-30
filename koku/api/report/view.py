@@ -151,13 +151,11 @@ class ReportView(APIView):
 
         try:
             params = QueryParameters(request=request,
-                                     report_type=self.report,
-                                     serializer=self._serializer,
-                                     tag_handler=self._tag_handler)
+                                     caller=self)
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        handler = self._query_handler(params)
+        handler = self.query_handler(params)
         output = handler.execute_query()
         max_rank = handler.max_rank
 

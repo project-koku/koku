@@ -28,9 +28,9 @@ class AWSView(ReportView):
 
     permission_classes = [AwsAccessPermission]
     provider = 'aws'
-    _serializer = QueryParamSerializer
-    _query_handler = AWSReportQueryHandler
-    _tag_handler = [AWSTagsSummary]
+    serializer = QueryParamSerializer
+    query_handler = AWSReportQueryHandler
+    tag_handler = [AWSTagsSummary]
 
 
 class AWSCostView(AWSView):

@@ -28,9 +28,9 @@ class AzureView(ReportView):
 
     permission_classes = [AzureAccessPermission]
     provider = 'azure'
-    _serializer = AzureQueryParamSerializer
-    _query_handler = AzureReportQueryHandler
-    _tag_handler = [AzureTagsSummary]
+    serializer = AzureQueryParamSerializer
+    query_handler = AzureReportQueryHandler
+    tag_handler = [AzureTagsSummary]
 
 
 class AzureCostView(AzureView):

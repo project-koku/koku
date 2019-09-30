@@ -36,7 +36,7 @@ from rest_framework.serializers import UUIDField
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
-from api.report.view import get_tenant
+from api.query_params import get_tenant
 from .provider_manager import ProviderManager
 
 
