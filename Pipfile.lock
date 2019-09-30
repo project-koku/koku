@@ -469,10 +469,10 @@
         },
         "azure-mgmt-recoveryservicesbackup": {
             "hashes": [
-                "sha256:1e55b6cbb808df83576cef352ba0065f4878fe505299c0a4c5a97f4f1e5793df",
-                "sha256:5c44bd73df6eb55382335f16a21aee62ddc8e271cd913b9147768f42aba59c3d"
+                "sha256:3afcbb2e019e123fa5d164ddacd02828c1fa2a4b86e98f4d10565aa97bd35ec2",
+                "sha256:511cc92f2a12fd233c920f64ee4ea2d2d39adea7393145bbfa7e881bdbdf5a7f"
             ],
-            "version": "==0.3.0"
+            "version": "==0.4.0"
         },
         "azure-mgmt-redis": {
             "hashes": [
