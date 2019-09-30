@@ -113,6 +113,7 @@ class CostModelSerializerTest(IamTestCase):
     def test_not_OCP_source_type_with_markup(self):
         """Test that a source type is valid if it has markup."""
         self.ocp_data['source_type'] = 'AWS'
+        self.ocp_data['rates'] = []
 
         with tenant_context(self.tenant):
             instance = None
@@ -136,6 +137,16 @@ class CostModelSerializerTest(IamTestCase):
         """Test error when non OCP source is added without markup."""
         self.ocp_data['source_type'] = 'AWS'
         self.ocp_data['markup'] = {}
+        with tenant_context(self.tenant):
+            serializer = CostModelSerializer(data=self.ocp_data)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+
+    def test_error_on_nonOCP_source_type_with_markup_and_rates(self):
+        """Test error when non OCP source is added with markup and rates."""
+        self.ocp_data['source_type'] = 'AWS'
+
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
