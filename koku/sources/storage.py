@@ -121,6 +121,33 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
+def load_incomplete_sources():
+    """
+    Build a list of Sources that need information from the Sources backend..
+
+    The primary use case where this is when authentication information is not
+    available for the source and the Sources Client service is in a retry loop.
+    In the event that the sources client service goes down before authentication
+    information is added, the incomplete source needs to be added back to the
+    event loop to continue to wait for Platform Sources authentication details.
+
+    Args:
+        None
+
+    Returns:
+        [Dict] - List of events that can be processed by the synchronize_sources method.
+
+    """
+    sources_to_populate = []
+    incomplete_sources = Sources.objects.filter(source_id__isnull=False, name__isnull=True)
+    for source in incomplete_sources:
+        sources_to_populate.append({'source_id': source.source_id,
+                                    'auth_header': source.auth_header,
+                                    'offset': source.offset,
+                                    'event_type': 'Application.create'})
+    return sources_to_populate
+
+
 async def enqueue_source_delete(queue, source_id):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.

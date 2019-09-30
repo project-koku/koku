@@ -29,17 +29,17 @@ from kafka.errors import KafkaError
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError, SourcesHTTPClientRecoverableError
 
 from api.provider.models import Sources
 
 LOG = logging.getLogger(__name__)
 
 EVENT_LOOP = asyncio.new_event_loop()
+PENDING_PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 KAFKA_APPLICATION_CREATE = 'Application.create'
 KAFKA_APPLICATION_DESTROY = 'Application.destroy'
-KAFKA_AUTHENTICATION_CREATE = 'Authentication.create'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
@@ -91,6 +91,9 @@ def load_process_queue():
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
 
+    for source in storage.load_incomplete_sources():
+        PENDING_PROCESS_QUEUE.put_nowait(source)
+
 
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
@@ -114,6 +117,9 @@ def get_sources_msg_data(msg, app_type_id):
 
     """
     msg_data = {}
+    if isinstance(msg, dict):
+        return msg
+
     if msg.topic == Config.SOURCES_TOPIC:
         try:
             value = json.loads(msg.value.decode('utf-8'))
@@ -130,11 +136,6 @@ def get_sources_msg_data(msg, app_type_id):
                 msg_data['event_type'] = event_type
                 msg_data['offset'] = msg.offset
                 msg_data['source_id'] = int(value.get('id'))
-                msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
-            elif event_type in (KAFKA_AUTHENTICATION_CREATE, ):
-                LOG.debug('Authentication Message: %s', str(msg))
-                msg_data['event_type'] = event_type
-                msg_data['resource_id'] = int(value.get('resource_id'))
                 msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             else:
                 LOG.debug('Other Message: %s', str(msg))
@@ -224,9 +225,14 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
                                           msg_data.get('auth_header'),
                                           msg_data.get('offset'))
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                await EVENT_LOOP.run_in_executor(pool, sources_network_info,
-                                                 msg_data.get('source_id'),
-                                                 msg_data.get('auth_header'))
+                try:
+                    await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                     msg_data.get('source_id'),
+                                                     msg_data.get('auth_header'))
+                except SourcesHTTPClientRecoverableError as error:
+                    LOG.error('Re-queueing Sources HTTP operation. Error: %s', str(error))
+                    await asyncio.sleep(Config.RETRY_SECONDS)
+                    await msg_pending_queue.put(msg)
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
@@ -347,8 +353,6 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         None
 
     """
-    pending_process_queue = asyncio.Queue(loop=event_loop)
-
     consumer = AIOKafkaConsumer(
         Config.SOURCES_TOPIC,
         loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id='hccm-group'
@@ -368,8 +372,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
         load_process_queue()
         while True:
-            event_loop.create_task(listen_for_messages(consumer, pending_process_queue))
-            event_loop.create_task(process_messages(pending_process_queue, PROCESS_QUEUE, cost_management_type_id))
+            event_loop.create_task(listen_for_messages(consumer, PENDING_PROCESS_QUEUE))
+            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE, PROCESS_QUEUE, cost_management_type_id))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
     except SourcesHTTPClientError as error:

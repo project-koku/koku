@@ -26,6 +26,12 @@ class SourcesHTTPClientError(Exception):
     pass
 
 
+class SourcesHTTPClientRecoverableError(Exception):
+    """SourcesHTTPClient Error."""
+
+    pass
+
+
 class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
@@ -92,6 +98,8 @@ class SourcesHTTPClient:
                                                                                                        str(resource_id))
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
+        if not authentications_response.get('data'):
+            raise SourcesHTTPClientRecoverableError(f'No authentication details for Source: {self._source_id}')
         authentications_id = authentications_response.get('data')[0].get('id')
 
         authentications_internal_url = '{}/authentications/{}?expose_encrypted_attribute[]=password'.format(
@@ -114,6 +122,8 @@ class SourcesHTTPClient:
              f'[authtype]=access_key_secret_key&[resource_id]={str(resource_id)}')
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
+        if not authentications_response.get('data'):
+            raise SourcesHTTPClientRecoverableError(f'No authentication details for Source: {self._source_id}')
         data_dict = authentications_response.get('data')[0]
         authentications_id = data_dict.get('id')
 
