@@ -798,11 +798,10 @@
         },
         "django-prometheus": {
             "hashes": [
-                "sha256:571d89a13e2547e1c3d19901f155bde8e101323fbcb0439363d670bc61c8c541",
-                "sha256:e8da2eb91cb20cfe0b8130305d34f3503766b7a08a244ce1031c36136beeb7a5"
+                "sha256:60f331788f9846891e9ea8d7ccd2928b1042e2e99c8d673f97e2b85f5bc20112",
+                "sha256:bb2d4f8acd681fa5787df77e7482391017f0090c70473bccd2aa7cad327800ad"
             ],
-            "index": "pypi",
-            "version": "==1.0.15"
+            "version": "==1.1.0"
         },
         "django-redis": {
             "hashes": [
