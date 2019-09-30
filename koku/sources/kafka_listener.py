@@ -345,7 +345,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
     consumer = AIOKafkaConsumer(
         Config.SOURCES_TOPIC,
-        loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id='hccm-group'
+        loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id='hccm-sources'
     )
     while True:
         try:
