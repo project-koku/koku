@@ -328,10 +328,10 @@
         },
         "azure-mgmt-iothub": {
             "hashes": [
-                "sha256:08388142ed6844f0a0e97d2740decf80ffc94f22adca174c15f60b9e2c2d14be",
-                "sha256:77221c5b6ff7feabc2e6d44156e29fbee9098b34de044165d3532b64b678bdb1"
+                "sha256:388be0ed9f7ec8e7e450c7677aa4f823773a99df78ecac9ae4d36653420b7c70",
+                "sha256:45282a992370f5eacec5350636b7aa77507e5348ebdbbbcc98c32e1e357816b2"
             ],
-            "version": "==0.5.0"
+            "version": "==0.8.2"
         },
         "azure-mgmt-iothubprovisioningservices": {
             "hashes": [
