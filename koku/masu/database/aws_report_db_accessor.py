@@ -39,6 +39,7 @@ from reporting.provider.ocp_aws.models import (
     OCPAWSCostLineItemDailySummary,
     OCPAWSCostLineItemProjectDailySummary
 )
+from jinjasql import JinjaSql
 
 LOG = logging.getLogger(__name__)
 
@@ -197,8 +198,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         """
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
-        from jinjasql import JinjaSql
-        j = JinjaSql()
+        
+        jinjaSql = JinjaSql()
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
@@ -216,7 +217,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "schema" : self.schema
         }
         
-        daily_sql, bind_params = j.prepare_query(daily_sql, jinja_data)
+        daily_sql, bind_params = jinjaSql.prepare_query(daily_sql, jinja_data)
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date, list(bind_params))
 
     # pylint: disable=invalid-name
