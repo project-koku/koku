@@ -197,23 +197,27 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         """
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+        from jinjasql import JinjaSql
+        j = JinjaSql()
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
+        daily_sql = daily_sql.decode("utf-8")
         bill_id_where_clause = ''
         if bill_ids:
             ids = ','.join(bill_ids)
             bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            bill_id_where_clause=bill_id_where_clause,
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        jinja_data = {
+            "uuid" : str(uuid.uuid4()).replace('-', '_'),
+            "start_date" : start_date,
+            "end_date" : end_date,
+            "bill_id_where_clause" : bill_id_where_clause,
+            "schema" : self.schema
+        }
+        
+        daily_sql, bind_params = j.prepare_query(daily_sql, jinja_data)
+        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date, list(bind_params))
 
     # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
