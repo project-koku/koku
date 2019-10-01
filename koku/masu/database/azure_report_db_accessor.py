@@ -20,6 +20,7 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db import connection
 from django.db.models import F
 from tenant_schemas.utils import schema_context
 
@@ -153,3 +154,36 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             else:
                 AzureCostEntryLineItemDailySummary.objects.\
                     update(markup_cost=(F('pretax_cost') * markup))
+
+    # pylint: disable=too-many-arguments,arguments-differ
+    def merge_temp_table(self, table_name, temp_table_name, columns,
+                         conflict_columns):
+        """INSERT temp table rows into the primary table specified.
+
+        Args:
+            table_name (str): The main table to insert into
+            temp_table_name (str): The temp table to pull from
+            columns (list): A list of columns to use in the insert logic
+
+        Returns:
+            (None)
+
+        """
+        column_str = ','.join(columns)
+        conflict_col_str = ','.join(conflict_columns)
+
+        set_clause = ','.join([f'{column} = excluded.{column}'
+                               for column in columns])
+        upsert_sql = f"""
+            INSERT INTO {table_name} ({column_str})
+                SELECT {column_str}
+                FROM {temp_table_name}
+                ON CONFLICT ({conflict_col_str}) DO UPDATE
+                SET {set_clause}
+            """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(upsert_sql)
+
+            delete_sql = f'DELETE FROM {temp_table_name}'
+            cursor.execute(delete_sql)

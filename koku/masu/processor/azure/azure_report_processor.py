@@ -80,6 +80,7 @@ class AzureReportProcessor(ReportProcessorBase):
             provider_id=provider_id,
             processed_report=ProcessedAzureReport()
         )
+        self.table_name = AzureCostEntryLineItemDaily()
 
         self.manifest_id = manifest_id
         self._report_name = report_path
@@ -237,8 +238,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        table_name = AzureCostEntryLineItemDaily
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
         tag_str = ''
 
         if 'tags' in data:
@@ -246,7 +246,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         data = report_db_accesor.clean_data(
             data,
-            table_name._meta.db_table
+            self.table_name._meta.db_table
         )
 
         data['tags'] = tag_str
@@ -275,6 +275,11 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
+    @property
+    def line_item_conflict_columns(self):
+        """Create a property to check conflict on line items."""
+        return []
+
     def process(self):
         """Process cost/usage file.
 
@@ -287,28 +292,43 @@ class AzureReportProcessor(ReportProcessorBase):
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
             with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
+                temp_table = report_db.create_temp_table(
+                    self.table_name._meta.db_table,
+                    drop_column='id'
+                )
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     _ = self.create_cost_entry_objects(row, report_db)
                 if len(self.processed_report.line_items) >= self._batch_size:
+                    self._save_to_db(temp_table, report_db)
+                    report_db.merge_temp_table(
+                        self.table_name._meta.db_table,
+                        temp_table,
+                        self.line_item_columns,
+                        self.line_item_conflict_columns
+                    )
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
-
                     row_count += len(self.processed_report.line_items)
                     self._update_mappings()
 
                 if self.processed_report.line_items:
+                    report_db.merge_temp_table(
+                        self.table_name._meta.db_table,
+                        temp_table,
+                        self.line_item_columns,
+                        self.line_item_conflict_columns
+                    )
+                    self._save_to_db(temp_table, report_db)
                     LOG.debug('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
-                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
 
-                report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
-                report_db.commit()
+                # report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
+                # report_db.commit()
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
             return True
