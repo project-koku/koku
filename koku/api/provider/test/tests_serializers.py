@@ -316,8 +316,9 @@ class ProviderSerializerTest(IamTestCase):
                 'credentials': {'project_id': 'gcp_project'}
             },
             'billing_source': {
-                'bucket': 'test_bucket',
-                'data_source': None
+                'data_source': {
+                    'bucket': 'test_bucket',
+                }
             }
         }
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
@@ -339,8 +340,9 @@ class ProviderSerializerTest(IamTestCase):
                 'credentials': {'project_id': 'gcp_project'}
             },
             'billing_source': {
-                'bucket': 'test_bucket',
-                'data_source': None
+                'data_source': {
+                    'bucket': 'test_bucket',
+                }
             }
         }
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
