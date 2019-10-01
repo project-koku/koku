@@ -15,12 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Provider Model Serializers."""
-import logging
 
 from django.db import transaction
 from django.utils.translation import ugettext as _
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
+from rest_framework.fields import empty
 
 from api.iam.serializers import (AdminCustomerSerializer,
                                  CustomerSerializer,
@@ -30,8 +30,6 @@ from api.provider.models import (Provider,
                                  ProviderBillingSource,
                                  Sources)
 
-LOG = logging.getLogger(__name__)
-
 
 def error_obj(key, message):
     """Create an error object."""
@@ -39,6 +37,16 @@ def error_obj(key, message):
         key: [_(message)]
     }
     return error
+
+
+def validate_field(data, valid_fields, key):
+    """Validate a field."""
+    message = 'One or more required fields is invalid/missing. ' + \
+              f'Required fields are {valid_fields}'
+    diff = set(valid_fields) - set(data)
+    if not diff:
+        return data
+    raise serializers.ValidationError(error_obj(key, message))
 
 
 class ProviderAuthenticationSerializer(serializers.ModelSerializer):
@@ -54,7 +62,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     credentials = serializers.JSONField(allow_null=True, required=False)
 
     def validate(self, data):
-        """Validate billing source."""
+        """Validate authentication parameters."""
         if data.get('credentials') is None:
             data['credentials'] = {}
         return data
@@ -65,6 +73,28 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
         model = ProviderAuthentication
         fields = ('uuid', 'provider_resource_name', 'credentials')
+
+
+class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """AWS auth serializer."""
+
+
+class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """Azure auth serializer."""
+
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = 'provider.credentials'
+        fields = ['subscription_id', 'tenant_id', 'client_id', 'client_secret']
+        return validate_field(creds, fields, key)
+
+
+class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """GCP auth serializer."""
+
+
+class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """OCP auth serializer."""
 
 
 class ProviderBillingSourceSerializer(serializers.ModelSerializer):
@@ -95,6 +125,54 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
         return data
 
 
+class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """AWS billing source serializer."""
+
+
+class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """Azure billing source serializer."""
+
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = 'provider.data_source'
+        fields = ['resource_group', 'storage_account']
+        return validate_field(data_source, fields, key)
+
+
+class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """GCP billing source serializer."""
+
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = 'provider.data_source'
+        fields = ['bucket']
+        return validate_field(data_source, fields, key)
+
+
+class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """OCP billing source serializer."""
+
+
+# Registry of authentication serializers.
+AUTHENTICATION_SERIALIZERS = {'AWS': AWSAuthenticationSerializer,
+                              'AWS-local': AWSAuthenticationSerializer,
+                              'AZURE': AzureAuthenticationSerializer,
+                              'AZURE-local': AzureAuthenticationSerializer,
+                              'GCP': GCPAuthenticationSerializer,
+                              'OCP': OCPAuthenticationSerializer,
+                              'OCP_AWS': AWSAuthenticationSerializer}
+
+
+# Registry of billing_source serializers.
+BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
+                              'AWS-local': AWSBillingSourceSerializer,
+                              'AZURE': AzureBillingSourceSerializer,
+                              'AZURE-local': AzureBillingSourceSerializer,
+                              'GCP': GCPBillingSourceSerializer,
+                              'OCP': OCPBillingSourceSerializer,
+                              'OCP_AWS': AWSBillingSourceSerializer}
+
+
 class ProviderSerializer(serializers.ModelSerializer):
     """Serializer for the Provider model."""
 
@@ -103,8 +181,6 @@ class ProviderSerializer(serializers.ModelSerializer):
                                  allow_null=False, allow_blank=False)
     type = serializers.ChoiceField(choices=Provider.PROVIDER_CHOICES)
     created_timestamp = serializers.DateTimeField(read_only=True)
-    authentication = ProviderAuthenticationSerializer()
-    billing_source = ProviderBillingSourceSerializer(default={'bucket': ''})
     customer = CustomerSerializer(read_only=True)
     created_by = UserSerializer(read_only=True)
 
@@ -115,6 +191,25 @@ class ProviderSerializer(serializers.ModelSerializer):
         model = Provider
         fields = ('uuid', 'name', 'type', 'authentication', 'billing_source',
                   'customer', 'created_by', 'created_timestamp')
+
+    def __init__(self, instance=None, data=empty, **kwargs):
+        """Initialize the Provider Serializer.
+
+        Here we ensure we use the appropriate serializer to validate the
+        authentication and billing_source parameters.
+        """
+        super().__init__(instance, data, **kwargs)
+
+        provider_type = None
+        if data and data != empty:
+            provider_type = data.get('type')
+
+        if provider_type:
+            self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(provider_type)()
+            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(provider_type)(default={'bucket': ''})
+        else:
+            self.fields['authentication'] = ProviderAuthenticationSerializer()
+            self.fields['billing_source'] = ProviderBillingSourceSerializer()
 
     @transaction.atomic
     def create(self, validated_data):
@@ -166,7 +261,13 @@ class ProviderSerializer(serializers.ModelSerializer):
         if unique_count != 0:
             existing_provider = Provider.objects.filter(authentication=auth)\
                 .filter(billing_source=bill).first()
-            source_query = Sources.objects.filter(authentication=auth.provider_resource_name)
+            if existing_provider.type in ('AWS', 'OCP'):
+                sources_auth = {'resource_name': auth.provider_resource_name}
+            elif existing_provider.type in ('AZURE', ):
+                sources_auth = {'credentials': auth.credentials}
+            else:
+                sources_auth = {}
+            source_query = Sources.objects.filter(authentication=sources_auth)
             if source_query.exists():
                 source_obj = source_query.first()
                 source_obj.koku_uuid = existing_provider.uuid

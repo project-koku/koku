@@ -55,16 +55,9 @@ class UUIDKeyRelatedField(serializers.PrimaryKeyRelatedField):
 class MarkupSerializer(serializers.Serializer):
     """Serializer for cost markup."""
 
-    value = serializers.DecimalField(required=False, max_digits=19, decimal_places=10)
+    value = serializers.DecimalField(required=False, max_digits=19,
+                                     decimal_places=10, coerce_to_string=True)
     unit = serializers.ChoiceField(choices=MARKUP_CHOICES, required=False)
-
-    def to_internal_value(self, data):
-        """Convert Decimal value to string."""
-        value = data.get('value')
-        if value is None:
-            return data
-        data['value'] = str(value)
-        return data
 
 
 class TieredRateSerializer(serializers.Serializer):
@@ -295,7 +288,9 @@ class CostModelSerializer(serializers.Serializer):
 
     def validate(self, data):
         """Validate that the source type is acceptable."""
-        if data.get('markup') and data['source_type'] in SOURCE_TYPE_MAP.keys():
+        # The cost model has markup, no rates, and is for a valid non-OpenShift source type
+        if (data.get('markup') and not data.get('rates') and data['source_type'] != 'OCP'
+                and data['source_type'] in SOURCE_TYPE_MAP.keys()):
             return data
         if data['source_type'] not in self.metric_map.keys():
             raise serializers.ValidationError('{} is not a valid source.'.format(data['source_type']))

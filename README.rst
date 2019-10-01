@@ -143,6 +143,17 @@ To lint the code base ::
 
     tox -e lint
 
+pgAdmin
+-------------------
+
+If you want to interact with the Postgres database from a GUI:
+
+ 1. Copy the `pgadmin_servers.json.example` into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
+ 2. `docker-compose up` causes pgAdmin to run on http://localhost:8432
+ 3. In the login screen, the default login email is `postgres`
+
+Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
+
 Contributing
 =============
 

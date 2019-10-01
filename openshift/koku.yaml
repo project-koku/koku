@@ -273,6 +273,12 @@ objects:
                   name: ${NAME}-app
                   key: enable-s3-archiving
                   optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
           command:
           - /bin/bash
           - -c
@@ -528,6 +534,12 @@ objects:
                 resourceFieldRef:
                   containerName: ${NAME}
                   resource: limits.memory
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:
