@@ -17,15 +17,16 @@ class GCPProvider(ProviderInterface):
         """Return name of the provider."""
         return 'GCP'
 
-    def cost_usage_source_is_reachable(self, credential_name, storage_resource_name):
+    def cost_usage_source_is_reachable(self, credential_name, data_source):
         """Verify that the GCP bucket exists and is reachable."""
         storage_client = storage.Client()
+        bucket = data_source['bucket']
         try:
-            bucket_info = storage_client.lookup_bucket(storage_resource_name)
+            bucket_info = storage_client.lookup_bucket(bucket)
             if not bucket_info:
                 # if the lookup does not return anything, then this is an nonexistent bucket
                 key = 'billing_source.bucket'
-                message = f'The Provided GCP bucket {storage_resource_name} does not exist'
+                message = f'The provided GCP bucket {bucket} does not exist'
                 raise serializers.ValidationError(error_obj(key, message))
 
         except GoogleCloudError as e:
