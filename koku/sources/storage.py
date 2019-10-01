@@ -189,6 +189,7 @@ def destroy_provider_event(source_id):
 
 
 def get_source_type(source_id):
+    """Get Source Type from Source ID."""
     source_type = None
     try:
         query = Sources.objects.get(source_id=source_id)
@@ -199,6 +200,7 @@ def get_source_type(source_id):
 
 
 def get_source_from_endpoint(endpoint_id):
+    """Get Source ID from Endpoint ID."""
     source_id = None
     try:
         query = Sources.objects.get(endpoint_id=endpoint_id)

@@ -22,7 +22,7 @@ import requests_mock
 from django.test import TestCase
 from faker import Faker
 from sources.config import Config
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError, SourcesHTTPClientRecoverableError
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 faker = Faker()
 
@@ -156,7 +156,7 @@ class SourcesHTTPClientTest(TestCase):
             m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': self.authentication})
-            with self.assertRaises(SourcesHTTPClientRecoverableError):
+            with self.assertRaises(SourcesHTTPClientError):
                 client.get_aws_role_arn()
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
@@ -205,5 +205,5 @@ class SourcesHTTPClientTest(TestCase):
             m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': authentication})
-            with self.assertRaises(SourcesHTTPClientRecoverableError):
+            with self.assertRaises(SourcesHTTPClientError):
                 client.get_azure_credentials()

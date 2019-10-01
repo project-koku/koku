@@ -149,6 +149,25 @@ def get_sources_msg_data(msg, app_type_id):
 
 
 def save_auth_info(auth_header, source_id):
+    """
+    Store Sources Authentication information given an Source ID.
+
+    This method is called when a Cost Management application is
+    attached to a given Source as well as when an Authentication
+    is created.  We have to handle both cases since an
+    Authentication.create event can occur before a Source is
+    attached to the Cost Management application.
+
+    Authentication is stored in the Sources database table.
+
+    Args:
+        source_id (Integer): Platform Sources ID.
+        auth_header (String): Authentication Header.
+
+    Returns:
+        None
+
+    """
     source_type = storage.get_source_type(source_id)
 
     if source_type:
@@ -174,6 +193,20 @@ def save_auth_info(auth_header, source_id):
 
 
 def sources_network_auth_info(resource_id, auth_header):
+    """
+    Store Sources Authentication information given an endpoint (Resource ID).
+
+    Convenience method when a Resource ID (Endpoint) is known and the Source ID
+    is not.  This happens when from an Authentication.create message.
+
+    Args:
+        resource_id (Integer): Platform Sources Endpoint ID, aka resource_id.
+        auth_header (String): Authentication Header.
+
+    Returns:
+        None
+
+    """
     source_id = storage.get_source_from_endpoint(resource_id)
     if source_id:
         save_auth_info(auth_header, source_id)
