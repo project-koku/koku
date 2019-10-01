@@ -1,3 +1,4 @@
 ---
+version: "2"
 exclude_patterns: Exclude files and/or directories from analysis
   - scripts/
