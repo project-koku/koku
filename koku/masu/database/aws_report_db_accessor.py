@@ -21,6 +21,7 @@ import uuid
 
 from dateutil.parser import parse
 from django.db.models import F
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -39,7 +40,6 @@ from reporting.provider.ocp_aws.models import (
     OCPAWSCostLineItemDailySummary,
     OCPAWSCostLineItemProjectDailySummary
 )
-from jinjasql import JinjaSql
 
 LOG = logging.getLogger(__name__)
 
@@ -198,25 +198,24 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         """
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
-        
+
         jinjaSql = JinjaSql()
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode("utf-8")
+        daily_sql = daily_sql.decode('utf-8')
         bill_id_where_clause = ''
         if bill_ids:
             ids = ','.join(bill_ids)
             bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
         jinja_data = {
-            "uuid" : str(uuid.uuid4()).replace('-', '_'),
-            "start_date" : start_date,
-            "end_date" : end_date,
-            "bill_id_where_clause" : bill_id_where_clause,
-            "schema" : self.schema
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_id_where_clause': bill_id_where_clause,
+            'schema': self.schema
         }
-        
         daily_sql, bind_params = jinjaSql.prepare_query(daily_sql, jinja_data)
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date, list(bind_params))
 
