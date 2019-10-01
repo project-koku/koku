@@ -83,11 +83,14 @@ class Config:
     # OpenShift Namespace
     NAMESPACE = os.getenv('NAMESPACE', default='unknown')
 
-    # Data directory for processing incoming data
-    TMP_DIR = '/var/tmp/masu'
+    # Data directory for processing incoming data.  This is the OCP PVC mount point.
+    PVC_DIR = '/var/tmp/masu'
 
     # OCP intermediate report storage
-    INSIGHTS_LOCAL_REPORT_DIR = '/var/tmp/insights_local'
+    INSIGHTS_LOCAL_REPORT_DIR = f'{PVC_DIR}/insights_local'
+
+    # Processing intermediate report storage
+    TMP_DIR = f'{PVC_DIR}/processing'
 
     # Celery settings
     CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
