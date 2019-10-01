@@ -26,12 +26,6 @@ class SourcesHTTPClientError(Exception):
     pass
 
 
-class SourcesHTTPClientRecoverableError(Exception):
-    """SourcesHTTPClient Error."""
-
-    pass
-
-
 class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
@@ -53,6 +47,38 @@ class SourcesHTTPClient:
             raise SourcesHTTPClientError('Status Code: ', r.status_code)
         response = r.json()
         return response
+
+    def get_source_id_from_resource(self, resource_id):
+        """Get Sources Endpoint ID from Source ID."""
+        endpoint_url = '{}/endpoints?filter[id]={}'.format(
+            self._base_url, resource_id)
+        r = requests.get(endpoint_url, headers=self._identity_header)
+
+        if r.status_code != 200:
+            raise SourcesHTTPClientError('Status Code: ', r.status_code)
+        endpoint_response = r.json()
+
+        if not endpoint_response.get('data'):
+            raise SourcesHTTPClientError(f'No authentication details for resource id: {self.resource_id}')
+        source_id = endpoint_response.get('data')[0].get('id')
+
+        return source_id
+
+    def get_endpoint_id(self):
+        """Get Sources Endpoint ID from Source ID."""
+        endpoint_url = '{}/endpoints?filter[source_id]={}'.format(
+            self._base_url, self._source_id)
+        r = requests.get(endpoint_url, headers=self._identity_header)
+
+        if r.status_code != 200:
+            raise SourcesHTTPClientError('Status Code: ', r.status_code)
+        endpoint_response = r.json()
+
+        if not endpoint_response.get('data'):
+            raise SourcesHTTPClientError(f'No authentication details for Source: {self._source_id}')
+        endpoint_id = endpoint_response.get('data')[0].get('id')
+
+        return endpoint_id
 
     def get_cost_management_application_type_id(self):
         """Get the cost management application type id."""
@@ -99,7 +125,7 @@ class SourcesHTTPClient:
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
         if not authentications_response.get('data'):
-            raise SourcesHTTPClientRecoverableError(f'No authentication details for Source: {self._source_id}')
+            raise SourcesHTTPClientError(f'No authentication details for Source: {self._source_id}')
         authentications_id = authentications_response.get('data')[0].get('id')
 
         authentications_internal_url = '{}/authentications/{}?expose_encrypted_attribute[]=password'.format(
@@ -123,7 +149,7 @@ class SourcesHTTPClient:
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
         if not authentications_response.get('data'):
-            raise SourcesHTTPClientRecoverableError(f'No authentication details for Source: {self._source_id}')
+            raise SourcesHTTPClientError(f'No authentication details for Source: {self._source_id}')
         data_dict = authentications_response.get('data')[0]
         authentications_id = data_dict.get('id')
 

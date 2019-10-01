@@ -29,7 +29,7 @@ from kafka.errors import KafkaError
 from sources import storage
 from sources.config import Config
 from sources.koku_http_client import KokuHTTPClient, KokuHTTPClientError, KokuHTTPClientNonRecoverableError
-from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError, SourcesHTTPClientRecoverableError
+from sources.sources_http_client import SourcesHTTPClient, SourcesHTTPClientError
 
 from api.provider.models import Sources
 
@@ -40,6 +40,7 @@ PENDING_PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 KAFKA_APPLICATION_CREATE = 'Application.create'
 KAFKA_APPLICATION_DESTROY = 'Application.destroy'
+KAFKA_AUTHENTICATION_CREATE = 'Authentication.create'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
@@ -129,6 +130,12 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data['offset'] = msg.offset
                     msg_data['source_id'] = int(value.get('source_id'))
                     msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
+            elif event_type in (KAFKA_AUTHENTICATION_CREATE, ):
+                LOG.debug('Authentication Message: %s', str(msg))
+                if value.get('resource_type') == 'Endpoint':
+                    msg_data['event_type'] = event_type
+                    msg_data['resource_id'] = int(value.get('resource_id'))
+                    msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
             elif event_type in (KAFKA_SOURCE_DESTROY, ):
                 LOG.debug('Source Message: %s', str(msg))
                 msg_data['event_type'] = event_type
@@ -142,6 +149,37 @@ def get_sources_msg_data(msg, app_type_id):
             raise SourcesIntegrationError('Unable to load message')
 
     return msg_data
+
+
+def save_auth_info(auth_header, source_id):
+    source_type = storage.get_source_type(source_id)
+
+    if source_type:
+        sources_network = SourcesHTTPClient(auth_header, source_id)
+    else:
+        LOG.info(f'Source ID not found for ID: {source_id}')
+        return
+
+    try:
+        if source_type == 'OCP':
+            source_details = sources_network.get_source_details()
+            authentication = {'resource_name': source_details.get('uid')}
+        elif source_type == 'AWS':
+            authentication = {'resource_name': sources_network.get_aws_role_arn()}
+        elif source_type == 'AZURE':
+            authentication = {'credentials': sources_network.get_azure_credentials()}
+        else:
+            LOG.error(f'Unexpected source type: {source_type}')
+            return
+    except SourcesHTTPClientError:
+        LOG.info(f'Authentication info not available for Source ID: {source_id}')
+    storage.add_provider_sources_auth_info(source_id, authentication)
+
+
+def sources_network_auth_info(resource_id, auth_header):
+    source_id = storage.get_source_from_endpoint(resource_id)
+    if source_id:
+        save_auth_info(auth_header, source_id)
 
 
 def sources_network_info(source_id, auth_header):
@@ -173,21 +211,20 @@ def sources_network_info(source_id, auth_header):
     source_name = source_details.get('name')
     source_type_id = int(source_details.get('source_type_id'))
     source_type_name = sources_network.get_source_type_name(source_type_id)
+    endpoint_id = sources_network.get_endpoint_id()
 
     if source_type_name == SOURCES_OCP_SOURCE_NAME:
         source_type = 'OCP'
-        authentication = {'resource_name': source_details.get('uid')}
     elif source_type_name == SOURCES_AWS_SOURCE_NAME:
         source_type = 'AWS'
-        authentication = {'resource_name': sources_network.get_aws_role_arn()}
     elif source_type_name == SOURCES_AZURE_SOURCE_NAME:
         source_type = 'AZURE'
-        authentication = {'credentials': sources_network.get_azure_credentials()}
     else:
         LOG.error(f'Unexpected source type ID: {source_type_id}')
         return
 
-    storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
+    storage.add_provider_sources_network_info(source_id, source_name, source_type, endpoint_id)
+    save_auth_info(auth_header, source_id)
 
 
 async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no cover
@@ -216,21 +253,20 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
     while True:
         msg_data = await msg_pending_queue.get()
 
-        # msg_data = get_sources_msg_data(msg, application_source_id)
-        # LOG.info(f'Processing Message: {str(msg)}')
+        LOG.info(f'Processing Event: {str(msg_data)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
                                           msg_data.get('offset'))
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                try:
-                    await EVENT_LOOP.run_in_executor(pool, sources_network_info,
-                                                     msg_data.get('source_id'),
-                                                     msg_data.get('auth_header'))
-                except SourcesHTTPClientRecoverableError as error:
-                    LOG.error('Re-queueing Sources HTTP operation. Error: %s', str(error))
-                    await asyncio.sleep(Config.RETRY_SECONDS)
-                    await msg_pending_queue.put(msg_data)
+                await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                 msg_data.get('source_id'),
+                                                 msg_data.get('auth_header'))
+        elif msg_data.get('event_type') == KAFKA_AUTHENTICATION_CREATE:
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(pool, sources_network_auth_info,
+                                                 msg_data.get('resource_id'),
+                                                 msg_data.get('auth_header'))
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
@@ -250,10 +286,11 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
     LOG.info('Listener started.  Waiting for messages...')
     try:
         async for msg in consumer:
+            LOG.debug(f'Filtering Message: {str(msg)}')
             msg = get_sources_msg_data(msg, application_source_id)
-            LOG.info(f'Processing Message: {str(msg)}')
-
-            await msg_pending_queue.put(msg)
+            if msg:
+                LOG.info(f'Cost Management Message to process: {str(msg)}')
+                await msg_pending_queue.put(msg)
     finally:
         await consumer.stop()
 
