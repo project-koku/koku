@@ -51,12 +51,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.generator = AzureReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant()
 
-    def tearDown(self):
-        """Test case tear-down."""
-        gen = AzureReportDataGenerator(self.tenant)
-        gen.remove_data_from_tenant()
-        gen.remove_data_from_reporting_common()
-
     def get_totals_by_time_scope(self, aggregates, filter=None):
         """Return the total aggregates for a time period."""
         if filter is None:
@@ -840,11 +834,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
-
+        total_cost = query_output.get('total', {}).get('cost', {}).get('value')
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNone(delta.get('percent'))
-        self.assertEqual(delta.get('value'), Decimal(0))
+        self.assertEqual(delta.get('value'), total_cost)
         self.assertEqual(delta.get('percent'), None)
 
     def test_execute_query_orderby_delta(self):
@@ -1260,8 +1254,19 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1304,8 +1309,20 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        # Pick tags for the same month we query on later
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1341,8 +1358,20 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        # Pick tags for the same month we query on later
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
