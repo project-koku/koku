@@ -92,9 +92,6 @@ def load_process_queue():
     for event in pending_events:
         PROCESS_QUEUE.put_nowait(event)
 
-    for source in storage.load_incomplete_sources():
-        PENDING_PROCESS_QUEUE.put_nowait(source)
-
 
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
