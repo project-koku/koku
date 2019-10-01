@@ -249,12 +249,15 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                              auth_header=test_auth_header,
                              offset=1)
         aws_source.save()
-
+        source_type_id = 1
+        mock_source_name = 'amazon'
         resource_id = 2
         authentication_id = 3
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
             m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
                   status_code=200, json={'data': [{'id': resource_id}]})
             m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
@@ -264,12 +267,12 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                   f'?expose_encrypted_attribute[]=password'),
                   status_code=200, json={'password': authentication})
 
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, 'AWS')
-        self.assertEqual(source_obj.authentication, authentication)
+        self.assertEqual(source_obj.authentication, {'resource_name': authentication})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_info_sync_ocp(self):
@@ -282,17 +285,62 @@ class SourcesKafkaMsgHandlerTest(TestCase):
                              auth_header=test_auth_header,
                              offset=1)
         ocp_source.save()
-
+        source_type_id = 3
+        mock_source_name = 'openshift'
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'name': source_name, 'source_type_id': test_source_id, 'uid': source_uid})
-
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(source_obj.name, source_name)
         self.assertEqual(source_obj.source_type, 'OCP')
-        self.assertEqual(source_obj.authentication, source_uid)
+        self.assertEqual(source_obj.authentication, {'resource_name': source_uid})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_info_sync_azure(self):
+        """Test to get additional Source context from Sources API for AZURE."""
+        test_source_id = 3
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        source_name = 'AZURE Source'
+        source_uid = faker.uuid4()
+        username = 'test_user'
+        authentication = 'testclientcreds'
+        tenent_id = 'test_tenent_id'
+        azure_source = Sources(source_id=test_source_id,
+                               auth_header=test_auth_header,
+                               offset=1)
+        azure_source.save()
+        source_type_id = 2
+        mock_source_name = 'azure'
+        resource_id = 3
+        authentication_id = 4
+        authentications_response = {'id': authentication_id, 'username': username,
+                                    'extra': {'azure': {'tenant_id': tenent_id}}}
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
+                  status_code=200, json={'name': source_name, 'source_type_id': source_type_id, 'uid': source_uid})
+            m.get(f'http://www.sources.com/api/v1.0/source_types?filter[id]={source_type_id}',
+                  status_code=200, json={'data': [{'name': mock_source_name}]})
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={test_source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
+                  f'&[authtype]=access_key_secret_key&[resource_id]={resource_id}'),
+                  status_code=200, json={'data': [authentications_response]})
+            m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
+                  f'?expose_encrypted_attribute[]=password'),
+                  status_code=200, json={'password': authentication})
+
+            source_integration.sources_network_info(test_source_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(source_obj.name, source_name)
+        self.assertEqual(source_obj.source_type, 'AZURE')
+        self.assertEqual(source_obj.authentication, {'credentials': {'client_id': username,
+                                                                     'client_secret': authentication,
+                                                                     'tenant_id': tenent_id}})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_info_sync_connection_error(self):
@@ -308,9 +356,9 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
                   exc=SourcesHTTPClientError)
 
-            source_integration._sources_network_info_sync(test_source_id, test_auth_header)
+            source_integration.sources_network_info(test_source_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertIsNone(source_obj.name)
         self.assertEquals(source_obj.source_type, '')
-        self.assertEquals(source_obj.authentication, '')
+        self.assertEquals(source_obj.authentication, {})

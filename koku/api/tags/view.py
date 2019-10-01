@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Red Hat, Inc.
+# Copyright 2018 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,8 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Sources views for import organization"""
-# flake8: noqa
-# pylint: disable=unused-import
-from sources.api.billing_source import billing_source
-from sources.api.authentication import authentication
+"""View for tags."""
+
+from rest_framework.permissions import AllowAny
+
+from api.report.view import ReportView
+
+
+class TagView(ReportView):
+    """Base Tag View."""
+
+    permission_classes = [AllowAny]
+    report = 'tags'

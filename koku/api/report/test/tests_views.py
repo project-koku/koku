@@ -31,10 +31,10 @@ from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.aws.serializers import QueryParamSerializer
+from api.report.aws.view import AWSCostView
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
-                             _generic_report,
                              get_paginator,
                              process_query_parameters,
                              process_tag_query_params)
@@ -305,8 +305,8 @@ class ReportViewTest(IamTestCase):
         self.assertEqual(report_total * 1E9, result_total)
 
     @patch('api.report.aws.query_handler.AWSReportQueryHandler')
-    def test_generic_report_with_units_success(self, mock_handler):
-        """Test unit conversion succeeds in generic report."""
+    def test_awsreportview_with_units_success(self, mock_handler):
+        """Test unit conversion succeeds in aws report."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
             'group_by[account]': '*',
@@ -327,7 +327,7 @@ class ReportViewTest(IamTestCase):
         request = Request(django_request)
         request.user = user
 
-        response = _generic_report(request, provider='aws', report='costs')
+        response = AWSCostView().get(request)
         self.assertIsInstance(response, Response)
 
     def test_find_unit_list(self):

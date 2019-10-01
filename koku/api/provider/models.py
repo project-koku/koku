@@ -168,7 +168,7 @@ class Sources(models.Model):
     name = models.CharField(max_length=256, null=True)
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
-    auth_header = models.CharField(max_length=512, null=True)
+    auth_header = models.TextField(null=True)
 
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
@@ -178,10 +178,10 @@ class Sources(models.Model):
     source_type = models.CharField(max_length=50, null=False)
 
     # Provider authentication (AWS roleARN, OCP Sources UID, etc.)
-    authentication = models.CharField(max_length=128, null=False)
+    authentication = JSONField(null=False, default=dict)
 
     # Provider billing source (AWS S3 bucket)
-    billing_source = models.CharField(max_length=128, null=True)
+    billing_source = JSONField(null=True, default=dict)
 
     # Unique identifier for koku Provider
     koku_uuid = models.CharField(max_length=512, null=True)
