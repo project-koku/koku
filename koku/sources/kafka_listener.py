@@ -117,8 +117,6 @@ def get_sources_msg_data(msg, app_type_id):
 
     """
     msg_data = {}
-    if isinstance(msg, dict):
-        return msg
 
     if msg.topic == Config.SOURCES_TOPIC:
         try:
@@ -192,7 +190,7 @@ def sources_network_info(source_id, auth_header):
     storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
 
 
-async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
+async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no cover
     """
     Process messages from Platform-Sources kafka service.
 
@@ -216,10 +214,10 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
     """
     LOG.info('Waiting to process incoming kafka messages...')
     while True:
-        msg = await msg_pending_queue.get()
+        msg_data = await msg_pending_queue.get()
 
-        msg_data = get_sources_msg_data(msg, application_source_id)
-        LOG.info(f'Processing Message: {str(msg)}')
+        # msg_data = get_sources_msg_data(msg, application_source_id)
+        # LOG.info(f'Processing Message: {str(msg)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
@@ -232,12 +230,12 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
                 except SourcesHTTPClientRecoverableError as error:
                     LOG.error('Re-queueing Sources HTTP operation. Error: %s', str(error))
                     await asyncio.sleep(Config.RETRY_SECONDS)
-                    await msg_pending_queue.put(msg)
+                    await msg_pending_queue.put(msg_data)
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
 
-async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
+async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
     """
     Listen for Platform-Sources kafka messages.
 
@@ -252,6 +250,9 @@ async def listen_for_messages(consumer, msg_pending_queue):  # pragma: no cover
     LOG.info('Listener started.  Waiting for messages...')
     try:
         async for msg in consumer:
+            msg = get_sources_msg_data(msg, application_source_id)
+            LOG.info(f'Processing Message: {str(msg)}')
+
             await msg_pending_queue.put(msg)
     finally:
         await consumer.stop()
@@ -372,8 +373,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
         load_process_queue()
         while True:
-            event_loop.create_task(listen_for_messages(consumer, PENDING_PROCESS_QUEUE))
-            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE, PROCESS_QUEUE, cost_management_type_id))
+            event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
+            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE, PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
     except SourcesHTTPClientError as error:
