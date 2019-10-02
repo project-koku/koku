@@ -302,7 +302,7 @@ class SourcesStorageTest(TestCase):
 
         response = storage.get_source_from_endpoint(test_endpoint_id)
         self.assertEquals(response, test_source_id)
-        self.assertEquals(storage.get_source_from_endpoint(test_source_id + 1), None)
+        self.assertEquals(storage.get_source_from_endpoint(test_source_id + 10), None)
 
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
@@ -319,5 +319,5 @@ class SourcesStorageTest(TestCase):
         aws_obj.save()
 
         storage.add_provider_sources_auth_info(test_source_id, test_authentication)
-        response = Sources.objects.filter(source_id=test_source_id)
+        response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication, test_authentication)
