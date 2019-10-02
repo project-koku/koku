@@ -29,14 +29,15 @@ class SourcesStorageError(Exception):
 def _aws_provider_ready_for_create(provider):
     """Determine if AWS provider is ready for provider creation."""
     if (provider.source_id and provider.name and provider.auth_header
-            and provider.billing_source and not provider.koku_uuid):
+            and provider.billing_source and provider.authentication
+            and not provider.koku_uuid):
         return True
     return False
 
 
 def _ocp_provider_ready_for_create(provider):
     """Determine if OCP provider is ready for provider creation."""
-    if (provider.source_id and provider.name
+    if (provider.source_id and provider.name and provider.authentication
             and provider.auth_header and not provider.koku_uuid):
         return True
     return False
@@ -187,7 +188,49 @@ def destroy_provider_event(source_id):
     return koku_uuid
 
 
-def add_provider_sources_network_info(source_id, name, source_type, authentication):
+def get_source_type(source_id):
+    """Get Source Type from Source ID."""
+    source_type = None
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        source_type = query.source_type
+    except Sources.DoesNotExist:
+        LOG.error('Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+    return source_type
+
+
+def get_source_from_endpoint(endpoint_id):
+    """Get Source ID from Endpoint ID."""
+    source_id = None
+    try:
+        query = Sources.objects.get(endpoint_id=endpoint_id)
+        source_id = query.source_id
+    except Sources.DoesNotExist:
+        LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
+    return source_id
+
+
+def add_provider_sources_auth_info(source_id, authentication):
+    """
+    Add additional Sources information to a Source database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
+
+    Returns:
+        None
+
+    """
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        query.authentication = authentication
+        query.save()
+    except Sources.DoesNotExist:
+        LOG.error('Unable to add authentication details.  Source ID: %s does not exist', str(source_id))
+
+
+def add_provider_sources_network_info(source_id, name, source_type, endpoint_id):
     """
     Add additional Sources information to a Source database object.
 
@@ -195,7 +238,6 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         source_id (Integer) - Platform-Sources identifier
         name (String) - Source name
         source_type (String) - Source type. i.e. AWS, OCP, Azure
-        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
 
     Returns:
         None
@@ -205,7 +247,7 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         query = Sources.objects.get(source_id=source_id)
         query.name = name
         query.source_type = source_type
-        query.authentication = authentication
+        query.endpoint_id = endpoint_id
         query.save()
     except Sources.DoesNotExist:
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
