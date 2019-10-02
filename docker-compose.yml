@@ -170,7 +170,7 @@ services:
         # - '~/aws_local_2:/tmp/local_bucket_2'
         # - '~/aws_local_3:/tmp/local_bucket_3'
         # - '~/aws_local_4:/tmp/local_bucket_4'
-        # - '~/insights_local:/var/tmp/insights_local'
+        # - '~/insights_local:/var/tmp/masu/insights_local'
       links:
           - koku-rabbit
       depends_on:
