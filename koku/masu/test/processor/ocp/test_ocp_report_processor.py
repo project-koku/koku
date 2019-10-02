@@ -535,7 +535,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
         self.assertIsNotNone(self.ocp_processor._processor.line_item_columns)
 
-    def test_remove_temp_cur_files(self):
+    def test_remove_ocp_temp_cur_files(self):
         """Test to remove temporary usage report files."""
         insights_local_dir = tempfile.mkdtemp()
         cluster_id = 'my-ocp-cluster'
@@ -582,7 +582,6 @@ class OCPReportProcessorTest(MasuTestCase):
             f.close()
             if (
                 not item['file'].startswith(manifest_data.get('uuid'))
-                and item['processed_date']
             ):
                 expected_delete_list.append(path)
         fake_dir = tempfile.mkdtemp()
