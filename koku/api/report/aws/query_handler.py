@@ -23,7 +23,6 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.report.access_utils import update_query_parameters_for_aws
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -113,7 +112,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         cost_units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
         count_units_fallback = self._mapper.report_type_map.get('count_units_fallback')
-        LOG.critical('XXX1: %s', query)
         if query.exists():
             sum_annotations = {
                 'cost_units': Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))

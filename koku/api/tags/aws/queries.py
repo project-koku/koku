@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Tag Query Handling."""
+from api.report.aws.provider_map import AWSProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AWSCostEntryLineItemDailySummary
 
@@ -24,3 +25,16 @@ class AWSTagQueryHandler(TagQueryHandler):
 
     data_sources = [{'db_table': AWSCostEntryLineItemDailySummary,
                      'db_column': 'tags'}]
+    provider = 'AWS'
+
+    def __init__(self, parameters):
+        """Establish AWS report query handler.
+
+        Args:
+            parameters    (QueryParameters): parameter object for query
+
+        """
+        self._mapper = AWSProviderMap(provider=self.provider,
+                                      report_type=parameters.report_type)
+        # FIXME: super() needs to be called after _mapper is set
+        super().__init__(parameters)

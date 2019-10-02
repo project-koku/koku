@@ -61,7 +61,6 @@ class TagQueryHandler(QueryHandler):
     """
 
     provider = 'tags'
-
     data_sources = []
     SUPPORTED_FILTERS = ['project', 'account']
     FILTER_MAP = {
