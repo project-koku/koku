@@ -210,8 +210,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'schema': self.schema,
             'bill_ids': bill_ids,
+            'schema': self.schema
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._commit_and_vacuum(
