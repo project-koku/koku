@@ -284,7 +284,6 @@ class AzureReportProcessorTest(MasuTestCase):
             f.close()
             if (
                 not manifest_data.get('assemblyId') in item['file']
-                and item['processed_date']
             ):
                 expected_delete_list.append(path)
         removed_files = self.processor.remove_temp_cur_files(cur_dir)
