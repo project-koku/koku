@@ -140,21 +140,22 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
     def test_get_sources_msg_data_destroy(self):
         """Test to get sources details from msg for destroy event."""
+        destroy_events = ['Application.destroy', 'Source.destroy']
         test_topic = 'platform.sources.event-stream'
-        test_event_type = 'Application.destroy'
         test_offset = 5
         cost_management_app_type = 2
         test_auth_header = 'testheader'
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
 
-        msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=test_event_type,
-                             auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
+        for event in destroy_events:
+            msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=event,
+                                 auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
 
-        response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-        self.assertEqual(response.get('event_type'), test_event_type)
-        self.assertEqual(response.get('offset'), test_offset)
-        self.assertEqual(response.get('source_id'), 1)
-        self.assertEqual(response.get('auth_header'), test_auth_header)
+            response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
+            self.assertEqual(response.get('event_type'), event)
+            self.assertEqual(response.get('offset'), test_offset)
+            self.assertEqual(response.get('source_id'), 1)
+            self.assertEqual(response.get('auth_header'), test_auth_header)
 
     def test_get_sources_msg_authentication(self):
         """Test to get sources details from msg for Authentication.create event."""
@@ -410,3 +411,40 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         source_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEquals(source_obj.authentication, {'resource_name': source_uid})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_auth_info_error(self):
+        """Test to get authentication information from Sources backend with error."""
+        test_source_id = 2
+        test_resource_id = 1
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        ocp_source = Sources(source_id=test_source_id,
+                             auth_header=test_auth_header,
+                             endpoint_id=test_resource_id,
+                             source_type='OCP',
+                             offset=1)
+        ocp_source.save()
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
+                  status_code=400)
+            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEquals(source_obj.authentication, {})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_auth_info_unknown_provider(self):
+        """Test to get authentication information from Sources backend with error."""
+        test_source_id = 2
+        test_resource_id = 1
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        ocp_source = Sources(source_id=test_source_id,
+                             auth_header=test_auth_header,
+                             endpoint_id=test_resource_id,
+                             source_type='UNKNOWN',
+                             offset=1)
+        ocp_source.save()
+
+        source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEquals(source_obj.authentication, {})
