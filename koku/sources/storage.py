@@ -216,8 +216,6 @@ def add_provider_sources_auth_info(source_id, authentication):
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        name (String) - Source name
-        source_type (String) - Source type. i.e. AWS, OCP, Azure
         authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
 
     Returns:
@@ -240,7 +238,6 @@ def add_provider_sources_network_info(source_id, name, source_type, endpoint_id)
         source_id (Integer) - Platform-Sources identifier
         name (String) - Source name
         source_type (String) - Source type. i.e. AWS, OCP, Azure
-        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
 
     Returns:
         None
