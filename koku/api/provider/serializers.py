@@ -206,7 +206,9 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         if provider_type:
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(provider_type)()
-            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(provider_type)(default={'bucket': ''})
+            self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(provider_type)(
+                default={'bucket': '', 'data_source': {}}
+            )
         else:
             self.fields['authentication'] = ProviderAuthenticationSerializer()
             self.fields['billing_source'] = ProviderBillingSourceSerializer()

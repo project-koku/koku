@@ -173,6 +173,9 @@ class Sources(models.Model):
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
 
+    # Endpoint ID.  Identifier to connect source to authentication.
+    endpoint_id = models.IntegerField(null=True)
+
     # Koku Specific data.
     # Provider type (i.e. AWS, OCP, AZURE)
     source_type = models.CharField(max_length=50, null=False)

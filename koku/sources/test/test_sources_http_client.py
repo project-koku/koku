@@ -140,3 +140,108 @@ class SourcesHTTPClientTest(TestCase):
                   status_code=200, json={'password': self.authentication})
             response = client.get_aws_role_arn()
             self.assertEqual(response, self.authentication)
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_aws_role_arn_no_auth(self):
+        """Test to get AWS Role ARN from authentication service with auth not ready."""
+        resource_id = 2
+        authentication_id = 3
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
+                  f'&[authtype]=arn&[resource_id]={resource_id}'),
+                  status_code=200, json={'data': []})
+            m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
+                  f'?expose_encrypted_attribute[]=password'),
+                  status_code=200, json={'password': self.authentication})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_aws_role_arn()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_azure_credentials(self):
+        """Test to get Azure credentials from authentication service."""
+        resource_id = 2
+        authentication_id = 3
+
+        authentication = 'testclientcreds'
+        username = 'test_user'
+        tenent_id = 'test_tenent_id'
+        authentications_response = {'id': authentication_id, 'username': username,
+                                    'extra': {'azure': {'tenant_id': tenent_id}}}
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
+                  f'&[authtype]=access_key_secret_key&[resource_id]={resource_id}'),
+                  status_code=200, json={'data': [authentications_response]})
+            m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
+                  f'?expose_encrypted_attribute[]=password'),
+                  status_code=200, json={'password': authentication})
+            response = client.get_azure_credentials()
+
+            self.assertEqual(response, {'client_id': username,
+                                        'client_secret': authentication,
+                                        'tenant_id': tenent_id})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_azure_credentials_no_auth(self):
+        """Test to get Azure credentials from authentication service with auth not ready."""
+        resource_id = 2
+        authentication_id = 3
+
+        authentication = 'testclientcreds'
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=self.source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={self.source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            m.get((f'http://www.sources.com/api/v1.0/authentications?filter[resource_type]=Endpoint'
+                  f'&[authtype]=access_key_secret_key&[resource_id]={resource_id}'),
+                  status_code=200, json={'data': []})
+            m.get((f'http://www.sources.com/internal/v1.0/authentications/{authentication_id}'
+                  f'?expose_encrypted_attribute[]=password'),
+                  status_code=200, json={'password': authentication})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_azure_credentials()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id(self):
+        """Test to get endpoint_id from Source_id."""
+        resource_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            response = client.get_endpoint_id()
+            self.assertEqual(response, resource_id)
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id_no_data(self):
+        """Test to get endpoint_id from Source_id with no data in response."""
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=200, json={'data': []})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_endpoint_id()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id_misconfigured(self):
+        """Test to get endpoint_id from Source_id with route not found."""
+        resource_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=404, json={'data': [{'id': resource_id}]})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_endpoint_id()
