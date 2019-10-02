@@ -1254,8 +1254,19 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
