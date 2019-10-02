@@ -152,10 +152,9 @@ class OCPReportProcessor():
             removed_files = clear_temp_directory(report_path, current_assembly_id)
 
         if current_assembly_id and cluster_id and month_range:
-            report_prefix = '{}_'.format(month_range)
             insights_local_path = '{}/{}/{}'.format(Config.INSIGHTS_LOCAL_REPORT_DIR,
                                                     cluster_id, month_range)
-            clear_temp_directory(insights_local_path, current_assembly_id, report_prefix)
+            clear_temp_directory(insights_local_path, current_assembly_id)
 
         return removed_files
 

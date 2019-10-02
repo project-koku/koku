@@ -412,7 +412,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 value = None
         return value
 
-    def _commit_and_vacuum(self, table, sql, start=None, end=None):
+    def _commit_and_vacuum(self, table, sql, start=None, end=None, bind_params=None):
         """Commit query to a table and vacuum."""
         if start and end:
             LOG.info('Updating %s from %s to %s.',
@@ -424,7 +424,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(sql)
+            cursor.execute(sql, params=bind_params)
             cursor.db.commit()
             self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)

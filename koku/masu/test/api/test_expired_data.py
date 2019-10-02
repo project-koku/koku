@@ -19,6 +19,7 @@
 
 from unittest.mock import patch
 
+from django.urls import reverse
 from django.test import TestCase
 from django.test.utils import override_settings
 
@@ -42,7 +43,7 @@ class ExpiredDataTest(MasuTestCase, TestCase):
         ]
         expected_key = 'Async jobs for expired data removal (simulated)'
         mock_orchestrator.return_value = mock_response
-        response = self.client.get('/api/v1/expired_data/')
+        response = self.client.get(reverse('expired_data'))
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
@@ -62,7 +63,7 @@ class ExpiredDataTest(MasuTestCase, TestCase):
         expected_key = 'Async jobs for expired data removal'
         mock_orchestrator.return_value = mock_response
 
-        response = self.client.delete('/api/v1/expired_data/')
+        response = self.client.delete(reverse('expired_data'))
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
