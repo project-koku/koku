@@ -199,7 +199,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         """
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
 
-        jinjaSql = JinjaSql()
+        jinja_sql = JinjaSql()
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
