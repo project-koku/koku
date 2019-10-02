@@ -187,9 +187,9 @@ def save_auth_info(auth_header, source_id):
         else:
             LOG.error(f'Unexpected source type: {source_type}')
             return
+        storage.add_provider_sources_auth_info(source_id, authentication)
     except SourcesHTTPClientError:
         LOG.info(f'Authentication info not available for Source ID: {source_id}')
-    storage.add_provider_sources_auth_info(source_id, authentication)
 
 
 def sources_network_auth_info(resource_id, auth_header):
