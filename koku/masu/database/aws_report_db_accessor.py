@@ -216,7 +216,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'bill_id_where_clause': bill_id_where_clause,
             'schema': self.schema
         }
-        daily_sql, bind_params = jinjaSql.prepare_query(daily_sql, jinja_data)
+        daily_sql, bind_params = jinja_sql.prepare_query(daily_sql, jinja_data)
         self._commit_and_vacuum(table_name, daily_sql, start_date, end_date, list(bind_params))
 
     # pylint: disable=invalid-name
