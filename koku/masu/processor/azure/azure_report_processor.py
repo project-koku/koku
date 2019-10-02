@@ -278,7 +278,8 @@ class AzureReportProcessor(ReportProcessorBase):
     @property
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
-        return []
+        return ['cost_entry_bill_id', 'cost_entry_product_id', 'meter_id',
+                'subscription_guid', 'tags', 'usage_date_time', 'offer_id']
 
     def process(self):
         """Process cost/usage file.
@@ -308,21 +309,21 @@ class AzureReportProcessor(ReportProcessorBase):
                         self.line_item_columns,
                         self.line_item_conflict_columns
                     )
-                    LOG.debug('Saving report rows %d to %d for %s', row_count,
+                    LOG.info('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
                     row_count += len(self.processed_report.line_items)
                     self._update_mappings()
 
                 if self.processed_report.line_items:
+                    self._save_to_db(temp_table, report_db)
                     report_db.merge_temp_table(
                         self.table_name._meta.db_table,
                         temp_table,
                         self.line_item_columns,
                         self.line_item_conflict_columns
                     )
-                    self._save_to_db(temp_table, report_db)
-                    LOG.debug('Saving report rows %d to %d for %s', row_count,
+                    LOG.info('Saving report rows %d to %d for %s', row_count,
                               row_count + len(self.processed_report.line_items),
                               self._report_name)
                     row_count += len(self.processed_report.line_items)

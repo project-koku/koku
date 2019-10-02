@@ -94,6 +94,9 @@ class AzureCostEntryLineItemDaily(models.Model):
 
         db_table = 'reporting_azurecostentrylineitem_daily'
 
+        unique_together = ('cost_entry_bill', 'cost_entry_product', 'meter', 'subscription_guid',
+                           'tags', 'usage_date_time', 'offer_id')
+
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
