@@ -92,12 +92,6 @@ class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
 class GCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """GCP auth serializer."""
 
-    def validate_credentials(self, creds):
-        """Validate credentials field."""
-        key = 'provider.credentials'
-        fields = ['project_id']
-        return validate_field(creds, fields, key)
-
 
 class OCPAuthenticationSerializer(ProviderAuthenticationSerializer):
     """OCP auth serializer."""
@@ -147,6 +141,12 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
+
+    def validate_data_source(self, data_source):
+        """Validate data_source field."""
+        key = 'provider.data_source'
+        fields = ['bucket']
+        return validate_field(data_source, fields, key)
 
 
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
