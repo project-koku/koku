@@ -48,22 +48,6 @@ class SourcesHTTPClient:
         response = r.json()
         return response
 
-    def get_source_id_from_resource(self, resource_id):
-        """Get Sources Endpoint ID from Source ID."""
-        endpoint_url = '{}/endpoints?filter[id]={}'.format(
-            self._base_url, resource_id)
-        r = requests.get(endpoint_url, headers=self._identity_header)
-
-        if r.status_code != 200:
-            raise SourcesHTTPClientError('Status Code: ', r.status_code)
-        endpoint_response = r.json()
-
-        if not endpoint_response.get('data'):
-            raise SourcesHTTPClientError(f'No authentication details for resource id: {self.resource_id}')
-        source_id = endpoint_response.get('data')[0].get('id')
-
-        return source_id
-
     def get_endpoint_id(self):
         """Get Sources Endpoint ID from Source ID."""
         endpoint_url = '{}/endpoints?filter[source_id]={}'.format(

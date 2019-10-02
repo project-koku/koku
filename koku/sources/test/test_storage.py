@@ -268,3 +268,56 @@ class SourcesStorageTest(TestCase):
                     storage._validate_billing_source(test.get('provider_type'), test.get('billing_source'))
                 except Exception as error:
                     self.fail(str(error))
+
+    def test_get_source_type(self):
+        """Test to source type from source."""
+        test_source_id = 3
+
+        ocp_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          source_type='OCP',
+                          name='Test OCP Source',
+                          authentication={'resource_name': 'arn:test'},
+                          billing_source={'bucket': 'test-bucket'})
+        ocp_obj.save()
+
+        response = storage.get_source_type(test_source_id)
+        self.assertEquals(response, 'OCP')
+        self.assertEquals(storage.get_source_type(test_source_id + 1), None)
+
+    def test_get_source_from_endpoint(self):
+        """Test to source from endpoint id."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=test_endpoint_id,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          authentication={'resource_name': 'arn:test'},
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        response = storage.get_source_from_endpoint(test_endpoint_id)
+        self.assertEquals(response, test_source_id)
+        self.assertEquals(storage.get_source_from_endpoint(test_source_id + 1), None)
+
+    def test_add_provider_sources_auth_info(self):
+        """Test to add authentication to a source."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        test_authentication = {'resource_name': 'arn:test'}
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=test_endpoint_id,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        response = Sources.objects.filter(source_id=test_source_id)
+        self.assertEquals(response.authentication, test_authentication)

@@ -207,3 +207,41 @@ class SourcesHTTPClientTest(TestCase):
                   status_code=200, json={'password': authentication})
             with self.assertRaises(SourcesHTTPClientError):
                 client.get_azure_credentials()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id(self):
+        """Test to get endpoint_id from Source_id."""
+        resource_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=200, json={'data': [{'id': resource_id}]})
+            response = client.get_endpoint_id()
+            self.assertEqual(response, resource_id)
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id_no_data(self):
+        """Test to get endpoint_id from Source_id with no data in response."""
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=200, json={'data': []})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_endpoint_id()
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_get_endpoint_id_misconfigured(self):
+        """Test to get endpoint_id from Source_id with route not found."""
+        resource_id = 2
+        source_id = 3
+
+        client = SourcesHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER, source_id=source_id)
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/endpoints?filter[source_id]={source_id}',
+                  status_code=404, json={'data': [{'id': resource_id}]})
+            with self.assertRaises(SourcesHTTPClientError):
+                client.get_endpoint_id()
