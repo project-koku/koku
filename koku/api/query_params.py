@@ -39,12 +39,6 @@ class QueryParameters:
     Views, validating the request parameters, and arranging the request
     parameters for use by the QueryHandler objects.
 
-    Args:
-        request (Request)
-        report_type (String)
-        serializer (Object)
-        tag_handler (Object)
-
     """
 
     def __init__(self, request, caller):
@@ -58,6 +52,7 @@ class QueryParameters:
         """
 
         self._tenant = None
+        self._parameters = OrderedDict()
 
         self.request = request
         self.report_type = caller.report_type
@@ -71,6 +66,8 @@ class QueryParameters:
                 self.tag_keys.extend(self._get_tag_keys(tag_model))
 
         self._validate()   # sets self.parameters
+
+        # configure access params.
         for prov in VALID_PROVIDERS:
             if caller.query_handler.provider == prov:
                 getattr(self, f'_set_access_{prov.lower()}')()
@@ -183,9 +180,9 @@ class QueryParameters:
             else:
                 resolution = 'daily'
 
-        self.parameters.set_filter(time_scope_value=str(time_scope_value),
-                                   time_scope_units=str(time_scope_units),
-                                   resolution=str(resolution))
+        self.set_filter(time_scope_value=str(time_scope_value),
+                        time_scope_units=str(time_scope_units),
+                        resolution=str(resolution))
 
     def _validate(self):
         """Validate query parameters.
@@ -232,6 +229,16 @@ class QueryParameters:
         return self.get('delta')
 
     @property
+    def parameters(self):
+        """Return parameters property."""
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, dikt):
+        """Parameters setter."""
+        self._parameters = dikt
+
+    @property
     def tenant(self):
         """Tenant property."""
         if not self._tenant:
@@ -259,6 +266,10 @@ class QueryParameters:
     def get_group_by(self, key, default=None):
         """Get a group_by parameter key."""
         return self.get('group_by').get(key, default)
+
+    def set(self, key, value):
+        """Convenience method sets parameter data."""
+        self.parameters[key] = value
 
     def set_filter(self, **kwargs):
         """Set one or more filter paramters."""

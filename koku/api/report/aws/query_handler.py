@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Query Handling for Reports."""
+import logging
 import copy
 
 from django.db.models import (F, Value, Window)
@@ -36,6 +37,8 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'normalized_usage_amount', 'currency_code',
                   'unblended_rate', 'unblended_cost', 'blended_rate',
                   'blended_cost', 'tax_type']
+
+LOG = logging.getLogger(__name__)
 
 
 class AWSReportQueryHandler(ReportQueryHandler):
@@ -94,7 +97,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.parameters)
+        output = copy.deepcopy(self.parameters.parameters)
         output['data'] = self.query_data
         output['total'] = self.query_sum
 
@@ -110,6 +113,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         cost_units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         usage_units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
         count_units_fallback = self._mapper.report_type_map.get('count_units_fallback')
+        LOG.critical('XXX1: %s', query)
         if query.exists():
             sum_annotations = {
                 'cost_units': Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))

@@ -710,3 +710,86 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertEqual(value.get('usage').get('value'), 0)
                 self.assertEqual(value.get('request').get('value'), 0)
         data_generator.remove_data_from_tenant()
+
+    def test_order_by_null_values(self):
+        """Test that order_by returns properly sorted data with null data."""
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = OCPReportQueryHandler(query_params.mock_qp)
+
+        unordered_data = [{'node': None, 'cluster': 'cluster-1'},
+                          {'node': 'alpha', 'cluster': 'cluster-2'},
+                          {'node': 'bravo', 'cluster': 'cluster-3'},
+                          {'node': 'oscar', 'cluster': 'cluster-4'},]
+
+        order_fields = ['node']
+        expected = [{'node': 'alpha', 'cluster': 'cluster-2'},
+                    {'node': 'bravo', 'cluster': 'cluster-3'},
+                    {'node': 'no-node', 'cluster': 'cluster-1'},
+                    {'node': 'oscar', 'cluster': 'cluster-4'},]
+        ordered_data = handler.order_by(unordered_data, order_fields)
+        self.assertEqual(ordered_data, expected)
+
+    def test_ocp_cpu_query_group_by_cluster(self):
+        """Test that group by cluster includes cluster and cluster_alias."""
+        for _ in range(1, 5):
+            OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 3},
+                  'group_by': {'cluster': ['*']}}
+        query_params = FakeQueryParameters(params, report_type='cpu')
+        handler = OCPReportQueryHandler(query_params.mock_qp)
+
+        query_data = handler.execute_query()
+        for data in query_data.get('data'):
+            self.assertIn('clusters', data)
+            for cluster_data in data.get('clusters'):
+                self.assertIn('cluster', cluster_data)
+                self.assertIn('values', cluster_data)
+                for cluster_value in cluster_data.get('values'):
+                    self.assertIn('cluster', cluster_value)
+                    self.assertIn('cluster_alias', cluster_value)
+                    self.assertIsNotNone('cluster', cluster_value)
+                    self.assertIsNotNone('cluster_alias', cluster_value)
+
+    def test_execute_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        handler = AWSTagQueryHandler(FakeQueryParameters({}).mock_qp)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            labels = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(tags__has_key=filter_key)\
+                .values(*['tags'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('tags', {}).get(filter_key)
+
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{f'tags__{filter_key}': filter_value})\
+                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:some_key]=some_value'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             f'tag:{filter_key}': [filter_value]}}
+        query_params = FakeQueryParameters(params, tag_keys=tag_keys)
+        handler = OCPReportQueryHandler(query_params.mock_qp)
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
+

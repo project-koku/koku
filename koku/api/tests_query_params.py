@@ -72,3 +72,47 @@ class QueryParametersTests(TestCase):
                                         **{'report_type': 'costs'})
         self.assertEqual(handler.resolution, 'daily')
 
+    def test_get_time_scope_value_empty_default(self):
+        """Test get_time_scope_value returns default when query params are empty."""
+        # '?'
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
+        self.assertEqual(handler.get_time_scope_value(), -10)
+
+    def test_get_time_scope_value_empty_month_time_scope(self):
+        """Test get_time_scope_value returns default when time_scope is month."""
+        # '?filter[time_scope_units]=month'
+        params = {'filter': {'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_value(), -1)
+
+    def test_get_time_scope_value_empty_day_time_scope(self):
+        """Test get_time_scope_value returns default when time_scope is month."""
+        # '?filter[time_scope_units]=day'
+        params = {'filter': {'time_scope_units': 'day'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_value(), -10)
+
+    def test_get_time_scope_units_empty_default(self):
+        """Test get_time_scope_units returns default when query params are empty."""
+        # '?'
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
+        self.assertEqual(handler.get_time_scope_units(), 'day')
+
+    def test_get_time_scope_units_empty_month_time_scope(self):
+        """Test get_time_scope_units returns default when time_scope is month."""
+        # '?filter[time_scope_value]=-1'
+        params = {'filter': {'time_scope_value': -1}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_units(), 'month')
+
+    def test_get_time_scope_units_empty_day_time_scope(self):
+        """Test get_time_scope_units returns default when time_scope is month."""
+        # '?filter[time_scope_value]=-10'
+        params = {'filter': {'time_scope_value': -10}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_units(), 'day')
+
