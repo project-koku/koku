@@ -193,11 +193,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            bill_ids (list)
 
         Returns
             (None)
 
         """
+        ids = False
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -208,13 +210,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         bill_id_where_clause = ''
         if bill_ids:
             ids = ','.join(bill_ids)
-            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
             'bill_id_where_clause': bill_id_where_clause,
-            'schema': self.schema
+            'schema': self.schema,
+            'ids': ids,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._commit_and_vacuum(
