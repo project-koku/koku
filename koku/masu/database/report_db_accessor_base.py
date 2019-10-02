@@ -424,10 +424,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            if bind_params is not None:
-                cursor.execute(sql, bind_params)
-            else:
-                cursor.execute(sql)
+            cursor.execute(sql, params=bind_params)
             cursor.db.commit()
             self.vacuum_table(table)
         LOG.info('Finished updating %s.', table)
