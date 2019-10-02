@@ -903,7 +903,6 @@ class AWSReportProcessorTest(MasuTestCase):
             f.close()
             if (
                 not item['file'].startswith(manifest_data.get('assemblyId'))
-                and item['processed_date']
             ):
                 expected_delete_list.append(path)
 

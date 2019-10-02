@@ -81,10 +81,10 @@ def _get_report_files(customer_name,
                                 number_of_months)
     LOG.info(log_statement)
     try:
-        disk = psutil.disk_usage(Config.TMP_DIR)
+        disk = psutil.disk_usage(Config.PVC_DIR)
         disk_msg = 'Available disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
     except OSError:
-        disk_msg = 'Unable to find available disk space. {} does not exist'.format(Config.TMP_DIR)
+        disk_msg = 'Unable to find available disk space. {} does not exist'.format(Config.PVC_DIR)
     LOG.info(disk_msg)
 
     reports = None
