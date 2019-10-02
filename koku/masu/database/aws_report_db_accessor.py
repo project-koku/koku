@@ -315,6 +315,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'ocp_where_clause': ocp_where_clause,
             'schema': self.schema
         }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._commit_and_vacuum(
             table_name, summary_sql, start_date, end_date, bind_params=summary_sql_params)
 
