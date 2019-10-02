@@ -60,8 +60,7 @@ WHERE li.usage_start >= {{start_date}}
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids  -%}
-            {{bill_id}}
-            {% if not loop.last %},{% endif %}
+            {{bill_id}}{% if not loop.last %},{% endif %}
         {%- endfor -%})
     {% endif %}
 ;
