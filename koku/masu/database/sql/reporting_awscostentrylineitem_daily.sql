@@ -1,5 +1,5 @@
 -- Place our query in a temporary table
-CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT date(ce.interval_start) as usage_start,
         date(ce.interval_start) as usage_end,
         li.cost_entry_bill_id,
@@ -25,12 +25,12 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
         sum(li.blended_cost) as blended_cost,
         sum(li.public_on_demand_cost) as public_on_demand_cost,
         max(li.public_on_demand_rate) as public_on_demand_rate
-    FROM {schema}.reporting_awscostentrylineitem AS li
-    JOIN {schema}.reporting_awscostentry AS ce
+    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem AS li
+    JOIN {{schema | sqlsafe}}.reporting_awscostentry AS ce
         ON li.cost_entry_id = ce.id
-    WHERE date(ce.interval_start) >= '{start_date}'
-        AND date(ce.interval_start) <= '{end_date}'
-        {bill_id_where_clause}
+    WHERE date(ce.interval_start) >= {{ start_date }}
+        AND date(ce.interval_start) <= {{ end_date }}
+        {{bill_id_where_clause | sqlsafe}}
     GROUP BY date(ce.interval_start),
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
@@ -49,14 +49,14 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_awscostentrylineitem_daily AS li
-WHERE li.usage_start >= '{start_date}'
-    AND li.usage_start <= '{end_date}'
-    {bill_id_where_clause}
+DELETE FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
+WHERE li.usage_start >= {{start_date}}
+    AND li.usage_start <= {{end_date}}
+    {{bill_id_where_clause | sqlsafe}}
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {schema}.reporting_awscostentrylineitem_daily (
+INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily (
     usage_start,
     usage_end,
     cost_entry_bill_id,
@@ -108,5 +108,5 @@ INSERT INTO {schema}.reporting_awscostentrylineitem_daily (
         blended_cost,
         public_on_demand_cost,
         public_on_demand_rate
-    FROM reporting_awscostentrylineitem_daily_{uuid}
+    FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}}
 ;
