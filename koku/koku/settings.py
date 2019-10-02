@@ -106,6 +106,8 @@ TENANT_APPS = (
     'cost_models',
 )
 
+CACHE_REQUESTS = ENVIRONMENT.bool('CACHE_REQUESTS', default=False)
+
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
 ### Middleware setup
@@ -115,14 +117,14 @@ MIDDLEWARE = [
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
 ]
-if 'test' in sys.argv:
-    MIDDLEWARE.append('django.middleware.common.CommonMiddleware')
-else:
+if CACHE_REQUESTS:
     MIDDLEWARE.extend([
         'django.middleware.cache.UpdateCacheMiddleware',
         'django.middleware.common.CommonMiddleware',
         'django.middleware.cache.FetchFromCacheMiddleware',
     ])
+else:
+    MIDDLEWARE.append('django.middleware.common.CommonMiddleware')
 MIDDLEWARE.extend([
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
