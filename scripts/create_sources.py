@@ -155,6 +155,16 @@ class SourcesDataGenerator:
         response = r.json()
         return response.get('id')
 
+    def create_ocp_authentication(self, resource_id):
+        json_data = {'authtype': 'token', 'name': 'OCP default', 'status': 'valid',
+                     'status_details': 'Details Here', 'username': 'username', 'resource_type': 'Endpoint',
+                     'resource_id': str(resource_id)}
+
+        url = '{}/{}'.format(self._base_url, 'authentications')
+        r = requests.post(url, headers=self._identity_header, json=json_data)
+        response = r.json()
+        return response.get('id')
+
     def create_azure_authentication(self, resource_id, username, password, tenant):
         json_data = {'authtype': 'access_key_secret_key', 'name': 'Azure default', 'password': str(password),
                      'status': 'valid', 'status_details': 'Details Here', 'username': str(username),
@@ -220,6 +230,11 @@ def main(args):
         source_id = generator.create_source(source_name, 'ocp')
         print(f'Creating OCP Source. Source ID: {source_id}')
 
+        endpoint_id = generator.create_endpoint(source_id)
+        authentication_id = generator.create_ocp_authentication(endpoint_id)
+
+        print(
+            f'OCP Provider Setup Successfully\n\tSource ID: {source_id}\n\tEndpoint ID: {endpoint_id}\n\tAuthentication ID: {authentication_id}')
         if create_application:
             application_id = generator.create_application(source_id, 'cost_management')
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
