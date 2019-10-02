@@ -217,7 +217,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'schema': self.schema
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
@@ -248,8 +249,10 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'bill_id_where_clause': bill_id_where_clause,
             'schema': self.schema
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
@@ -306,13 +309,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8')
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date, 
+            'start_date': start_date,
             'end_date': end_date,
             'aws_where_clause': aws_where_clause,
             'ocp_where_clause': ocp_where_clause,
             'schema': self.schema
         }
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, bind_params=summary_sql_params)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=summary_sql_params)
 
     def populate_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""
