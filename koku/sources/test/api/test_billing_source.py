@@ -55,8 +55,8 @@ class BillingSourceTests(TestCase):
         }
         test_name = 'AWS Test'
         test_source_type = 'AWS'
-        test_auth = 'testarn'
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_auth)
+        test_resource_id = 1
+        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
         response = self.client.post(reverse('billing-source'), json.dumps(params), content_type='application/json')
         body = response.json()
 
@@ -73,8 +73,8 @@ class BillingSourceTests(TestCase):
         expected_string = 'Source is not AWS nor AZURE.'
         test_name = 'OCP Test'
         test_source_type = 'OCP'
-        test_auth = 'testarn'
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_auth)
+        test_resource_id = 1
+        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
         response = self.client.post(reverse('billing-source'), params)
         body = response.json()
 
