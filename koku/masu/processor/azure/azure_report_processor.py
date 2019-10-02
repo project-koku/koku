@@ -24,7 +24,6 @@ import pytz
 from dateutil import parser
 
 from masu.config import Config
-from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
@@ -279,7 +278,7 @@ class AzureReportProcessor(ReportProcessorBase):
     def line_item_conflict_columns(self):
         """Create a property to check conflict on line items."""
         return ['cost_entry_bill_id', 'cost_entry_product_id', 'meter_id',
-                'subscription_guid', 'tags', 'usage_date_time', 'offer_id']
+                'subscription_guid', 'usage_date_time']
 
     def process(self):
         """Process cost/usage file.
@@ -310,8 +309,8 @@ class AzureReportProcessor(ReportProcessorBase):
                         self.line_item_conflict_columns
                     )
                     LOG.info('Saving report rows %d to %d for %s', row_count,
-                              row_count + len(self.processed_report.line_items),
-                              self._report_name)
+                             row_count + len(self.processed_report.line_items),
+                             self._report_name)
                     row_count += len(self.processed_report.line_items)
                     self._update_mappings()
 
@@ -324,12 +323,10 @@ class AzureReportProcessor(ReportProcessorBase):
                         self.line_item_conflict_columns
                     )
                     LOG.info('Saving report rows %d to %d for %s', row_count,
-                              row_count + len(self.processed_report.line_items),
-                              self._report_name)
+                             row_count + len(self.processed_report.line_items),
+                             self._report_name)
                     row_count += len(self.processed_report.line_items)
 
-                # report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
-                # report_db.commit()
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
             return True
