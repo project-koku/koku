@@ -317,7 +317,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._commit_and_vacuum(
-            table_name, summary_sql, start_date, end_date, bind_params=summary_sql_params)
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_markup_cost(self, markup, bill_ids=None):
         """Set markup costs in the database."""
