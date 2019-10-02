@@ -11,9 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.DeleteModel(
-            name='OCPStorageLineItemDailySummary',
-        ),
         migrations.AddField(
             model_name='ocpawscostlineitemprojectdailysummary',
             name='data_source',
@@ -92,5 +89,79 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name='ocpusagelineitemdailysummary',
             index=models.Index(fields=['data_source'], name='summary_data_source_idx'),
+        ),
+        migrations.RunSQL(
+            """
+            UPDATE reporting_ocpusagelineitem_daily_summary
+                SET data_source='Pod'
+            ;
+            """
+        ),
+        migrations.RunSQL(
+            """
+            INSERT INTO reporting_ocpusagelineitem_daily_summary
+                (data_source,
+                 persistentvolumeclaim,
+                 persistentvolume,
+                 storageclass,
+                 volume_labels,
+                 persistentvolumeclaim_capacity_gigabyte,
+                 persistentvolumeclaim_capacity_gigabyte_months,
+                 volume_request_storage_gigabyte_months,
+                 persistentvolumeclaim_usage_gigabyte_months,
+                 persistentvolumeclaim_charge_gb_month
+                )
+                SELECT 'Storage' as data_source,
+                    persistentvolumeclaim,
+                    persistentvolume,
+                    storageclass,
+                    volume_labels,
+                    persistentvolumeclaim_capacity_gigabyte,
+                    persistentvolumeclaim_capacity_gigabyte_months,
+                    volume_request_storage_gigabyte_months,
+                    persistentvolumeclaim_usage_gigabyte_months,
+                    persistentvolumeclaim_charge_gb_month
+                FROM reporting_ocpstoragelineitem_daily_summary
+            ;
+            """
+        ),
+        migrations.RunSQL(
+            """
+            UPDATE reporting_ocpusagelineitem_daily_summary ods
+                SET infra_cost = ic.infra_cost,
+                    project_infra_cost = ic.project_infra_cost,
+                    markup_cost = ic.markup_cost,
+                    project_markup_cost = ic.project_markup_cost
+                FROM reporting_ocpcosts_summary AS ic
+                WHERE ods.usage_start = ic.usage_start
+                    AND ods.cluster_id = ic.cluster_id
+                    AND ods.cluster_alias = ic.cluster_alias
+                    AND ods.namespace = ic.namespace
+                    AND ods.pod = ic.pod
+                    AND ods.node = ic.node
+                    AND ods.pod_labels = ic.pod_labels
+            ;
+            """
+        ),
+        migrations.RunSQL(
+            """
+            UPDATE reporting_ocpusagelineitem_daily_summary ods
+                SET infra_cost = ic.infra_cost,
+                    project_infra_cost = ic.project_infra_cost,
+                    markup_cost = ic.markup_cost,
+                    project_markup_cost = ic.project_markup_cost
+                FROM reporting_ocpcosts_summary AS ic
+                WHERE ods.usage_start = ic.usage_start
+                    AND ods.cluster_id = ic.cluster_id
+                    AND ods.cluster_alias = ic.cluster_alias
+                    AND ods.namespace = ic.namespace
+                    AND ods.pod = ic.pod
+                    AND ods.node = ic.node
+                    AND ods.volume_labels = ic.pod_labels
+            ;
+            """
+        ),
+        migrations.DeleteModel(
+            name='OCPStorageLineItemDailySummary',
         ),
     ]
