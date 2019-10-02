@@ -199,7 +199,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        ids = False
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -207,16 +206,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
         daily_sql = daily_sql.decode('utf-8')
-        bill_id_where_clause = ''
         if bill_ids:
-            ids = ','.join(bill_ids)
+            bill_ids = ','.join(bill_ids)
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'bill_id_where_clause': bill_id_where_clause,
             'schema': self.schema,
-            'ids': ids,
+            'bill_ids': bill_ids,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._commit_and_vacuum(
