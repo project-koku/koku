@@ -206,8 +206,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
         daily_sql = daily_sql.decode('utf-8')
-        if bill_ids:
-            bill_ids = ','.join(bill_ids)
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
@@ -314,7 +312,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'ocp_where_clause': ocp_where_clause,
             'schema': self.schema
         }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
         self._commit_and_vacuum(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
