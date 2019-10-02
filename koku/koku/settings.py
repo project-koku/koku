@@ -106,20 +106,36 @@ TENANT_APPS = (
     'cost_models',
 )
 
+CACHE_REQUESTS = ENVIRONMENT.bool('CACHE_REQUESTS', default=False)
+
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
+### Middleware setup
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
-    'django.middleware.common.CommonMiddleware',
+]
+if CACHE_REQUESTS:
+    MIDDLEWARE.extend([
+        'django.middleware.cache.UpdateCacheMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.cache.FetchFromCacheMiddleware',
+    ])
+else:
+    MIDDLEWARE.append('django.middleware.common.CommonMiddleware')
+MIDDLEWARE.extend([
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
-]
+])
+### End Middleware
+
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value('CACHE_TIMEOUT', default=3600)
 
 DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
 if DEVELOPMENT:
@@ -176,7 +192,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         },
         "rbac": {
@@ -184,7 +201,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         }
     }
@@ -384,7 +402,7 @@ CORS_ALLOW_HEADERS = default_headers + (
 APPEND_SLASH = False
 
 # disable log messages less than CRITICAL when running unit tests.
-if len(sys.argv) > 1 and sys.argv[1] == 'test':
+if len(sys.argv) > 1 and sys.argv[1] == 'test' and not DEBUG:
     logging.disable(logging.CRITICAL)
 
 # Masu API Endpoints

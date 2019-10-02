@@ -22,7 +22,7 @@ from django.db.models import (F, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilter
+from api.report.access_utils import update_query_parameters_for_azure
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -47,6 +47,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         self._initialize_kwargs(kwargs)
 
+        if kwargs.get('access'):
+            query_parameters = update_query_parameters_for_azure(query_parameters,
+                                                                 kwargs.get('access'))
+
         # do not override mapper if its already set
         try:
             getattr(self, '_mapper')
@@ -69,15 +73,15 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        # units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
+        units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
-            # 'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
+            'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
         }
-        # if self._mapper.usage_units_key:
-        #     units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
-        #     annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
-        #                                           Value(units_fallback))
+        if self._mapper.usage_units_key:
+            units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+            annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
+                                                  Value(units_fallback))
 
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
@@ -138,21 +142,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_sum.update(sum_units)
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
-
-    def _get_time_based_filters(self, delta=False):
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        start_filter = QueryFilter(field='usage_start', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end', operation='lte',
-                                 parameter=end)
-        return start_filter, end_filter
 
     def execute_query(self):
         """Execute query and return provided data.

@@ -92,3 +92,72 @@ class KokuHTTPClientTest(TestCase):
                      exc=requests.exceptions.RequestException)
             with self.assertRaises(KokuHTTPClientError):
                 client.destroy_provider(expected_uuid)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_destroy_provider_error(self):
+        """Test to destroy a provider with a koku server error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                     status_code=400)
+            with self.assertRaises(KokuHTTPClientError):
+                client.destroy_provider(expected_uuid)
+
+    def test_get_authentication_for_provider(self):
+        """Test to build Koku Provider authentication json obj."""
+        test_matrix = [{'provider_type': 'AWS', 'authentication': {'resource_name': 'arn:fake'},
+                        'expected_response': {'provider_resource_name': 'arn:fake'}},
+                       {'provider_type': 'OCP', 'authentication': {'resource_name': 'test-cluster-id'},
+                        'expected_response': {'provider_resource_name': 'test-cluster-id'}},
+                       {'provider_type': 'AZURE', 'authentication': {'credentials': {'foo': 'bar'}},
+                        'expected_response': {'credentials': {'foo': 'bar'}}}
+                       ]
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+
+        for test in test_matrix:
+            response = client.get_authentication_for_provider(test.get('provider_type'), test.get('authentication'))
+            self.assertEqual(response, test.get('expected_response'))
+
+    def test_get_authentication_for_provider_errors(self):
+        """Test to build Koku Provider authentication json obj with errors."""
+        test_matrix = [{'provider_type': 'AWS', 'authentication': {'resource_namez': 'arn:fake'},
+                        'expected_response': KokuHTTPClientError},
+                       {'provider_type': 'OCP', 'authentication': {'resource_namez': 'test-cluster-id'},
+                        'expected_response': KokuHTTPClientError},
+                       {'provider_type': 'AZURE', 'authentication': {'credentialz': {'foo': 'bar'}},
+                        'expected_response': KokuHTTPClientError}
+                       ]
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+
+        for test in test_matrix:
+            with self.assertRaises(test.get('expected_response')):
+                client.get_authentication_for_provider(test.get('provider_type'), test.get('authentication'))
+
+    def test_get_billing_source_for_provider(self):
+        """Test to build Koku Provider billing_source json obj."""
+        test_matrix = [{'provider_type': 'AWS', 'billing_source': {'bucket': 'test-bucket'},
+                        'expected_response': {'bucket': 'test-bucket'}},
+                       {'provider_type': 'OCP', 'billing_source': {'bucket': ''},
+                        'expected_response': {'bucket': ''}},
+                       {'provider_type': 'AZURE', 'billing_source': {'data_source': {'foo': 'bar'}},
+                        'expected_response': {'data_source': {'foo': 'bar'}}}
+                       ]
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+
+        for test in test_matrix:
+            response = client.get_billing_source_for_provider(test.get('provider_type'), test.get('billing_source'))
+            self.assertEqual(response, test.get('expected_response'))
+
+    def test_get_billing_source_for_provider_error(self):
+        """Test to build Koku Provider billing_source json obj with errors."""
+        test_matrix = [{'provider_type': 'AWS', 'billing_source': {'data_source': 'test-bucket'},
+                        'expected_response': KokuHTTPClientError},
+                       {'provider_type': 'AZURE', 'billing_source': {'bucket': {'foo': 'bar'}},
+                        'expected_response': KokuHTTPClientError}
+                       ]
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+
+        for test in test_matrix:
+            with self.assertRaises(test.get('expected_response')):
+                client.get_billing_source_for_provider(test.get('provider_type'), test.get('billing_source'))

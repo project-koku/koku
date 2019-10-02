@@ -16,6 +16,7 @@
 #
 
 """Test the OCPReportDBAccessor utility object."""
+import decimal
 import random
 from unittest.mock import patch
 

@@ -16,6 +16,7 @@
 #
 """Sources Integration Service."""
 import asyncio
+import concurrent.futures
 import json
 import logging
 import threading
@@ -41,6 +42,9 @@ KAFKA_APPLICATION_DESTROY = 'Application.destroy'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
+SOURCES_OCP_SOURCE_NAME = 'openshift'
+SOURCES_AWS_SOURCE_NAME = 'amazon'
+SOURCES_AZURE_SOURCE_NAME = 'azure'
 
 
 class SourcesIntegrationError(Exception):
@@ -135,32 +139,7 @@ def get_sources_msg_data(msg, app_type_id):
     return msg_data
 
 
-def _sources_network_info_sync(source_id, auth_header):
-    """Get sources context synchronously."""
-    sources_network = SourcesHTTPClient(auth_header, source_id)
-    try:
-        source_details = sources_network.get_source_details()
-    except SourcesHTTPClientError as conn_err:
-        err_msg = f'Unable to get for Source {source_id} information. Reason: {str(conn_err)}'
-        LOG.error(err_msg)
-        return
-    source_name = source_details.get('name')
-    source_type_id = int(source_details.get('source_type_id'))
-
-    if source_type_id == 1:
-        source_type = 'OCP'
-        authentication = source_details.get('uid')
-    elif source_type_id == 2:
-        source_type = 'AWS'
-        authentication = sources_network.get_aws_role_arn()
-    else:
-        LOG.error(f'Unexpected source type ID: {source_type_id}')
-        return
-
-    storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
-
-
-async def sources_network_info(source_id, auth_header):  # pragma: no cover
+def sources_network_info(source_id, auth_header):
     """
     Get additional sources context from Sources REST API.
 
@@ -179,7 +158,31 @@ async def sources_network_info(source_id, auth_header):  # pragma: no cover
         None
 
     """
-    _sources_network_info_sync(source_id, auth_header)
+    sources_network = SourcesHTTPClient(auth_header, source_id)
+    try:
+        source_details = sources_network.get_source_details()
+    except SourcesHTTPClientError as conn_err:
+        err_msg = f'Unable to get for Source {source_id} information. Reason: {str(conn_err)}'
+        LOG.error(err_msg)
+        return
+    source_name = source_details.get('name')
+    source_type_id = int(source_details.get('source_type_id'))
+    source_type_name = sources_network.get_source_type_name(source_type_id)
+
+    if source_type_name == SOURCES_OCP_SOURCE_NAME:
+        source_type = 'OCP'
+        authentication = {'resource_name': source_details.get('uid')}
+    elif source_type_name == SOURCES_AWS_SOURCE_NAME:
+        source_type = 'AWS'
+        authentication = {'resource_name': sources_network.get_aws_role_arn()}
+    elif source_type_name == SOURCES_AZURE_SOURCE_NAME:
+        source_type = 'AZURE'
+        authentication = {'credentials': sources_network.get_azure_credentials()}
+    else:
+        LOG.error(f'Unexpected source type ID: {source_type_id}')
+        return
+
+    storage.add_provider_sources_network_info(source_id, source_name, source_type, authentication)
 
 
 async def process_messages(msg_pending_queue, in_progress_queue, application_source_id):  # pragma: no cover
@@ -209,13 +212,15 @@ async def process_messages(msg_pending_queue, in_progress_queue, application_sou
         msg = await msg_pending_queue.get()
 
         msg_data = get_sources_msg_data(msg, application_source_id)
-        if msg_data:
-            LOG.info(f'Processing Message Details: {str(msg_data)}')
+        LOG.info(f'Processing Message: {str(msg)}')
         if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
                                           msg_data.get('offset'))
-            await sources_network_info(msg_data.get('source_id'), msg_data.get('auth_header'))
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(pool, sources_network_info,
+                                                 msg_data.get('source_id'),
+                                                 msg_data.get('auth_header'))
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
             await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
 
@@ -309,7 +314,8 @@ async def synchronize_sources(process_queue):  # pragma: no cover
     while True:
         msg = await process_queue.get()
         try:
-            execute_koku_provider_op(msg)
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                await EVENT_LOOP.run_in_executor(pool, execute_koku_provider_op, msg)
         except SourcesIntegrationError as error:
             LOG.error('Re-queueing failed operation. Error: %s', str(error))
             await asyncio.sleep(Config.RETRY_SECONDS)
@@ -339,7 +345,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
 
     consumer = AIOKafkaConsumer(
         Config.SOURCES_TOPIC,
-        loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id='hccm-group'
+        loop=event_loop, bootstrap_servers=Config.SOURCES_KAFKA_ADDRESS, group_id='hccm-sources'
     )
     while True:
         try:
@@ -360,8 +366,8 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
             event_loop.create_task(process_messages(pending_process_queue, PROCESS_QUEUE, cost_management_type_id))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
-    except SourcesHTTPClientError:
-        LOG.error('Unable to connect to Sources REST API.  Check configuration and restart server...')
+    except SourcesHTTPClientError as error:
+        LOG.error(f'Unable to connect to Sources REST API.  Check configuration and restart server... Error: {error}')
         exit(0)
     except KeyboardInterrupt:
         exit(0)

@@ -83,6 +83,8 @@ objects:
             value: ${PIPENV_PYPI_MIRROR}
           - name: ENABLE_PIPENV
             value: "true"
+          - name: UPGRADE_PIP_TO_LATEST
+            value: "true"
           - name: APP_CONFIG
             valueFrom:
               configMapKeyRef:
@@ -270,6 +272,12 @@ objects:
                 configMapKeyRef:
                   name: ${NAME}-app
                   key: enable-s3-archiving
+                  optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
                   optional: false
           command:
           - /bin/bash
@@ -526,6 +534,12 @@ objects:
                 resourceFieldRef:
                   containerName: ${NAME}
                   resource: limits.memory
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:

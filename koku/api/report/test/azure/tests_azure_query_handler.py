@@ -16,13 +16,13 @@
 #
 """Test the Azure Provider query handler."""
 
-import logging
 import random
 from decimal import Decimal, ROUND_HALF_UP
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from uuid import UUID
 
-from django.db.models import Sum
+from django.db.models import F, Sum
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -34,8 +34,6 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AzureCostEntryLineItemDailySummary,
                               AzureCostEntryProductService)
-
-LOG = logging.getLogger(__name__)
 
 
 class AzureReportQueryHandlerTest(IamTestCase):
@@ -52,12 +50,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
                                   'usage_start__lte': self.dh.last_month_end}
         self.generator = AzureReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant()
-
-    def tearDown(self):
-        """Test case tear-down."""
-        gen = AzureReportDataGenerator(self.tenant)
-        gen.remove_data_from_tenant()
-        gen.remove_data_from_reporting_common()
 
     def get_totals_by_time_scope(self, aggregates, filter=None):
         """Return the total aggregates for a time period."""
@@ -83,7 +75,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             AzureReportDataGenerator(self.tenant, config=self.generator.config).add_data_to_tenant()
 
         handler = AzureReportQueryHandler({}, '', self.tenant,
-                                          report_type='cpu')
+                                          report_type='instance_type')
 
         aggregates = handler._mapper.report_type_map.get('aggregates')
         filters = self.ten_day_filter
@@ -773,13 +765,15 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 curr = AzureCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=self.dh.this_month_start,
                     usage_start__lte=self.dh.today,
-                    subscription_guid=sub.get('subscription_guid')).aggregate(value=Sum('pretax_cost'))
+                    subscription_guid=sub.get('subscription_guid')).aggregate(
+                        value=Sum(F('pretax_cost') + F('markup_cost')))
                 current_total = Decimal(curr.get('value'))
 
                 prev = AzureCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=self.dh.last_month_start,
                     usage_start__lte=self.dh.today.replace(month=self.dh.today.month - 1),
-                    subscription_guid=sub.get('subscription_guid')).aggregate(value=Sum('pretax_cost'))
+                    subscription_guid=sub.get('subscription_guid')).aggregate(
+                        value=Sum(F('pretax_cost') + F('markup_cost')))
                 prev_total = Decimal(prev.get('value'))
 
             expected_delta_value = Decimal(current_total - prev_total)
@@ -800,13 +794,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             curr = AzureCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start,
-                usage_start__lte=self.dh.today).aggregate(value=Sum('pretax_cost'))
+                usage_start__lte=self.dh.today).aggregate(value=Sum(F('pretax_cost') + F('markup_cost')))
             current_total = Decimal(curr.get('value'))
 
             prev = AzureCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.last_month_start,
                 usage_start__lte=self.dh.today.replace(month=self.dh.today.month - 1))\
-                .aggregate(value=Sum('pretax_cost'))
+                .aggregate(value=Sum(F('pretax_cost') + F('markup_cost')))
             prev_total = Decimal(prev.get('value'))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -840,11 +834,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
-
+        total_cost = query_output.get('total', {}).get('cost', {}).get('value')
         delta = query_output.get('delta')
         self.assertIsNotNone(delta.get('value'))
         self.assertIsNone(delta.get('percent'))
-        self.assertEqual(delta.get('value'), Decimal(0))
+        self.assertEqual(delta.get('value'), total_cost)
         self.assertEqual(delta.get('percent'), None)
 
     def test_execute_query_orderby_delta(self):
@@ -927,7 +921,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         expected = [
             {'subscription_guid': '1', 'total': 5, 'rank': 1},
             {'subscription_guid': '2', 'total': 4, 'rank': 2},
-            {'subscription_guid': '2 Others', 'cost': 0,
+            {'subscription_guid': '2 Others', 'cost': 0, 'markup_cost': 0,
              'derived_cost': 0, 'infrastructure_cost': 0, 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
@@ -952,7 +946,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             {'service_name': '1', 'total': 5, 'rank': 1},
             {'service_name': '2', 'total': 4, 'rank': 2},
             {'cost': 0, 'derived_cost': 0, 'infrastructure_cost': 0,
-             'service_name': '2 Others', 'total': 5, 'rank': 3}
+             'markup_cost': 0, 'service_name': '2 Others', 'total': 5, 'rank': 3}
         ]
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
@@ -1052,8 +1046,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
-                    self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreater(value.get('usage', {}), Decimal(0))
+                    self.assertIsInstance(value.get('usage', {}), dict)
+                    self.assertGreaterEqual(value.get('usage', {}).get('value', {}).quantize(
+                        Decimal('.0001'), ROUND_HALF_UP), Decimal(0))
 
     def test_query_storage_with_totals(self):
         """Test execute_query() - storage with totals.
@@ -1090,8 +1085,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     # FIXME: usage doesn't have units yet. waiting on MSFT
                     # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
                     # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
-                    self.assertIsInstance(value.get('usage', {}), Decimal)
-                    self.assertGreater(value.get('usage', {}), Decimal(0))
+                    self.assertIsInstance(value.get('usage', {}), dict)
+                    self.assertGreater(value.get('usage', {}).get('value', {}), Decimal(0))
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
@@ -1259,8 +1254,19 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1276,7 +1282,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             totals = AzureCostEntryLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{f'tags__{filter_key}': filter_value})\
-                .aggregate(**{'cost': Sum('pretax_cost')})
+                .aggregate(**{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
@@ -1299,12 +1305,24 @@ class AzureReportQueryHandlerTest(IamTestCase):
         data_totals = data.get('total', {})
         for key in totals:
             result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])
+            self.assertAlmostEqual(result, totals[key], 6)
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        # Pick tags for the same month we query on later
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1313,7 +1331,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': filter_key})\
                 .aggregate(
-                    **{'cost': Sum('pretax_cost')})
+                    **{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
@@ -1336,12 +1354,24 @@ class AzureReportQueryHandlerTest(IamTestCase):
         data_totals = data.get('total', {})
         for key in totals:
             result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])
+            self.assertAlmostEqual(result, totals[key], 6)
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = AzureTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
+        # Pick tags for the same month we query on later
+        query_params = {'filter': {'resolution': 'monthly',
+                                   'time_scope_value': -1,
+                                   'time_scope_units': 'month'},
+                        }
+        query_string = '?filter[resolution]=monthly&' + \
+                       'filter[time_scope_value]=-1&' + \
+                       'filter[time_scope_units]=month&'
+        handler = AzureTagQueryHandler(
+            query_params,
+            query_string,
+            self.tenant
+        )
+        tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1350,7 +1380,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{'tags__has_key': group_by_key})\
                 .aggregate(
-                    **{'cost': Sum('pretax_cost')})
+                    **{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
 
         query_params = {
             'filter': {
@@ -1379,4 +1409,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(list(entry.keys()), expected_keys)
         for key in totals:
             result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])
+            self.assertAlmostEqual(result, totals[key], 6)
+
+    @patch('api.report.azure.query_handler.update_query_parameters_for_azure')
+    def test_access_param(self, mocked):
+        """Test that query params are updated when access param is present."""
+        AzureReportQueryHandler({}, '', self.tenant, report_type='costs',
+                                access='my fake access')
+        mocked.assert_called()

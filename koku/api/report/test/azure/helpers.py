@@ -292,6 +292,10 @@ class AzureReportDataGenerator:
             if diff_from_first.days < 10:
                 report_days = 1 + diff_from_first.days
                 period = [(self.dh.this_month_start, self.dh.this_month_end)]
+                ranges = [list(self.dh.this_month_start + relativedelta(days=i)
+                               for i in range(report_days))]
+            else:
+                period = [(self.dh.this_month_start, self.dh.this_month_end)]
                 ranges = [list(self.dh.today - relativedelta(days=i)
                                for i in range(report_days))]
 
@@ -300,10 +304,18 @@ class AzureReportDataGenerator:
                       (self.dh.this_month_start, self.dh.this_month_end)]
 
             one_month_ago = self.dh.today - relativedelta(months=1)
-            ranges = [
-                list(one_month_ago - relativedelta(days=i) for i in range(10)),
-                list(self.dh.today - relativedelta(days=i) for i in range(10)),
-            ]
+            diff_from_first = self.dh.today - self.dh.this_month_start
+            if diff_from_first.days < 10:
+                report_days = 1 + diff_from_first.days
+                ranges = [
+                    list(self.dh.last_month_start + relativedelta(days=i) for i in range(report_days)),
+                    list(self.dh.this_month_start + relativedelta(days=i) for i in range(report_days)),
+                ]
+            else:
+                ranges = [
+                    list(one_month_ago - relativedelta(days=i) for i in range(10)),
+                    list(self.dh.today - relativedelta(days=i) for i in range(10)),
+                ]
         return (period, ranges)
 
     def add_data_to_tenant(self, provider_id=None, fixed_fields=None):
@@ -466,6 +478,7 @@ class AzureReportDataGenerator:
             usage_end=line_item.usage_date_time,
             usage_quantity=line_item.usage_quantity,
             pretax_cost=line_item.pretax_cost,
+            markup_cost=line_item.pretax_cost * 0.1,
             offer_id=line_item.offer_id)
         obj.save()
         return obj
