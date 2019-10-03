@@ -92,7 +92,6 @@ class AzureReportProcessorTest(MasuTestCase):
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
 
-
     def test_azure_initializer(self):
         """Test Azure initializer."""
         self.assertIsNotNone(self.processor._schema_name)
