@@ -136,7 +136,50 @@ class AzureReportProcessorTest(MasuTestCase):
     def test_process_azure_small_batches(self):
         """Test the processing of an uncompressed azure file in small batches."""
         with patch.object(Config, 'REPORT_PROCESSING_BATCH_SIZE', 1):
+            # Re-init processor so that REPORT_PROCESSING_BATCH_SIZE is 1.
+            self.processor = AzureReportProcessor(
+                schema_name=self.schema,
+                report_path=self.test_report,
+                compression=UNCOMPRESSED,
+                provider_id=self.azure_provider_id,
+            )
+
+            # Re-run test with new configuration and verify it's still successful.
             self.test_azure_process()
+
+    def notest_process_azure_small_batches(self):
+        """Test the processing of an uncompressed azure file in small batches."""
+        with patch.object(Config, 'REPORT_PROCESSING_BATCH_SIZE', 1):
+            counts = {}
+
+            processor = AzureReportProcessor(
+                schema_name=self.schema,
+                report_path=self.test_report,
+                compression=UNCOMPRESSED,
+                provider_id=self.azure_provider_id,
+            )
+            report_db = self.accessor
+            report_schema = report_db.report_schema
+            for table_name in self.report_tables:
+                table = getattr(report_schema, table_name)
+                with schema_context(self.schema):
+                    count = table.objects.count()
+                counts[table_name] = count
+            logging.disable(
+                logging.NOTSET
+            )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
+            with self.assertLogs(
+                'masu.processor.azure.azure_report_processor', level='INFO'
+            ) as logger:
+                processor.process()
+                self.assertIn('INFO:masu.processor.azure.azure_report_processor', logger.output[0])
+                self.assertIn('costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv', logger.output[0])
+
+            for table_name in self.report_tables:
+                table = getattr(report_schema, table_name)
+                with schema_context(self.schema):
+                    count = table.objects.count()
+                self.assertTrue(count > counts[table_name])
 
     def test_azure_process_duplicates(self):
         """Test that row duplicates are not inserted into the DB."""
