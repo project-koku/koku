@@ -18,7 +18,6 @@
 import copy
 import datetime
 import logging
-from collections import OrderedDict
 
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth

@@ -34,8 +34,6 @@ from api.utils import UnitConverter
 LOG = logging.getLogger(__name__)
 
 
-
-
 def get_paginator(filter_query_params, count):
     """Determine which paginator to use based on query params."""
     if 'offset' in filter_query_params:

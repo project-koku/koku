@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """AWS Query Handling for Reports."""
-import logging
 import copy
 
 from django.db.models import (F, Value, Window)
@@ -36,8 +35,6 @@ EXPORT_COLUMNS = ['cost_entry_id', 'cost_entry_bill_id',
                   'normalized_usage_amount', 'currency_code',
                   'unblended_rate', 'unblended_cost', 'blended_rate',
                   'blended_cost', 'tax_type']
-
-LOG = logging.getLogger(__name__)
 
 
 class AWSReportQueryHandler(ReportQueryHandler):

@@ -18,6 +18,7 @@
 
 import logging
 from collections import OrderedDict
+from pprint import pformat
 
 from django.core.exceptions import PermissionDenied
 from django.utils.translation import ugettext as _
@@ -28,9 +29,10 @@ from tenant_schemas.utils import tenant_context
 from api.models import Tenant, User
 from api.report.queries import ReportQueryHandler
 
-
+logging.disable(0)
 LOG = logging.getLogger(__name__)
 VALID_PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
+
 
 class QueryParameters:
     """Query parameter container object.
@@ -49,13 +51,13 @@ class QueryParameters:
         Args:
             request (Request) the HttpRequest object
             caller (ReportView) the View object handling the request
-        """
 
+        """
         self._tenant = None
         self._parameters = OrderedDict()
 
         self.request = request
-        self.report_type = caller.report_type
+        self.report_type = caller.report
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_handler = caller.tag_handler
@@ -79,13 +81,11 @@ class QueryParameters:
 
     def __repr__(self):
         """Unambiguous representation."""
-        # TODO: show the parameter values in output.
-        return super().__repr__()
+        return self.parameters
 
     def __str__(self):
         """Readable representation."""
-        # TODO: show the parameter values in output.
-        return super().__str__()
+        return pformat(self.__repr__())
 
     def _get_tag_keys(self, model):
         """Get a list of tag keys to validate filters."""
@@ -209,9 +209,10 @@ class QueryParameters:
         else:
             qps = self.serializer(data=query_params, context={'request': self.request})
 
-        if qps.is_valid():
-            self.parameters = qps.data
-        raise ValidationError(detail=qps.errors)
+        LOG.critical('XXX: %s', qps.is_valid())
+        if not qps.is_valid():
+            raise ValidationError(detail=qps.errors)
+        self.parameters = qps.data
 
     @property
     def accept_type(self):
@@ -256,7 +257,7 @@ class QueryParameters:
         return self.request.user
 
     def get(self, item, default=None):
-        """Convenience method gets parameter data."""
+        """Get parameter data."""
         return self.parameters.get(item, default)
 
     def get_filter(self, filt, default=None):
@@ -268,7 +269,7 @@ class QueryParameters:
         return self.get('group_by').get(key, default)
 
     def set(self, key, value):
-        """Convenience method sets parameter data."""
+        """Set parameter data."""
         self.parameters[key] = value
 
     def set_filter(self, **kwargs):
@@ -287,6 +288,7 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
     if not intersection:
         raise PermissionDenied()
     return list(intersection)
+
 
 def get_tenant(user):
     """Get the tenant for the given user.

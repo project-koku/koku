@@ -16,14 +16,10 @@
 #
 """Test the Report Queries."""
 import copy
-import logging
 import random
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
-from pprint import pformat
-from urllib.parse import quote_plus, urlencode
-from unittest.mock import Mock, patch
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
@@ -46,9 +42,6 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
-
-logging.disable(0)
-LOG = logging.getLogger(__name__)
 
 
 class ReportQueryUtilsTest(TestCase):
@@ -295,7 +288,7 @@ class ReportQueryTest(IamTestCase):
         query_params = FakeQueryParameters(params, report_type='instance_type')
         handler = AWSReportQueryHandler(query_params.mock_qp)
         group_by = handler._get_group_by()
-
+        self.assertEqual(expected, group_by)
 
     def test_get_group_by_with_group_by_and_no_limit_params(self):
         """Test the _get_group_by method with group by params."""
@@ -614,7 +607,7 @@ class ReportQueryTest(IamTestCase):
                              'time_scope_units': 'month'},
                   'group_by': {'instance_type': ['*']}}
         query_params = FakeQueryParameters(params, report_type='instance_type',
-                                                   tenant=self.tenant)
+                                           tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -959,7 +952,7 @@ class ReportQueryTest(IamTestCase):
                              'time_scope_units': 'month',
                              'az': [self.fake_aws.availability_zone]}}
         query_params = FakeQueryParameters(params, accept_type='text/csv',
-                                                   tenant=self.tenant)
+                                           tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -987,7 +980,7 @@ class ReportQueryTest(IamTestCase):
                              'limit': 2},
                   'group_by': {'account': ['*']}}
         query_params = FakeQueryParameters(params, accept_type='text/csv',
-                                                   tenant=self.tenant)
+                                           tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -1320,7 +1313,7 @@ class ReportQueryTest(IamTestCase):
                              'time_scope_units': 'month'},
                   'group_by': {'instance_type': ['*']}}
         query_params = FakeQueryParameters(params, report_type='instance_type',
-                                                   tenant=self.tenant)
+                                           tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -1352,7 +1345,7 @@ class ReportQueryTest(IamTestCase):
                              'time_scope_units': 'month'},
                   'group_by': {'service': ['*']}}
         query_params = FakeQueryParameters(params, report_type='storage',
-                                                   tenant=self.tenant)
+                                           tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -1398,7 +1391,7 @@ class ReportQueryTest(IamTestCase):
                           {'date': yesterday,
                            'delta_percent': 4,
                            'total': 2.2,
-                           'rank': 2},]
+                           'rank': 2}, ]
 
         order_fields = ['date', 'rank']
         expected = [{'date': yesterday,
@@ -1416,7 +1409,7 @@ class ReportQueryTest(IamTestCase):
                     {'date': today,
                      'delta_percent': 8,
                      'total': 6.2,
-                     'rank': 2},]
+                     'rank': 2}, ]
 
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
@@ -1437,7 +1430,7 @@ class ReportQueryTest(IamTestCase):
                     {'date': today,
                      'delta_percent': 7,
                      'total': 8.2,
-                     'rank': 1},]
+                     'rank': 1}, ]
 
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
