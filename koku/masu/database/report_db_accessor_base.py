@@ -119,9 +119,8 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         return temp_table_name
 
-    # pylint: disable=too-many-arguments
     def merge_temp_table(self, table_name, temp_table_name, columns,
-                         condition_column, conflict_columns):
+                         conflict_columns):
         """INSERT temp table rows into the primary table specified.
 
         Args:
@@ -138,33 +137,19 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         set_clause = ','.join([f'{column} = excluded.{column}'
                                for column in columns])
-        update_sql = f"""
+        upsert_sql = f"""
             INSERT INTO {table_name} ({column_str})
                 SELECT {column_str}
                 FROM {temp_table_name}
-                WHERE {condition_column} IS NOT NULL
                 ON CONFLICT ({conflict_col_str}) DO UPDATE
                 SET {set_clause}
             """
-        if KokuDBAccess._savepoints:
-            transaction.savepoint_commit(KokuDBAccess._savepoints.pop())
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(update_sql)
-            cursor.db.commit()
-
-            insert_sql = f"""
-                INSERT INTO {table_name} ({column_str})
-                    SELECT {column_str}
-                    FROM {temp_table_name}
-                    WHERE {condition_column} IS NULL
-                    ON CONFLICT DO NOTHING
-            """
-            cursor.execute(insert_sql)
+            cursor.execute(upsert_sql)
 
             delete_sql = f'DELETE FROM {temp_table_name}'
             cursor.execute(delete_sql)
-            cursor.db.commit()
 
     def vacuum_table(self, table_name):
         """Vacuum a table outside of a transaction."""
