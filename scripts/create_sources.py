@@ -22,7 +22,7 @@ def create_parser():
     """Create the parser for incoming data."""
     parser = argparse.ArgumentParser()
     provider_group = parser.add_mutually_exclusive_group(required=True)
-    source_id_name_group = parser.add_mutually_exclusive_group(required=True)
+    source_id_name_group = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument('--name',
                         dest='name',
                         required=False,

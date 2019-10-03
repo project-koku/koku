@@ -254,7 +254,7 @@ def add_provider_sources_network_info(source_id, name, source_type, endpoint_id)
 
 
 def get_query_from_api_data(request_data):
-    """Helper method to get database query based on request_data from API."""
+    """Get database query based on request_data from API."""
     source_id = request_data.get('source_id')
     source_name = request_data.get('source_name')
     if source_id and source_name:
