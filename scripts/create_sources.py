@@ -3,10 +3,10 @@ import argparse
 import sys
 import requests
 
-KOKU_SOURCES_HOST = os.getenv('KOKU_SOURCES_HOST', 'localhost')
-KOKU_SOURCES_PORT = os.getenv('KOKU_SOURCES_PORT', '4000')
-KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PORT', '/api/cost-management/v1')
-KOKU_SOURCES_URL = f'http://{KOKU_SOURCES_HOST}:{KOKU_SOURCES_PORT}{KOKU_API_PATH_PREFIX}'
+KOKU_SOURCES_CLIENT_HOST = os.getenv('KOKU_SOURCES_CLIENT_HOST', 'localhost')
+KOKU_SOURCES_CLIENT_PORT = os.getenv('KOKU_SOURCES_CLIENT_PORT', '8080')
+KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PATH_PREFIX', '/api/cost-management')
+KOKU_SOURCES_URL = f'http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIENT_PORT}{KOKU_API_PATH_PREFIX}/v1'
 
 SOURCES_API_HOST = os.getenv('SOURCES_API_HOST', 'localhost')
 SOURCES_API_PORT = os.getenv('SOURCES_API_PORT', '3000')
@@ -22,18 +22,23 @@ def create_parser():
     """Create the parser for incoming data."""
     parser = argparse.ArgumentParser()
     provider_group = parser.add_mutually_exclusive_group(required=True)
+    source_id_name_group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument('--name',
-                        dest='source_name',
+                        dest='name',
                         required=False,
                         help='Source Name')
     parser.add_argument('--role_arn',
                         dest='role_arn',
                         required=False,
                         help='AWS roleARN')
-    parser.add_argument('--source_id',
-                        dest='source_id',
-                        required=False,
-                        help='Platform Sources Identifier')
+    source_id_name_group.add_argument('--source_id',
+                                      dest='source_id',
+                                      required=False,
+                                      help='Platform Sources Identifier')
+    source_id_name_group.add_argument('--source_name',
+                                      dest='source_name',
+                                      required=False,
+                                      help='Platform Sources Identifier')
     parser.add_argument('--s3_bucket',
                         dest='s3_bucket',
                         required=False,
@@ -98,22 +103,36 @@ class SourcesClientDataGenerator:
         header = {'x-rh-identity': auth_header}
         self._identity_header = header
 
-    def create_s3_bucket(self, source_id, billing_source):
-        json_data = {'source_id': source_id, 'billing_source': {'bucket': billing_source}}
+    def create_s3_bucket(self, parameters, billing_source):
+        if parameters.get('source_id'):
+            json_data = {'source_id': parameters.get('source_id'), 'billing_source': {'bucket': billing_source}}
+        elif parameters.get('source_name'):
+            json_data = {'source_name': parameters.get('source_name'), 'billing_source': {'bucket': billing_source}}
 
         url = '{}/{}/'.format(self._base_url, 'billing_source')
         response = requests.post(url, headers=self._identity_header, json=json_data)
         return response
 
-    def create_azure_storage(self, source_id, resource_group, storage_account):
-        json_data = {'source_id': source_id, 'billing_source': {'data_source': {'resource_group': resource_group,
-                                                                                'storage_account': storage_account}}}
+    def create_azure_storage(self, parameters, resource_group, storage_account):
+        if parameters.get('source_id'):
+            json_data = {'source_id': parameters.get('source_id'),
+                         'billing_source': {'data_source': {'resource_group': resource_group,
+                                                            'storage_account': storage_account}}}
+        if parameters.get('source_name'):
+            json_data = {'source_name': parameters.get('source_name'),
+                         'billing_source': {'data_source': {'resource_group': resource_group,
+                                                            'storage_account': storage_account}}}
         url = '{}/{}/'.format(self._base_url, 'billing_source')
         response = requests.post(url, headers=self._identity_header, json=json_data)
         return response
 
-    def create_azure_subscription_id(self, source_id, subscription_id):
-        json_data = {'source_id': source_id, 'credentials': {'subscription_id': subscription_id}}
+    def create_azure_subscription_id(self, parameters, subscription_id):
+        if parameters.get('source_id'):
+            json_data = {'source_id': parameters.get('source_id'),
+                         'credentials': {'subscription_id': subscription_id}}
+        if parameters.get('source_name'):
+            json_data = {'source_name': parameters.get('source_name'),
+                         'credentials': {'subscription_id': subscription_id}}
 
         url = '{}/{}/'.format(self._base_url, 'authentication')
         response = requests.post(url, headers=self._identity_header, json=json_data)
@@ -195,7 +214,7 @@ def main(args):
     app_create_source_id = parameters.get('app_create_source_id')
     identity_header = parameters.get('auth_header')
     generator = SourcesDataGenerator(identity_header)
-    source_name = parameters.get('source_name')
+    name = parameters.get('name')
 
     if app_create_source_id:
         application_id = generator.create_application(app_create_source_id, 'cost_management')
@@ -206,14 +225,15 @@ def main(args):
         role_arn = parameters.get('role_arn')
         s3_bucket = parameters.get('s3_bucket')
         source_id_param = parameters.get('source_id')
+        source_name_param = parameters.get('source_name')
 
-        if s3_bucket and source_id_param:
+        if s3_bucket and (source_id_param or source_name_param):
             sources_client = SourcesClientDataGenerator(identity_header)
-            billing_source_response = sources_client.create_s3_bucket(source_id_param, s3_bucket)
+            billing_source_response = sources_client.create_s3_bucket(parameters, s3_bucket)
             print(f'Associating S3 bucket: {billing_source_response.content}')
             return
 
-        source_id = generator.create_source(source_name, 'aws')
+        source_id = generator.create_source(name, 'aws')
         print(f'Creating AWS Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
@@ -227,7 +247,7 @@ def main(args):
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
 
     elif parameters.get('ocp'):
-        source_id = generator.create_source(source_name, 'ocp')
+        source_id = generator.create_source(name, 'ocp')
         print(f'Creating OCP Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
@@ -244,21 +264,22 @@ def main(args):
         resource_group = parameters.get('resource_group')
         subscription_id = parameters.get('subscription_id')
         source_id_param = parameters.get('source_id')
+        source_name_param = parameters.get('source_name')
 
-        if storage_account and resource_group and source_id_param:
+        if storage_account and resource_group and (source_id_param or source_name_param):
             sources_client = SourcesClientDataGenerator(identity_header)
-            billing_source_response = sources_client.create_azure_storage(source_id_param, resource_group,
+            billing_source_response = sources_client.create_azure_storage(parameters, resource_group,
                                                                           storage_account)
             print(f'Associating Azure storage account and resource group: {billing_source_response.content}')
             return
 
-        if subscription_id and source_id_param:
+        if subscription_id and (source_id_param or source_name_param):
             sources_client = SourcesClientDataGenerator(identity_header)
-            authentication_response = sources_client.create_azure_subscription_id(source_id_param, subscription_id)
+            authentication_response = sources_client.create_azure_subscription_id(parameters, subscription_id)
             print(f'Associating Azure Subscription ID: {authentication_response.content}')
             return
 
-        source_id = generator.create_source(source_name, 'azure')
+        source_id = generator.create_source(name, 'azure')
         print(f'Creating AZURE Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)
