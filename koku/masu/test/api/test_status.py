@@ -28,6 +28,7 @@ from unittest.mock import ANY, Mock, PropertyMock, patch
 from django.db import InterfaceError
 from django.test import TestCase
 from django.test.utils import override_settings
+from django.urls import reverse
 
 
 from masu.api import API_VERSION
@@ -37,7 +38,6 @@ from masu.api.status import (
     CELERY_WORKER_NOT_FOUND,
     get_status,
 )
-from masu.test import MasuTestCase
 
 @override_settings(ROOT_URLCONF='masu.urls')
 class StatusAPITest(TestCase):
@@ -49,11 +49,10 @@ class StatusAPITest(TestCase):
 
     def test_status(self):
         """Test the status endpoint."""
-        response = self.client.get('/api/v1/status/')
+        response = self.client.get(reverse('server-status'))
         body = response.data
 
         self.assertEqual(response.status_code, 200)
-        #self.assertEqual(response.headers['Content-Type'], 'application/json')
 
         self.assertIn('api_version', body)
         self.assertIn('celery_status', body)
