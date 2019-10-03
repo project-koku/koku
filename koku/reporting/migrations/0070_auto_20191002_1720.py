@@ -10,9 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL('DELETE FROM reporting_azurecostentrylineitem_daily')
         migrations.AlterUniqueTogether(
             name='azurecostentrylineitemdaily',
             unique_together={('cost_entry_bill', 'cost_entry_product', 'meter', 'subscription_guid', 'usage_date_time')},
         ),
-        migrations.RunSQL('DELETE FROM reporting_azurecostentrylineitem_daily')
     ]
