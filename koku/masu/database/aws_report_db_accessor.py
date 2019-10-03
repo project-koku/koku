@@ -235,15 +235,11 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_awscostentrylineitem_daily_summary.sql'
         )
         summary_sql = summary_sql.decode('utf-8')
-        bill_id_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'bill_id_where_clause': bill_id_where_clause,
+            'bill_ids': bill_ids,
             'schema': self.schema
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
@@ -290,13 +286,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        aws_where_clause = ''
-        ocp_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-        if cluster_id:
-            ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
+        # aws_where_clause = ''
+        # ocp_where_clause = ''
+        # if bill_ids:
+        #     ids = ','.join(bill_ids)
+        #     aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
+        # if cluster_id:
+        #     ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
 
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         summary_sql = pkgutil.get_data(
@@ -308,8 +304,8 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'aws_where_clause': aws_where_clause,
-            'ocp_where_clause': ocp_where_clause,
+            'bill_ids': bill_ids,
+            'cluster_id': cluster_id,
             'schema': self.schema
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
