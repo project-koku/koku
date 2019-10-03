@@ -81,6 +81,7 @@ class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
 
 class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
     """Azure auth serializer."""
+
     credentials = serializers.JSONField(allow_null=True, required=True)
 
     def validate_credentials(self, creds):
@@ -130,6 +131,7 @@ class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
     """Azure billing source serializer."""
+
     data_source = serializers.JSONField(allow_null=True, required=True)
 
     def validate_data_source(self, data_source):
@@ -141,6 +143,7 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
+
     data_source = serializers.JSONField(allow_null=True, required=True)
 
     def validate_data_source(self, data_source):

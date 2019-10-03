@@ -305,6 +305,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def _get_local_file_path(self, directory_path, key):
         """
         Get the local file path destination for a downloaded file.
+
         Args:
             directory_path (str): base local directory path
             key (str): name of the blob in the GCP storage bucket
