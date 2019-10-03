@@ -28,8 +28,8 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
             {% if bill_ids %}
             {%- for bill_id in bill_ids  -%}
                 {{bill_id}}{% if not loop.last %},{% endif %}    
-            {%- endfor -%})
-            {% endif %}
+            {%- endfor -%}
+            {% endif %})
     GROUP BY date(li.usage_date_time),
         li.cost_entry_bill_id,
         li.cost_entry_product_id,
@@ -49,7 +49,12 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
 DELETE FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
 WHERE usage_start >= {{start_date}}
     AND usage_start <= {{end_date}}
-    AND cost_entry_bill_id IN ({{cost_entry_bill_ids}})
+    AND cost_entry_bill_id IN (
+            {% if bill_ids %}
+            {%- for bill_id in bill_ids  -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}    
+            {%- endfor -%}
+            {% endif %})
 ;
 
 -- Populate the daily summary line item data

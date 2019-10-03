@@ -127,8 +127,6 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
-        import pdb
-        pdb.set_trace()
         self._commit_and_vacuum(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 

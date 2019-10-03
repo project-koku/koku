@@ -37,8 +37,8 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
                 {{bill_id}}{% if not loop.last %},{% endif %}
-            {%- endfor -%})
-        {% endif %}
+            {%- endfor -%}
+        {% endif %})
     GROUP BY li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
@@ -61,8 +61,8 @@ WHERE li.usage_start >= {{start_date}}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
                 {{bill_id}}{% if not loop.last %},{% endif %}
-            {%- endfor -%})
-    {% endif %}
+            {%- endfor -%}
+    {% endif %})
 ;
 
 -- Populate the daily aggregate line item data
