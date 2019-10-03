@@ -286,14 +286,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        # aws_where_clause = ''
-        # ocp_where_clause = ''
-        # if bill_ids:
-        #     ids = ','.join(bill_ids)
-        #     aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-        # if cluster_id:
-        #     ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
-
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         summary_sql = pkgutil.get_data(
             'masu.database',
