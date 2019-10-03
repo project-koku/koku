@@ -38,6 +38,7 @@ from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.config import Config
 
 from masu.test import MasuTestCase
+from unittest.mock import patch
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -131,6 +132,11 @@ class AzureReportProcessorTest(MasuTestCase):
             with schema_context(self.schema):
                 count = table.objects.count()
             self.assertTrue(count > counts[table_name])
+
+    def test_process_azure_small_batches(self):
+        """Test the processing of an uncompressed azure file in small batches."""
+        with patch.object(Config, 'REPORT_PROCESSING_BATCH_SIZE', 1):
+            self.test_azure_process()
 
     def test_azure_process_duplicates(self):
         """Test that row duplicates are not inserted into the DB."""
