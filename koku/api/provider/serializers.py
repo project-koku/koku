@@ -63,8 +63,8 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate authentication parameters."""
-        if data.get('credentials') is None:
-            data['credentials'] = {}
+        if data.get('provider_resource_name') and not data.get('credentials'):
+            data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
         return data
 
     # pylint: disable=too-few-public-methods
@@ -81,6 +81,7 @@ class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
 
 class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
     """Azure auth serializer."""
+    credentials = serializers.JSONField(allow_null=True, required=True)
 
     def validate_credentials(self, creds):
         """Validate credentials field."""
@@ -118,10 +119,8 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate billing source."""
-        if data.get('data_source') is None:
-            data['data_source'] = {}
-        if data.get('bucket') is None:
-            data['bucket'] = ''
+        if data.get('bucket') and not data.get('data_source'):
+            data['data_source'] = {'bucket': data.get('bucket')}
         return data
 
 
@@ -131,6 +130,7 @@ class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
     """Azure billing source serializer."""
+    data_source = serializers.JSONField(allow_null=True, required=True)
 
     def validate_data_source(self, data_source):
         """Validate data_source field."""
@@ -141,6 +141,7 @@ class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
 
 class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
     """GCP billing source serializer."""
+    data_source = serializers.JSONField(allow_null=True, required=True)
 
     def validate_data_source(self, data_source):
         """Validate data_source field."""
@@ -285,6 +286,21 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.billing_source = bill
         provider.save()
         return provider
+
+    def update(self, instance, validated_data):
+        """Update a Provider instance from validated data."""
+        auth = validated_data.pop('authentication')
+        bill = validated_data.pop('billing_source')
+
+        for key in validated_data.keys():
+            setattr(instance, key, validated_data[key])
+        for key in auth.keys():
+            setattr(instance.authentication, key, auth[key])
+        for key in bill.keys():
+            setattr(instance.billing_source, key, bill[key])
+
+        instance.save()
+        return instance
 
 
 class AdminProviderSerializer(ProviderSerializer):
