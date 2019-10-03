@@ -27,6 +27,7 @@ from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
                            AZURE_LOCAL_SERVICE_PROVIDER,
+                           GCP,
                            LISTEN_INGEST,
                            OPENSHIFT_CONTAINER_PLATFORM,
                            POLL_INGEST)
@@ -71,6 +72,7 @@ def ingest_method_for_provider(provider):
         AWS_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
         AZURE: POLL_INGEST,
         AZURE_LOCAL_SERVICE_PROVIDER: POLL_INGEST,
+        GCP: POLL_INGEST,
         OPENSHIFT_CONTAINER_PLATFORM: LISTEN_INGEST
     }
     return ingest_map.get(provider)
