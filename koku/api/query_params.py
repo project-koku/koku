@@ -78,6 +78,7 @@ class QueryParameters:
             self.parameters['filter'] = OrderedDict()
 
         self._set_time_scope_defaults()
+        LOG.debug('Query Parameters: %s', self)
 
     def __repr__(self):
         """Unambiguous representation."""
@@ -209,7 +210,6 @@ class QueryParameters:
         else:
             qps = self.serializer(data=query_params, context={'request': self.request})
 
-        LOG.critical('XXX: %s', qps.is_valid())
         if not qps.is_valid():
             raise ValidationError(detail=qps.errors)
         self.parameters = qps.data
