@@ -16,19 +16,25 @@
 #
 """Test the QueryParameters."""
 
+import logging
 import random
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
+from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
 from django.test import TestCase
 from faker import Faker
 from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 
-from api.models import Tenant
+from api.models import Tenant, User
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
-from api.query_params import QueryParameters
+from api.query_params import get_tenant, QueryParameters, VALID_PROVIDERS
+
+logging.disable(0)
+LOG = logging.getLogger(__name__)
 
 
 class QueryParametersTests(TestCase):
@@ -45,15 +51,29 @@ class QueryParametersTests(TestCase):
                          f'order_by[{self.FAKE.word()}]=asc')
 
     def test_constructor(self):
-        """Test that constructor creates a QueryParameters object."""
+        """Test that constructor creates a QueryParameters object.
+
+        This test is a bit fatter than it needs to be to help show how to mock
+        out the Request and View objects.
+        """
+        def fake_tags():
+            fake_tags = []
+            for _ in range(0, random.randint(2, 10)):
+                fake_tags.append({'key': self.FAKE.word(),
+                                  'value': self.FAKE.word()})
+            return fake_tags
+
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=Mock(get=lambda key, default: default),
+                                      customer=Mock(schema_name='acct10001')),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=random.choice(VALID_PROVIDERS)),
                          report=self.FAKE.word(),
                          serializer=Mock,
-                         tag_handler=[])
+                         tag_handler=[Mock(objects=Mock(values=lambda _: fake_tags())),
+                                      Mock(objects=Mock(values=lambda _: fake_tags()))])
         self.assertIsInstance(QueryParameters(fake_request, fake_view), QueryParameters)
 
     def test_constructor_invalid_uri(self):
@@ -63,7 +83,7 @@ class QueryParametersTests(TestCase):
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
                          query_handler=Mock(provider=self.FAKE.word()),
-                         report=self.FAKE.word(),
+                         report='tags',
                          serializer=Mock,
                          tag_handler=[])
         with self.assertRaises(ValidationError):
@@ -124,10 +144,7 @@ class QueryParametersTests(TestCase):
     def test_delta_property(self):
         """Test that the delta property returns expected value."""
         expected = self.FAKE.word()
-        fake_uri = (f'filter[resolution]={self.FAKE.word()}&'
-                    f'filter[time_scope_value]={random.randint(0, 9999)}&'
-                    f'filter[time_scope_units]={self.FAKE.word()}&'
-                    f'delta={expected}')
+        fake_uri = f'delta={expected}'
         fake_request = Mock(spec=HttpRequest,
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
@@ -253,7 +270,7 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         key = self.FAKE.word()
         value = self.FAKE.word()
-        params.set_filter(key=value)
+        params.set_filter(**{key:value})
         self.assertEqual(params.get_filter(key), value)
 
     def test_has_filter_no_filter(self):
@@ -270,3 +287,226 @@ class QueryParametersTests(TestCase):
         self.assertEqual(params.get_filter('time_scope_units'), 'day')
         self.assertEqual(params.get_filter('time_scope_value'), '-10')
         self.assertEqual(params.get_filter('resolution'), 'daily')
+
+    def test_has_filter_no_value(self):
+        """Test the default filter parameters when time_scope_value is undefined."""
+        fake_uri = ('filter[resolution]=monthly&'
+                    'filter[time_scope_units]=month')
+        fake_request = Mock(spec=HttpRequest,
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider=self.FAKE.word()),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('time_scope_value'), '-1')
+
+    def test_has_filter_no_units(self):
+        """Test the default filter parameters when time_scope_units is undefined."""
+        fake_uri = ('filter[resolution]=monthly&'
+                    'filter[time_scope_value]=-1')
+        fake_request = Mock(spec=HttpRequest,
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider=self.FAKE.word()),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('time_scope_units'), 'month')
+
+    def test_has_filter_no_resolution(self):
+        """Test the default filter parameters when resolution is undefined."""
+        fake_uri = ('filter[time_scope_units]=month&'
+                    'filter[time_scope_value]=-1')
+        fake_request = Mock(spec=HttpRequest,
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider=self.FAKE.word()),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('resolution'), 'monthly')
+
+    def test_access_with_wildcard(self):
+        """Test wildcard doesn't update query parameters."""
+        provider = random.choice(VALID_PROVIDERS)
+        fake_uri = ('group_by[account]=*&'
+                    'group_by[region]=*')
+        test_access = {
+            f'{provider}.account': {'read': ['*']}
+        }
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider=provider),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_group_by('account'), '*')
+        self.assertEqual(params.get_group_by('region'), '*')
+
+    def test_access_replace_wildcard(self):
+        """Test that a group by account wildcard is replaced with only the subset of accounts."""
+        fake_uri = ('group_by[account]=*&'
+                    'group_by[region]=*')
+        test_access = {'aws.account': {'read': ['account1', 'account2']}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='AWS'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_group_by('account'), ['account1', 'account2'])
+        self.assertEqual(params.get_group_by('region'), '*')
+
+    def test_access_gb_filtered_intersection(self):
+        """Test that a group by account filtered list is replaced with only the intersection of accounts."""
+        guid1 = uuid4()
+        guid2 = uuid4()
+        guid3 = uuid4()
+        fake_uri = (f'group_by[subscription_guid]={guid1}&'
+                    f'group_by[subscription_guid]={guid2}&'
+                    f'group_by[resource_location]=*')
+        test_access = {'azure.subscription_guid': {'read': [str(guid1), str(guid3)]}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='AZURE'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_group_by('subscription_guid'), [str(guid1)])
+        self.assertEqual(params.get_group_by('resource_location'), '*')
+
+    def test_access_empty_intersection(self):
+        """Test that a group by cluster filtered list causes 403 with empty intersection."""
+        fake_uri = 'group_by[cluster]=[cluster1,cluster3]'
+        test_access = {'openshift.cluster': {'read': ['cluster4', 'cluster2']}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='OPENSHIFT'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        with self.assertRaises(PermissionDenied):
+            QueryParameters(fake_request, fake_view)
+
+    def test_access_add_account_filter(self):
+        """Test that if no group_by or filter is present a filter of accounts is added."""
+        fake_uri = 'filter[region]=*'
+        test_access = {'aws.account': {'read': ['account1', 'account2']}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='AWS'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('account'), ['account1', 'account2'])
+        self.assertEqual(params.get_filter('region'), '*')
+
+    def test_update_query_parameters_add_subscription_guid_filter_obj(self):
+        """Test that if no group_by or filter is present a filter of subscription_guids is added."""
+        guid1 = uuid4()
+        guid2 = uuid4()
+        test_access = {'azure.subscription_guid': {'read': [guid1, guid2]}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value='')))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='AZURE'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('subscription_guid'), [guid1, guid2])
+
+    def test_update_query_parameters_filtered_intersection(self):
+        """Test that a filter by cluster filtered list is replaced with only the intersection of cluster."""
+        fake_uri = ('filter[cluster]=cluster1&'
+                    'filter[cluster]=cluster3')
+        test_access = {'openshift.cluster': {'read': ['cluster1', 'cluster2']}}
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=test_access,
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider='OPENSHIFT'),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_filter('cluster'), ['cluster1'])
+
+    def test_get_tenant(self):
+        """Test that get_tenant() returns a Tenant."""
+        user = Mock(customer=Mock(schema_name='acct10001'))
+        self.assertIsInstance(get_tenant(user), Tenant)
+
+    def test_get_tenant_invalid(self):
+        """Test that get_tenant() raises ValidationError when user is invalid."""
+        with self.assertRaises(ValidationError):
+            get_tenant(None)
+
+    def test_get_tenant_no_user(self):
+        """Test that get_tenant() raises ValidationError when user is missing."""
+        user = Mock(customer=Mock(schema_name='acct10001'))
+        with patch('api.query_params.Tenant.objects.get', side_effect=User.DoesNotExist):
+            with self.assertRaises(ValidationError):
+                get_tenant(user)
+
+    def test_process_tag_query_params(self):
+        """Test that a list of tag keys is reduced to those queried."""
+        fake_uri = ('filter[resolution]=monthly&'
+                    'filter[time_scope_value]=-1&'
+                    'filter[time_scope_units]=month&'
+                    'filter[tag:environment]=prod&'
+                    'group_by[tag:app]=*')
+        tag_keys = ['app', 'az', 'environment', 'cost_center',
+                    'fake', 'other', 'this']
+        expected = set(['tag:app', 'tag:environment'])
+
+        fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=Mock(get=lambda key, default: default),
+                                      customer=Mock(schema_name='acct10001')),
+                            GET=Mock(urlencode=Mock(return_value=fake_uri)))
+        fake_objects = Mock(values=lambda _: [{'key': key,
+                                               'value': self.FAKE.word()} for key in tag_keys])
+        fake_view = Mock(spec=ReportView,
+                         provider=self.FAKE.word(),
+                         query_handler=Mock(provider=random.choice(VALID_PROVIDERS)),
+                         report=self.FAKE.word(),
+                         serializer=Mock,
+                         tag_handler=[Mock(objects=fake_objects)])
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.tag_keys, expected)

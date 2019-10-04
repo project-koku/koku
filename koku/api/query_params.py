@@ -31,7 +31,7 @@ from api.report.queries import ReportQueryHandler
 
 logging.disable(0)
 LOG = logging.getLogger(__name__)
-VALID_PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
+VALID_PROVIDERS = ['AWS', 'AZURE', 'OPENSHIFT']
 
 
 class QueryParameters:
@@ -69,20 +69,29 @@ class QueryParameters:
 
         self._validate()   # sets self.parameters
 
+        if 'filter' not in self.parameters:
+            self.parameters['filter'] = OrderedDict()
+
         # configure access params.
         for prov in VALID_PROVIDERS:
             if caller.query_handler.provider == prov:
                 getattr(self, f'_set_access_{prov.lower()}')()
-
-        if 'filter' not in self.parameters:
-            self.parameters['filter'] = OrderedDict()
 
         self._set_time_scope_defaults()
         LOG.debug('Query Parameters: %s', self)
 
     def __repr__(self):
         """Unambiguous representation."""
-        return self.parameters
+        out = {}
+        fields = ['parameters', 'query_handler', 'report_type',
+                  'request', 'serializer', 'tag_handler',
+                  'tag_keys']
+        for item in fields:
+            try:
+                out[item] = getattr(self, item)
+            except AttributeError:
+                pass
+        return out
 
     def __str__(self):
         """Readable representation."""
@@ -103,9 +112,9 @@ class QueryParameters:
         param_tag_keys = set()
         for key, value in query_params.items():
             if isinstance(value, (dict, list)):
-                for inner_param_key in value:
-                    if inner_param_key in tag_key_set:
-                        param_tag_keys.add(inner_param_key)
+                for inner_key in value:
+                    if inner_key in tag_key_set:
+                        param_tag_keys.add(inner_key)
             elif value in tag_key_set:
                 param_tag_keys.add(value)
             if key in tag_key_set:
@@ -131,15 +140,11 @@ class QueryParameters:
 
         if not access_filter_applied:
             if self.parameters.get('filter', {}).get(filter_key):
-                items = set(self.parameters.get('filter', {}).get(filter_key))
+                items = set(self.get_filter(filter_key))
                 result = get_replacement_result(items, access_list, raise_exception)
                 if result:
-                    if self.parameters.get('filter') is None:
-                        self.parameters['filter'] = {}
                     self.parameters['filter'][filter_key] = result
             elif access_list:
-                if self.parameters.get('filter') is None:
-                    self.parameters['filter'] = {}
                 self.parameters['filter'][filter_key] = access_list
 
     def _set_access_aws(self):
@@ -308,7 +313,6 @@ def get_tenant(user):
             tenant = Tenant.objects.get(schema_name=customer.schema_name)
         except User.DoesNotExist:
             pass
-    if tenant is None:
-        error = {'details': _('Invalid user definition')}
-        raise ValidationError(error)
-    return tenant
+    if tenant:
+        return tenant
+    raise ValidationError({'details': _('Invalid user definition')})

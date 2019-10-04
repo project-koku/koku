@@ -35,9 +35,7 @@ from api.report.aws.view import AWSCostView
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
-                             get_paginator,
-                             process_query_parameters,
-                             process_tag_query_params)
+                             get_paginator)
 from api.utils import UnitConverter
 
 
@@ -161,46 +159,6 @@ class ReportViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
         self.assertTrue(len(json_result.get('data')) > 0)
-
-    def test_process_invalid_query_parameters_format(self):
-        """Test processing of invalid parameters format."""
-        qs = 'group_by%5Baccount%5D=account1&filter%5'
-        with self.assertRaises(ValidationError):
-            process_query_parameters(qs, QueryParamSerializer)
-
-    def test_process_query_parameters(self):
-        """Test processing of valid parameters."""
-        qs = 'group_by%5Baccount%5D=account1&filter%5Bresolution%5D=daily'
-        valid, query_dict = process_query_parameters(qs, QueryParamSerializer)
-        self.assertTrue(valid)
-        self.assertEqual(query_dict.get('group_by'), {'account': ['account1']})
-        self.assertEqual(query_dict.get('filter'), {'resolution': 'daily'})
-
-    def test_process_query_parameters_invalid(self):
-        """Test processing of invalid parameters."""
-        qs = 'group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily'
-        valid, _ = process_query_parameters(qs, QueryParamSerializer)
-        self.assertFalse(valid)
-
-    def test_process_tag_query_params(self):
-        """Test that a list of tag keys is reduced to those queried."""
-        query_params = {
-            'filter': {
-                'time_scope_units': 'month',
-                'time_scope_value': '-1',
-                'resolution': 'monthly',
-                'tag:environment': 'prod'
-            },
-            'group_by': {'tag:app': '*'},
-            'tag_list': ['tag:cost_center'],
-            'tag:az': 'az'
-        }
-        tag_keys = ['tag:app', 'tag:az', 'tag:environment', 'tag:cost_center',
-                    'tag:fake', 'tag:other', 'tag:this']
-        expected = set(['tag:app', 'tag:az', 'tag:environment', 'tag:cost_center'])
-
-        result = process_tag_query_params(query_params, tag_keys)
-        self.assertEqual(result, expected)
 
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
