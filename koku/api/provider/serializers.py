@@ -253,7 +253,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
 
-        if credentials and data_source:
+        if credentials and data_source and provider_type not in ['AWS', 'OCP']:
             interface.cost_usage_source_ready(credentials, data_source)
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
