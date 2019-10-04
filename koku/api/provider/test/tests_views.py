@@ -374,16 +374,50 @@ class ProviderViewTest(IamTestCase):
 
     def test_put_for_ocp_provider(self):
         """Test PUT update for OCP provider."""
-        response, ocp_provider = self.create_generic_provider('OCP')
+        response, provider = self.create_generic_provider('OCP')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         json_result = response.json()
 
         name = 'new_name'
-        ocp_provider['name'] = name
+        provider['name'] = name
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
-        put_response = client.put(url, data=ocp_provider, format='json', **self.headers)
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
+
+    def test_put_for_aws_provider(self):
+        """Test PUT update for AWS provider."""
+        response, provider = self.create_generic_provider('AWS')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
+
+    def test_put_for_azure_provider(self):
+        """Test PUT update for AZURE provider."""
+        response, provider = self.create_generic_provider('AZURE')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_200_OK)
 
         put_json_result = put_response.json()
