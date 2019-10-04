@@ -74,9 +74,6 @@ class ReportDownloaderBase():
 
         Returns True if the manifest should be downloaded and processed.
         """
-        manifest_id = None
-        num_processed_files = 0
-        num_total_files = 0
         today = DateAccessor().today_with_timezone('UTC')
         last_completed_cutoff = today - datetime.timedelta(hours=1)
         with ReportManifestDBAccessor() as manifest_accessor:

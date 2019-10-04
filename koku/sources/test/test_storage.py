@@ -89,14 +89,15 @@ class SourcesStorageTest(TestCase):
 
         test_name = 'My Source Name'
         source_type = 'AWS'
-        authentication = 'testauth'
+        endpoint_id = 1
 
-        storage.add_provider_sources_network_info(self.test_source_id, test_name, source_type, authentication)
+        storage.add_provider_sources_network_info(self.test_source_id, test_name, source_type,
+                                                  endpoint_id)
 
         test_source = Sources.objects.get(source_id=self.test_source_id)
         self.assertEqual(test_source.name, test_name)
         self.assertEqual(test_source.source_type, source_type)
-        self.assertEqual(test_source.authentication, authentication)
+        self.assertEqual(test_source.endpoint_id, endpoint_id)
 
     def test_add_provider_network_info_not_found(self):
         """Tests that adding information retrieved from the sources network API is not successful."""
@@ -112,21 +113,21 @@ class SourcesStorageTest(TestCase):
     def test_add_provider_billing_source(self):
         """Tests that add an AWS billing source to a Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, 'AWS Account', 'AWS', 'testauth')
+        storage.add_provider_sources_network_info(self.test_source_id, 'AWS Account', 'AWS', 1)
         storage.add_provider_billing_source(self.test_source_id, s3_bucket)
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, s3_bucket)
 
     def test_add_provider_billing_source_non_aws(self):
         """Tests that add a non-AWS billing source to a Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id, 'OCP Account', 'OCP', 'testauth')
+        storage.add_provider_sources_network_info(self.test_source_id, 'OCP Account', 'OCP', 1)
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source(self.test_source_id, s3_bucket)
 
     def test_add_provider_billing_source_non_existent(self):
         """Tests that add a billing source to a non-existent Source."""
         s3_bucket = {'bucket': 'test-bucket'}
-        storage.add_provider_sources_network_info(self.test_source_id + 1, 'AWS Account', 'AWS', 'testauth')
+        storage.add_provider_sources_network_info(self.test_source_id + 1, 'AWS Account', 'AWS', 1)
         with self.assertRaises(SourcesStorageError):
             storage.add_provider_billing_source(self.test_source_id, s3_bucket)
 
@@ -267,3 +268,56 @@ class SourcesStorageTest(TestCase):
                     storage._validate_billing_source(test.get('provider_type'), test.get('billing_source'))
                 except Exception as error:
                     self.fail(str(error))
+
+    def test_get_source_type(self):
+        """Test to source type from source."""
+        test_source_id = 3
+
+        ocp_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          source_type='OCP',
+                          name='Test OCP Source',
+                          authentication={'resource_name': 'arn:test'},
+                          billing_source={'bucket': 'test-bucket'})
+        ocp_obj.save()
+
+        response = storage.get_source_type(test_source_id)
+        self.assertEquals(response, 'OCP')
+        self.assertEquals(storage.get_source_type(test_source_id + 1), None)
+
+    def test_get_source_from_endpoint(self):
+        """Test to source from endpoint id."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=test_endpoint_id,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          authentication={'resource_name': 'arn:test'},
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        response = storage.get_source_from_endpoint(test_endpoint_id)
+        self.assertEquals(response, test_source_id)
+        self.assertEquals(storage.get_source_from_endpoint(test_source_id + 10), None)
+
+    def test_add_provider_sources_auth_info(self):
+        """Test to add authentication to a source."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        test_authentication = {'resource_name': 'arn:test'}
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=test_endpoint_id,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertEquals(response.authentication, test_authentication)

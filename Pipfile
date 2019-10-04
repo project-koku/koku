@@ -35,6 +35,9 @@ azure-mgmt-costmanagement = "==0.1.0"
 azure-storage-blob = "==1.5.0"
 azure-storage = "==0.36.0"
 google-cloud-storage = "~=1.19.1"
+jinjasql = "*"
+python-coveralls = "*"
+coveralls = "*"
 
 [dev-packages]
 astroid = "==2.2.5"
