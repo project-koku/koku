@@ -22,7 +22,6 @@ import uuid
 from dateutil.parser import parse
 from django.db import connection
 from django.db.models import F
-from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -52,7 +51,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.column_map = column_map
-        self.jinja_sql = JinjaSql()
 
     # pylint: disable=too-many-arguments,arguments-differ
     def merge_temp_table(self, table_name, temp_table_name, columns,
@@ -313,18 +311,14 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8')
-        daily_sql_params = {
-            'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date,
-            'end_date': end_date,
-            'cluster_id': cluster_id,
-            'schema': self.schema
-        }
-        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
-            daily_sql, daily_sql_params)
-        self._commit_and_vacuum(
-            table_name, daily_sql, start_date, end_date, bind_params = list(daily_sql_params))
+        daily_sql = daily_sql.decode('utf-8').format(
+            uuid=str(uuid.uuid4()).replace('-', '_'),
+            start_date=start_date,
+            end_date=end_date,
+            cluster_id=cluster_id,
+            schema=self.schema
+        )
+        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
 
     def get_ocp_infrastructure_map(self, start_date, end_date):
         """Get the OCP on infrastructure map.

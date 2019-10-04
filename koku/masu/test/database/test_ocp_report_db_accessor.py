@@ -369,8 +369,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.vacuum_table')
     def test_populate_pod_label_summary_table(self, mock_vacuum):
         """Test that the pod label summary table is populated."""
-        import pdb
-        pdb.set_trace()
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         agg_table_name = OCP_REPORT_TABLE_MAP['pod_label_summary']
 
