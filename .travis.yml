@@ -23,7 +23,6 @@ env:
   DATABASE_USER=postgres
   DATABASE_PASSWORD=''
   TOXENV=for_travis
-  CC_TEST_REPORTER_ID=252efbaccda0105f7ac86085e2db6a864363354c1b49e2b62447210dbdcf2bea
 
 before_install:
   - sudo rm -f /etc/boto.cfg
@@ -31,7 +30,7 @@ before_install:
   - chmod +x ./cc-test-reporter
 
 install:
-  - pip install tox-travis codecov
+  - pip install tox-travis codecov python-coveralls coveralls
 
 before_script:
   - psql -c "create database ${DATABASE_NAME};" -U postgres
@@ -43,6 +42,7 @@ script:
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
   - ./cc-test-reporter after-build
+  - coveralls
 
 notifications:
   slack:
