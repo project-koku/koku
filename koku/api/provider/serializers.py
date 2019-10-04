@@ -64,7 +64,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate authentication parameters."""
         if data.get('provider_resource_name') and not data.get('credentials'):
-            data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
+            data['credentials'] = {'provider_resource_name': data.pop('provider_resource_name')}
         return data
 
     # pylint: disable=too-few-public-methods
@@ -120,8 +120,8 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate billing source."""
-        if data.get('bucket') and not data.get('data_source'):
-            data['data_source'] = {'bucket': data.get('bucket')}
+        if (data.get('bucket') or data.get('bucket') == '') and not data.get('data_source'):
+            data['data_source'] = {'bucket': data.pop('bucket')}
         return data
 
 
@@ -238,8 +238,8 @@ class ProviderSerializer(serializers.ModelSerializer):
 
         if 'billing_source' in validated_data:
             billing_source = validated_data.pop('billing_source')
-            bucket = billing_source.get('bucket')
             data_source = billing_source.get('data_source', {})
+            bucket = data_source.get('bucket')
         else:
             # Because of a unique together constraint, this is done
             # to allow for this field to be non-required for OCP
@@ -248,8 +248,8 @@ class ProviderSerializer(serializers.ModelSerializer):
             data_source = None
 
         authentication = validated_data.pop('authentication')
-        provider_resource_name = authentication.get('provider_resource_name')
         credentials = authentication.get('credentials')
+        provider_resource_name = credentials.get('provider_resource_name')
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
 
@@ -268,7 +268,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             existing_provider = Provider.objects.filter(authentication=auth)\
                 .filter(billing_source=bill).first()
             if existing_provider.type in ('AWS', 'OCP'):
-                sources_auth = {'resource_name': auth.provider_resource_name}
+                sources_auth = {'resource_name': provider_resource_name}
             elif existing_provider.type in ('AZURE', ):
                 sources_auth = {'credentials': auth.credentials}
             else:
