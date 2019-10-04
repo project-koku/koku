@@ -121,7 +121,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
-            'end_date': end_date, 
+            'end_date': end_date,
             'bill_ids': bill_ids,
             'schema': self.schema
         }
@@ -143,7 +143,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql_params = {'schema': self.schema}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
             agg_sql, agg_sql_params)
-        self._commit_and_vacuum(table_name, agg_sql, bind_params = list(agg_sql_params))
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def get_cost_entry_bills_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
