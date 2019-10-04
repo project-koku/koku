@@ -74,16 +74,16 @@ class ProviderSerializerTest(IamTestCase):
                 'type': Provider.PROVIDER_AZURE,
                 'authentication': {
                     'credentials': {
-                        "subscription_id": "12345678-1234-5678-1234-567812345678",
-                        "tenant_id": "12345678-1234-5678-1234-567812345678",
-                        "client_id": "12345678-1234-5678-1234-567812345678",
-                        "client_secret": "12345"
+                        'subscription_id': '12345678-1234-5678-1234-567812345678',
+                        'tenant_id': '12345678-1234-5678-1234-567812345678',
+                        'client_id': '12345678-1234-5678-1234-567812345678',
+                        'client_secret': '12345'
                     }
                 },
                 'billing_source': {
                     'data_source': {
-                        "resource_group": {},
-                        "storage_account": {}
+                        'resource_group': {},
+                        'storage_account': {}
                     }
                 }
             }
