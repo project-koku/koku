@@ -422,3 +422,38 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+
+    def test_patch_not_supported(self):
+        """Test that PATCH request returns 405."""
+        response, provider = self.create_generic_provider('AZURE')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.patch(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @patch('api.provider.view.ProviderManager._delete_report_data')
+    def test_deleted_before_put_returns_400(self, mock_delete):
+        """Test if 400 is raised when a PUT is called on deleted provider."""
+        response, provider = self.create_generic_provider('AZURE')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        response = client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_404_NOT_FOUND)
+
