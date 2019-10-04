@@ -28,6 +28,8 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 
+fields = ['name', 'type', 'authentication', 'billing_source']
+
 
 class ProviderViewTest(IamTestCase):
     """Tests the provider view."""
@@ -38,6 +40,49 @@ class ProviderViewTest(IamTestCase):
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
+        self.generic_providers = {
+            'OCP': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_OCP,
+                'authentication': {
+                    'credentials': {
+                        'provider_resource_name': 'my-ocp-cluster-1'
+                    }
+                }
+            },
+            'AWS': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_AWS,
+                'authentication': {
+                    'credentials': {
+                        'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
+                    }
+                },
+                'billing_source': {
+                    'data_source': {
+                        'bucket': 'my_s3_bucket'
+                    }
+                }
+            },
+            'AZURE': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_AZURE,
+                'authentication': {
+                    'credentials': {
+                        "subscription_id": "12345678-1234-5678-1234-567812345678",
+                        "tenant_id": "12345678-1234-5678-1234-567812345678",
+                        "client_id": "12345678-1234-5678-1234-567812345678",
+                        "client_secret": "12345"
+                    }
+                },
+                'billing_source': {
+                    'data_source': {
+                        "resource_group": {},
+                        "storage_account": {}
+                    }
+                }
+            }
+        }
 
     def create_provider(self, bucket_name, iam_arn, headers=None):
         """Create a provider and return response."""
@@ -56,6 +101,15 @@ class ProviderViewTest(IamTestCase):
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             client = APIClient()
             return client.post(url, data=provider, format='json', **req_headers)
+
+    def create_generic_provider(self, provider):
+        """Create generic provider and return response."""
+        req_headers = self.headers
+        provider = self.generic_providers[provider]
+        url = reverse('provider-list')
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            client = APIClient()
+            return client.post(url, data=provider, format='json', **req_headers), provider
 
     def test_create_provider(self):
         """Test create a provider."""
@@ -317,3 +371,20 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_put_for_ocp_provider(self):
+        """Test PUT update for OCP provider."""
+        response, ocp_provider = self.create_generic_provider('OCP')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        json_result = response.json()
+
+        name = 'new_name'
+        ocp_provider['name'] = name
+
+        url = reverse('provider-detail', args=[json_result.get('uuid')])
+        client = APIClient()
+        put_response = client.put(url, data=ocp_provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        put_json_result = put_response.json()
+        self.assertEqual(put_json_result.get('name'), name)
