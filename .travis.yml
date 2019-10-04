@@ -31,7 +31,7 @@ before_install:
   - chmod +x ./cc-test-reporter
 
 install:
-  - pip install tox-travis codecov
+  - pip install tox-travis codecov python-coveralls
 
 before_script:
   - psql -c "create database ${DATABASE_NAME};" -U postgres
@@ -43,6 +43,7 @@ script:
 after_success:
   - codecov --required || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required) || (sleep 5 && codecov --required)
   - ./cc-test-reporter after-build
+  - coveralls
 
 notifications:
   slack:
