@@ -456,4 +456,3 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_404_NOT_FOUND)
-
