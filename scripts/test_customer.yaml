@@ -8,15 +8,20 @@ customer:
       provider_name: Test Provider
       provider_type: 'AWS'
       authentication:
-        provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
+        credentials:
+          provider_resource_name: arn:aws:iam::111111111111:role/CostManagement
       billing_source:
-        bucket: test-bucket
+        data_source:
+          bucket: test-bucket
     ocp_provider:
       provider_name: OCP Test Provider
       provider_type: 'OCP'
       authentication:
-        provider_resource_name: my-ocp-cluster-1
-      billing_source: {}
+        credentials:
+          provider_resource_name: my-ocp-cluster-1
+      billing_source:
+        data_source:
+          bucket: ''
     azure_provider:
       provider_name: Azure Test Provider
       provider_type: 'AZURE'
