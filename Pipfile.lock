@@ -490,10 +490,10 @@
         },
         "azure-mgmt-reservations": {
             "hashes": [
-                "sha256:40618a3700c47a788182649f238d985edf15b08b6577ea27557e70e2866ac171",
-                "sha256:612acfa18f005c2ee5dda5c473b8bf6540d232db331b27be47de2608c5855adb"
+                "sha256:20f8afb842bf6f6c9afd4d7b93a102a0a2edddb306b21bd6de68421cbb30831a",
+                "sha256:928c8ca12594f6bd7e5069a001afa847a26274515a9d774198c521029c4092da"
             ],
-            "version": "==0.2.1"
+            "version": "==0.5.0"
         },
         "azure-mgmt-resource": {
             "hashes": [
