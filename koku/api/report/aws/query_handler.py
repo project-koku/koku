@@ -63,7 +63,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # FIXME: super() needs to be called after _limit is set
         super().__init__(parameters)
 
-
     @property
     def annotations(self):
         """Create dictionary for query annotations.

@@ -57,6 +57,7 @@ class QueryHandler:
 
         Args:
             parameters    (QueryParameters): parameter object for query
+
         """
         LOG.debug(f'Query Params: {parameters}')
 

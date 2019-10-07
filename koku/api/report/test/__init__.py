@@ -422,8 +422,7 @@ class FakeQueryParameters:
         defaults = [('report_type', 'costs'),
                     ('tag_keys', []),
                     ('delta', None),
-                    ('url_data', urlencode(parameters))
-                   ]
+                    ('url_data', urlencode(parameters))]
         parameters.update(kwargs)
 
         for key, val in defaults:
@@ -439,16 +438,16 @@ class FakeQueryParameters:
                             **parameters)
 
     def fake_get(self, item, default=None):
-        """Mocked getter for returning query params."""
+        """Mock getter returns query params."""
         fields = ['filter', 'group_by', 'order_by']
         if item in fields:
             return self._parameters.get(item, default)
         return default
 
     def fake_get_filter(self, filt, default=None):
-        """Mocked getter for returning query params."""
+        """Mock getter returns query params."""
         return self.fake_get('filter', default={}).get(filt, default)
 
     def fake_get_group_by(self, key, default=None):
-        """Mocked getter for returning query params."""
+        """Mock getter returns query params."""
         return self.fake_get('group_by', default={}).get(key, default)

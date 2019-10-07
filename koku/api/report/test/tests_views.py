@@ -22,7 +22,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
@@ -30,7 +29,6 @@ from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.aws.serializers import QueryParamSerializer
 from api.report.aws.view import AWSCostView
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,

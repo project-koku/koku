@@ -1487,7 +1487,7 @@ class ReportQueryTest(IamTestCase):
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
-                             'time_scope_units': 'month',},
+                             'time_scope_units': 'month'},
                   'group_by': {f'tag:{group_by_key}': ['*']}}
         query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
         handler = AWSReportQueryHandler(query_params.mock_qp)

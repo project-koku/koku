@@ -16,7 +16,6 @@
 #
 """Test the QueryParameters."""
 
-import logging
 import random
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -29,12 +28,9 @@ from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 
 from api.models import Tenant, User
+from api.query_params import QueryParameters, VALID_PROVIDERS, get_tenant
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
-from api.query_params import get_tenant, QueryParameters, VALID_PROVIDERS
-
-logging.disable(0)
-LOG = logging.getLogger(__name__)
 
 
 class QueryParametersTests(TestCase):
@@ -93,6 +89,7 @@ class QueryParametersTests(TestCase):
         """Test that ValidationError is raised when serializer data is invalid."""
         class MockSerializer(Mock):
             """Mock Serializer for testing validity."""
+
             def __init__(self, *args, **kwargs):
                 """Constructor."""
                 super().__init__(*args,
@@ -270,7 +267,7 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         key = self.FAKE.word()
         value = self.FAKE.word()
-        params.set_filter(**{key:value})
+        params.set_filter(**{key: value})
         self.assertEqual(params.get_filter(key), value)
 
     def test_has_filter_no_filter(self):

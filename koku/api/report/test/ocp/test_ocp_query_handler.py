@@ -20,13 +20,14 @@ from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
-from django.db.models import Max
+from django.db.models import F, Max, Sum
 from django.db.models.expressions import OrderBy
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
+from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -54,22 +55,22 @@ class OCPReportQueryHandlerTest(IamTestCase):
         super().setUp()
         OCPReportDataGenerator(self.tenant).add_data_to_tenant()
 
-    def get_totals_by_time_scope(self, aggregates, filter=None):
+    def get_totals_by_time_scope(self, aggregates, filtor=None):
         """Return the total aggregates for a time period."""
-        if filter is None:
-            filter = self.ten_day_filter
+        if filtor is None:
+            filtor = self.ten_day_filter
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects\
-                .filter(**filter)\
+                .filter(**filtor)\
                 .aggregate(**aggregates)
 
-    def get_totals_costs_by_time_scope(self, aggregates, filter=None):
+    def get_totals_costs_by_time_scope(self, aggregates, filtor=None):
         """Return the total costs aggregates for a time period."""
-        if filter is None:
-            filter = self.this_month_filter
+        if filtor is None:
+            filtor = self.this_month_filter
         with tenant_context(self.tenant):
             return CostSummary.objects\
-                .filter(**filter)\
+                .filter(**filtor)\
                 .aggregate(**aggregates)
 
     def test_execute_sum_query(self):
@@ -723,13 +724,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
         unordered_data = [{'node': None, 'cluster': 'cluster-1'},
                           {'node': 'alpha', 'cluster': 'cluster-2'},
                           {'node': 'bravo', 'cluster': 'cluster-3'},
-                          {'node': 'oscar', 'cluster': 'cluster-4'},]
+                          {'node': 'oscar', 'cluster': 'cluster-4'}]
 
         order_fields = ['node']
         expected = [{'node': 'alpha', 'cluster': 'cluster-2'},
                     {'node': 'bravo', 'cluster': 'cluster-3'},
                     {'node': 'no-node', 'cluster': 'cluster-1'},
-                    {'node': 'oscar', 'cluster': 'cluster-4'},]
+                    {'node': 'oscar', 'cluster': 'cluster-4'}]
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
@@ -760,13 +761,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = AWSTagQueryHandler(FakeQueryParameters({}).mock_qp)
+        handler = OCPTagQueryHandler(FakeQueryParameters({}).mock_qp)
         tag_keys = handler.get_tag_keys(filters=False)
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
         with tenant_context(self.tenant):
-            labels = AWSCostEntryLineItemDailySummary.objects\
+            labels = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(tags__has_key=filter_key)\
                 .values(*['tags'])\
@@ -774,7 +775,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('tags', {}).get(filter_key)
 
-            totals = AWSCostEntryLineItemDailySummary.objects\
+            totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.dh.this_month_start)\
                 .filter(**{f'tags__{filter_key}': filter_value})\
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
@@ -792,4 +793,3 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
-
