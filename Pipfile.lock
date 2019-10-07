@@ -497,10 +497,10 @@
         },
         "azure-mgmt-resource": {
             "hashes": [
-                "sha256:9c55503801db19fa88f1ab6b7ded6f7df543894c3e35b4e00993a471bd25e10c",
-                "sha256:bc3d683dbd0289a278b79e55c9de8a5a3db03e3894484b2e5dbc95e4e9eb779c"
+                "sha256:50ffb1986056a67b5381d366f0a6ada0cdd5ad275c0e85b07baa91cb1de08997",
+                "sha256:88db03ea5b9db1dfbf3de8c7be111ed41b121a374645e3ddf3fbba47584c32b1"
             ],
-            "version": "==2.2.0"
+            "version": "==5.1.0"
         },
         "azure-mgmt-scheduler": {
             "hashes": [
