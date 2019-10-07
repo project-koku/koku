@@ -184,7 +184,7 @@ def enqueue_source_update(source_id):
 
 def clear_update_flag(source_id):
     """
-    Clears pending update flag after successfully updating Koku provider.
+    Clear pending update flag after successfully updating Koku provider.
 
     Args:
         source_id (Integer) - Platform-Sources identifier.

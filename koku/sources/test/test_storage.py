@@ -409,9 +409,12 @@ class SourcesStorageTest(TestCase):
 
     def test_load_providers_to_update(self):
         """Test loading pending update events."""
-        test_matrix = [{'koku_uuid': faker.uuid4(), 'pending_update': False, 'pending_delete': False, 'expected_list_length': 0},
-                       {'koku_uuid': faker.uuid4(), 'pending_update': True, 'pending_delete': False, 'expected_list_length': 1},
-                       {'koku_uuid': None, 'pending_update': True, 'pending_delete': False, 'expected_list_length': 0}]
+        test_matrix = [{'koku_uuid': faker.uuid4(), 'pending_update': False, 'pending_delete': False,
+                        'expected_list_length': 0},
+                       {'koku_uuid': faker.uuid4(), 'pending_update': True, 'pending_delete': False,
+                        'expected_list_length': 1},
+                       {'koku_uuid': None, 'pending_update': True, 'pending_delete': False,
+                        'expected_list_length': 0}]
 
         test_source_id = 3
         for test in test_matrix:
