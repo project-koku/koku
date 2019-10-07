@@ -33,7 +33,12 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
         ON li.usage_account_id = aa.account_id
     WHERE date(li.usage_start) >= {{start_date}}
         AND date(li.usage_start) <= {{end_date}}
-        {{bill_id_where_clause | sqlsafe}}
+        {% if bill_ids %}
+        AND cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids  -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%})
+        {% endif %}
     GROUP BY li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
@@ -52,7 +57,12 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sql
 DELETE FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS li
 WHERE li.usage_start >= {{start_date}}
     AND li.usage_start <= {{end_date}}
-    {{bill_id_where_clause | sqlsafe}}
+    {% if bill_ids %}
+    AND cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids  -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%})
+    {% endif %}
 ;
 
 -- Populate the daily aggregate line item data
