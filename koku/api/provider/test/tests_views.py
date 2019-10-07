@@ -495,3 +495,26 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_with_existing_auth_and_bill(self, mock_access):
+        """Test PUT when update matches existing authentication and billing_source."""
+        iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name1 = 'my_s3_bucket'
+        response1 = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        iam_arn2 = 'arn:aws:s3:::my_s3_bucket_two'
+        bucket_name2 = 'my_s3_bucket_two'
+        response2 = self.create_provider(bucket_name2, iam_arn2)
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+
+        provider = response2.json()
+        provider_uuid = provider.get('uuid')
+        provider['authentication']['provider_resource_name'] = iam_arn1
+        provider['billing_source']['bucket'] = bucket_name1
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
