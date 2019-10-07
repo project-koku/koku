@@ -379,7 +379,9 @@ class ProviderViewTest(IamTestCase):
         json_result = response.json()
 
         name = 'new_name'
+        auth = {'provider_resource_name': 'testing_123'}
         provider['name'] = name
+        provider['authentication'] = auth
 
         url = reverse('provider-detail', args=[json_result.get('uuid')])
         client = APIClient()
@@ -388,8 +390,10 @@ class ProviderViewTest(IamTestCase):
 
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
+        self.assertEqual(put_json_result.get('authentication').get('credentials'), auth)
 
-    def test_put_for_aws_provider(self):
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_aws_provider(self, mock_access):
         """Test PUT update for AWS provider."""
         response, provider = self.create_generic_provider('AWS')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -406,7 +410,8 @@ class ProviderViewTest(IamTestCase):
         put_json_result = put_response.json()
         self.assertEqual(put_json_result.get('name'), name)
 
-    def test_put_for_azure_provider(self):
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_azure_provider(self, mock_access):
         """Test PUT update for AZURE provider."""
         response, provider = self.create_generic_provider('AZURE')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -456,3 +461,37 @@ class ProviderViewTest(IamTestCase):
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)
         self.assertEqual(put_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True)
+    def test_put_for_integrity_check(self, mock_access):
+        """Test PUT update: Make 2 providers match should give integrity error."""
+        iam_arn1 = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name1 = 'my_s3_bucket'
+        response = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        provider = response.json()
+        provider_uuid = provider.get('uuid')
+        put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
+        put_bucket = 'my_s3_bucket_PUT'
+        provider['authentication']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['bucket'] = put_bucket
+        provider['name'] = 'PUT-test'
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_200_OK)
+
+        response = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        provider = response.json()
+        provider_uuid = provider.get('uuid')
+        put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
+        put_bucket = 'my_s3_bucket_PUT'
+        provider['authentication']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['bucket'] = put_bucket
+        provider['name'] = 'PUT-test'
+        url = reverse('provider-detail', args=[provider_uuid])
+        client = APIClient()
+        put_response = client.put(url, data=provider, format='json', **self.headers)
+        self.assertEqual(put_response.status_code, status.HTTP_400_BAD_REQUEST)
