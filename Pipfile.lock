@@ -228,10 +228,10 @@
         },
         "azure-mgmt-cosmosdb": {
             "hashes": [
-                "sha256:a6e70527994d8ce7f4eeca80c7691bc9555adf90819848a9a30284a33b0cffe2",
-                "sha256:d5f448e9e6733b83e2e6bde28267bb30620c5a3f1399e66dcfe04d0b80960094"
+                "sha256:4b7b59132992bdf5d4ad211ca8e416402bfca5d7a90a80c20989879cc5ea5345",
+                "sha256:cd5b2b3569170cb161f61c2500315d3ea26a67e06cfd3b81bea1c87935beaa3a"
             ],
-            "version": "==0.4.1"
+            "version": "==0.8.0"
         },
         "azure-mgmt-costmanagement": {
             "hashes": [
