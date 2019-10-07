@@ -64,7 +64,7 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate authentication parameters."""
         if data.get('provider_resource_name') and not data.get('credentials'):
-            data['credentials'] = {'provider_resource_name': data.pop('provider_resource_name')}
+            data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
         return data
 
     # pylint: disable=too-few-public-methods
@@ -121,7 +121,7 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate billing source."""
         if (data.get('bucket') or data.get('bucket') == '') and not data.get('data_source'):
-            data['data_source'] = {'bucket': data.pop('bucket')}
+            data['data_source'] = {'bucket': data.get('bucket')}
         return data
 
 
@@ -290,19 +290,76 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.save()
         return provider
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        # TODO needs on-boarding validation.
-        auth = validated_data.pop('authentication')
-        bill = validated_data.pop('billing_source')
+        user = None
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            user = request.user
+            if not user.customer:
+                key = 'customer'
+                message = 'Customer for requesting user could not be found.'
+                raise serializers.ValidationError(error_obj(key, message))
+        else:
+            key = 'created_by'
+            message = 'Requesting user could not be found.'
+            raise serializers.ValidationError(error_obj(key, message))
+
+        provider_type = validated_data['type']
+        interface = ProviderAccessor(provider_type)
+
+        authentication = validated_data.pop('authentication')
+        credentials = authentication.get('credentials')
+        provider_resource_name = credentials.get('provider_resource_name')
+
+        billing_source = validated_data.pop('billing_source')
+        data_source = billing_source.get('data_source')
+        bucket = billing_source.get('bucket')
+
+
+        if credentials and data_source and provider_type not in ['AWS', 'OCP']:
+            interface.cost_usage_source_ready(credentials, data_source)
+        else:
+            interface.cost_usage_source_ready(provider_resource_name, bucket)
+
+        bill = ProviderBillingSource.objects.get(id=instance.billing_source.id)
+        auth = ProviderAuthentication.objects.get(id=instance.authentication.id)
+
+        for key, value in credentials.items():
+            if getattr(auth, key) != value:
+                setattr(auth, key, value)
+
+        for key, value in data_source.items():
+            if getattr(bill, key) != value:
+                setattr(bill, key, value)
+
+        # We can re-use a billing source or a auth, but not the same combination.
+        unique_count = Provider.objects.filter(authentication=auth)\
+            .filter(billing_source=bill).count()
+        if unique_count != 0:
+            existing_provider = Provider.objects.filter(authentication=auth)\
+                .filter(billing_source=bill).first()
+            if existing_provider.type in ('AWS', 'OCP'):
+                sources_auth = {'resource_name': provider_resource_name}
+            elif existing_provider.type in ('AZURE', ):
+                sources_auth = {'credentials': auth.credentials}
+            else:
+                sources_auth = {}
+            source_query = Sources.objects.filter(authentication=sources_auth)
+            if source_query.exists():
+                source_obj = source_query.first()
+                source_obj.koku_uuid = existing_provider.uuid
+                source_obj.save()
+                return existing_provider
+            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+            raise serializers.ValidationError(error)
 
         for key in validated_data.keys():
             setattr(instance, key, validated_data[key])
-        for key in auth.keys():
-            setattr(instance.authentication, key, auth[key])
-        for key in bill.keys():
-            setattr(instance.billing_source, key, bill[key])
 
+        instance.authentication = auth
+        instance.billing_source = bill
         instance.save()
         return instance
 
