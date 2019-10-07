@@ -25,12 +25,14 @@ from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
                            AZURE_LOCAL_SERVICE_PROVIDER,
+                           GCP,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
 from masu.external.downloader.aws_local.aws_local_report_downloader import AWSLocalReportDownloader
 from masu.external.downloader.azure.azure_report_downloader import AzureReportDownloader
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
+from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 
 
@@ -111,6 +113,12 @@ class ReportDownloader:
                                        report_name=self.report_name,
                                        provider_id=self.provider_id)
 
+        if self.provider_type == GCP:
+            return GCPReportDownloader(customer_name=self.customer_name,
+                                       auth_credential=self.credential,
+                                       billing_source=self.cur_source,
+                                       report_name=self.report_name,
+                                       provider_id=self.provider_id)
         return None
 
     def get_reports(self, number_of_months=2):
