@@ -12,9 +12,11 @@ class DataExportRequest(models.Model):
 
     PENDING = 'pending'
     PROCESSING = 'processing'
+    WAITING = 'waiting'
     COMPLETE = 'complete'
     ERROR = 'error'
-    STATUS_CHOICES = ((PENDING, 'Pending'), (PROCESSING, 'Processing'), (COMPLETE, 'Complete'), (ERROR, 'Error'))
+    STATUS_CHOICES = ((PENDING, 'Pending'), (PROCESSING, 'Processing'), (WAITING, 'Waiting'),
+                      (COMPLETE, 'Complete'), (ERROR, 'Error'))
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
     created_by = models.ForeignKey('User', null=False, on_delete=models.CASCADE)
