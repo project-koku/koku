@@ -16,7 +16,7 @@
 #
 """Provider Model Serializers."""
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
 from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
@@ -293,19 +293,6 @@ class ProviderSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
-        user = None
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            user = request.user
-            if not user.customer:
-                key = 'customer'
-                message = 'Customer for requesting user could not be found.'
-                raise serializers.ValidationError(error_obj(key, message))
-        else:
-            key = 'created_by'
-            message = 'Requesting user could not be found.'
-            raise serializers.ValidationError(error_obj(key, message))
-
         provider_type = validated_data['type']
         interface = ProviderAccessor(provider_type)
 
@@ -322,13 +309,16 @@ class ProviderSerializer(serializers.ModelSerializer):
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
-        ProviderAuthentication.objects.filter(
-            id=instance.authentication.id
-        ).update(**authentication)
-
-        ProviderBillingSource.objects.filter(
-            id=instance.billing_source.id
-        ).update(**billing_source)
+        try:
+            ProviderAuthentication.objects.filter(
+                id=instance.authentication.id
+            ).update(**authentication)
+            ProviderBillingSource.objects.filter(
+                id=instance.billing_source.id
+            ).update(**billing_source)
+        except IntegrityError:
+            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+            raise serializers.ValidationError(error)
 
         bill = ProviderBillingSource.objects.get(id=instance.billing_source.id)
         auth = ProviderAuthentication.objects.get(id=instance.authentication.id)
