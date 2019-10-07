@@ -509,7 +509,6 @@ class ProviderViewTest(IamTestCase):
         response2 = self.create_provider(bucket_name2, iam_arn2)
         self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
 
-
         provider = response2.json()
         provider_uuid = provider.get('uuid')
         provider['authentication']['provider_resource_name'] = iam_arn1
