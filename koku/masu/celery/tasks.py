@@ -24,12 +24,13 @@ import collections
 from datetime import date
 
 from botocore.exceptions import ClientError
+from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 
 from api.dataexport.models import DataExportRequest
-from api.dataexport.syncer import AwsS3Syncer
+from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
 from koku.celery import CELERY as celery
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
@@ -239,9 +240,20 @@ def upload_normalized_data():
             query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
 
 
-@celery.task(name='masu.celery.tasks.sync_data_to_customer', queue_name='customer_data_sync')
+@celery.task(name='masu.celery.tasks.sync_data_to_customer',
+             queue_name='customer_data_sync',
+             retry_kwargs={'max_retries': 5,
+                           'countdown': settings.COLD_STORAGE_RETRIVAL_WAIT_TIME})
 def sync_data_to_customer(dump_request_uuid):
-    """Scheduled task to sync normalized data to our customers S3 bucket."""
+    """
+    Scheduled task to sync normalized data to our customers S3 bucket.
+
+    If the sync request raises SyncedFileInColdStorageError, this task
+    will automatically retry in a set amount of time. This time is to give
+    the storage solution time to retrieve a file from cold storage.
+    This task will retry 5 times, and then fail.
+
+    """
     dump_request = DataExportRequest.objects.get(uuid=dump_request_uuid)
     dump_request.status = DataExportRequest.PROCESSING
     dump_request.save()
@@ -259,6 +271,20 @@ def sync_data_to_customer(dump_request_uuid):
         dump_request.status = DataExportRequest.ERROR
         dump_request.save()
         return
-
+    except SyncedFileInColdStorageError:
+        LOG.info(
+            f'One of the requested files is currently in cold storage for '
+            f'DataExportRequest {dump_request.uuid}. This task will automatically retry.')
+        dump_request.status = DataExportRequest.WAITING
+        dump_request.save()
+        try:
+            raise sync_data_to_customer.retry(countdown=10, max_retries=5)
+        except MaxRetriesExceededError:
+            LOG.exception(
+                f'Max retires exceeded for restoring a file in cold storage for '
+                f'DataExportRequest {dump_request.uuid}, for {dump_request.created_by}.')
+            dump_request.status = DataExportRequest.ERROR
+            dump_request.save()
+            return
     dump_request.status = DataExportRequest.COMPLETE
     dump_request.save()
