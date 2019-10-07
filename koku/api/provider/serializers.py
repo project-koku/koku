@@ -292,6 +292,7 @@ class ProviderSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
+        # TODO needs on-boarding validation.
         auth = validated_data.pop('authentication')
         bill = validated_data.pop('billing_source')
 
