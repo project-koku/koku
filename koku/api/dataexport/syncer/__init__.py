@@ -3,11 +3,26 @@ from abc import ABC, abstractmethod
 from datetime import timedelta
 
 import boto3
+from botocore.exceptions import ClientError
 from celery.utils.log import get_task_logger
 from dateutil.rrule import DAILY, MONTHLY, rrule
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 LOG = get_task_logger(__name__)
+
+
+class SyncedFileInColdStorageError(Exception):
+    """
+    Syncer Error raised when the file we're attempting to sync is in cold storage.
+
+    This occurs when a file is in a cold archival storage and cannot be synced.
+
+    In AWS this is 'Glacier' storage
+    In Azure this is 'Cool Blob Storage'
+    In GCP this is 'coldline' storage
+
+    """
 
 
 class SyncerInterface(ABC):
@@ -52,10 +67,30 @@ class AwsS3Syncer(SyncerInterface):
             source_object (boto3.s3.Object): our source object
 
         """
-        destination_object = s3_destination_bucket.Object(source_object.key)
-        destination_object.copy_from(
-            ACL='bucket-owner-full-control',
-            CopySource={'Bucket': source_object.bucket_name, 'Key': source_object.key})
+        try:
+            destination_object = s3_destination_bucket.Object(source_object.key)
+            destination_object.copy_from(
+                ACL='bucket-owner-full-control',
+                CopySource={'Bucket': source_object.bucket_name, 'Key': source_object.key})
+        except ClientError as e:
+            # If we run into an InvalidObjectState error, and object is in glacier, retrieve it
+            if source_object.storage_class == 'GLACIER' and e.response['Error']['Code'] == 'InvalidObjectState':
+                request = {'Days': 2,
+                           'GlacierJobParameters': {'Tier': 'Standard'}}
+                source_object.restore_object(RestoreRequest=request)
+                LOG.info(_('Glacier Storage restore for %s is in progress.'), source_object.key)
+                raise SyncedFileInColdStorageError(
+                    f'Requested file {source_object.key} is currently in AWS Glacier Storage, '
+                    f'an request has been made to restore the file.'
+                )
+            # if object cannot be copied because restore is already in progress raise
+            # SyncedFileInColdStorageError and wait a while longer
+            elif e.response['Error']['Code'] == 'RestoreAlreadyInProgress':
+                LOG.info(_('Glacier Storage restore for %s is in progress.'), source_object.key)
+                raise SyncedFileInColdStorageError(
+                    f'Requested file {source_object.key} has not yet been restored from AWS Glacier Storage.'
+                )
+            raise e
 
     def sync_bucket(self, account, s3_destination_bucket_name, date_range):
         """
