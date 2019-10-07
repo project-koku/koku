@@ -317,27 +317,26 @@ class ProviderSerializer(serializers.ModelSerializer):
         data_source = billing_source.get('data_source')
         bucket = billing_source.get('bucket')
 
-
         if credentials and data_source and provider_type not in ['AWS', 'OCP']:
             interface.cost_usage_source_ready(credentials, data_source)
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
+        ProviderAuthentication.objects.filter(
+            id=instance.authentication.id
+        ).update(**authentication)
+
+        ProviderBillingSource.objects.filter(
+            id=instance.billing_source.id
+        ).update(**billing_source)
+
         bill = ProviderBillingSource.objects.get(id=instance.billing_source.id)
         auth = ProviderAuthentication.objects.get(id=instance.authentication.id)
-
-        for key, value in credentials.items():
-            if getattr(auth, key) != value:
-                setattr(auth, key, value)
-
-        for key, value in data_source.items():
-            if getattr(bill, key) != value:
-                setattr(bill, key, value)
 
         # We can re-use a billing source or a auth, but not the same combination.
         unique_count = Provider.objects.filter(authentication=auth)\
             .filter(billing_source=bill).count()
-        if unique_count != 0:
+        if unique_count == 1:
             existing_provider = Provider.objects.filter(authentication=auth)\
                 .filter(billing_source=bill).first()
             if existing_provider.type in ('AWS', 'OCP'):
@@ -351,7 +350,7 @@ class ProviderSerializer(serializers.ModelSerializer):
                 source_obj = source_query.first()
                 source_obj.koku_uuid = existing_provider.uuid
                 source_obj.save()
-                return existing_provider
+        else:
             error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
             raise serializers.ValidationError(error)
 
