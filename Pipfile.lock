@@ -137,10 +137,10 @@
         },
         "azure-mgmt-applicationinsights": {
             "hashes": [
-                "sha256:929c30559692c77d424ca36f11e98f066c98e7eb7b742c44beadc082715f19df",
-                "sha256:f10229eb9e3e9d0ad20188b8d14d67055e86f3815b43b75eedf96b654bee2a9b"
+                "sha256:be93e94c82f3b1cc72d60a3b0ca2cc5fd663929f612b0facc36332dc3114e424",
+                "sha256:e536a8b7aefa136ebbbf0ca3354b0bea53a42f5c4f5e8fa538c087eaf7d1a6c2"
             ],
-            "version": "==0.1.1"
+            "version": "==0.2.0"
         },
         "azure-mgmt-authorization": {
             "hashes": [
