@@ -84,6 +84,26 @@ class SourcesKafkaMsgHandlerTest(TestCase):
             self.assertEqual(Sources.objects.filter(source_id=source_id).exists(), False)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_execute_koku_provider_op_update(self):
+        """Test to execute Koku Operations to sync with Sources for destruction."""
+        source_id = 1
+        auth_header = Config.SOURCES_FAKE_HEADER
+        offset = 2
+        mock_koku_uuid = faker.uuid4()
+
+        provider = Sources(source_id=source_id, auth_header=auth_header, offset=offset, koku_uuid=mock_koku_uuid,
+                           pending_update=True)
+        provider.save()
+
+        with requests_mock.mock() as m:
+            m.put(f'http://www.koku.com/api/cost-management/v1/providers/{mock_koku_uuid}/',
+                  status_code=200, json={})
+            msg = {'operation': 'update', 'provider': provider, 'offset': provider.offset}
+            source_integration.execute_koku_provider_op(msg)
+            response = Sources.objects.get(source_id=source_id)
+            self.assertEquals(response.pending_update, False)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
     def test_execute_koku_provider_op_destroy_recoverable_error(self):
         """Test to execute Koku Operations to sync with Sources with recoverable error."""
         source_id = 1
@@ -160,34 +180,39 @@ class SourcesKafkaMsgHandlerTest(TestCase):
     def test_get_sources_msg_authentication(self):
         """Test to get sources details from msg for Authentication.create event."""
         test_topic = 'platform.sources.event-stream'
-        test_event_type = 'Authentication.create'
+        authentication_events = ['Authentication.create', 'Authentication.update']
         test_offset = 5
         cost_management_app_type = 2
         test_auth_header = 'testheader'
         test_value = '{"id":1,"resource_id":1,"resource_type": "Endpoint"}'
 
-        msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=test_event_type,
-                             auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
+        for event in authentication_events:
+            msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=event,
+                                 auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
 
-        response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-        self.assertEqual(response.get('event_type'), test_event_type)
-        self.assertEqual(response.get('resource_id'), 1)
-        self.assertEqual(response.get('auth_header'), test_auth_header)
+            response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
+            self.assertEqual(response.get('event_type'), event)
+            self.assertEqual(response.get('resource_id'), 1)
+            self.assertEqual(response.get('auth_header'), test_auth_header)
 
     def test_get_sources_msg_data_other(self):
         """Test to get sources details from other message."""
         test_topic = 'platform.sources.event-stream'
-        test_event_type = 'Source.create'
         test_offset = 5
         cost_management_app_type = 2
         test_auth_header = 'testheader'
         test_value = '{"id":1,"source_id":1,"application_type_id":2}'
+        source_events = [{'event': 'Source.create', 'expected_response': {}},
+                         {'event': 'Source.update',
+                          'expected_response': {'source_id': 1, 'offset': test_offset,
+                                                'event_type': 'Source.update',
+                                                'auth_header': test_auth_header}}]
+        for test in source_events:
+            msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=test.get('event'),
+                                 auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
 
-        msg = ConsumerRecord(topic=test_topic, offset=test_offset, event_type=test_event_type,
-                             auth_header=test_auth_header, value=bytes(test_value, encoding='utf-8'))
-
-        response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
-        self.assertEqual(response, {})
+            response = source_integration.get_sources_msg_data(msg, cost_management_app_type)
+            self.assertEqual(response, test.get('expected_response'))
 
     def test_get_sources_msg_data_other_app_type(self):
         """Test to get sources details from Application.create event type for a non-Cost Management app."""

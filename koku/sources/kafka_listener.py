@@ -41,6 +41,8 @@ PROCESS_QUEUE = asyncio.Queue(loop=EVENT_LOOP)
 KAFKA_APPLICATION_CREATE = 'Application.create'
 KAFKA_APPLICATION_DESTROY = 'Application.destroy'
 KAFKA_AUTHENTICATION_CREATE = 'Authentication.create'
+KAFKA_AUTHENTICATION_UPDATE = 'Authentication.update'
+KAFKA_SOURCE_UPDATE = 'Source.update'
 KAFKA_SOURCE_DESTROY = 'Source.destroy'
 KAFKA_HDR_RH_IDENTITY = 'x-rh-identity'
 KAFKA_HDR_EVENT_TYPE = 'event_type'
@@ -66,11 +68,12 @@ def _extract_from_header(headers, header_type):
 
 
 def _collect_pending_items():
-    """Gather all sources to create or delete."""
+    """Gather all sources to create update, or delete."""
     create_events = storage.load_providers_to_create()
+    update_events = storage.load_providers_to_update()
     destroy_events = storage.load_providers_to_delete()
-    pending_events = create_events + destroy_events
-    pending_events.sort(key=lambda item: item.get('offset'))
+    pending_events = create_events + update_events + destroy_events
+
     return pending_events
 
 
@@ -96,6 +99,14 @@ def load_process_queue():
 @receiver(post_save, sender=Sources)
 def storage_callback(sender, instance, **kwargs):
     """Load Sources ready for Koku Synchronization when Sources table is updated."""
+    update_fields = kwargs.get('update_fields', ())
+    if update_fields and 'pending_update' in update_fields:
+        if instance.koku_uuid and instance.pending_update and not instance.pending_delete:
+            PROCESS_QUEUE.put_nowait({'operation': 'update', 'provider': instance})
+
+    if instance.pending_delete:
+        PROCESS_QUEUE.put_nowait({'operation': 'destroy', 'provider': instance})
+
     process_event = storage.screen_and_build_provider_sync_create_event(instance)
     if process_event:
         PROCESS_QUEUE.put_nowait(process_event)
@@ -127,13 +138,13 @@ def get_sources_msg_data(msg, app_type_id):
                     msg_data['offset'] = msg.offset
                     msg_data['source_id'] = int(value.get('source_id'))
                     msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
-            elif event_type in (KAFKA_AUTHENTICATION_CREATE, ):
+            elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
                 LOG.debug('Authentication Message: %s', str(msg))
                 if value.get('resource_type') == 'Endpoint':
                     msg_data['event_type'] = event_type
                     msg_data['resource_id'] = int(value.get('resource_id'))
                     msg_data['auth_header'] = _extract_from_header(msg.headers, KAFKA_HDR_RH_IDENTITY)
-            elif event_type in (KAFKA_SOURCE_DESTROY, ):
+            elif event_type in (KAFKA_SOURCE_DESTROY, KAFKA_SOURCE_UPDATE):
                 LOG.debug('Source Message: %s', str(msg))
                 msg_data['event_type'] = event_type
                 msg_data['offset'] = msg.offset
@@ -257,7 +268,7 @@ def sources_network_info(source_id, auth_header):
     save_auth_info(auth_header, source_id)
 
 
-async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no cover
+async def process_messages(msg_pending_queue):  # pragma: no cover
     """
     Process messages from Platform-Sources kafka service.
 
@@ -270,10 +281,7 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
 
     Args:
         msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
-        in_progress_queue (Asyncio queue): Queue for filtered cost management messages awaiting
-            Koku-Provider synchronization.
-        application_source_id (Integer): Cost Management's current Application Source ID. Used for
-            kafka message filtering.
+
 
     Returns:
         None
@@ -284,7 +292,7 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
         msg_data = await msg_pending_queue.get()
 
         LOG.info(f'Processing Event: {str(msg_data)}')
-        if msg_data.get('event_type') == KAFKA_APPLICATION_CREATE:
+        if msg_data.get('event_type') in (KAFKA_APPLICATION_CREATE, KAFKA_SOURCE_UPDATE):
             storage.create_provider_event(msg_data.get('source_id'),
                                           msg_data.get('auth_header'),
                                           msg_data.get('offset'))
@@ -292,13 +300,17 @@ async def process_messages(msg_pending_queue, in_progress_queue):  # pragma: no 
                 await EVENT_LOOP.run_in_executor(pool, sources_network_info,
                                                  msg_data.get('source_id'),
                                                  msg_data.get('auth_header'))
-        elif msg_data.get('event_type') == KAFKA_AUTHENTICATION_CREATE:
+        elif msg_data.get('event_type') in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 await EVENT_LOOP.run_in_executor(pool, sources_network_auth_info,
                                                  msg_data.get('resource_id'),
                                                  msg_data.get('auth_header'))
+                msg_data['source_id'] = storage.get_source_from_endpoint(msg_data.get('resource_id'))
         elif msg_data.get('event_type') in (KAFKA_APPLICATION_DESTROY, KAFKA_SOURCE_DESTROY):
-            await storage.enqueue_source_delete(in_progress_queue, msg_data.get('source_id'))
+            storage.enqueue_source_delete(msg_data.get('source_id'))
+
+        if msg_data.get('event_type') in (KAFKA_SOURCE_UPDATE, KAFKA_AUTHENTICATION_UPDATE):
+            storage.enqueue_source_update(msg_data.get('source_id'))
 
 
 async def listen_for_messages(consumer, application_source_id, msg_pending_queue):  # pragma: no cover
@@ -307,6 +319,8 @@ async def listen_for_messages(consumer, application_source_id, msg_pending_queue
 
     Args:
         consumer (AIOKafkaConsumer): Kafka consumer object
+        application_source_id (Integer): Cost Management's current Application Source ID. Used for
+            kafka message filtering.
         msg_pending_queue (Asyncio queue): Queue to hold kafka messages to be filtered
 
     Returns:
@@ -363,6 +377,12 @@ def execute_koku_provider_op(msg):
                 response = koku_client.destroy_provider(provider.koku_uuid)
                 LOG.info(f'Koku Provider UUID ({provider.koku_uuid}) Removal Status Code: {str(response.status_code)}')
             storage.destroy_provider_event(provider.source_id)
+        elif operation == 'update':
+            koku_details = koku_client.update_provider(provider.koku_uuid, provider.name, provider.source_type,
+                                                       provider.authentication, provider.billing_source)
+            storage.clear_update_flag(provider.source_id)
+            LOG.info(f'Koku Provider UUID {koku_details.get("uuid")} with Source ID {str(provider.source_id)} updated.')
+
     except KokuHTTPClientError as koku_error:
         raise SourcesIntegrationError('Koku provider error: ', str(koku_error))
     except KokuHTTPClientNonRecoverableError as koku_error:
@@ -441,7 +461,7 @@ def asyncio_sources_thread(event_loop):  # pragma: no cover
         load_process_queue()
         while True:
             event_loop.create_task(listen_for_messages(consumer, cost_management_type_id, PENDING_PROCESS_QUEUE))
-            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE, PROCESS_QUEUE))
+            event_loop.create_task(process_messages(PENDING_PROCESS_QUEUE))
             event_loop.create_task(synchronize_sources(PROCESS_QUEUE))
             event_loop.run_forever()
     except SourcesHTTPClientError as error:

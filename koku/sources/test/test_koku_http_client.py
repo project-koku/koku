@@ -104,6 +104,65 @@ class KokuHTTPClientTest(TestCase):
             with self.assertRaises(KokuHTTPClientError):
                 client.destroy_provider(expected_uuid)
 
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_destroy_provider_not_found_error(self):
+        """Test to destroy a provider with a koku server not found error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.delete(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                     status_code=404, json={})
+            with self.assertRaises(KokuHTTPClientNonRecoverableError):
+                client.destroy_provider(expected_uuid)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_update_provider(self):
+        """Test to update a provider."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                  status_code=200, json={})
+            response = client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                                              {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
+            self.assertEqual(response, {})
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_update_provider_exception(self):
+        """Test to update a provider with a connection error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                  exc=requests.exceptions.RequestException)
+            with self.assertRaises(KokuHTTPClientError):
+                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                                       {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_update_provider_error(self):
+        """Test to update a provider with a koku server error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                  status_code=400, json={})
+            with self.assertRaises(KokuHTTPClientError):
+                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                                       {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_update_provider_not_found_error(self):
+        """Test to update a provider with a koku server not found error."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        expected_uuid = faker.uuid4()
+        with requests_mock.mock() as m:
+            m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
+                  status_code=404, json={})
+            with self.assertRaises(KokuHTTPClientNonRecoverableError):
+                client.update_provider(expected_uuid, 'Aws Test', 'AWS',
+                                       {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
+
     def test_get_authentication_for_provider(self):
         """Test to build Koku Provider authentication json obj."""
         test_matrix = [{'provider_type': 'AWS', 'authentication': {'resource_name': 'arn:fake'},
