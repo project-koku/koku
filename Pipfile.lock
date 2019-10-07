@@ -300,10 +300,10 @@
         },
         "azure-mgmt-eventgrid": {
             "hashes": [
-                "sha256:824503b668137affa5b3782c6348c0bb6ab012c72fe47a3be9942c5639f82f8a",
-                "sha256:9518e9d7e60ab90a7d18ae6a3f0049ca57588f8f9583ab40d442c2a5387cf94e"
+                "sha256:c62058923ed20db35b04491cd1ad6a692f337244d05c377ecc14a53c06651cc3",
+                "sha256:e370cb7402206ba6f5cb611130835ecf6d4ca52c647766afdfae9e928dfea7e0"
             ],
-            "version": "==1.0.0"
+            "version": "==2.2.0"
         },
         "azure-mgmt-eventhub": {
             "hashes": [
