@@ -32,6 +32,7 @@ from api.provider.models import (Provider,
 
 PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
 
+
 def error_obj(key, message):
     """Create an error object."""
     error = {

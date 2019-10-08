@@ -367,13 +367,12 @@ class ProviderSerializerTest(IamTestCase):
                     'billing_source': {
                         'bucket': bucket_name
                     }}
-        instance = None
 
         with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
             with self.assertRaises(ValidationError):
                 serializer = ProviderSerializer(data=provider, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
-                    instance = serializer.save()
+                    serializer.save()
 
 
 class AdminProviderSerializerTest(IamTestCase):
