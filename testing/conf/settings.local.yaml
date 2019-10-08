@@ -1,0 +1,16 @@
+local:
+  hccm:
+    masu:
+      path: api/cost-management/v1
+      port: 8000
+      hostname: masu-server
+      scheme: http
+  main:
+    ocp_dir: /testing/local_providers/insights_local
+    aws_dir: /testing/local_providers/aws_local
+    hostname: koku-server:8000
+    scheme: http
+    username: user_dev@foo.com
+    password: password
+  http:
+    default_auth_type: basic
