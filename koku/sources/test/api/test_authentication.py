@@ -43,34 +43,33 @@ class AuthenticationSourceTests(TestCase):
     def test_post_authentications(self):
         """Test the POST authentication endpoint."""
         subscription_id = {'subscription_id': 'test-subscription-id'}
-
-        params = {
-            'source_id': 1,
-            'credentials': subscription_id
-        }
         test_name = 'Azure Test'
+        test_source_id = 1
+        test_matrix = [{'source_id': test_source_id, 'credentials': subscription_id},
+                       {'source_name': test_name, 'credentials': subscription_id}]
 
-        credential_dict = {'credentials': {'client_id': 'test_client',
-                                           'tenant_id': 'test_tenant',
-                                           'client_secret': 'test_secret'}}
-        azure_obj = Sources(source_id=self.test_source_id,
-                            auth_header=self.test_header,
-                            offset=self.test_offset,
-                            source_type='AZURE',
-                            name=test_name,
-                            authentication=credential_dict,
-                            billing_source={'data_source': {'resource_group': 'RG1',
-                                                            'storage_account': 'test_storage'}})
-        azure_obj.save()
+        for params in test_matrix:
+            credential_dict = {'credentials': {'client_id': 'test_client',
+                                               'tenant_id': 'test_tenant',
+                                               'client_secret': 'test_secret'}}
+            azure_obj = Sources(source_id=self.test_source_id,
+                                auth_header=self.test_header,
+                                offset=self.test_offset,
+                                source_type='AZURE',
+                                name=test_name,
+                                authentication=credential_dict,
+                                billing_source={'data_source': {'resource_group': 'RG1',
+                                                                'storage_account': 'test_storage'}})
+            azure_obj.save()
 
-        response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
-        body = response.json()
+            response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
+            body = response.json()
 
-        self.assertEqual(response.status_code, 201)
-        self.assertIn(str(subscription_id), str(body))
-        expected_authentication = credential_dict
-        expected_authentication['credentials']['subscription_id'] = subscription_id.get('subscription_id')
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).authentication, expected_authentication)
+            self.assertEqual(response.status_code, 201)
+            self.assertIn(str(subscription_id), str(body))
+            expected_authentication = credential_dict
+            expected_authentication['credentials']['subscription_id'] = subscription_id.get('subscription_id')
+            self.assertEqual(Sources.objects.get(source_id=self.test_source_id).authentication, expected_authentication)
 
     def test_post_authentications_non_azure(self):
         """Test the POT authentication endpoint for a non-Azure provider."""
@@ -98,7 +97,7 @@ class AuthenticationSourceTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(str('Source is not AZURE'), str(body))
 
-    def test_post_authentications_malformed_json(self):
+    def test_post_authentications_subscription_key_error(self):
         """Test the POT authentication endpoint for a Azure provider with bad json data."""
         subscription_id = {'not-subscription': 'test-subscription-id'}
 
@@ -126,3 +125,32 @@ class AuthenticationSourceTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn(str('Subscription ID not found'), str(body))
+
+    def test_post_authentications_malformed_json(self):
+        """Test the POT authentication endpoint for a Azure provider with bad json data."""
+        subscription_id = {'subscription_id': 'test-subscription-id'}
+
+        params = {
+            'source_id': 1,
+            'missing': subscription_id
+        }
+        test_name = 'Azure Test'
+
+        credential_dict = {'credentials': {'client_id': 'test_client',
+                                           'tenant_id': 'test_tenant',
+                                           'client_secret': 'test_secret'}}
+        azure_obj = Sources(source_id=self.test_source_id,
+                            auth_header=self.test_header,
+                            offset=self.test_offset,
+                            source_type='AZURE',
+                            name=test_name,
+                            authentication=credential_dict,
+                            billing_source={'data_source': {'resource_group': 'RG1',
+                                                            'storage_account': 'test_storage'}})
+        azure_obj.save()
+
+        response = self.client.post(reverse('authentication'), json.dumps(params), content_type='application/json')
+        body = response.json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(str('Malformed JSON data.'), str(body))
