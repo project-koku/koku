@@ -30,6 +30,7 @@ from api.provider.models import (Provider,
                                  ProviderBillingSource,
                                  Sources)
 
+PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
 
 def error_obj(key, message):
     """Create an error object."""
@@ -203,6 +204,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider_type = None
         if data and data != empty:
             provider_type = data.get('type')
+
+        if provider_type and provider_type.lower() not in PROVIDER_CHOICE_LIST:
+            key = 'type'
+            message = f'{provider_type} is not a valid source type.'
+            raise serializers.ValidationError(error_obj(key, message))
 
         if provider_type:
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(provider_type)()

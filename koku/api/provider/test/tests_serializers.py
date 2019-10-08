@@ -355,6 +355,26 @@ class ProviderSerializerTest(IamTestCase):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
 
+    def test_create_provider_invalid_type(self):
+        """Test that an invalid provider type is not validated."""
+        iam_arn = 'arn:aws:s3:::my_s3_bucket'
+        bucket_name = 'my_s3_bucket'
+        provider = {'name': 'test_provider',
+                    'type': 'Bad',
+                    'authentication': {
+                        'provider_resource_name': iam_arn
+                    },
+                    'billing_source': {
+                        'bucket': bucket_name
+                    }}
+        instance = None
+
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            with self.assertRaises(ValidationError):
+                serializer = ProviderSerializer(data=provider, context=self.request_context)
+                if serializer.is_valid(raise_exception=True):
+                    instance = serializer.save()
+
 
 class AdminProviderSerializerTest(IamTestCase):
     """Tests for the admin customer serializer."""
