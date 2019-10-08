@@ -35,12 +35,14 @@ DELETE FROM {schema}.reporting_ocpusagelineitem_daily_summary
 WHERE usage_start >= '{start_date}'
     AND usage_start <= '{end_date}'
     AND cluster_id = '{cluster_id}'
+    AND data_source = 'Pod'
 ;
 
 -- Populate the daily aggregate line item data
 INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
     cluster_id,
     cluster_alias,
+    data_source,
     namespace,
     pod,
     node,
@@ -65,6 +67,7 @@ INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
 )
     SELECT cluster_id,
         cluster_alias,
+        'Pod',
         namespace,
         pod,
         node,

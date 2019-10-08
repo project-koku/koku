@@ -175,6 +175,9 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    # Whether the data comes from a pod or volume report
+    data_source = models.CharField(max_length=64, null=True)
+
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
