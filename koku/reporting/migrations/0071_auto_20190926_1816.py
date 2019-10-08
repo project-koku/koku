@@ -101,6 +101,13 @@ class Migration(migrations.Migration):
             """
             INSERT INTO reporting_ocpusagelineitem_daily_summary
                 (data_source,
+                 cluster_id,
+                 cluster_alias,
+                 namespace,
+                 pod,
+                 node,
+                 usage_start,
+                 usage_end,
                  persistentvolumeclaim,
                  persistentvolume,
                  storageclass,
@@ -112,6 +119,13 @@ class Migration(migrations.Migration):
                  persistentvolumeclaim_charge_gb_month
                 )
                 SELECT 'Storage' as data_source,
+                    cluster_id,
+                    cluster_alias,
+                    namespace,
+                    pod,
+                    node,
+                    usage_start,
+                    usage_end,
                     persistentvolumeclaim,
                     persistentvolume,
                     storageclass,
