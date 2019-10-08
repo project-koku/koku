@@ -103,8 +103,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'}}
         query_params = FakeQueryParameters(params, report_type='cpu', tenant=self.tenant)
@@ -122,8 +122,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Add data for a second cluster
         OCPReportDataGenerator(self.tenant).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'cluster': ['*']}}
@@ -585,7 +585,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                              'time_scope_units': 'month',
                              'limit': 3},
                   'group_by': {'cluster': ['*']}}
-        query_params = FakeQueryParameters(params, report_type='cpu')
+        query_params = FakeQueryParameters(params, report_type='cpu', tenant=self.tenant)
         handler = OCPReportQueryHandler(query_params.mock_qp)
 
         query_data = handler.execute_query()
@@ -599,39 +599,3 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIn('cluster_alias', cluster_value)
                     self.assertIsNotNone('cluster', cluster_value)
                     self.assertIsNotNone('cluster_alias', cluster_value)
-
-    def test_execute_query_with_tag_filter(self):
-        """Test that data is filtered by tag key."""
-        # '?'
-        handler = OCPTagQueryHandler(FakeQueryParameters(tenant=self.tenant).mock_qp)
-        tag_keys = handler.get_tag_keys(filters=False)
-        filter_key = tag_keys[0]
-        tag_keys = ['tag:' + tag for tag in tag_keys]
-
-        with tenant_context(self.tenant):
-            labels = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
-                .filter(tags__has_key=filter_key)\
-                .values(*['tags'])\
-                .all()
-            label_of_interest = labels[0]
-            filter_value = label_of_interest.get('tags', {}).get(filter_key)
-
-            totals = OCPUsageLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
-                .filter(**{f'tags__{filter_key}': filter_value})\
-                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
-
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:some_key]=some_value'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month',
-                             f'tag:{filter_key}': [filter_value]}}
-        query_params = FakeQueryParameters(params, tag_keys=tag_keys, tenant=self.tenant)
-        handler = OCPReportQueryHandler(query_params.mock_qp)
-
-        data = handler.execute_query()
-        data_totals = data.get('total', {})
-        for key in totals:
-            result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])

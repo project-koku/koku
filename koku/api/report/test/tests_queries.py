@@ -1501,3 +1501,48 @@ class ReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_tag_filter(self):
+        """Test that data is filtered by tag key."""
+        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        handler = AWSTagQueryHandler(query_params.mock_qp)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            labels = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(tags__has_key=filter_key)\
+                .values(*['tags'])\
+                .all()
+            label_of_interest = labels[0]
+            filter_value = label_of_interest.get('tags', {}).get(filter_key)
+
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{f'tags__{filter_key}': filter_value})\
+                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+
+        query_params = {
+            'filter': {
+                'resolution': 'monthly',
+                'time_scope_value': -1,
+                'time_scope_units': 'month',
+                f'tag:{filter_key}': [filter_value]
+            }
+        }
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             f'tag:{filter_key}': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
+
