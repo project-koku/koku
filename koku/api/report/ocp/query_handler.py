@@ -44,6 +44,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
+
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
         if (group_by and 'project' in group_by
@@ -52,8 +56,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             self._report_type = parameters.report_type + '_by_project'
             self._mapper = OCPProviderMap(provider=self.provider,
                                           report_type=parameters.report_type)
-
-        super().__init__(parameters)
 
     @property
     def annotations(self):
@@ -157,7 +159,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self._accept_type and 'text/csv' in self.parameters.accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,
@@ -206,7 +208,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     self.order_direction
                 )()
             )
-        elif self.query_parameters.get('order_by', default_ordering):
+        elif self.parameters.get('order_by', default_ordering):
             rank_orders.append(
                 getattr(F(self.order_field), self.order_direction)()
             )

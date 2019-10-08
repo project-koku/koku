@@ -264,14 +264,10 @@ class ReportViewTest(IamTestCase):
     def test_awsreportview_with_units_success(self, mock_handler):
         """Test unit conversion succeeds in aws report."""
         mock_handler.return_value.execute_query.return_value = self.report
-        params = {
-            'group_by[account]': '*',
-            'filter[resolution]': 'monthly',
-            'filter[time_scope_value]': '-1',
-            'filter[time_scope_units]': 'month',
-            'units': 'byte',
-            'SERVER_NAME': ''
-        }
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']}}
         user = User.objects.get(
             username=self.user_data['username']
         )

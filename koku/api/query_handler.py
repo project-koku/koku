@@ -62,7 +62,6 @@ class QueryHandler:
         LOG.debug(f'Query Params: {parameters}')
 
         self.tenant = parameters.tenant
-        self.accept_type = parameters.accept_type
         self.access = parameters.access
 
         self.default_ordering = self._mapper._report_type_map.get('default_ordering')

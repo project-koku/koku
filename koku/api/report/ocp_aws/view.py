@@ -59,12 +59,10 @@ class OCPAWSCostView(OCPAWSView):
 
     """
 
-    permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
     report = 'costs'
-    provider = 'ocp_aws'
 
 
-class OCPAWSStorageView(ReportView):
+class OCPAWSStorageView(OCPAWSView):
     """Get OpenShift on AWS storage usage data.
 
     @api {get} /cost-management/v1/reports/openshift/infrastructures/aws/storage/ Get OpenShift on AWS storage usage.

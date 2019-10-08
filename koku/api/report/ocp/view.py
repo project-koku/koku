@@ -365,7 +365,7 @@ class OCPCostView(OCPView):
     """
 
     report = 'costs'
-    _serializer = OCPCostQueryParamSerializer
+    serializer = OCPCostQueryParamSerializer
 
 
 class OCPVolumeView(OCPView):

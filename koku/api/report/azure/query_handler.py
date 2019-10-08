@@ -50,6 +50,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
         self._limit = parameters.get_filter('limit')
 
+        # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
     @property
@@ -165,7 +166,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,

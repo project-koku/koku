@@ -16,6 +16,7 @@
 #
 """Test the QueryParameters."""
 
+import logging
 import random
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -31,6 +32,8 @@ from api.models import Tenant, User
 from api.query_params import QueryParameters, VALID_PROVIDERS, get_tenant
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
+
+LOG = logging.getLogger(__name__)
 
 
 class QueryParametersTests(TestCase):
@@ -396,7 +399,8 @@ class QueryParametersTests(TestCase):
 
     def test_access_empty_intersection(self):
         """Test that a group by cluster filtered list causes 403 with empty intersection."""
-        fake_uri = 'group_by[cluster]=[cluster1,cluster3]'
+        fake_uri = ('group_by[cluster]=cluster1&'
+                    'group_by[cluster]=cluster3')
         test_access = {'openshift.cluster': {'read': ['cluster4', 'cluster2']}}
         fake_request = Mock(spec=HttpRequest,
                             user=Mock(access=test_access,
@@ -404,7 +408,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='OPENSHIFT'),
+                         query_handler=Mock(provider='OCP'),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -458,7 +462,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider='OPENSHIFT'),
+                         query_handler=Mock(provider='OCP'),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])

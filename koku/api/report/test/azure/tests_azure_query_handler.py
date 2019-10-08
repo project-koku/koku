@@ -50,13 +50,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.generator = AzureReportDataGenerator(self.tenant)
         self.generator.add_data_to_tenant()
 
-    def get_totals_by_time_scope(self, aggregates, filter=None):
+    def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
-        if filter is None:
-            filter = self.ten_day_filter
+        if filters is None:
+            filters = self.ten_day_filter
         with tenant_context(self.tenant):
             return AzureCostEntryLineItemDailySummary.objects\
-                .filter(**filter)\
+                .filter(**filters)\
                 .aggregate(**aggregates)
 
     def get_totals_costs_by_time_scope(self, aggregates, filters=None):
@@ -73,7 +73,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for _ in range(0, 3):
             AzureReportDataGenerator(self.tenant, config=self.generator.config).add_data_to_tenant()
 
-        # '?
+        # '?'
         query_params = FakeQueryParameters({}, report_type='instance_type', tenant=self.tenant)
         handler = AzureReportQueryHandler(query_params.mock_qp)
 

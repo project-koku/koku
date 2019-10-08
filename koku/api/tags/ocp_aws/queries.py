@@ -26,3 +26,4 @@ class OCPAWSTagQueryHandler(AWSTagQueryHandler, OCPTagQueryHandler):
 
     data_sources = [{'db_table': OCPAWSCostLineItemDailySummary,
                      'db_column': 'tags'}]
+    provider = 'OCP_AWS'

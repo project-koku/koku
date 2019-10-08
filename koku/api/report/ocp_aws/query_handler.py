@@ -40,7 +40,11 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
         self._mapper = OCPAWSProviderMap(provider=self.provider,
                                          report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self._limit = self.parameters.get_filter('limit')
+        self._limit = parameters.get_filter('limit')
+
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
@@ -49,8 +53,6 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             self._report_type = parameters.report_type + '_by_project'
             self._mapper = OCPAWSProviderMap(provider=self.provider,
                                              report_type=parameters.report_type)
-
-        super().__init__(parameters)
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -101,7 +103,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self._accept_type and 'text/csv' in self.parameters.accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,

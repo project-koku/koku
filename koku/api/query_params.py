@@ -29,9 +29,8 @@ from tenant_schemas.utils import tenant_context
 from api.models import Tenant, User
 from api.report.queries import ReportQueryHandler
 
-logging.disable(0)
 LOG = logging.getLogger(__name__)
-VALID_PROVIDERS = ['AWS', 'AZURE', 'OPENSHIFT']
+VALID_PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
 
 
 class QueryParameters:
@@ -69,8 +68,9 @@ class QueryParameters:
 
         self._validate()   # sets self.parameters
 
-        if 'filter' not in self.parameters:
-            self.parameters['filter'] = OrderedDict()
+        for item in ['filter', 'group_by', 'order_by']:
+            if item not in self.parameters:
+                self.parameters[item] = OrderedDict()
 
         # configure access params.
         for prov in VALID_PROVIDERS:
@@ -124,7 +124,9 @@ class QueryParameters:
 
     def _set_access(self, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
-        access_list = self.access.get(access_key, {}).get('read', [])
+        access_list = []
+        if self.access:
+            access_list = self.access.get(access_key, {}).get('read', [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
             return
@@ -155,12 +157,17 @@ class QueryParameters:
         """Alter query parameters based on user access."""
         self._set_access('subscription_guid', 'azure.subscription_guid')
 
-    def _set_access_openshift(self):
+    def _set_access_ocp(self):
         """Alter query parameters based on user access."""
         params = [('cluster', True), ('node', False), ('project', False)]
         for name, exc in params:
             self._set_access(name, f'openshift.{name}',
                              raise_exception=exc)
+
+    def _set_access_ocp_aws(self):
+        """Alter query parameters based on user access."""
+        self._set_access_aws()
+        self._set_access_ocp()
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
@@ -262,16 +269,18 @@ class QueryParameters:
         return self.request.user
 
     def get(self, item, default=None):
-        """Get parameter data."""
-        return self.parameters.get(item, default)
+        """Get parameter data, return default if param value is None or empty."""
+        if self.parameters.get(item):
+            return self.parameters.get(item, default)
+        return default
 
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
-        return self.get('filter').get(filt, default)
+        return self.get('filter', OrderedDict()).get(filt, default)
 
     def get_group_by(self, key, default=None):
         """Get a group_by parameter key."""
-        return self.get('group_by').get(key, default)
+        return self.get('group_by', OrderedDict()).get(key, default)
 
     def set(self, key, value):
         """Set parameter data."""

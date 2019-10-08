@@ -36,5 +36,5 @@ class AWSTagQueryHandler(TagQueryHandler):
         """
         self._mapper = AWSProviderMap(provider=self.provider,
                                       report_type=parameters.report_type)
-        # FIXME: super() needs to be called after _mapper is set
+        # super() needs to be called after _mapper is set
         super().__init__(parameters)

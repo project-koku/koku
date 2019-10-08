@@ -49,14 +49,8 @@ class ReportQueryHandler(QueryHandler):
 
         """
         LOG.debug(f'Query Params: {parameters}')
-
-        # FIXME: ReportQueryHandler needs super() called first, but child classes need to call
-        # super() last due to intialization ordering issues.
         super().__init__(parameters)
 
-        self._accept_type = None
-        self._group_by = None
-        self._access = {}
         self._tag_keys = parameters.tag_keys
 
         self._delta = parameters.delta

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """OCP Tag Query Handling."""
+from api.report.ocp.provider_map import OCPProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import OCPStorageLineItemDailySummary
 from reporting.models import OCPUsageLineItemDailySummary
@@ -29,3 +30,16 @@ class OCPTagQueryHandler(TagQueryHandler):
                     {'db_table': OCPStorageLineItemDailySummary,
                      'db_column': 'volume_labels',
                      'type': 'storage'}]
+    provider = 'OCP'
+
+    def __init__(self, parameters):
+        """Establish AWS report query handler.
+
+        Args:
+            parameters    (QueryParameters): parameter object for query
+
+        """
+        self._mapper = OCPProviderMap(provider=self.provider,
+                                      report_type=parameters.report_type)
+        # super() needs to be called after _mapper is set
+        super().__init__(parameters)

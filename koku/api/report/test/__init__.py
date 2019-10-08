@@ -422,7 +422,9 @@ class FakeQueryParameters:
         defaults = [('report_type', 'costs'),
                     ('tag_keys', []),
                     ('delta', None),
-                    ('url_data', urlencode(parameters))]
+                    ('url_data', urlencode(parameters)),
+                    ('accept_type', []),
+                    ('access', {}), ]
         parameters.update(kwargs)
 
         for key, val in defaults:
