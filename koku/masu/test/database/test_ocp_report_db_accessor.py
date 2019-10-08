@@ -18,6 +18,7 @@
 """Test the OCPReportDBAccessor utility object."""
 import decimal
 import random
+import string
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -64,8 +65,20 @@ class OCPReportDBAccessorTest(MasuTestCase):
             provider_id=self.ocp_provider_id, cluster_id=self.cluster_id
         )
         self.report = self.creator.create_ocp_report(self.reporting_period)
-        self.creator.create_ocp_usage_line_item(self.reporting_period, self.report)
-        self.creator.create_ocp_storage_line_item(self.reporting_period, self.report)
+        pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+        namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+        self.creator.create_ocp_usage_line_item(
+            self.reporting_period,
+            self.report,
+            pod=pod,
+            namespace=namespace
+        )
+        self.creator.create_ocp_storage_line_item(
+            self.reporting_period,
+            self.report,
+            pod=pod,
+            namespace=namespace
+        )
 
     def _populate_storage_summary(self):
         """Generate storage summary data."""
@@ -73,8 +86,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
         report_table = getattr(self.accessor.report_schema, report_table_name)
         cluster_id = 'testcluster'
         for _ in range(25):
+            pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+            namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+            self.creator.create_ocp_usage_line_item(
+                self.reporting_period, self.report, pod=pod, namespace=namespace
+            )
             self.creator.create_ocp_storage_line_item(
-                self.reporting_period, self.report
+                self.reporting_period, self.report, pod=pod, namespace=namespace
             )
 
         with schema_context(self.schema):
@@ -86,6 +104,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        self.accessor.populate_line_item_daily_table(
+            start_date, end_date, cluster_id
+        )
 
         self.accessor.populate_storage_line_item_daily_table(
             start_date, end_date, cluster_id
@@ -625,7 +647,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).all()
+        reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Pod').all()
 
         expected_usage_reports = {
             entry.id: entry.pod_usage_cpu_core_hours for entry in reports
@@ -687,7 +709,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).all()
+        reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Pod').all()
 
         expected_usage_reports = {
             entry.id: entry.pod_usage_memory_gigabyte_hours for entry in reports
@@ -709,11 +731,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_volume_gigabyte_months(self, mock_vacuum):
         """Test that gets pod volume usage/request."""
         self._populate_storage_summary()
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
         reports = self.accessor._get_db_obj_query(table_name).filter(
-            cluster_id=self.cluster_id
+            cluster_id=self.cluster_id,
+            data_source='Storage'
         )
 
         expected_usage_reports = {
@@ -752,10 +775,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
     def test_get_volume_gigabyte_months_no_cluster_id(self, mock_vacuum):
         """Test that gets pod volume usage/request without cluster id."""
         self._populate_storage_summary()
-        table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+        table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).all()
+        reports = self.accessor._get_db_obj_query(table_name).filter(data_source='Storage').all()
 
         expected_usage_reports = {
             entry.id: entry.persistentvolumeclaim_usage_gigabyte_months
@@ -842,8 +865,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
         report_table = getattr(self.accessor.report_schema, report_table_name)
         cluster_id = 'testcluster'
         for _ in range(25):
+            pod = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+            namespace = ''.join(random.choice(string.ascii_lowercase) for _ in range(10))
+            self.creator.create_ocp_usage_line_item(
+                self.reporting_period,
+                self.report,
+                pod=pod,
+                namespace=namespace
+            )
             self.creator.create_ocp_storage_line_item(
-                self.reporting_period, self.report
+                self.reporting_period,
+                self.report,
+                pod=pod,
+                namespace=namespace
             )
 
         with schema_context(self.schema):
@@ -856,6 +890,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
+        self.accessor.populate_line_item_daily_table(
+            start_date, end_date, cluster_id
+        )
         self.accessor.populate_storage_line_item_daily_table(
             start_date, end_date, cluster_id
         )

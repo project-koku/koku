@@ -32,7 +32,6 @@ from api.utils import DateHelper
 from reporting.models import (CostSummary,
                               OCPStorageLineItem,
                               OCPStorageLineItemDaily,
-                              OCPStorageLineItemDailySummary,
                               OCPUsageLineItem,
                               OCPUsageLineItemDaily,
                               OCPUsageLineItemDailySummary,
@@ -179,7 +178,6 @@ class OCPReportDataGenerator:
                           OCPUsageLineItemDailySummary,
                           OCPStorageLineItem,
                           OCPStorageLineItemDaily,
-                          OCPStorageLineItemDailySummary,
                           OCPUsageReport,
                           OCPUsageReportPeriod):
                 table.objects.all().delete()
@@ -398,6 +396,7 @@ class OCPReportDataGenerator:
                 F('cluster_capacity_memory_byte_seconds') / 3600 * 2,
                 output_field=DecimalField()
             ) * math.pow(2, -30),
+            'data_source': Value('Pod', output_field=CharField())
         }
 
         entries = OCPUsageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
@@ -408,7 +407,7 @@ class OCPReportDataGenerator:
 
     def _populate_charge_info(self):
         """Populate the charge information in summary table."""
-        entries = OCPUsageLineItemDailySummary.objects.all()
+        entries = OCPUsageLineItemDailySummary.objects.filter(data_source='Pod').all()
         for entry in entries:
             mem_usage = entry.pod_usage_memory_gigabyte_hours
             mem_request = entry.pod_request_memory_gigabyte_hours
@@ -426,7 +425,7 @@ class OCPReportDataGenerator:
 
     def _populate_storage_charge_info(self):
         """Populate the storage charge information in summary table."""
-        entries = OCPStorageLineItemDailySummary.objects.all()
+        entries = OCPUsageLineItemDailySummary.objects.filter(data_source='Storage').all()
         for entry in entries:
             storage_usage = entry.persistentvolumeclaim_usage_gigabyte_months
             storage_request = entry.volume_request_storage_gigabyte_months
@@ -559,13 +558,14 @@ class OCPReportDataGenerator:
             'persistentvolumeclaim_usage_gigabyte_months': ExpressionWrapper(
                 F('persistentvolumeclaim_usage_byte_seconds') / 86400 * 30 * math.pow(2, -30),
                 output_field=DecimalField()
-            )
+            ),
+            'data_source': Value('Storage', output_field=CharField())
         }
 
         entries = OCPStorageLineItemDaily.objects.values(*included_fields).annotate(**annotations)
 
         for entry in entries:
-            summary = OCPStorageLineItemDailySummary(**entry)
+            summary = OCPUsageLineItemDailySummary(**entry)
             summary.save()
 
     def _populate_pod_label_summary_table(self):
@@ -589,7 +589,7 @@ class OCPReportDataGenerator:
             cursor.execute(raw_sql)
 
     def _populate_volume_claim_label_summary_table(self):
-        """Populate pod label key and values."""
+        """Populate volume claim label key and values."""
         raw_sql = """
             INSERT INTO reporting_ocpstoragevolumeclaimlabel_summary
             SELECT l.key,
@@ -609,7 +609,7 @@ class OCPReportDataGenerator:
             cursor.execute(raw_sql)
 
     def _populate_volume_label_summary_table(self):
-        """Populate pod label key and values."""
+        """Populate volume label key and values."""
         raw_sql = """
             INSERT INTO reporting_ocpstoragevolumelabel_summary
             SELECT l.key,
