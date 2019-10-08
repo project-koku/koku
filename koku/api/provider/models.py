@@ -51,13 +51,7 @@ class ProviderAuthentication(models.Model):
                 check=~models.Q(models.Q(provider_resource_name=None) \
                                 & models.Q(credentials={})),
                 name='credentials_and_resource_name_both_null'
-            ),
-            # NOT (provider_resource_name IS NOT NULL AND credentials IS NOT NULL)
-            CheckConstraint(
-                check=~models.Q(~models.Q(provider_resource_name=None) \
-                                & ~models.Q(credentials={})),
-                name='credentials_and_resource_name_both_not_null'
-            ),
+            )
         ]
 
 
@@ -87,13 +81,7 @@ class ProviderBillingSource(models.Model):
                 check=~models.Q(models.Q(bucket=None) \
                                 & models.Q(data_source={})),
                 name='bucket_and_data_source_both_null'
-            ),
-            # NOT (bucket IS NOT NULL or '' AND data_source IS NOT NULL)
-            CheckConstraint(
-                check=~models.Q(~(models.Q(bucket=None) | models.Q(bucket='')) \
-                                & ~models.Q(data_source={})),
-                name='bucket_and_data_source_both_not_null'
-            ),
+            )
         ]
 
 

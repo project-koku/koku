@@ -145,7 +145,7 @@ class KokuCustomerOnboarder:
         bucket = self.customer.get('providers')\
             .get(provider)\
             .get('billing_source')\
-            .get('bucket', '')
+            .get('bucket')
         data_source = self.customer.get('providers')\
             .get(provider)\
             .get('billing_source')\
@@ -204,6 +204,7 @@ class KokuCustomerOnboarder:
 
         cursor.execute(provider_sql, values)
         conn.commit()
+        conn.close()
 
 
     def create_providers_db(self):
