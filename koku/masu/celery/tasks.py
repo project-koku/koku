@@ -190,17 +190,6 @@ table_export_settings = [
     ),
     TableExportSetting(
         'ocp',
-        'reporting_ocpstoragelineitem_daily_summary',
-        True,
-        """
-        SELECT ds.*
-        FROM {schema}.reporting_ocpstoragelineitem_daily_summary ds
-        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
-            -- No need to filter usage_end because usage_end should always match usage_start for this table.
-        """,
-    ),
-    TableExportSetting(
-        'ocp',
         'reporting_ocpusagelineitem_daily_summary',
         True,
         """

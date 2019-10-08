@@ -36,7 +36,6 @@ from reporting.provider.azure.models import (AzureCostEntryBill,                
 from reporting.provider.ocp.costs.models import CostSummary                       # noqa: F401
 from reporting.provider.ocp.models import (OCPStorageLineItem,                    # noqa: F401
                                            OCPStorageLineItemDaily,               # noqa: F401
-                                           OCPStorageLineItemDailySummary,        # noqa: F401
                                            OCPUsageLineItem,                      # noqa: F401
                                            OCPUsageLineItemDaily,                 # noqa: F401
                                            OCPUsageLineItemDailySummary,          # noqa: F401
