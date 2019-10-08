@@ -283,6 +283,10 @@ def add_provider_sources_auth_info(source_id, authentication):
     """
     try:
         query = Sources.objects.get(source_id=source_id)
+        current_auth_dict = query.authentication
+        subscription_id = current_auth_dict.get('credentials', {}).get('subscription_id')
+        if subscription_id and authentication.get('credentials'):
+            authentication['credentials']['subscription_id'] = subscription_id
         query.authentication = authentication
         query.save()
     except Sources.DoesNotExist:

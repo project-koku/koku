@@ -147,7 +147,7 @@ class KokuHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.put(f'http://www.koku.com/api/cost-management/v1/providers/{expected_uuid}/',
                   status_code=400, json={})
-            with self.assertRaises(KokuHTTPClientError):
+            with self.assertRaises(KokuHTTPClientNonRecoverableError):
                 client.update_provider(expected_uuid, 'Aws Test', 'AWS',
                                        {'resource_name': 'arn:test'}, {'bucket': 'bucket'})
 

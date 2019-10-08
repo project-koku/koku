@@ -344,6 +344,26 @@ class SourcesStorageTest(TestCase):
         response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication, test_authentication)
 
+    def test_add_provider_sources_auth_info_with_sub_id(self):
+        """Test to add authentication to a source with subscription_id."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        test_authentication = {'credentials': {'client_id': 'new-client-id'}}
+        azure_obj = Sources(source_id=test_source_id,
+                            auth_header=self.test_header,
+                            offset=3,
+                            endpoint_id=test_endpoint_id,
+                            source_type='AZURE',
+                            name='Test AZURE Source',
+                            authentication={'credentials': {'subscription_id': 'orig-sub-id',
+                                                            'client_id': 'test-client-id'}})
+        azure_obj.save()
+
+        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertEquals(response.authentication.get('credentials').get('subscription_id'), 'orig-sub-id')
+        self.assertEquals(response.authentication.get('credentials').get('client_id'), 'new-client-id')
+
     def test_enqueue_source_delete(self):
         """Test for enqueuing source delete."""
         test_source_id = 3

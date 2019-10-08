@@ -146,7 +146,7 @@ class KokuHTTPClient:
         if r.status_code == 404:
             raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(r.json()))
         if r.status_code != 200:
-            raise KokuHTTPClientError('Unable to create provider. Error: ', str(r.json()))
+            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
         return r.json()
 
     def destroy_provider(self, provider_uuid):
