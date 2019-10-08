@@ -1,0 +1,6 @@
+{
+    "files": ["2fd9478b-aa89-49b9-804c-c66fd41d2726_openshift_usage_report.0.csv", "2fd9478b-aa89-49b9-804c-c66fd41d2726_openshift_usage_report.1.csv"],
+    "date": "2019-10-08 00:00:00",
+    "uuid": "2fd9478b-aa89-49b9-804c-c66fd41d2726",
+    "cluster_id": "my-ocp-cluster-1"
+}
