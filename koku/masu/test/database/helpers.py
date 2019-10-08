@@ -192,6 +192,8 @@ class ReportObjectCreator:
                                    report_period,
                                    report,
                                    resource_id=None,
+                                   pod=None,
+                                   namespace=None,
                                    null_cpu_usage=False):
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -208,10 +210,14 @@ class ReportObjectCreator:
         data['report_id'] = report.id
         if null_cpu_usage:
             data['pod_usage_cpu_core_seconds'] = None
+        if pod:
+            data['pod'] = pod
+        if namespace:
+            data['namespace'] = namespace
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_ocp_storage_line_item(self, report_period, report):
+    def create_ocp_storage_line_item(self, report_period, report, pod=None, namespace=None):
         """Create an OCP storage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
         data = self.create_columns_for_table(table_name)
@@ -222,6 +228,10 @@ class ReportObjectCreator:
 
         data['report_period_id'] = report_period.id
         data['report_id'] = report.id
+        if pod:
+            data['pod'] = pod
+        if namespace:
+            data['namespace'] = namespace
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 

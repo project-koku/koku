@@ -235,15 +235,11 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_awscostentrylineitem_daily_summary.sql'
         )
         summary_sql = summary_sql.decode('utf-8')
-        bill_id_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'bill_id_where_clause': bill_id_where_clause,
+            'bill_ids': bill_ids,
             'schema': self.schema
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(

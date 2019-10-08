@@ -153,6 +153,12 @@ class ProviderManager:
 
         return provider_stats
 
+    def update(self, request):
+        """Check if provider is a sources model."""
+        if self.sources_model and not request.headers.get('Sources-Client'):
+            err_msg = f'Provider {self._uuid} must be deleted via Sources Integration Service'
+            raise ProviderManagerError(err_msg)
+
     @transaction.atomic
     def remove(self, request, customer_remove_context=False):
         """Remove the provider with current_user."""
