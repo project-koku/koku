@@ -49,20 +49,21 @@ class BillingSourceTests(TestCase):
     def test_post_billing_source(self):
         """Test the POST billing_source endpoint."""
         billing_source = {'bucket': 'cost-usage-bucket'}
-        params = {
-            'source_id': '1',
-            'billing_source': billing_source,
-        }
         test_name = 'AWS Test'
         test_source_type = 'AWS'
+        test_source_id = 1
         test_resource_id = 1
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
-        response = self.client.post(reverse('billing-source'), json.dumps(params), content_type='application/json')
-        body = response.json()
 
-        self.assertEqual(response.status_code, 201)
-        self.assertIn(str(billing_source), str(body))
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, billing_source)
+        test_matrix = [{'source_id': test_source_id, 'billing_source': billing_source},
+                       {'source_name': test_name, 'billing_source': billing_source}]
+        for params in test_matrix:
+            add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
+            response = self.client.post(reverse('billing-source'), json.dumps(params), content_type='application/json')
+            body = response.json()
+
+            self.assertEqual(response.status_code, 201)
+            self.assertIn(str(billing_source), str(body))
+            self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, billing_source)
 
     def test_post_billing_source_non_aws(self):
         """Test the POST billing_source endpoint for a non-AWS source."""
