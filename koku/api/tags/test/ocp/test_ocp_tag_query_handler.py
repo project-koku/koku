@@ -22,7 +22,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPStorageLineItemDailySummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPTagQueryHandlerTest(IamTestCase):
@@ -217,7 +217,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
 
-            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
                 .distinct()\
@@ -253,7 +253,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
 
-            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
                 .distinct()\
@@ -314,7 +314,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
         )
 
         with tenant_context(self.tenant):
-            storage_tag_keys = OCPStorageLineItemDailySummary.objects\
+            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
                 .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
                 .values('tag_keys')\
                 .distinct()\

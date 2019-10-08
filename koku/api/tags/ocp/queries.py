@@ -16,7 +16,6 @@
 #
 """OCP Tag Query Handling."""
 from api.tags.queries import TagQueryHandler
-from reporting.models import OCPStorageLineItemDailySummary
 from reporting.models import OCPUsageLineItemDailySummary
 
 
@@ -26,6 +25,6 @@ class OCPTagQueryHandler(TagQueryHandler):
     data_sources = [{'db_table': OCPUsageLineItemDailySummary,
                      'db_column': 'pod_labels',
                      'type': 'pod'},
-                    {'db_table': OCPStorageLineItemDailySummary,
+                    {'db_table': OCPUsageLineItemDailySummary,
                      'db_column': 'volume_labels',
                      'type': 'storage'}]
