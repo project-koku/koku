@@ -1,6 +1,0 @@
-{
-    "files": ["7350648f-f73a-47ae-af2f-8f38b4dbfc70_openshift_usage_report.0.csv", "7350648f-f73a-47ae-af2f-8f38b4dbfc70_openshift_usage_report.1.csv"],
-    "date": "2019-10-08 00:00:00",
-    "uuid": "7350648f-f73a-47ae-af2f-8f38b4dbfc70",
-    "cluster_id": "ocp_on_aws_cluster"
-}
