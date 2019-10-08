@@ -74,6 +74,17 @@ class ProviderManagerTest(IamTestCase):
         request.headers = headers
         return request
 
+    @staticmethod
+    def _create_put_request(user, headers={}):
+        """Delete HTTP request."""
+        django_request = HttpRequest()
+        qd = QueryDict(mutable=True)
+        django_request.PUT = qd
+        request = Request(django_request)
+        request.user = user
+        request.headers = headers
+        return request
+
     def test_get_name(self):
         """Can the provider name be returned."""
         # Create Provider
@@ -333,6 +344,42 @@ class ProviderManagerTest(IamTestCase):
         with self.assertLogs('api.provider.provider_manager', level='INFO') as logger:
             manager._delete_report_data()
             self.assertIn(expected_message, logger.output)
+
+    def test_update_ocp_added_via_sources(self):
+        """Raise error on update to ocp provider added via sources."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        sources = Sources.objects.create(source_id=1,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         koku_uuid=provider_uuid)
+        sources.save()
+        put_request = self._create_put_request(self.user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            with self.assertRaises(ProviderManagerError):
+                manager.update(put_request)
+
+    def test_update_ocp_not_added_via_sources(self):
+        """Return None on update to ocp provider not added via sources."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        put_request = self._create_put_request(self.user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            self.assertIsNone(manager.update(put_request))
 
     def test_provider_statistics(self):
         """Test that the provider statistics method returns report stats."""

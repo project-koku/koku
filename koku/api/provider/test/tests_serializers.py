@@ -17,6 +17,7 @@
 """Test the Provider serializers."""
 import random
 import uuid
+from itertools import permutations
 from unittest.mock import patch
 
 from faker import Faker
@@ -44,6 +45,83 @@ class ProviderSerializerTest(IamTestCase):
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
             request.user = user
+        self.generic_providers = {
+            'OCP': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_OCP,
+                'authentication': {
+                    'credentials': {
+                        'provider_resource_name': 'my-ocp-cluster-1'
+                    }
+                }
+            },
+            'AWS': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_AWS,
+                'authentication': {
+                    'credentials': {
+                        'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
+                    }
+                },
+                'billing_source': {
+                    'data_source': {
+                        'bucket': 'my_s3_bucket'
+                    }
+                }
+            },
+            'AZURE': {
+                'name': 'test_provider',
+                'type': Provider.PROVIDER_AZURE,
+                'authentication': {
+                    'credentials': {
+                        'subscription_id': '12345678-1234-5678-1234-567812345678',
+                        'tenant_id': '12345678-1234-5678-1234-567812345678',
+                        'client_id': '12345678-1234-5678-1234-567812345678',
+                        'client_secret': '12345'
+                    }
+                },
+                'billing_source': {
+                    'data_source': {
+                        'resource_group': {},
+                        'storage_account': {}
+                    }
+                }
+            }
+        }
+
+    def test_create_all_providers(self):
+        """Tests that adding all unique providers together is successful."""
+        list_of_uuids = []
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=self.generic_providers['AZURE'], context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            schema_name = serializer.data['customer'].get('schema_name')
+            self.assertIsInstance(instance.uuid, uuid.UUID)
+            self.assertIsNone(schema_name)
+            self.assertFalse('schema_name' in serializer.data['customer'])
+            list_of_uuids.append(instance.uuid)
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=self.generic_providers['AWS'], context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            schema_name = serializer.data['customer'].get('schema_name')
+            self.assertIsInstance(instance.uuid, uuid.UUID)
+            self.assertIsNone(schema_name)
+            self.assertFalse('schema_name' in serializer.data['customer'])
+            list_of_uuids.append(instance.uuid)
+        with patch.object(ProviderAccessor, 'cost_usage_source_ready', returns=True):
+            serializer = ProviderSerializer(data=self.generic_providers['OCP'], context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+            schema_name = serializer.data['customer'].get('schema_name')
+            self.assertIsInstance(instance.uuid, uuid.UUID)
+            self.assertIsNone(schema_name)
+            self.assertFalse('schema_name' in serializer.data['customer'])
+            list_of_uuids.append(instance.uuid)
+
+        for a, b in permutations(list_of_uuids, 2):
+            self.assertNotEqual(a, b)
 
     def test_create_provider_fails_user(self):
         """Test creating a provider fails with no user."""
@@ -77,7 +155,7 @@ class ProviderSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 serializer.save()
 
-    def test_create_provider(self):
+    def test_create_aws_provider(self):
         """Test creating a provider."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
         bucket_name = 'my_s3_bucket'
