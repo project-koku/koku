@@ -127,7 +127,8 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     # pylint: disable=invalid-name
     def populate_tags_summary_table(self):
@@ -138,8 +139,12 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_azuretags_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def get_cost_entry_bills_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
