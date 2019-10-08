@@ -21,6 +21,7 @@ import uuid
 
 from dateutil.parser import parse
 from django.db.models import F
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -52,6 +53,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self.column_map = column_map
         self._schema_name = schema
         self.date_accessor = DateAccessor()
+        self.jinja_sql = JinjaSql()
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -115,13 +117,18 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_azurecostentrylineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids),
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     # pylint: disable=invalid-name
     def populate_tags_summary_table(self):
@@ -132,8 +139,12 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_azuretags_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def get_cost_entry_bills_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
