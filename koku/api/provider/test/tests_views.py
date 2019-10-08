@@ -474,8 +474,8 @@ class ProviderViewTest(IamTestCase):
         provider_uuid = provider.get('uuid')
         put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
         put_bucket = 'my_s3_bucket_PUT'
-        provider['authentication']['provider_resource_name'] = put_provider_resource_name
-        provider['billing_source']['bucket'] = put_bucket
+        provider['authentication']['credentials']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['data_source']['bucket'] = put_bucket
         provider['name'] = 'PUT-test'
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
@@ -488,8 +488,8 @@ class ProviderViewTest(IamTestCase):
         provider_uuid = provider.get('uuid')
         put_provider_resource_name = 'arn:aws:s3:::my_s3_bucket_PUT'
         put_bucket = 'my_s3_bucket_PUT'
-        provider['authentication']['provider_resource_name'] = put_provider_resource_name
-        provider['billing_source']['bucket'] = put_bucket
+        provider['authentication']['credentials']['provider_resource_name'] = put_provider_resource_name
+        provider['billing_source']['data_source']['bucket'] = put_bucket
         provider['name'] = 'PUT-test'
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
@@ -503,6 +503,8 @@ class ProviderViewTest(IamTestCase):
         bucket_name1 = 'my_s3_bucket'
         response1 = self.create_provider(bucket_name1, iam_arn1)
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        response1 = self.create_provider(bucket_name1, iam_arn1)
+        self.assertEqual(response1.status_code, status.HTTP_400_BAD_REQUEST)
 
         iam_arn2 = 'arn:aws:s3:::my_s3_bucket_two'
         bucket_name2 = 'my_s3_bucket_two'
@@ -511,8 +513,8 @@ class ProviderViewTest(IamTestCase):
 
         provider = response2.json()
         provider_uuid = provider.get('uuid')
-        provider['authentication']['provider_resource_name'] = iam_arn1
-        provider['billing_source']['bucket'] = bucket_name1
+        provider['authentication']['credentials']['provider_resource_name'] = iam_arn1
+        provider['billing_source']['data_source']['bucket'] = bucket_name1
         url = reverse('provider-detail', args=[provider_uuid])
         client = APIClient()
         put_response = client.put(url, data=provider, format='json', **self.headers)

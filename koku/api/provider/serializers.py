@@ -65,6 +65,8 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
         """Validate authentication parameters."""
         if data.get('provider_resource_name') and not data.get('credentials'):
             data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
+        if data.get('credentials').get('provider_resource_name'):
+            data['provider_resource_name'] = data.get('credentials').get('provider_resource_name')
         return data
 
     # pylint: disable=too-few-public-methods
@@ -122,6 +124,8 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
         """Validate billing source."""
         if (data.get('bucket') or data.get('bucket') == '') and not data.get('data_source'):
             data['data_source'] = {'bucket': data.get('bucket')}
+        if data.get('data_source').get('bucket'):
+            data['bucket'] = data.get('data_source').get('bucket')
         return data
 
 
@@ -211,7 +215,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         if provider_type:
             self.fields['authentication'] = AUTHENTICATION_SERIALIZERS.get(provider_type)()
             self.fields['billing_source'] = BILLING_SOURCE_SERIALIZERS.get(provider_type)(
-                default={'bucket': '', 'data_source': {}}
+                default={'bucket': '', 'data_source': {'bucket': ''}}
             )
         else:
             self.fields['authentication'] = ProviderAuthenticationSerializer()
@@ -309,47 +313,19 @@ class ProviderSerializer(serializers.ModelSerializer):
         else:
             interface.cost_usage_source_ready(provider_resource_name, bucket)
 
-        try:
-            ProviderAuthentication.objects.filter(
-                id=instance.authentication.id
-            ).update(**authentication)
-            ProviderBillingSource.objects.filter(
-                id=instance.billing_source.id
-            ).update(**billing_source)
-        except IntegrityError:
-            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
-            raise serializers.ValidationError(error)
-
-        bill = ProviderBillingSource.objects.get(id=instance.billing_source.id)
-        auth = ProviderAuthentication.objects.get(id=instance.authentication.id)
-
-        # We can re-use a billing source or a auth, but not the same combination.
-        unique_count = Provider.objects.filter(authentication=auth)\
-            .filter(billing_source=bill).count()
-        if unique_count == 1:
-            existing_provider = Provider.objects.filter(authentication=auth)\
-                .filter(billing_source=bill).first()
-            if existing_provider.type in ('AWS', 'OCP'):
-                sources_auth = {'resource_name': provider_resource_name}
-            elif existing_provider.type in ('AZURE', ):
-                sources_auth = {'credentials': auth.credentials}
-            else:
-                sources_auth = {}
-            source_query = Sources.objects.filter(authentication=sources_auth)
-            if source_query.exists():
-                source_obj = source_query.first()
-                source_obj.koku_uuid = existing_provider.uuid
-                source_obj.save()
-        else:
-            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
-            raise serializers.ValidationError(error)
+        bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+        auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         for key in validated_data.keys():
             setattr(instance, key, validated_data[key])
 
         instance.authentication = auth
         instance.billing_source = bill
-        instance.save()
+        try:
+            instance.save()
+        except IntegrityError:
+            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+            raise serializers.ValidationError(error)
         return instance
 
 
