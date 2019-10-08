@@ -312,12 +312,28 @@ def add_provider_sources_network_info(source_id, name, source_type, endpoint_id)
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
-def add_subscription_id_to_credentials(source_id, subscription_id):
+def get_query_from_api_data(request_data):
+    """Get database query based on request_data from API."""
+    source_id = request_data.get('source_id')
+    source_name = request_data.get('source_name')
+    if source_id and source_name:
+        raise SourcesStorageError('Expected either source_id or source_name, not both.')
+    try:
+        if source_id:
+            query = Sources.objects.get(source_id=source_id)
+        if source_name:
+            query = Sources.objects.get(name=source_name)
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
+    return query
+
+
+def add_subscription_id_to_credentials(request_data, subscription_id):
     """
     Add AZURE subscription_id Sources database object.
 
     Args:
-        source_id (Integer) - Platform-Sources identifier
+        request_data (dict) - Dictionary containing either source_id or source_name
         subscription_id (String) - Subscription ID
 
     Returns:
@@ -325,7 +341,7 @@ def add_subscription_id_to_credentials(source_id, subscription_id):
 
     """
     try:
-        query = Sources.objects.get(source_id=source_id)
+        query = get_query_from_api_data(request_data)
         if query.source_type not in ('AZURE',):
             raise SourcesStorageError('Source is not AZURE.')
         auth_dict = query.authentication
@@ -355,12 +371,12 @@ def _validate_billing_source(provider_type, billing_source):
             raise SourcesStorageError('Missing AZURE storage_account')
 
 
-def add_provider_billing_source(source_id, billing_source):
+def add_provider_billing_source(request_data, billing_source):
     """
     Add AWS or AZURE billing source to Sources database object.
 
     Args:
-        source_id (Integer) - Platform-Sources identifier
+        request_data (dict) - Dictionary containing either source_id or source_name
         billing_source (String) - S3 bucket
 
     Returns:
@@ -368,7 +384,7 @@ def add_provider_billing_source(source_id, billing_source):
 
     """
     try:
-        query = Sources.objects.get(source_id=source_id)
+        query = get_query_from_api_data(request_data)
         if query.source_type not in ('AWS', 'AZURE'):
             raise SourcesStorageError('Source is not AWS nor AZURE.')
         _validate_billing_source(query.source_type, billing_source)
