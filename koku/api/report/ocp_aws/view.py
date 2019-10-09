@@ -29,7 +29,7 @@ class OCPAWSView(ReportView):
     """OCP+AWS Base View."""
 
     permission_classes = [AwsAccessPermission, OpenShiftAccessPermission]
-    provider = 'ocp_aws'
+    provider = 'OCP_AWS'
     serializer = OCPAWSQueryParamSerializer
     query_handler = OCPAWSReportQueryHandler
     tag_handler = [AWSTagsSummary]

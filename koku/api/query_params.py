@@ -30,7 +30,6 @@ from api.models import Tenant, User
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
-VALID_PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
 
 
 class QueryParameters:
@@ -73,9 +72,8 @@ class QueryParameters:
                 self.parameters[item] = OrderedDict()
 
         # configure access params.
-        for prov in VALID_PROVIDERS:
-            if caller.query_handler.provider == prov:
-                getattr(self, f'_set_access_{prov.lower()}')()
+        if self.access:
+            getattr(self, f'_set_access_{caller.query_handler.provider.lower()}')()
 
         self._set_time_scope_defaults()
         LOG.debug('Query Parameters: %s', self)
@@ -124,9 +122,7 @@ class QueryParameters:
 
     def _set_access(self, filter_key, access_key, raise_exception=True):
         """Alter query parameters based on user access."""
-        access_list = []
-        if self.access:
-            access_list = self.access.get(access_key, {}).get('read', [])
+        access_list = self.access.get(access_key, {}).get('read', [])
         access_filter_applied = False
         if ReportQueryHandler.has_wildcard(access_list):
             return
@@ -135,7 +131,7 @@ class QueryParameters:
         group_by = self.parameters.get('group_by', {})
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
-            result = get_replacement_result(items, access_list, raise_exception=True)
+            result = get_replacement_result(items, access_list, raise_exception)
             if result:
                 self.parameters['group_by'][filter_key] = result
                 access_filter_applied = True

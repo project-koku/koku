@@ -27,7 +27,7 @@ class AWSView(ReportView):
     """AWS Base View."""
 
     permission_classes = [AwsAccessPermission]
-    provider = 'aws'
+    provider = 'AWS'
     serializer = QueryParamSerializer
     query_handler = AWSReportQueryHandler
     tag_handler = [AWSTagsSummary]

@@ -142,8 +142,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service': ['*']}}
@@ -174,8 +174,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service]=AmazonEC2'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service': ['AmazonEC2']}}
@@ -206,8 +206,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service]=eC2'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service': ['eC2']}}
@@ -238,8 +238,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[account]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'account': ['*']}}
@@ -268,8 +268,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_account_by_service(self):
         """Test execute_query for current month breakdown by account by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[account]=*&group_by[service]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'account': ['*'],

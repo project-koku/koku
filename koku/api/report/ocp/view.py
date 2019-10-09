@@ -31,7 +31,7 @@ class OCPView(ReportView):
     """OCP Base View."""
 
     permission_classes = [OpenShiftAccessPermission]
-    provider = 'ocp'
+    provider = 'OCP'
     serializer = OCPInventoryQueryParamSerializer
     query_handler = OCPReportQueryHandler
     tag_handler = [OCPUsagePodLabelSummary,

@@ -162,8 +162,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
             AzureReportDataGenerator(self.tenant).add_data_to_tenant()
 
         valid_services = list(AZURE_SERVICES.keys())
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service_name]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service_name': ['*']}}
@@ -205,8 +205,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         valid_services = list(AZURE_SERVICES.keys())
         service = self.generator.config.service_name
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service_name]=some_service'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=some_service'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service_name': [service]}}
@@ -255,8 +255,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         valid_services = list(AZURE_SERVICES.keys())
         selected_range = random.randrange(2, len(self.generator.config.service_name))
         service = self.generator.config.service_name[0: selected_range]
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[service_name]=some_service'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=some_service'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'service_name': [service]}}
@@ -291,8 +291,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_subscription_guid(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[subscription_guid]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'subscription_guid': ['*']}}
@@ -324,8 +324,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_subscription_guid_by_service(self):
         """Test execute_query for current month breakdown by subscription_guid by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[subscription_guid]=*&group_by[service_name]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&group_by[service_name]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month'},
                   'group_by': {'subscription_guid': ['*'],
@@ -393,8 +393,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for _ in range(3):
             AzureReportDataGenerator(self.tenant).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=2&group_by[subscription_guid]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
                              'limit': 2},
@@ -428,8 +428,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for _ in range(3):
             AzureReportDataGenerator(self.tenant).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&order_by[cost]=asc&group_by[subscription_guid]=*'
-        params = {'filter': {'resolution': 'daily',
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*'
+        params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
                              'limit': 2},

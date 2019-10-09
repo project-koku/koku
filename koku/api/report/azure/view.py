@@ -27,7 +27,7 @@ class AzureView(ReportView):
     """Azure Base View."""
 
     permission_classes = [AzureAccessPermission]
-    provider = 'azure'
+    provider = 'AZURE'
     serializer = AzureQueryParamSerializer
     query_handler = AzureReportQueryHandler
     tag_handler = [AzureTagsSummary]

@@ -340,8 +340,6 @@ class OCPAWSReportViewTest(IamTestCase):
 
         url = url + '?' + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
-        LOG.critical('XXX1: %s', url)
-        LOG.critical('XXX2: %s', response)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.json()
