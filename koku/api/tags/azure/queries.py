@@ -45,8 +45,9 @@ class AzureTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = AzureProviderMap(provider=self.provider,
-                                        report_type=parameters.report_type)
+        if not hasattr(self, '_mapper'):
+            self._mapper = AzureProviderMap(provider=self.provider,
+                                            report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
 
@@ -60,7 +61,7 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
-        type_filter = self.parameter_filter.get('type')
+        type_filter = self.parameters.get_filter('type')
 
         merged_data = []
         with tenant_context(self.tenant):

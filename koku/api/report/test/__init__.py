@@ -412,7 +412,7 @@ class FakeQueryParameters:
     """A fake QueryParameters class for testing.
 
     This class mocks out just the bare minimum of QueryParameter interfaces.
-    For the get_* methods, the default value of the caller is generally used.
+    For the get_* methods, the provided default value from the caller is generally used.
     """
 
     def __init__(self, parameters, **kwargs):

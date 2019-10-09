@@ -60,7 +60,7 @@ class TagQueryHandler(QueryHandler):
 
     """
 
-    provider = 'tags'
+    provider = 'TAGS'
     data_sources = []
     SUPPORTED_FILTERS = ['project', 'account']
     FILTER_MAP = {
@@ -81,6 +81,7 @@ class TagQueryHandler(QueryHandler):
 
         """
         super().__init__(parameters)
+        # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
 
     def _format_query_response(self):
@@ -241,7 +242,7 @@ class TagQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        if self.query_parameters.get('key_only'):
+        if self.parameters.get('key_only'):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == 'desc')
         else:

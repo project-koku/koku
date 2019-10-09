@@ -195,6 +195,9 @@ class AWSProviderMap(ProviderMap):
                                         'derived_cost', 'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
+                    'tags': {
+                        'default_ordering': {'cost': 'desc'},
+                    },
                 },
                 'start_date': 'usage_start',
                 'tables': {

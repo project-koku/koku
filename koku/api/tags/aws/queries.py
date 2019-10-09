@@ -34,7 +34,8 @@ class AWSTagQueryHandler(TagQueryHandler):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = AWSProviderMap(provider=self.provider,
-                                      report_type=parameters.report_type)
+        if not hasattr(self, '_mapper'):
+            self._mapper = AWSProviderMap(provider=self.provider,
+                                          report_type=parameters.report_type)
         # super() needs to be called after _mapper is set
         super().__init__(parameters)
