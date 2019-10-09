@@ -65,6 +65,8 @@ class ProviderAuthenticationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate authentication parameters."""
+        if not data.get('credentials'):
+            data['credentials'] = data.get('credentials', {})
         if data.get('provider_resource_name') and not data.get('credentials'):
             data['credentials'] = {'provider_resource_name': data.get('provider_resource_name')}
         if data.get('credentials').get('provider_resource_name'):
@@ -124,6 +126,8 @@ class ProviderBillingSourceSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate billing source."""
+        if not data.get('data_source'):
+            data['data_source'] = data.get('data_source', {})
         if (data.get('bucket') or data.get('bucket') == '') and not data.get('data_source'):
             data['data_source'] = {'bucket': data.get('bucket')}
         if data.get('data_source').get('bucket'):
