@@ -87,7 +87,6 @@ services:
           - 5000:8000
       volumes:
         - '.:/koku/'
-
       links:
         - db
         - koku-rabbit
