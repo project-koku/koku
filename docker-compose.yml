@@ -40,7 +40,6 @@ services:
           - 8000:8000
       volumes:
         - '.:/koku/'
-        - './testing:/testing'
       links:
         - db
         - koku-rabbit
@@ -88,7 +87,6 @@ services:
           - 5000:8000
       volumes:
         - '.:/koku/'
-        - './testing/local_providers:/local'
 
       links:
         - db
