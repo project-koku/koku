@@ -182,6 +182,11 @@ class Sources(models.Model):
     # removed.
     pending_delete = models.BooleanField(default=False)
 
+    # When a source is being updated by either Platform-Sources or from API (auth, billing source)
+    # this flag will indicate that the update needs to be picked up by the Koku-Provider synchronization
+    # handler.
+    pending_update = models.BooleanField(default=False)
+
 
 class ProviderStatus(models.Model):
     """Koku provider status.
