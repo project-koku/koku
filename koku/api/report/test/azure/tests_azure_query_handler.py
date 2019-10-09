@@ -432,7 +432,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
-                             'limit': 2},
+                             'limit': 3},
                   'group_by': {'subscription_guid': ['*']},
                   'order_by': {'cost': 'asc'}}
         query_params = FakeQueryParameters(params, tenant=self.tenant)
@@ -473,7 +473,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
-                             'limit': 2},
+                             'limit': 3},
                   'group_by': {'subscription_guid': ['*']},
                   'order_by': {'subscription_guid': 'asc'}}
         query_params = FakeQueryParameters(params, tenant=self.tenant)
@@ -502,6 +502,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('subscription_guid'))
                 data_point = month_item.get('values')[0].get('subscription_guid')
+                if data_point == '1 Other':
+                    continue
                 self.assertLess(current, data_point)
                 current = data_point
 
@@ -699,13 +701,13 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for _ in range(3):
             AzureReportDataGenerator(self.tenant).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]=some_location'
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[resource_location]=some_location'
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
                              'limit': 2},
                   'group_by': {'subscription_guid': ['*']}}
-        query_params = FakeQueryParameters(params, accept_type='text/csv', tenant=self.tenant)
+        query_params = FakeQueryParameters(params, accept_type=['text/csv'], tenant=self.tenant)
         handler = AzureReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -720,7 +722,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                          current_totals.get('cost'))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data[0].get('subscription_guids')), 3)
+        self.assertEqual(len(data), 3)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -945,7 +947,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
-                             'limit': 2,
+                             'limit': 1,
                              'offset': 1},
                   'group_by': {'subscription_guid': ['*']}}
         query_params = FakeQueryParameters(params, tenant=self.tenant)

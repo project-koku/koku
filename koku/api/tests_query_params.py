@@ -29,11 +29,12 @@ from querystring_parser import parser
 from rest_framework.serializers import ValidationError
 
 from api.models import Tenant, User
-from api.query_params import QueryParameters, VALID_PROVIDERS, get_tenant
+from api.query_params import QueryParameters, get_tenant
 from api.report.serializers import ParamSerializer
 from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
+PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
 
 
 class QueryParametersTests(TestCase):
@@ -68,7 +69,7 @@ class QueryParametersTests(TestCase):
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=random.choice(VALID_PROVIDERS)),
+                         query_handler=Mock(provider=random.choice(PROVIDERS)),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[Mock(objects=Mock(values=lambda _: fake_tags())),
@@ -335,7 +336,7 @@ class QueryParametersTests(TestCase):
 
     def test_access_with_wildcard(self):
         """Test wildcard doesn't update query parameters."""
-        provider = random.choice(VALID_PROVIDERS)
+        provider = random.choice(PROVIDERS)
         fake_uri = ('group_by[account]=*&'
                     'group_by[region]=*')
         test_access = {
@@ -505,7 +506,7 @@ class QueryParametersTests(TestCase):
                                                'value': self.FAKE.word()} for key in tag_keys])
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=random.choice(VALID_PROVIDERS)),
+                         query_handler=Mock(provider=random.choice(PROVIDERS)),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[Mock(objects=fake_objects)])

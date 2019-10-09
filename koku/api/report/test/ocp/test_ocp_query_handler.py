@@ -19,7 +19,7 @@ from collections import defaultdict
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.db.models import F, Max, Sum
+from django.db.models import Max
 from django.db.models.expressions import OrderBy
 from tenant_schemas.utils import tenant_context
 
@@ -63,7 +63,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.this_month_filter
         with tenant_context(self.tenant):
-            return CostSummary.objects\
+            return OCPUsageLineItemDailySummary.objects\
                 .filter(**filters)\
                 .aggregate(**aggregates)
 
@@ -307,13 +307,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
         OCPReportDataGenerator(self.tenant).remove_data_from_tenant()
         OCPReportDataGenerator(self.tenant, current_month_only=True).add_data_to_tenant()
 
-        # '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[limit]=1'
+        # '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -2,
-                             'limit': 1}}
+                             'time_scope_units': 'month',
+                             'limit': 1},
+                  'delta': 'usage__request'}
         query_params = FakeQueryParameters(params, report_type='cpu', tenant=self.tenant)
         handler = OCPReportQueryHandler(query_params.mock_qp)
-        handler._delta = 'usage__request'
+        query_output = handler.execute_query()
 
         q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):

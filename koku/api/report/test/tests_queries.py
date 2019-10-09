@@ -979,7 +979,7 @@ class ReportQueryTest(IamTestCase):
                              'time_scope_units': 'month',
                              'limit': 2},
                   'group_by': {'account': ['*']}}
-        query_params = FakeQueryParameters(params, accept_type='text/csv',
+        query_params = FakeQueryParameters(params, accept_type=['text/csv'],
                                            tenant=self.tenant)
         handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
@@ -992,7 +992,7 @@ class ReportQueryTest(IamTestCase):
         self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data[0].get('accounts')), 3)
+        self.assertEqual(len(data), 3)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1524,14 +1524,6 @@ class ReportQueryTest(IamTestCase):
                 .filter(**{f'tags__{filter_key}': filter_value})\
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
 
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                f'tag:{filter_key}': [filter_value]
-            }
-        }
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
@@ -1545,4 +1537,3 @@ class ReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
-

@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the OCP on AWS Report views."""
-import logging
 import datetime
 import random
 from urllib.parse import quote_plus, urlencode
@@ -34,8 +33,6 @@ from api.query_handler import TruncDayString
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAWSReportViewTest(IamTestCase):
