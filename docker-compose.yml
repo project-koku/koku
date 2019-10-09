@@ -175,7 +175,7 @@ services:
         - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
         - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
         - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
-        - './testing/insights_local:/var/tmp/masu/insights_local'
+        - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
       links:
           - koku-rabbit
       depends_on:
@@ -290,18 +290,3 @@ services:
           - koku-rabbit
       depends_on:
           - koku-rabbit
-
-  iqe-tests:
-      container_name: iqe
-      image: docker-registry.upshift.redhat.com/insights-qe/iqe-tests
-      #entrypoint: ['iqe', 'tests', 'plugin', 'hccm', '-k', 'test_provider']
-      working_dir: /testing/
-      entrypoint:
-        - /testing/run_tests.sh
-      environment:
-        - IQE_TESTS_LOCAL_CONF_PATH=/testing/conf
-        - ENV_FOR_DYNACONF=local
-        - TESTS=${TESTS-smoke}
-      privileged: true
-      volumes:
-        - './testing:/testing'
