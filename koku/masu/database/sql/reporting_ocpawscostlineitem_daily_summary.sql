@@ -1,7 +1,7 @@
--- The Python Jinja string variable subsitutions {{aws_where_clause | sqlsafe}} and
--- {{ocp_where_clause | sqlsafe}} optionally filter AWS and OCP data by provider/source
--- Ex aws_where_clause | sqlsafe: 'AND cost_entry_bill_id IN (1, 2, 3)'
--- Ex ocp_where_clause | sqlsafe: "AND cluster_id = 'abcd-1234`"
+-- The Python Jinja string variable subsitutions aws_where_clause and ocp_where_clause
+-- optionally filter AWS and OCP data by provider/source
+-- Ex aws_where_clause: 'AND cost_entry_bill_id IN (1, 2, 3)'
+-- Ex ocp_where_clause: "AND cluster_id = 'abcd-1234`"
 
 -- We use a LATERAL JOIN here to get the JSON tags split out into key, value
 -- columns. We reference this split multiple times so we put it in a
@@ -14,6 +14,7 @@ CREATE TEMPORARY TABLE reporting_aws_tags AS (
             jsonb_each_text(aws.tags) labels
         WHERE date(aws.usage_start) >= {{start_date}}
             AND date(aws.usage_start) <= {{end_date}}
+            --aws_where_clause
             {% if bill_ids %}
             AND cost_entry_bill_id IN (
                 {%- for bill_id in bill_ids -%}
@@ -35,7 +36,10 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
         jsonb_each_text(ocp.persistentvolume_labels) labels
     WHERE date(ocp.usage_start) >= {{start_date}}
         AND date(ocp.usage_start) <= {{end_date}}
-        {{ocp_where_clause | sqlsafe}}
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 
     UNION ALL
 
@@ -46,7 +50,10 @@ CREATE TEMPORARY TABLE reporting_ocp_storage_tags AS (
         jsonb_each_text(ocp.persistentvolumeclaim_labels) labels
     WHERE date(ocp.usage_start) >= {{start_date}}
         AND date(ocp.usage_start) <= {{end_date}}
-        {{ocp_where_clause | sqlsafe}}
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 )
 ;
 
@@ -61,7 +68,10 @@ CREATE TEMPORARY TABLE reporting_ocp_pod_tags AS (
         jsonb_each_text(ocp.pod_labels) labels
     WHERE date(ocp.usage_start) >= {{start_date}}
         AND date(ocp.usage_start) <= {{end_date}}
-        {{ocp_where_clause | sqlsafe}}
+        --ocp_where_clause
+        {% if cluster_id %}
+        AND cluster_id = {{cluster_id}}
+        {% endif %}
 )
 ;
 
@@ -127,7 +137,10 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
                 {%- endfor -%}
             )
             {% endif %}
-            {{ocp_where_clause | sqlsafe}}
+            --ocp_where_clause
+            {% if cluster_id %}
+            AND cluster_id = {{cluster_id}}
+            {% endif %}
     ),
     cte_number_of_shared_projects AS (
         SELECT aws_id,
@@ -1098,6 +1111,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
 WHERE date(usage_start) >= {{start_date}}
     AND date(usage_start) <= {{end_date}}
+    --aws_where_clause
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -1105,7 +1119,10 @@ WHERE date(usage_start) >= {{start_date}}
         {%- endfor -%}
     )
     {% endif %}
-    {{ocp_where_clause | sqlsafe}}
+    --ocp_where_clause
+    {% if cluster_id %}
+    AND cluster_id = {{cluster_id}}
+    {% endif %}
 ;
 
 -- Populate the daily aggregate line item data
@@ -1163,6 +1180,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE date(usage_start) >= {{start_date}}
     AND date(usage_start) <= {{end_date}}
+    --aws_where_clause
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
@@ -1170,7 +1188,10 @@ WHERE date(usage_start) >= {{start_date}}
         {%- endfor -%}
     )
     {% endif %}
-    {{ocp_where_clause | sqlsafe}}
+    --ocp_where_clause
+    {% if cluster_id %}
+    AND cluster_id = {{cluster_id}}
+    {% endif %}
 ;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
