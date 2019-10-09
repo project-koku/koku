@@ -114,7 +114,7 @@ class SourcesStorageTest(TestCase):
         """Tests that add an AWS billing source to a Source."""
         s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id, 'AWS Account', 'AWS', 1)
-        storage.add_provider_billing_source(self.test_source_id, s3_bucket)
+        storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
         self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, s3_bucket)
 
     def test_add_provider_billing_source_non_aws(self):
@@ -122,14 +122,14 @@ class SourcesStorageTest(TestCase):
         s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id, 'OCP Account', 'OCP', 1)
         with self.assertRaises(SourcesStorageError):
-            storage.add_provider_billing_source(self.test_source_id, s3_bucket)
+            storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
 
     def test_add_provider_billing_source_non_existent(self):
         """Tests that add a billing source to a non-existent Source."""
         s3_bucket = {'bucket': 'test-bucket'}
         storage.add_provider_sources_network_info(self.test_source_id + 1, 'AWS Account', 'AWS', 1)
         with self.assertRaises(SourcesStorageError):
-            storage.add_provider_billing_source(self.test_source_id, s3_bucket)
+            storage.add_provider_billing_source({'source_id': self.test_source_id}, s3_bucket)
 
     def test_add_provider_koku_uuid(self):
         """Tests that add a koku provider uuid to a source."""
@@ -202,10 +202,32 @@ class SourcesStorageTest(TestCase):
                             billing_source={'data_source': {'resource_group': 'RG1',
                                                             'storage_account': 'test_storage'}})
         azure_obj.save()
-        storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+        storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
 
         response_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(response_obj.authentication.get('credentials').get('subscription_id'), subscription_id)
+
+    def test_add_subscription_id_to_credentials_with_koku_uuid(self):
+        """Test to add subscription_id to AZURE credentials with koku_uuid."""
+        test_source_id = 2
+        subscription_id = 'test_sub_id'
+        azure_obj = Sources(source_id=test_source_id,
+                            auth_header=self.test_header,
+                            offset=2,
+                            koku_uuid=faker.uuid4(),
+                            source_type='AZURE',
+                            name='Test Azure Source',
+                            authentication={'credentials': {'client_id': 'test_client',
+                                                            'tenant_id': 'test_tenant',
+                                                            'client_secret': 'test_secret'}},
+                            billing_source={'data_source': {'resource_group': 'RG1',
+                                                            'storage_account': 'test_storage'}})
+        azure_obj.save()
+        storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
+
+        response_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEqual(response_obj.authentication.get('credentials').get('subscription_id'), subscription_id)
+        self.assertTrue(response_obj.pending_update)
 
     def test_add_subscription_id_to_credentials_non_azure(self):
         """Test to add subscription_id to a non-AZURE credentials."""
@@ -221,7 +243,7 @@ class SourcesStorageTest(TestCase):
         ocp_obj.save()
 
         with self.assertRaises(SourcesStorageError):
-            storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
 
     def test_add_subscription_id_to_credentials_non_existent(self):
         """Test to add subscription_id to a non-existent Source."""
@@ -229,7 +251,7 @@ class SourcesStorageTest(TestCase):
         subscription_id = 'test_sub_id'
 
         with self.assertRaises(SourcesStorageError):
-            storage.add_subscription_id_to_credentials(test_source_id, subscription_id)
+            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
 
     def test_validate_billing_source(self):
         """Test to validate that the billing source dictionary is valid."""
@@ -321,3 +343,141 @@ class SourcesStorageTest(TestCase):
         storage.add_provider_sources_auth_info(test_source_id, test_authentication)
         response = Sources.objects.filter(source_id=test_source_id).first()
         self.assertEquals(response.authentication, test_authentication)
+
+    def test_add_provider_sources_auth_info_with_sub_id(self):
+        """Test to add authentication to a source with subscription_id."""
+        test_source_id = 3
+        test_endpoint_id = 4
+        test_authentication = {'credentials': {'client_id': 'new-client-id'}}
+        azure_obj = Sources(source_id=test_source_id,
+                            auth_header=self.test_header,
+                            offset=3,
+                            endpoint_id=test_endpoint_id,
+                            source_type='AZURE',
+                            name='Test AZURE Source',
+                            authentication={'credentials': {'subscription_id': 'orig-sub-id',
+                                                            'client_id': 'test-client-id'}})
+        azure_obj.save()
+
+        storage.add_provider_sources_auth_info(test_source_id, test_authentication)
+        response = Sources.objects.filter(source_id=test_source_id).first()
+        self.assertEquals(response.authentication.get('credentials').get('subscription_id'), 'orig-sub-id')
+        self.assertEquals(response.authentication.get('credentials').get('client_id'), 'new-client-id')
+
+    def test_enqueue_source_delete(self):
+        """Test for enqueuing source delete."""
+        test_source_id = 3
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=4,
+                          source_type='AWS',
+                          name='Test AWS Source',
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        storage.enqueue_source_delete(test_source_id)
+        response = Sources.objects.get(source_id=test_source_id)
+        self.assertTrue(response.pending_delete)
+
+    def test_enqueue_source_update(self):
+        """Test for enqueuing source updating."""
+        test_matrix = [{'koku_uuid': None, 'pending_delete': False, 'expected_pending_update': False},
+                       {'koku_uuid': None, 'pending_delete': True, 'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_delete': True, 'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_delete': False, 'expected_pending_update': True}]
+        test_source_id = 3
+        for test in test_matrix:
+            aws_obj = Sources(source_id=test_source_id,
+                              auth_header=self.test_header,
+                              koku_uuid=test.get('koku_uuid'),
+                              pending_delete=test.get('pending_delete'),
+                              offset=3,
+                              endpoint_id=4,
+                              source_type='AWS',
+                              name='Test AWS Source',
+                              billing_source={'bucket': 'test-bucket'})
+            aws_obj.save()
+
+            storage.enqueue_source_update(test_source_id)
+            response = Sources.objects.get(source_id=test_source_id)
+            self.assertEquals(test.get('expected_pending_update'), response.pending_update)
+            test_source_id += 1
+
+    def test_clear_update_flag(self):
+        """Test for clearing source update flag."""
+        test_matrix = [{'koku_uuid': None, 'pending_update': False, 'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_update': False, 'expected_pending_update': False},
+                       {'koku_uuid': faker.uuid4(), 'pending_update': True, 'expected_pending_update': False}]
+        test_source_id = 3
+        for test in test_matrix:
+            aws_obj = Sources(source_id=test_source_id,
+                              auth_header=self.test_header,
+                              koku_uuid=test.get('koku_uuid'),
+                              pending_update=test.get('pending_update'),
+                              offset=3,
+                              endpoint_id=4,
+                              source_type='AWS',
+                              name='Test AWS Source',
+                              billing_source={'bucket': 'test-bucket'})
+            aws_obj.save()
+
+            storage.clear_update_flag(test_source_id)
+            response = Sources.objects.get(source_id=test_source_id)
+            self.assertEquals(test.get('expected_pending_update'), response.pending_update)
+            test_source_id += 1
+
+    def test_load_providers_to_update(self):
+        """Test loading pending update events."""
+        test_matrix = [{'koku_uuid': faker.uuid4(), 'pending_update': False, 'pending_delete': False,
+                        'expected_list_length': 0},
+                       {'koku_uuid': faker.uuid4(), 'pending_update': True, 'pending_delete': False,
+                        'expected_list_length': 1},
+                       {'koku_uuid': None, 'pending_update': True, 'pending_delete': False,
+                        'expected_list_length': 0}]
+
+        test_source_id = 3
+        for test in test_matrix:
+            aws_obj = Sources(source_id=test_source_id,
+                              auth_header=self.test_header,
+                              koku_uuid=test.get('koku_uuid'),
+                              pending_update=test.get('pending_update'),
+                              pending_delete=test.get('pending_delete'),
+                              offset=3,
+                              endpoint_id=4,
+                              source_type='AWS',
+                              name='Test AWS Source',
+                              billing_source={'bucket': 'test-bucket'})
+            aws_obj.save()
+
+            response = storage.load_providers_to_update()
+            self.assertEquals(len(response), test.get('expected_list_length'))
+            test_source_id += 1
+            aws_obj.delete()
+
+    def test_get_query_from_api_data(self):
+        """Test helper method to get query based on API request_data."""
+        test_source_id = 3
+        test_source_name = 'Test AWS Source'
+        test_endpoint_id = 4
+        aws_obj = Sources(source_id=test_source_id,
+                          auth_header=self.test_header,
+                          offset=3,
+                          endpoint_id=test_endpoint_id,
+                          source_type='AWS',
+                          name=test_source_name,
+                          billing_source={'bucket': 'test-bucket'})
+        aws_obj.save()
+
+        test_matrix = [{'request_data': {'source_id': test_source_id}, 'expected_exception': None},
+                       {'request_data': {'source_name': test_source_name}, 'expected_exception': None},
+                       {'request_data': {'source_id': test_source_id, 'source_name': test_source_name},
+                        'expected_exception': SourcesStorageError}]
+
+        for test in test_matrix:
+            if not test.get('expected_exception'):
+                response = storage.get_query_from_api_data(test.get('request_data'))
+                self.assertEquals(response.source_id, test_source_id)
+            else:
+                with self.assertRaises(test.get('expected_exception')):
+                    storage.get_query_from_api_data(test.get('request_data'))
