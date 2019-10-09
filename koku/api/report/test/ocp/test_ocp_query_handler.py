@@ -315,7 +315,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                   'delta': 'usage__request'}
         query_params = FakeQueryParameters(params, report_type='cpu', tenant=self.tenant)
         handler = OCPReportQueryHandler(query_params.mock_qp)
-        query_output = handler.execute_query()
 
         q_table = handler._mapper.provider_map.get('tables').get('query')
         with tenant_context(self.tenant):
