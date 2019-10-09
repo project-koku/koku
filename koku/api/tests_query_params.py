@@ -43,8 +43,7 @@ ACCESS_KEYS = {'aws': ['aws.account'],
                'ocp_aws': ['aws.account',
                            'openshift.cluster',
                            'openshift.project',
-                           'openshift.node']
-              }
+                           'openshift.node']}
 
 
 class QueryParametersTests(TestCase):
