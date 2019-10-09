@@ -14,7 +14,13 @@ CREATE TEMPORARY TABLE reporting_aws_tags AS (
             jsonb_each_text(aws.tags) labels
         WHERE date(aws.usage_start) >= {{start_date}}
             AND date(aws.usage_start) <= {{end_date}}
-            {{aws_where_clause | sqlsafe}}
+            {% if bill_ids %}
+            AND cost_entry_bill_id IN (
+                {%- for bill_id in bill_ids -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+                {%- endfor -%}
+            )
+            {% endif %}
 )
 ;
 
@@ -113,7 +119,14 @@ CREATE TEMPORARY TABLE reporting_ocp_aws_resource_id_matched AS (
                 AND aws.usage_start::date = ocp.usage_start::date
         WHERE date(aws.usage_start) >= {{start_date}}
             AND date(aws.usage_start) <= {{end_date}}
-            {{aws_where_clause | sqlsafe}}
+            -- aws_where_clause
+            {% if bill_ids %}
+            AND cost_entry_bill_id IN (
+                {%- for bill_id in bill_ids -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+                {%- endfor -%}
+            )
+            {% endif %}
             {{ocp_where_clause | sqlsafe}}
     ),
     cte_number_of_shared_projects AS (
@@ -1085,7 +1098,13 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary
 WHERE date(usage_start) >= {{start_date}}
     AND date(usage_start) <= {{end_date}}
-    {{aws_where_clause | sqlsafe}}
+    {% if bill_ids %}
+    AND cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids -%}
+        {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+    )
+    {% endif %}
     {{ocp_where_clause | sqlsafe}}
 ;
 
@@ -1144,7 +1163,13 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE date(usage_start) >= {{start_date}}
     AND date(usage_start) <= {{end_date}}
-    {{aws_where_clause | sqlsafe}}
+    {% if bill_ids %}
+    AND cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids -%}
+        {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%}
+    )
+    {% endif %}
     {{ocp_where_clause | sqlsafe}}
 ;
 
