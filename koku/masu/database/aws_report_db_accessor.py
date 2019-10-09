@@ -286,14 +286,6 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        aws_where_clause = ''
-        ocp_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-        if cluster_id:
-            ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
-
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         summary_sql = pkgutil.get_data(
             'masu.database',
@@ -304,12 +296,13 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date,
             'end_date': end_date,
-            'aws_where_clause': aws_where_clause,
-            'ocp_where_clause': ocp_where_clause,
+            'bill_ids': bill_ids,
+            'cluster_id': cluster_id,
             'schema': self.schema
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params)
+
         self._commit_and_vacuum(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
