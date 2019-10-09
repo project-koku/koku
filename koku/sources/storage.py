@@ -96,6 +96,26 @@ def load_providers_to_create():
     return providers_to_create
 
 
+def load_providers_to_update():
+    """
+    Build a list of Sources have pending Koku Provider updates.
+
+    Args:
+        None
+
+    Returns:
+        [Dict] - List of events that can be processed by the synchronize_sources method.
+
+    """
+    providers_to_update = []
+    providers = Sources.objects.filter(pending_update=True, pending_delete=False,
+                                       koku_uuid__isnull=False).all()
+    for provider in providers:
+        providers_to_update.append({'operation': 'update', 'provider': provider})
+
+    return providers_to_update
+
+
 def load_providers_to_delete():
     """
     Build a list of Sources that need to be deleted from the Koku provider database.
@@ -122,7 +142,7 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
-async def enqueue_source_delete(queue, source_id):
+def enqueue_source_delete(source_id):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
 
@@ -138,7 +158,46 @@ async def enqueue_source_delete(queue, source_id):
         source = Sources.objects.get(source_id=source_id)
         source.pending_delete = True
         source.save()
-        await queue.put({'operation': 'destroy', 'provider': source})
+    except Sources.DoesNotExist:
+        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+
+
+def enqueue_source_update(source_id):
+    """
+    Queues a source update event to be processed by the synchronize_sources method.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier.
+
+    Returns:
+        None
+
+    """
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if source.koku_uuid and not source.pending_delete:
+            source.pending_update = True
+            source.save(update_fields=['pending_update'])
+    except Sources.DoesNotExist:
+        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+
+
+def clear_update_flag(source_id):
+    """
+    Clear pending update flag after successfully updating Koku provider.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier.
+
+    Returns:
+        None
+
+    """
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if source.koku_uuid:
+            source.pending_update = False
+            source.save()
     except Sources.DoesNotExist:
         LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
 
@@ -149,7 +208,7 @@ def create_provider_event(source_id, auth_header, offset):
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        auth_header (String) - HTTP Authenticaiton Header
+        auth_header (String) - HTTP Authentication Header
         offset (Integer) - Kafka offset
 
     Returns:
@@ -224,6 +283,10 @@ def add_provider_sources_auth_info(source_id, authentication):
     """
     try:
         query = Sources.objects.get(source_id=source_id)
+        current_auth_dict = query.authentication
+        subscription_id = current_auth_dict.get('credentials', {}).get('subscription_id')
+        if subscription_id and authentication.get('credentials'):
+            authentication['credentials']['subscription_id'] = subscription_id
         query.authentication = authentication
         query.save()
     except Sources.DoesNotExist:
@@ -281,13 +344,20 @@ def add_subscription_id_to_credentials(request_data, subscription_id):
         None
 
     """
-    query = get_query_from_api_data(request_data)
-    if query.source_type not in ('AZURE',):
-        raise SourcesStorageError('Source is not AZURE.')
-    auth_dict = query.authentication
-    auth_dict['credentials']['subscription_id'] = subscription_id
-    query.authentication = auth_dict
-    query.save()
+    try:
+        query = get_query_from_api_data(request_data)
+        if query.source_type not in ('AZURE',):
+            raise SourcesStorageError('Source is not AZURE.')
+        auth_dict = query.authentication
+        auth_dict['credentials']['subscription_id'] = subscription_id
+        query.authentication = auth_dict
+        if query.koku_uuid:
+            query.pending_update = True
+            query.save(update_fields=['authentication', 'pending_update'])
+        else:
+            query.save()
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
 
 
 def _validate_billing_source(provider_type, billing_source):
@@ -317,12 +387,19 @@ def add_provider_billing_source(request_data, billing_source):
         None
 
     """
-    query = get_query_from_api_data(request_data)
-    if query.source_type not in ('AWS', 'AZURE'):
-        raise SourcesStorageError('Source is not AWS nor AZURE.')
-    _validate_billing_source(query.source_type, billing_source)
-    query.billing_source = billing_source
-    query.save()
+    try:
+        query = get_query_from_api_data(request_data)
+        if query.source_type not in ('AWS', 'AZURE'):
+            raise SourcesStorageError('Source is not AWS nor AZURE.')
+        _validate_billing_source(query.source_type, billing_source)
+        query.billing_source = billing_source
+        if query.koku_uuid:
+            query.pending_update = True
+            query.save(update_fields=['billing_source', 'pending_update'])
+        else:
+            query.save()
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
 
 
 def add_provider_koku_uuid(source_id, koku_uuid):
