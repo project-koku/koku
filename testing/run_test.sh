@@ -23,14 +23,14 @@ main() {
                            --name "iqe" \
                            -e "IQE_TESTS_LOCAL_CONF_PATH=/iqe_conf" \
                            -e "ENV_FOR_DYNACONF=local" \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/conf:/iqe_conf \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local:/tmp/local_bucket \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local_0:/tmp/local_bucket_0 \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local_1:/tmp/local_bucket_1 \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local_2:/tmp/local_bucket_2 \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local_3:/tmp/local_bucket_3 \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/aws_local_4:/tmp/local_bucket_4 \
-                           -v /Users/curtisd/projects/repos/koku_fork/testing/local_providers/insights_local:/var/tmp/masu/insights_local \
+                           -v $PWD/conf:/iqe_conf \
+                           -v $PWD/local_providers/aws_local:/tmp/local_bucket \
+                           -v $PWD/local_providers/aws_local_0:/tmp/local_bucket_0 \
+                           -v $PWD/local_providers/aws_local_1:/tmp/local_bucket_1 \
+                           -v $PWD/local_providers/aws_local_2:/tmp/local_bucket_2 \
+                           -v $PWD/local_providers/aws_local_3:/tmp/local_bucket_3 \
+                           -v $PWD/local_providers/aws_local_4:/tmp/local_bucket_4 \
+                           -v $PWD/local_providers/insights_local:/var/tmp/masu/insights_local \
                            $IMAGE \
                            $COMMAND
 }
