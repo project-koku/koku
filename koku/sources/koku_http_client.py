@@ -131,6 +131,24 @@ class KokuHTTPClient:
             raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
         return r.json()
 
+    def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
+        """Koku HTTP call to update provider."""
+        url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
+        json_data = {'name': name, 'type': provider_type,
+                     'authentication': self.get_authentication_for_provider(provider_type,
+                                                                            authentication),
+                     'billing_source': self.get_billing_source_for_provider(provider_type,
+                                                                            billing_source)}
+        try:
+            r = requests.put(url, headers=self._identity_header, json=json_data)
+        except RequestException as conn_err:
+            raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
+        if r.status_code == 404:
+            raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(r.json()))
+        if r.status_code != 200:
+            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
+        return r.json()
+
     def destroy_provider(self, provider_uuid):
         """Koku HTTP call to destroy provider."""
         url = '{}/{}/{}/'.format(self._base_url, 'providers', provider_uuid)
@@ -138,6 +156,8 @@ class KokuHTTPClient:
             response = requests.delete(url, headers=self._identity_header)
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to delete provider. Connection Error: ', str(conn_err))
+        if response.status_code == 404:
+            raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(response.json()))
         if response.status_code != 204:
             raise KokuHTTPClientError('Unable to remove koku provider. Response: ', str(response.status_code))
         return response
