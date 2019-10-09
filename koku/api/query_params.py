@@ -73,7 +73,11 @@ class QueryParameters:
 
         # configure access params.
         if self.access:
-            getattr(self, f'_set_access_{caller.query_handler.provider.lower()}')()
+            provider = caller.query_handler.provider.lower()
+            if not hasattr(self, f'_set_access_{provider}'):
+                msg = f'Invalid provider "{provider}".'
+                raise ValidationError({'details': _(msg)})
+            getattr(self, f'_set_access_{provider}')()
 
         self._set_time_scope_defaults()
         LOG.debug('Query Parameters: %s', self)

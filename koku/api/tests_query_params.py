@@ -35,6 +35,16 @@ from api.report.view import ReportView
 
 LOG = logging.getLogger(__name__)
 PROVIDERS = ['AWS', 'AZURE', 'OCP', 'OCP_AWS']
+ACCESS_KEYS = {'aws': ['aws.account'],
+               'azure': ['azure.subscription_guid'],
+               'ocp': ['openshift.cluster',
+                       'openshift.project',
+                       'openshift.node'],
+               'ocp_aws': ['aws.account',
+                           'openshift.cluster',
+                           'openshift.project',
+                           'openshift.node']
+              }
 
 
 class QueryParametersTests(TestCase):
@@ -49,6 +59,8 @@ class QueryParametersTests(TestCase):
                          f'filter[time_scope_units]={self.FAKE.word()}&'
                          f'group_by[{self.FAKE.word()}]=*&'
                          f'order_by[{self.FAKE.word()}]=asc')
+        self.provider = random.choice(PROVIDERS).lower()
+        self.test_read_access = {random.choice(ACCESS_KEYS[self.provider]): {'read': ['*']}}
 
     def test_constructor(self):
         """Test that constructor creates a QueryParameters object.
@@ -116,11 +128,12 @@ class QueryParametersTests(TestCase):
         """Test that the accept_type property returns expected value."""
         expected = self.FAKE.word()
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
                             META=Mock(get=Mock(return_value=expected)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -129,28 +142,28 @@ class QueryParametersTests(TestCase):
 
     def test_access_property(self):
         """Test that the access property returns expected value."""
-        expected = self.FAKE.word()
         fake_request = Mock(spec=HttpRequest,
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
-                            user=Mock(access=expected))
+                            user=Mock(access=self.test_read_access, customer=Mock(schema_name=self.FAKE.word())))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
         params = QueryParameters(fake_request, fake_view)
-        self.assertEqual(params.access, expected)
+        self.assertEqual(params.access, self.test_read_access)
 
     def test_delta_property(self):
         """Test that the delta property returns expected value."""
         expected = self.FAKE.word()
         fake_uri = f'delta={expected}'
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -161,11 +174,11 @@ class QueryParametersTests(TestCase):
         """Test that the tenant property returns expected value."""
         expected = self.FAKE.word()
         fake_request = Mock(spec=HttpRequest,
-                            user=Mock(customer=Mock(schema_name=self.FAKE.word())),
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -177,10 +190,11 @@ class QueryParametersTests(TestCase):
         """Test that the parameters property returns expected value."""
         expected = parser.parse(str(self.fake_uri))
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -191,10 +205,11 @@ class QueryParametersTests(TestCase):
         """Test that the parameters property setter works."""
         expected = self.FAKE.pydict()
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -205,10 +220,11 @@ class QueryParametersTests(TestCase):
     def test_url_data_property(self):
         """Test that the url_data property returns expected value."""
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -218,11 +234,11 @@ class QueryParametersTests(TestCase):
     def test_user_property(self):
         """Test that the user property returns expected value."""
         fake_request = Mock(spec=HttpRequest,
-                            user=Mock(customer=Mock(schema_name='acct10001')),
+                            user=Mock(access=None, customer=Mock(schema_name='acct10001')),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -232,10 +248,11 @@ class QueryParametersTests(TestCase):
     def test_get_groupby_default(self):
         """Test that get_group_by() returns the provided default value."""
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -245,10 +262,11 @@ class QueryParametersTests(TestCase):
     def test_get_set(self):
         """Test that set() assigns the provided value and get() retrieves it."""
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -261,10 +279,11 @@ class QueryParametersTests(TestCase):
     def test_get_set_filter(self):
         """Test that set() assigns the provided value and get() retrieves it."""
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=self.fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -277,10 +296,11 @@ class QueryParametersTests(TestCase):
     def test_has_filter_no_filter(self):
         """Test the default filter query parameters."""
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value='')))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -294,10 +314,11 @@ class QueryParametersTests(TestCase):
         fake_uri = ('filter[resolution]=monthly&'
                     'filter[time_scope_units]=month')
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -309,10 +330,11 @@ class QueryParametersTests(TestCase):
         fake_uri = ('filter[resolution]=monthly&'
                     'filter[time_scope_value]=-1')
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
@@ -324,10 +346,11 @@ class QueryParametersTests(TestCase):
         fake_uri = ('filter[time_scope_units]=month&'
                     'filter[time_scope_value]=-1')
         fake_request = Mock(spec=HttpRequest,
+                            user=Mock(access=None, customer=Mock(schema_name=self.FAKE.word())),
                             GET=Mock(urlencode=Mock(return_value=fake_uri)))
         fake_view = Mock(spec=ReportView,
                          provider=self.FAKE.word(),
-                         query_handler=Mock(provider=self.FAKE.word()),
+                         query_handler=Mock(provider=self.provider),
                          report=self.FAKE.word(),
                          serializer=Mock,
                          tag_handler=[])
