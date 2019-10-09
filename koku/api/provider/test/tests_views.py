@@ -21,7 +21,6 @@ from uuid import uuid4
 from django.urls import reverse
 from providers.provider_access import ProviderAccessor
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from api.iam.serializers import UserSerializer
