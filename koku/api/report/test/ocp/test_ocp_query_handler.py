@@ -15,10 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Test the Report Queries."""
-import logging
 from collections import defaultdict
 from decimal import Decimal
-from pprint import pformat
 from unittest.mock import patch
 
 from django.db.models import F, Max, Sum
@@ -33,9 +31,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -260,7 +256,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         handler = OCPReportQueryHandler(query_params.mock_qp)
         handler._delta = 'usage'
+
         handler.add_deltas([], [])
+
         mock_current_deltas.assert_not_called()
         mock_deltas.assert_called()
 

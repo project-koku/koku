@@ -131,6 +131,33 @@ class TagQueryHandler(QueryHandler):
         LOG.debug(f'_get_filter: {composed_filters}')
         return composed_filters
 
+    def _get_exclusions(self, column):
+        """Create dictionary for filter parameters for exclude clause.
+
+        For tags this is to filter items that have null values for the
+        specified tag field.
+
+        Args:
+            column (str): The tag column being queried
+
+        Returns:
+            (Dict): query filter dictionary
+
+        """
+        exclusions = QueryFilterCollection()
+        filt = {
+            'field': column,
+            'operation': 'isnull',
+            'parameter': True
+        }
+        q_filter = QueryFilter(**filt)
+        exclusions.add(q_filter)
+
+        composed_exclusions = exclusions.compose()
+
+        LOG.debug(f'_get_exclusions: {composed_exclusions}')
+        return composed_exclusions
+
     def _set_operator_specified_filters(self, operator):
         """Set any filters using AND instead of OR."""
         filters = QueryFilterCollection()
@@ -180,9 +207,10 @@ class TagQueryHandler(QueryHandler):
 
                 if type_filter and type_filter != source.get('type'):
                     continue
-
+                exclusion = self._get_exclusions(source.get('db_column'))
                 tag_keys_query = tag_keys_query.annotate(
                     tag_keys=JSONBObjectKeys(F(source.get('db_column'))))\
+                    .exclude(exclusion)\
                     .values('tag_keys')\
                     .distinct()\
                     .all()
@@ -211,9 +239,10 @@ class TagQueryHandler(QueryHandler):
             for source in self.data_sources:
                 if type_filter and type_filter != source.get('type'):
                     continue
-
+                exclusion = self._get_exclusions(source.get('db_column'))
                 tag_keys = source.get('db_table').objects\
                     .filter(self.query_filter)\
+                    .exclude(exclusion)\
                     .values(source.get('db_column'))\
                     .distinct()\
                     .all()

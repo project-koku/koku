@@ -77,15 +77,25 @@ class ProviderDeleteException(APIException):
         self.detail = {'detail': force_text(self.default_detail)}
 
 
+class ProviderMethodException(APIException):
+    """General Exception class for Provider errors."""
+
+    def __init__(self, message):
+        """Set custom error message for Provider errors."""
+        self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+        self.detail = {'detail': force_text(message)}
+
+
 class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
+                      mixins.UpdateModelMixin,
                       viewsets.GenericViewSet):
     """Provider View.
 
     A viewset that provides default `create()`, `retrieve()`,
-    and `list()` actions.
+    `update()`, and `list()` actions.
     """
 
     lookup_field = 'uuid'
@@ -120,6 +130,20 @@ class ProviderViewSet(mixins.CreateModelMixin,
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
         return super().create(request=request, args=args, kwargs=kwargs)
+
+    @never_cache
+    def update(self, request, *args, **kwargs):
+        """Update a Provider."""
+        if request.method == 'PATCH':
+            raise ProviderMethodException('PATCH not supported')
+        user = request.user
+        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
+        get_object_or_404(Provider, uuid=uuid, customer=user.customer)
+
+        manager = ProviderManager(kwargs['uuid'])
+        manager.update(request)
+
+        return super().update(request=request, args=args, kwargs=kwargs)
 
     @never_cache
     def list(self, request, *args, **kwargs):

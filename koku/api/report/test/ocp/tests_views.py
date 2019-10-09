@@ -21,7 +21,8 @@ from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
 from dateutil import relativedelta
-from django.db.models import Count, F, Sum
+from django.db.models import Count, DecimalField, F, Sum, Value
+from django.db.models.functions import Coalesce
 from django.http import HttpRequest, QueryDict
 from django.urls import reverse
 from rest_framework import status
@@ -39,7 +40,7 @@ from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -199,11 +200,6 @@ class OCPReportViewTest(IamTestCase):
                 'pod_request_memory_gigabytes': 12.431585
             }
         }
-
-    def tearDown(self):
-        """Tear down the test case."""
-        self.data_generator.remove_data_from_tenant()
-        self.data_generator.remove_data_from_reporting_common()
 
     @patch('api.report.ocp.query_handler.OCPReportQueryHandler')
     def test_ocpcpuview_success(self, mock_handler):
@@ -560,15 +556,16 @@ class OCPReportViewTest(IamTestCase):
         data = response.data
 
         with tenant_context(self.tenant):
-            cost = CostSummary.objects\
+            cost = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=self.dh.this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours')  # noqa: W504
-                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
-                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
-                        + F('project_infra_cost')
-                        + F('markup_cost')
+                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                   Value(0, output_field=DecimalField()))
+                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
                 ).get('total')
             expected_total = cost if cost is not None else 0
@@ -601,45 +598,48 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = CostSummary.objects\
+            current_total = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours')  # noqa: W504
-                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
-                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
-                        + F('infra_cost')
-                        + F('markup_cost')
+                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                   Value(0, output_field=DecimalField()))
+                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = CostSummary.objects\
+            current_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
                 .annotate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours')  # noqa: W504
-                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
-                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
-                        + F('infra_cost')
-                        + F('markup_cost')
+                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                   Value(0, output_field=DecimalField()))
+                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
                 )
 
-            prev_totals = CostSummary.objects\
+            prev_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=last_month_start)\
                 .filter(usage_start__date__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
                 .annotate(
                     total=Sum(
-                        F('pod_charge_cpu_core_hours')  # noqa: W504
-                        + F('pod_charge_memory_gigabyte_hours')  # noqa: W504
-                        + F('persistentvolumeclaim_charge_gb_month')  # noqa: W504
-                        + F('infra_cost')
-                        + F('markup_cost')
+                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                   Value(0, output_field=DecimalField()))
+                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
                     )
                 )
 
@@ -1023,7 +1023,7 @@ class OCPReportViewTest(IamTestCase):
         filter_key = tag_keys[0]
 
         with tenant_context(self.tenant):
-            labels = CostSummary.objects\
+            labels = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(pod_labels__has_key=filter_key)\
                 .values('pod_labels')\
@@ -1031,14 +1031,19 @@ class OCPReportViewTest(IamTestCase):
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
 
-            totals = CostSummary.objects\
+            totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
-                .aggregate(cost=Sum(F('pod_charge_cpu_core_hours')                 # noqa: W503
-                                    + F('pod_charge_memory_gigabyte_hours')        # noqa: W503
-                                    + F('persistentvolumeclaim_charge_gb_month')   # noqa: W503
-                                    + F('infra_cost')                              # noqa: W503
-                                    + F('markup_cost')))
+                .aggregate(
+                    cost=Sum(
+                        Coalesce(F('pod_charge_cpu_core_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('pod_charge_memory_gigabyte_hours'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('persistentvolumeclaim_charge_gb_month'),
+                                   Value(0, output_field=DecimalField()))
+                        + Coalesce(F('infra_cost'), Value(0, output_field=DecimalField()))
+                        + Coalesce(F('markup_cost'), Value(0, output_field=DecimalField()))
+                    )
+                )
 
         url = reverse('reports-openshift-costs')
         client = APIClient()
