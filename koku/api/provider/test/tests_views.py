@@ -111,6 +111,39 @@ class ProviderViewTest(IamTestCase):
             client = APIClient()
             return client.post(url, data=provider, format='json', **req_headers), provider
 
+    def test_create_aws_with_no_provider_resource_name(self):
+        """Test missing provider_resource_name returns 400."""
+        req_headers = self.headers
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': ''
+                    },
+                    'billing_source': {
+                        'bucket': ''
+                    }}
+        url = reverse('provider-list')
+        client = APIClient()
+        response = client.post(url, data=provider, format='json', **req_headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('providers.aws.provider._get_sts_access', return_value={'empty': 'dict'})
+    def test_create_aws_with_no_bucket_name(self, mock_sts_return):
+        """Test missing bucket returns 400."""
+        req_headers = self.headers
+        provider = {'name': 'test_provider',
+                    'type': Provider.PROVIDER_AWS,
+                    'authentication': {
+                        'provider_resource_name': 'arn:aws:s3:::my_s3_bucket'
+                    },
+                    'billing_source': {
+                        'bucket': ''
+                    }}
+        url = reverse('provider-list')
+        client = APIClient()
+        response = client.post(url, data=provider, format='json', **req_headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_create_provider(self):
         """Test create a provider."""
         iam_arn = 'arn:aws:s3:::my_s3_bucket'
