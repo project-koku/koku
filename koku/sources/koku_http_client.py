@@ -128,7 +128,8 @@ class KokuHTTPClient:
         except RequestException as conn_err:
             raise KokuHTTPClientError('Failed to create provider. Connection Error: ', str(conn_err))
         if r.status_code != 201:
-            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
+            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Status Code: ',
+                                                    str(r.status_code))
         return r.json()
 
     def update_provider(self, provider_uuid, name, provider_type, authentication, billing_source):
@@ -146,7 +147,8 @@ class KokuHTTPClient:
         if r.status_code == 404:
             raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(r.json()))
         if r.status_code != 200:
-            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Error: ', str(r.json()))
+            raise KokuHTTPClientNonRecoverableError('Unable to create provider. Status Code: ',
+                                                    str(r.status_code))
         return r.json()
 
     def destroy_provider(self, provider_uuid):
@@ -159,5 +161,6 @@ class KokuHTTPClient:
         if response.status_code == 404:
             raise KokuHTTPClientNonRecoverableError('Provider not found. Error: ', str(response.json()))
         if response.status_code != 204:
-            raise KokuHTTPClientError('Unable to remove koku provider. Response: ', str(response.status_code))
+            raise KokuHTTPClientError('Unable to remove koku provider. Status Code: ',
+                                      str(response.status_code))
         return response
