@@ -30,7 +30,7 @@ main() {
                            -v $PWD/local_providers/aws_local_2:/tmp/local_bucket_2 \
                            -v $PWD/local_providers/aws_local_3:/tmp/local_bucket_3 \
                            -v $PWD/local_providers/aws_local_4:/tmp/local_bucket_4 \
-                           -v $PWD/local_providers/insights_local:/var/tmp/masu/insights_local \
+                           -v $PWD/pvc_dir/insights_local:/var/tmp/masu/insights_local \
                            $IMAGE \
                            $COMMAND
 }
