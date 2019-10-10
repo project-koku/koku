@@ -194,7 +194,7 @@ parameters:
 - description: Erlang version to use
   name: ERLANG_VERSION
   required: true
-  value: "20.3.4"
+  value: "22.1.2"
 - description: Image stream tag for the image you'd like to use to build the application
   name: FROM_IMAGE
   required: true
