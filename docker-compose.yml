@@ -160,7 +160,7 @@ services:
         - ENABLE_S3_ARCHIVING=False
         - S3_BUCKET_NAME=koku-bucket
         - S3_BUCKET_PATH=data_archive
-        - PVC_DIR=${PVC_DIR-/testing/local_providers}
+        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
       privileged: true
       volumes:
         - '.:/koku'
