@@ -311,7 +311,7 @@ class ReportQueryHandler(QueryHandler):
                 group_data = self.parameters.get_group_by('or:' + item)
             if group_data:
                 group_pos = self.parameters.url_data.index(item)
-                group_by.append((item, group_pos))
+                group_by.append(item, group_pos)
 
         tag_group_by = self._get_tag_group_by()
         group_by.extend(tag_group_by)
@@ -326,8 +326,7 @@ class ReportQueryHandler(QueryHandler):
         if (inherent_group_by and not (group_by and self._limit)):
             group_by += inherent_group_by
 
-        # return a de-duplicated list
-        return list(set(group_by))
+        return group_by
 
     def _get_tag_group_by(self):
         """Create list of tag based group by parameters."""
