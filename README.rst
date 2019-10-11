@@ -143,6 +143,12 @@ To lint the code base ::
 
     tox -e lint
 
+To run IQE Smoke or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+
+    make docker-iqe-smokes-tests
+    make docker-iqe-api-tests
+
+
 pgAdmin
 -------------------
 

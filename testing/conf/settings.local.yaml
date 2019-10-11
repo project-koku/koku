@@ -1,0 +1,16 @@
+local:
+  hccm:
+    masu:
+      path: api/cost-management/v1
+      port: 5000
+      hostname: localhost
+      scheme: http
+  main:
+    ocp_dir: /var/tmp/masu/insights_local
+    aws_dir: /tmp/local_bucket
+    hostname: localhost:8000
+    scheme: http
+    username: user_dev@foo.com
+    password: password
+  http:
+    default_auth_type: basic

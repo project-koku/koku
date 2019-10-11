@@ -84,7 +84,7 @@ class Config:
     NAMESPACE = os.getenv('NAMESPACE', default='unknown')
 
     # Data directory for processing incoming data.  This is the OCP PVC mount point.
-    PVC_DIR = '/var/tmp/masu'
+    PVC_DIR = os.getenv('PVC_DIR', default='/var/tmp/masu')
 
     # OCP intermediate report storage
     INSIGHTS_LOCAL_REPORT_DIR = f'{PVC_DIR}/insights_local'
