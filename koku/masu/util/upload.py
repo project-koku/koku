@@ -87,4 +87,5 @@ def query_and_upload_to_s3(schema, table_export_setting, date_range):
                 writer.writerow([field.name for field in cursor.description])
                 for row in cursor.fetchall():
                     writer.writerow(row)
+                temp_file.close()
                 uploader.upload_file(temp_file.name, upload_path)
