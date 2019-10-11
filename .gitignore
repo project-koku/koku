@@ -124,3 +124,6 @@ scripts/aws_pricing/
 .DS_Store
 #pgAdmin servers.json
 pgadmin_servers.json
+
+# Testing
+testing/
