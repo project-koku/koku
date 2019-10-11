@@ -138,11 +138,13 @@ table_export_settings = [
         'reporting_awscostentrylineitem_daily_summary',
         True,
         """
-        SELECT ds.*, a.account_id, a.account_alias, b.*
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
         FROM
             {schema}.reporting_awscostentrylineitem_daily_summary ds
-            JOIN {schema}.reporting_awsaccountalias a ON a.id = ds.account_alias_id
             JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.cost_entry_bill_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
         WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
         """,
@@ -157,7 +159,7 @@ table_export_settings = [
             {schema}.reporting_azurecostentrylineitem_daily_summary ds
             JOIN {schema}.reporting_azurecostentrybill b ON b.id = ds.cost_entry_bill_id
             JOIN {schema}.reporting_azuremeter m ON m.id = ds.meter_id
-        WHERE ds.usage_date_time BETWEEN %(start_date)s AND %(end_date)s
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
         """,
     ),
     TableExportSetting(
@@ -165,11 +167,13 @@ table_export_settings = [
         'reporting_ocpawscostlineitem_daily_summary',
         True,
         """
-        SELECT ds.*, a.account_id, aa.account_alias, b.*
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
         FROM
             {schema}.reporting_ocpawscostlineitem_daily_summary ds
-            JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
             JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
         WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
         """,
@@ -182,8 +186,10 @@ table_export_settings = [
         SELECT ds.*, aa.account_id, aa.account_alias, b.*
         FROM
             {schema}.reporting_ocpawscostlineitem_project_daily_summary ds
-            JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
             JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
         WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
             -- No need to filter usage_end because usage_end should always match usage_start for this table.
         """,
