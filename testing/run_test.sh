@@ -1,5 +1,4 @@
 #!/bin/bash
-
 COMMAND=$@
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IMAGE="docker-registry.upshift.redhat.com/insights-qe/iqe-tests"
