@@ -353,7 +353,7 @@ class AWSCostEntryProduct(models.Model):
     region = models.CharField(max_length=50, null=True)
     # The following fields are useful for EC2 instances
     instance_type = models.CharField(max_length=50, null=True)
-    memory = models.FloatField(null=True)
+    memory = models.TextField(null=True)
     memory_unit = models.CharField(max_length=24, null=True)
     vcpu = models.PositiveIntegerField(null=True)
 
