@@ -347,7 +347,7 @@ class AWSCostEntryProduct(models.Model):
         ]
 
     sku = models.CharField(max_length=128, null=True)
-    product_name = models.CharField(max_length=63, null=True)
+    product_name = models.TextField(null=True)
     product_family = models.CharField(max_length=150, null=True)
     service_code = models.CharField(max_length=50, null=True)
     region = models.CharField(max_length=50, null=True)
