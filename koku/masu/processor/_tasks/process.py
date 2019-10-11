@@ -88,7 +88,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
             LOG.error('Unable to find manifest for ID: %s, file %s', manifest_id, file_name)
 
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
+        if provider_accessor.get_setup_complete():
+            files = processor.remove_processed_files(path.dirname(report_path))
+            LOG.info('Temporary files removed: %s', str(files))
         provider_accessor.setup_complete()
-
-    files = processor.remove_processed_files(path.dirname(report_path))
-    LOG.info('Temporary files removed: %s', str(files))

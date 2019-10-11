@@ -441,6 +441,12 @@ docker-up:
 docker-up-db:
 	docker-compose up -d db
 
+docker-iqe-smokes-tests:
+	./testing/run_smoke_tests.sh
+
+docker-iqe-api-tests:
+	./testing/run_api_tests.sh
+
 ########################
 ### Internal targets ###
 ########################
