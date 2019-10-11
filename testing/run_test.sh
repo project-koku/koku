@@ -1,7 +1,7 @@
 #!/bin/bash
 
 COMMAND=$@
-
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IMAGE="docker-registry.upshift.redhat.com/insights-qe/iqe-tests"
 
 main() {
@@ -23,14 +23,14 @@ main() {
                            --name "iqe" \
                            -e "IQE_TESTS_LOCAL_CONF_PATH=/iqe_conf" \
                            -e "ENV_FOR_DYNACONF=local" \
-                           -v $PWD/conf:/iqe_conf \
-                           -v $PWD/local_providers/aws_local:/tmp/local_bucket \
-                           -v $PWD/local_providers/aws_local_0:/tmp/local_bucket_0 \
-                           -v $PWD/local_providers/aws_local_1:/tmp/local_bucket_1 \
-                           -v $PWD/local_providers/aws_local_2:/tmp/local_bucket_2 \
-                           -v $PWD/local_providers/aws_local_3:/tmp/local_bucket_3 \
-                           -v $PWD/local_providers/aws_local_4:/tmp/local_bucket_4 \
-                           -v $PWD/pvc_dir/insights_local:/var/tmp/masu/insights_local \
+                           -v $SCRIPTPATH/conf:/iqe_conf \
+                           -v $SCRIPTPATH/local_providers/aws_local:/tmp/local_bucket \
+                           -v $SCRIPTPATH/local_providers/aws_local_0:/tmp/local_bucket_0 \
+                           -v $SCRIPTPATH/local_providers/aws_local_1:/tmp/local_bucket_1 \
+                           -v $SCRIPTPATH/local_providers/aws_local_2:/tmp/local_bucket_2 \
+                           -v $SCRIPTPATH/local_providers/aws_local_3:/tmp/local_bucket_3 \
+                           -v $SCRIPTPATH/local_providers/aws_local_4:/tmp/local_bucket_4 \
+                           -v $SCRIPTPATH/pvc_dir/insights_local:/var/tmp/masu/insights_local \
                            $IMAGE \
                            $COMMAND
 }

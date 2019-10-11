@@ -1,4 +1,6 @@
 #!/bin/bash
-echo "Running API Tests"
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 
-./run_test.sh 'iqe tests plugin hccm -k test_api'
+echo "Running API Tests at $SCRIPTPATH"
+
+$SCRIPTPATH/run_test.sh 'iqe tests plugin hccm -k test_api'
