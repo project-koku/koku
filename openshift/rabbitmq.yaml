@@ -60,6 +60,11 @@ objects:
     labels:
       application: ${APPLICATION_NAME}
     name: ${APPLICATION_NAME}
+    annotations:
+      image.openshift.io/triggers: >-
+        [{"from": {"kind": "ImageStreamTag", "name": "${APPLICATION_NAME}:${RABBITMQ_VERSION}", "namespace":
+        "${NAMESPACE}"}, "fieldPath":
+        "spec.template.spec.containers[?(@.name==\"${APPLICATION_NAME}\")].image"}]
   spec:
     replicas: ${{REPLICAS}}
     selector:
@@ -116,7 +121,8 @@ objects:
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         schedulerName: default-scheduler
-        securityContext: {}
+        securityContext:
+          runAsUser: 999
         terminationGracePeriodSeconds: 10
     volumeClaimTemplates:
     - metadata:
@@ -184,17 +190,13 @@ parameters:
   name: NAMESPACE
   required: true
   value: koku
-- description: RabbitMQ version to build
-  name: RABBITMQ_VERSION
-  required: true
-  value: 3.7.5
 - description: Path within Git repository to build; empty for root of repository
   name: CONTEXT_DIR
   value: openshift/rabbitmq
 - description: Erlang version to use
   name: ERLANG_VERSION
   required: true
-  value: "20.3.4"
+  value: "22.1.2"
 - description: Image stream tag for the image you'd like to use to build the application
   name: FROM_IMAGE
   required: true
@@ -206,7 +208,7 @@ parameters:
 - description: RabbitMQ version to build
   name: RABBITMQ_VERSION
   required: true
-  value: 3.6.15
+  value: 3.8.0
 - description: Git branch/tag reference
   name: SOURCE_REPOSITORY_REF
   value: master
