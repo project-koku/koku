@@ -256,13 +256,14 @@ class GetReportFileTests(MasuTestCase):
 class ProcessReportFileTests(MasuTestCase):
     """Test Cases for the Orchestrator object."""
 
+    @patch('masu.processor._tasks.process.ProviderDBAccessor')
     @patch('masu.processor._tasks.process.ReportProcessor')
     @patch('masu.processor._tasks.process.ReportStatsDBAccessor')
     @patch('masu.processor._tasks.process.ReportManifestDBAccessor')
-    def test_process_file(
-        self, mock_manifest_accessor, mock_stats_accessor, mock_processor
+    def test_process_file_initial_ingest(
+        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
     ):
-        """Test the process_report_file functionality."""
+        """Test the process_report_file functionality on initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
@@ -277,13 +278,52 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
         mock_manifest_acc = mock_manifest_accessor().__enter__()
+        mock_provider_acc = mock_provider_accessor().__enter__()
+        mock_provider_acc.get_setup_complete.return_value = False
 
         _process_report_file(schema_name, provider, provider_uuid, report_dict)
 
         mock_proc.process.assert_called()
+        mock_proc.remove_processed_files.assert_not_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
+        mock_provider_acc.setup_complete.assert_called()
+        shutil.rmtree(report_dir)
+
+    @patch('masu.processor._tasks.process.ProviderDBAccessor')
+    @patch('masu.processor._tasks.process.ReportProcessor')
+    @patch('masu.processor._tasks.process.ReportStatsDBAccessor')
+    @patch('masu.processor._tasks.process.ReportManifestDBAccessor')
+    def test_process_file_non_initial_ingest(
+        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
+    ):
+        """Test the process_report_file functionality on non-initial ingest."""
+        report_dir = tempfile.mkdtemp()
+        path = '{}/{}'.format(report_dir, 'file1.csv')
+        schema_name = self.schema
+        provider = 'AWS'
+        provider_uuid = self.aws_test_provider_uuid
+        report_dict = {
+            'file': path,
+            'compression': 'gzip',
+            'start_date': str(DateAccessor().today()),
+        }
+
+        mock_proc = mock_processor()
+        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_manifest_acc = mock_manifest_accessor().__enter__()
+        mock_provider_acc = mock_provider_accessor().__enter__()
+        mock_provider_acc.get_setup_complete.return_value = True
+
+        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+
+        mock_proc.process.assert_called()
+        mock_proc.remove_processed_files.assert_called()
+        mock_stats_acc.log_last_started_datetime.assert_called()
+        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_manifest_acc.mark_manifest_as_updated.assert_called()
+        mock_provider_acc.setup_complete.assert_called()
         shutil.rmtree(report_dir)
 
     @patch('masu.processor._tasks.process.ReportProcessor')
