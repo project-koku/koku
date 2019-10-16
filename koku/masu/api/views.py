@@ -23,3 +23,4 @@ from masu.api.expired_data import expired_data
 from masu.api.report_data import report_data
 from masu.api.status import get_status
 from masu.api.update_charge import update_charge
+from masu.api.upload_normalized_data import upload_normalized_data
