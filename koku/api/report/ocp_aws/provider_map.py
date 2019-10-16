@@ -376,6 +376,9 @@ class OCPAWSProviderMap(ProviderMap):
                                         'markup_cost', 'derived_cost', 'count'],
                         'default_ordering': {'usage': 'desc'},
                     },
+                    'tags': {
+                        'default_ordering': {'cost': 'desc'},
+                    },
                 },
                 'start_date': 'usage_start',
                 'tables': {
