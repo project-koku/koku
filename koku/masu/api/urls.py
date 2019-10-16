@@ -25,7 +25,6 @@ from masu.api.views import (download_report,
 # # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', get_status, name='server-status'),
-    # url(r'^openapi.json', openapi, name='openapi'),
     url(r'^download/$', download_report, name='report_download'),
     url(r'^expired_data/$', expired_data, name='expired_data'),
     url(r'^report_data/$', report_data, name='report_data'),
