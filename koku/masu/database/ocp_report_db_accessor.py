@@ -22,6 +22,7 @@ import uuid
 from dateutil.parser import parse
 from django.db import connection
 from django.db.models import F
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -50,6 +51,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         super().__init__(schema, column_map)
         self._datetime_format = Config.OCP_DATETIME_STR_FORMAT
         self.column_map = column_map
+        self.jinja_sql = JinjaSql()
 
     def get_current_usage_report(self):
         """Get the most recent usage report object."""
@@ -562,9 +564,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumelabel_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_markup_cost(self, markup, cluster_id=None):
         """Set markup costs in the database."""
