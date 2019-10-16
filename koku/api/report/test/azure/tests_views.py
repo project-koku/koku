@@ -24,7 +24,6 @@ from faker import Faker
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.serializers import ValidationError
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
@@ -32,14 +31,11 @@ from api.common.pagination import ReportPagination, ReportRankedPagination
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
-from api.report.azure.serializers import AzureQueryParamSerializer
 from api.report.azure.view import AzureCostView
 from api.report.view import (_convert_units,
                              _fill_in_missing_units,
                              _find_unit,
-                             get_paginator,
-                             process_query_parameters,
-                             )
+                             get_paginator)
 from api.utils import UnitConverter
 
 FAKE = Faker()
@@ -165,26 +161,6 @@ class AzureReportViewTest(IamTestCase):
         self.assertIsNotNone(json_result.get('data'))
         self.assertIsInstance(json_result.get('data'), list)
         self.assertTrue(len(json_result.get('data')) > 0)
-
-    def test_process_invalid_query_parameters_format(self):
-        """Test processing of invalid parameters format."""
-        qs = 'group_by%5Bsubscription_guid%5D=subscription_guid1&filter%5'
-        with self.assertRaises(ValidationError):
-            process_query_parameters(qs, AzureQueryParamSerializer)
-
-    def test_process_query_parameters(self):
-        """Test processing of valid parameters."""
-        qs = 'group_by%5Bsubscription_guid%5D=subscription_guid1&filter%5Bresolution%5D=daily'
-        valid, query_dict = process_query_parameters(qs, AzureQueryParamSerializer)
-        self.assertTrue(valid)
-        self.assertEqual(query_dict.get('group_by'), {'subscription_guid': ['subscription_guid1']})
-        self.assertEqual(query_dict.get('filter'), {'resolution': 'daily'})
-
-    def test_process_query_parameters_invalid(self):
-        """Test processing of invalid parameters."""
-        qs = 'group_by%5Binvalid%5D=subscription_guid1&filter%5Bresolution%5D=daily'
-        valid, _ = process_query_parameters(qs, AzureQueryParamSerializer)
-        self.assertFalse(valid)
 
     def test_get_costs_invalid_query_param(self):
         """Test costs reports runs with an invalid query param."""
