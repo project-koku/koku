@@ -1,14 +1,6 @@
 #!/bin/bash
 set -eu
 
-# Create Rabbitmq user
-RUSER=${RABBITMQ_USER:-koku}
-RPASSWORD=${RABBITMQ_PASSWORD:-koku}
-rabbitmqctl add_user $RUSER $RPASSWORD
-rabbitmqctl set_user_tags $RUSER administrator
-rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
-echo "*** User '$RUSER' with password '$RPASSWORD' completed. ***"
-
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
@@ -411,4 +403,18 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 	export RABBITMQ_CTL_ERL_ARGS="${RABBITMQ_CTL_ERL_ARGS:-} $sslErlArgs"
 fi
 
-exec "$@"
+# run rabbitmq-server in background
+exec "$@ &"
+
+sleep 5
+
+# Create Rabbitmq user after server starts
+RUSER=${RABBITMQ_USER:-koku}
+RPASSWORD=${RABBITMQ_PASSWORD:-koku}
+rabbitmqctl add_user $RUSER $RPASSWORD
+rabbitmqctl set_user_tags $RUSER administrator
+rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
+echo "*** User '$RUSER' with password '$RPASSWORD' completed. ***"
+
+# bring rabbitmq-server back to foreground
+fg
