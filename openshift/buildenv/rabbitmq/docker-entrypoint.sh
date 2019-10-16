@@ -404,10 +404,8 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 fi
 
 # run rabbitmq-server in background
-exec "$@ &"
-
+exec "$@ --detached"
 sleep 5
-
 # Create Rabbitmq user after server starts
 RUSER=${RABBITMQ_USER:-koku}
 RPASSWORD=${RABBITMQ_PASSWORD:-koku}
@@ -417,4 +415,5 @@ rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
 echo "*** User '$RUSER' with password '$RPASSWORD' completed. ***"
 
 # bring rabbitmq-server back to foreground
-fg
+rabbitmqctl stop
+exec "$@"
