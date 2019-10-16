@@ -28,10 +28,10 @@ RUN curl -LO https://github.com/rabbitmq/erlang-rpm/releases/download/v${ERLANG_
     mkdir -p /var/lib/rabbitmq/mnesia && \
     usermod -G root,wheel rabbitmq && \
     chown -R 999:0 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq && \
-    rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s && \
-    echo "cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s" >> /etc/rabbitmq/rabbitmq.conf
+    rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s
 
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY docker-entrypoint.sh /usr/local/bin
+COPY rabbitmq.conf /etc/rabbitmq
 WORKDIR /var/lib/rabbitmq
 USER 999
 ENV PATH=/usr/lib/rabbitmq/bin:$PATH

@@ -403,15 +403,4 @@ if [ "$haveSslConfig" ] && [ -f "$combinedSsl" ]; then
 	export RABBITMQ_CTL_ERL_ARGS="${RABBITMQ_CTL_ERL_ARGS:-} $sslErlArgs"
 fi
 
-# run rabbitmq-server in background to add an admin user
-RUSER=${RABBITMQ_USER:-koku}
-RPASSWORD=${RABBITMQ_PASSWORD:-koku}
-rabbitmq-server --detached
-sleep 5
-rabbitmqctl add_user $RUSER $RPASSWORD
-rabbitmqctl set_user_tags $RUSER administrator
-rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
-echo "*** User '$RUSER' with password '$RPASSWORD' completed. ***"
-rabbitmqctl stop
-
 exec "$@"
