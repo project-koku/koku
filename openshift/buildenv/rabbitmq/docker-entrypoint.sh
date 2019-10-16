@@ -1,6 +1,14 @@
 #!/bin/bash
 set -eu
 
+# Create Rabbitmq user
+RUSER=${RABBITMQ_USER:-koku}
+RPASS=${RABBITMQ_PASSWORD:-koku}
+rabbitmqctl add_user $RUSER $RPASSWORD 2>/dev/null
+rabbitmqctl set_user_tags $RUSER administrator
+rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
+echo "*** User '$RUSER' with password '$RPASSWORD' completed. ***"
+
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of

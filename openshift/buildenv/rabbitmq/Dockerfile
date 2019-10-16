@@ -26,12 +26,9 @@ RUN curl -LO https://github.com/rabbitmq/erlang-rpm/releases/download/v${ERLANG_
     rm -rf /var/lib/rabbitmq/.erlang.cookie && \
     mkdir -p /var/lib/rabbitmq/mnesia && \
     usermod -G root,wheel rabbitmq && \
-    chown -R 999:0 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq
-
-RUN rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s && \
+    chown -R 999:0 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq && \
+    rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s && \
     echo "cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s" >> /etc/rabbitmq/rabbitmq.conf
-    rabbitmqctl add_user koku koku && \
-    rabbitmqctl set_permissions -p / koku ".*" ".*" ".*"
 
 COPY docker-entrypoint.sh /usr/local/bin/
 WORKDIR /var/lib/rabbitmq
