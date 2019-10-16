@@ -31,7 +31,7 @@ from django.conf import settings
 
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
-from koku.celery import CELERY as celery
+from koku.celery import app
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.util.upload import query_and_upload_to_s3
@@ -39,14 +39,14 @@ from masu.util.upload import query_and_upload_to_s3
 LOG = get_task_logger(__name__)
 
 
-@celery.task(name='masu.celery.tasks.check_report_updates')
+@app.task(name='masu.celery.tasks.check_report_updates')
 def check_report_updates():
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator()
     orchestrator.prepare()
 
 
-@celery.task(name='masu.celery.tasks.remove_expired_data')
+@app.task(name='masu.celery.tasks.remove_expired_data')
 def remove_expired_data():
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
@@ -208,7 +208,7 @@ table_export_settings = [
 ]
 
 
-@celery.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
+@app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
     curr_date = DateAccessor().today()
@@ -235,10 +235,10 @@ def upload_normalized_data():
             query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
 
 
-@celery.task(name='masu.celery.tasks.sync_data_to_customer',
-             queue_name='customer_data_sync',
-             retry_kwargs={'max_retries': 5,
-                           'countdown': settings.COLD_STORAGE_RETRIVAL_WAIT_TIME})
+@app.task(name='masu.celery.tasks.sync_data_to_customer',
+          queue_name='customer_data_sync',
+          retry_kwargs={'max_retries': 5,
+                        'countdown': settings.COLD_STORAGE_RETRIVAL_WAIT_TIME})
 def sync_data_to_customer(dump_request_uuid):
     """
     Scheduled task to sync normalized data to our customers S3 bucket.
