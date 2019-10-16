@@ -60,8 +60,8 @@ class OCPTagView(TagView):
     """
 
     provider = 'ocp'
-    _serializer = OCPTagsQueryParamSerializer
-    _query_handler = OCPTagQueryHandler
-    _tag_handler = [OCPUsagePodLabelSummary,
-                    OCPStorageVolumeClaimLabelSummary,
-                    OCPStorageVolumeLabelSummary]
+    serializer = OCPTagsQueryParamSerializer
+    query_handler = OCPTagQueryHandler
+    tag_handler = [OCPUsagePodLabelSummary,
+                   OCPStorageVolumeClaimLabelSummary,
+                   OCPStorageVolumeLabelSummary]

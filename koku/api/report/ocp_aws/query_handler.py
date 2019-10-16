@@ -21,7 +21,6 @@ from django.db.models import F, Window
 from django.db.models.functions import (Coalesce, RowNumber)
 from tenant_schemas.utils import tenant_context
 
-from api.report.access_utils import update_query_parameters_for_openshift
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 
@@ -29,39 +28,31 @@ from api.report.ocp_aws.provider_map import OCPAWSProviderMap
 class OCPAWSReportQueryHandler(AWSReportQueryHandler):
     """Handles report queries and responses for OCP on AWS."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
+    provider = 'OCP_AWS'
+
+    def __init__(self, parameters):
         """Establish OCP report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
-        provider = 'OCP_AWS'
-        self._initialize_kwargs(kwargs)
-        if kwargs.get('access'):
-            query_parameters = update_query_parameters_for_openshift(query_parameters,
-                                                                     kwargs.get('access'))
-
-        self._mapper = OCPAWSProviderMap(provider=provider,
-                                         report_type=kwargs.get('report_type'))
+        self._mapper = OCPAWSProviderMap(provider=self.provider,
+                                         report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self.query_parameters = query_parameters
-        self.url_data = url_data
-        self._limit = self.get_query_param_data('filter', 'limit')
+        self._limit = parameters.get_filter('limit')
+
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
         if (group_by and group_by[0] == 'project') or \
-                'project' in self.query_parameters.get('filter', {}).keys():
-            self._report_type = kwargs.get('report_type') + '_by_project'
-            self._mapper = OCPAWSProviderMap(provider=provider,
-                                             report_type=self._report_type)
-
-        super().__init__(query_parameters, url_data, tenant, **kwargs)
+                'project' in self.parameters.get('filter', {}).keys():
+            self._report_type = parameters.report_type + '_by_project'
+            self._mapper = OCPAWSProviderMap(provider=self.provider,
+                                             report_type=parameters.report_type)
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -112,7 +103,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,
@@ -122,7 +113,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
             cost_units_value = self._mapper.report_type_map.get('cost_units_fallback', 'USD')
             usage_units_value = self._mapper.report_type_map.get('usage_units_fallback')
             count_units_value = self._mapper.report_type_map.get('count_units_fallback')
-            if len(query_data) > 0:
+            if query_data:
                 cost_units_value = query_data[0].get('cost_units')
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get('usage_units')

@@ -57,6 +57,6 @@ class AzureTagView(TagView):
     """
 
     provider = 'azure'
-    _serializer = AzureTagsQueryParamSerializer
-    _query_handler = AzureTagQueryHandler
-    _tag_handler = [AzureTagsSummary]
+    serializer = AzureTagsQueryParamSerializer
+    query_handler = AzureTagQueryHandler
+    tag_handler = [AzureTagsSummary]

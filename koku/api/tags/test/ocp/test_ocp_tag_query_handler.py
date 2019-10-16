@@ -19,6 +19,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
@@ -41,14 +42,8 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""
-        query_params = {}
-        handler = OCPTagQueryHandler(
-            query_params,
-            '',
-            self.tenant,
-            **{}
-        )
-
+        # '?'
+        handler = OCPTagQueryHandler(FakeQueryParameters({}, tenant=self.tenant).mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -56,20 +51,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -10,
-                                   'time_scope_units': 'day'},
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-10&' + \
-                       'filter[time_scope_units]=day&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -10,
+                             'time_scope_units': 'day'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -77,20 +64,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_30_day_parameters(self):
         """Test that the execute query runs properly with 30 day query."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -30,
-                                   'time_scope_units': 'day'},
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-30&' + \
-                       'filter[time_scope_units]=day&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -30,
+                             'time_scope_units': 'day'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -98,22 +77,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_10_day_parameters_only_keys(self):
         """Test that the execute query runs properly with 10 day query."""
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -10,
-                                   'time_scope_units': 'day',
-                                   'key_only': True}
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-10&' + \
-                       'filter[time_scope_units]=day&' + \
-                       'key_only=True'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -10,
+                             'time_scope_units': 'day'},
+                  'key_only': True}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -121,20 +91,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -142,20 +104,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_two_month_parameters(self):
         """Test that the execute query runs properly with two month query."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -170,23 +124,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .first()
             namespace = namespace_obj.get('namespace')
 
-        query_params = {'filter': {'resolution': 'daily',
-                                   'time_scope_value': -10,
-                                   'time_scope_units': 'day',
-                                   'project': namespace},
-                        }
-        query_string = '?filter[resolution]=daily&' + \
-                       'filter[time_scope_value]=-10&' + \
-                       'filter[time_scope_units]=day&' + \
-                       'filter[project]={}'.format(namespace)
-
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
-
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[project]=some_project'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -10,
+                             'time_scope_units': 'day',
+                             'project': namespace}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -194,19 +138,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys_filter_true(self):
         """Test that not all tag keys are returned with a filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
 
         with tenant_context(self.tenant):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
@@ -230,19 +167,12 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_keys_filter_false(self):
         """Test that all tag keys are returned with no filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
 
         with tenant_context(self.tenant):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
@@ -266,21 +196,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_type_filter_pod(self):
         """Test that all usage tags are returned with pod type filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month',
-                                   'type': 'pod'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&' + \
-                       'filter[type]=pod&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&filter[type]=pod'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month',
+                             'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
 
         with tenant_context(self.tenant):
             usage_tag_keys = OCPUsageLineItemDailySummary.objects\
@@ -297,21 +219,13 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_type_filter_storage(self):
         """Test that all storage tags are returned with storage type filter."""
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -2,
-                                   'time_scope_units': 'month',
-                                   'type': 'storage'},
-                        }
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-2&' + \
-                       'filter[time_scope_units]=month&' + \
-                       'filter[type]=storage&'
-        handler = OCPTagQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&filter[type]=storage'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month',
+                             'type': 'storage'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
 
         with tenant_context(self.tenant):
             storage_tag_keys = OCPUsageLineItemDailySummary.objects\
