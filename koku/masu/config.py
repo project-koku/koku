@@ -93,7 +93,7 @@ class Config:
     TMP_DIR = f'{PVC_DIR}/processing'
 
     # Celery settings
-    CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
+    CELERY_BROKER_URL = f'amqp://koku:koku@{RABBITMQ_HOST}:{RABBITMQ_PORT}'
     # CELERY_RESULT_BACKEND = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
 
     REPORT_PROCESSING_BATCH_SIZE = 100000
