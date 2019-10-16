@@ -58,6 +58,6 @@ class OCPAWSTagView(TagView):
     """
 
     provider = 'ocp_aws'
-    _serializer = OCPAWSTagsQueryParamSerializer
-    _query_handler = OCPAWSTagQueryHandler
-    _tag_handler = [AWSTagsSummary]
+    serializer = OCPAWSTagsQueryParamSerializer
+    query_handler = OCPAWSTagQueryHandler
+    tag_handler = [AWSTagsSummary]

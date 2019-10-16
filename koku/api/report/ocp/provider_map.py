@@ -335,6 +335,9 @@ class OCPProviderMap(ProviderMap):
                         'sum_columns': ['usage', 'request', 'infrastructure_cost',
                                         'derived_cost', 'cost'],
                     },
+                    'tags': {
+                        'default_ordering': {'cost': 'desc'},
+                    },
                 },
                 'start_date': 'usage_start',
                 'tables': {

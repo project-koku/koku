@@ -17,25 +17,21 @@
 """Test the Report Queries."""
 import copy
 import random
-import re
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
-from urllib.parse import quote_plus
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
 from django.test import TestCase
-from faker import Faker
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.queries import strip_tag_prefix
-from api.report.test.ocp.helpers import OCPReportDataGenerator
+from api.report.test import FakeAWSCostData, FakeQueryParameters
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.utils import DateHelper
 from reporting.models import (AWSAccountAlias,
@@ -46,385 +42,6 @@ from reporting.models import (AWSAccountAlias,
                               AWSCostEntryLineItemDailySummary,
                               AWSCostEntryPricing,
                               AWSCostEntryProduct)
-
-
-class FakeAWSCostData(object):
-    """Object to generate and store fake AWS cost data."""
-
-    fake = Faker()
-    dh = DateHelper()
-
-    SOME_INSTANCE_TYPES = ['t3.small', 't3.medium', 't3.large',
-                           'm5.large', 'm5.xlarge', 'm5.2xlarge',
-                           'c5.large', 'c5.xlarge', 'c5.2xlarge',
-                           'r5.large', 'r5.xlarge', 'r5.2xlarge']
-
-    SOME_REGIONS = ['us-east-2', 'us-east-1',
-                    'us-west-1', 'us-west-2',
-                    'ap-south-1',
-                    'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3',
-                    'ap-southeast-1', 'ap-southeast-2',
-                    'ca-central-1',
-                    'eu-central-1',
-                    'eu-west-1', 'eu-west-2', 'eu-west-3',
-                    'sa-east-1']
-
-    def __init__(self, account_alias=None, account_id=None,
-                 availability_zone=None, bill=None,
-                 billing_period_end=None, billing_period_start=None,
-                 cost_entry=None, instance_type=None, line_item=None,
-                 pricing=None, region=None, usage_end=None, usage_start=None,
-                 resource_id=None):
-        """Constructor."""
-        # properties
-        self._account_alias = account_alias
-        self._account_id = account_id
-        self._availability_zone = availability_zone
-        self._bill = bill
-        self._billing_period_end = billing_period_end
-        self._billing_period_start = billing_period_start
-        self._cost_entry = cost_entry
-        self._instance_type = instance_type
-        self._line_item = line_item
-        self._pricing = pricing
-        self._region = region
-        self._usage_end = usage_end
-        self._usage_start = usage_start
-        self._resource_id = resource_id
-
-        self._products = {'fake': {'sku': self.fake.pystr(min_chars=12,
-                                                          max_chars=12).upper(),
-                                   'product_name': self.fake.words(nb=5),
-                                   'product_family': self.fake.words(nb=3),
-                                   'service_code': self.fake.word(),
-                                   'region': self.region,
-                                   'instance_type': self.instance_type,
-                                   'memory': random.randint(1, 100),
-                                   'vcpu': random.randint(1, 100)},
-
-                          'ec2': {'sku': self.fake.pystr(min_chars=12,
-                                                         max_chars=12).upper(),
-                                  'product_name': 'Amazon Elastic Compute Cloud',
-                                  'product_family': 'Compute Instance',
-                                  'service_code': 'AmazonEC2',
-                                  'region': self.region,
-                                  'instance_type': self.instance_type,
-                                  'memory': random.choice([8, 16, 32, 64]),
-                                  'vcpu': random.choice([2, 4, 8, 16])},
-
-                          'ebs': {'sku': self.fake.pystr(min_chars=12,
-                                                         max_chars=12).upper(),
-                                  'product_name': 'Amazon Elastic Compute Cloud',
-                                  'product_family': 'Storage',
-                                  'service_code': 'AmazonEC2',
-                                  'region': self.region}}
-
-        short_region = self._usage_transform(self.region)
-        self.SOME_USAGE_OPERATIONS = {'ec2': [(f'BoxUsage:{self.region}', 'RunInstances'),
-                                              ('DataTransfer-In-Bytes', 'RunInstances'),
-                                              ('DataTransfer-Out-Bytes', 'RunInstances'),
-                                              (f'{short_region}-DataTransfer-In-Bytes', 'RunInstances'),
-                                              (f'{short_region}-DataTransfer-Out-Bytes', 'RunInstances')],
-                                      'ebs': [('EBS:VolumeUsage.gp2', 'CreateVolume-Gp2'),
-                                              ('EBS:VolumeUsage', 'CreateVolume'),
-                                              (f'{short_region}-EBS:VolumeUsage', 'CreateVolume'),
-                                              (f'{short_region}-EBS:VolumeUsage.gp2', 'CreateVolume-Gp2'),
-                                              ('EBS:SnapshotUsage', 'CreateSnapshot')]}
-
-    def __str__(self):
-        """Represent data as string."""
-        return str(self.to_dict())
-
-    def _usage_transform(self, region):
-        """Translate region into shortened string used in usage.
-
-        Example: 'us-east-1' becomes 'USE1'
-
-        Note: Real-world line items can be formatted using 'EUC1' or 'EU', depending
-              on the context. Additional work will be required to support the
-              second format.
-        """
-        regex = r'(\w+)-(\w+)-(\d+)'
-        groups = re.search(regex, region).groups()
-        output = '{}{}{}'.format(groups[0].upper(),
-                                 groups[1][0].upper(),
-                                 groups[2])
-        return output
-
-    @property
-    def account_alias(self):
-        """Randomly generated account alias."""
-        if not self._account_alias:
-            self._account_alias = self.fake.company()
-        return self._account_alias
-
-    @account_alias.setter
-    def account_alias(self, alias):
-        """Account alias setter."""
-        self._account_alias = alias
-
-    @property
-    def account_id(self):
-        """Randomly generated account id."""
-        if not self._account_id:
-            self._account_id = self.fake.ean(length=13)  # pylint: disable=no-member
-        return self._account_id
-
-    @account_id.setter
-    def account_id(self, account_id):
-        """Account id setter."""
-        self._account_id = account_id
-        if self.bill:
-            self.bill['payer_account_id'] = account_id
-        if self._line_item:
-            self._line_item['usage_account_id'] = account_id
-
-    @property
-    def availability_zone(self):
-        """Availability zone."""
-        if not self._availability_zone:
-            self._availability_zone = self.region + random.choice(['a', 'b', 'c'])
-        return self._availability_zone
-
-    @availability_zone.setter
-    def availability_zone(self, zone):
-        """Availability zone."""
-        self._availability_zone = zone
-        if self._line_item:
-            self._line_item['availability_zone'] = zone
-
-    @property
-    def bill(self):
-        """Bill."""
-        if not self._bill:
-            self._bill = {'bill_type': 'Anniversary',
-                          'payer_account_id': self.account_id,
-                          'billing_period_start': self.billing_period_start,
-                          'billing_period_end': self.billing_period_end}
-        return self._bill
-
-    @bill.setter
-    def bill(self, obj):
-        """Bill setter."""
-        self._bill = obj
-
-    @property
-    def billing_period_end(self):
-        """Billing period end date."""
-        if not self._billing_period_end:
-            self._billing_period_end = self.dh.this_month_end
-        return self._billing_period_end
-
-    @billing_period_end.setter
-    def billing_period_end(self, date):
-        """Billing period end date setter."""
-        self._billing_period_end = date
-        if self.bill:
-            self.bill['billing_period_end'] = date
-        if self.cost_entry:
-            self.cost_entry['interval_end'] = date
-
-    @property
-    def billing_period_start(self):
-        """Billing period start date."""
-        if not self._billing_period_start:
-            self._billing_period_start = self.dh.this_month_start
-        return self._billing_period_start
-
-    @billing_period_start.setter
-    def billing_period_start(self, date):
-        """Billing period start date setter."""
-        self._billing_period_start = date
-        if self.bill:
-            self.bill['billing_period_start'] = date
-        if self.cost_entry:
-            self.cost_entry['interval_start'] = date
-
-    @property
-    def cost_entry(self):
-        """Cost entry."""
-        if not self._cost_entry:
-            self._cost_entry = {'interval_start': self.billing_period_start,
-                                'interval_end': self.billing_period_end,
-                                'bill': self.bill}
-        return self._cost_entry
-
-    @cost_entry.setter
-    def cost_entry(self, obj):
-        """Cost entry setter."""
-        self._cost_entry = obj
-
-    @property
-    def instance_type(self):
-        """Randomly selected instance type."""
-        if not self._instance_type:
-            self._instance_type = random.choice(self.SOME_INSTANCE_TYPES)
-        return self._instance_type
-
-    @instance_type.setter
-    def instance_type(self, instance_type):
-        """Instance type setter."""
-        self._instance_type = instance_type
-        for prod in self._products:
-            self._products[prod]['instance_type'] = instance_type
-        if self._line_item:
-            self._line_item['cost_entry_product']['instance_type'] = instance_type
-
-    def line_item(self, product='ec2'):
-        """Fake line item.
-
-        Args:
-            product (string) Either 'ec2' or 'ebs'
-
-        """
-        if not self._line_item:
-            usage = random.randint(1, 100)
-            ub_rate = random.random()
-            b_rate = random.random()
-            usage_type, operation = random.choice(self.SOME_USAGE_OPERATIONS[product])
-
-            self._line_item = {'invoice_id': self.fake.sha1(raw_output=False),
-                               'availability_zone': self.availability_zone,
-                               'blended_cost': b_rate * usage,
-                               'blended_rate': b_rate,
-                               'cost_entry': self.cost_entry,
-                               'cost_entry_bill': self.bill,
-                               'cost_entry_pricing': self.pricing,
-                               'cost_entry_product': self.product(product),
-                               'currency_code': 'USD',
-                               'line_item_type': 'Usage',
-                               'operation': operation,
-                               'product_code': 'AmazonEC2',
-                               'resource_id': 'i-{}'.format(self.resource_id),
-                               'usage_amount': usage,
-                               'unblended_cost': ub_rate * usage,
-                               'unblended_rate': ub_rate,
-                               'usage_account_id': self.account_id,
-                               'usage_end': self.usage_end,
-                               'usage_start': self.usage_start,
-                               'usage_type': usage_type,
-                               'tags': self._get_tags()
-                               }
-        return self._line_item
-
-    @property
-    def pricing(self):
-        """Product pricing."""
-        if not self._pricing:
-            self._pricing = {'term': 'OnDemand',
-                             'unit': 'Hrs'}
-        return self._pricing
-
-    @pricing.setter
-    def pricing(self, obj):
-        """Pricing setter."""
-        self._pricing = obj
-        if self._line_item:
-            self._line_item['cost_entry_pricing'] = obj
-
-    def product(self, product='ec2'):
-        """Product."""
-        return self._products.get(product, self._products['fake'])
-
-    @property
-    def region(self):
-        """Randomly selected region."""
-        if not self._region:
-            self._region = random.choice(self.SOME_REGIONS)
-        return self._region
-
-    @region.setter
-    def region(self, region):
-        """Region setter."""
-        self._region = region
-        for prod in self._products:
-            self._products[prod]['region'] = region
-        if self._line_item:
-            self._line_item['cost_entry_product']['region'] = region
-
-    def to_dict(self):
-        """Return a copy of object data as a dict."""
-        return {'account_alias': self.account_alias,
-                'account_id': self.account_id,
-                'availability_zone': self.availability_zone,
-                'bill': self.bill,
-                'billing_period_end': self.billing_period_end,
-                'billing_period_start': self.billing_period_start,
-                'cost_entry': self.cost_entry,
-                'instance_type': self.instance_type,
-                'line_item': self.line_item(),
-                'pricing': self.pricing,
-                'region': self.region,
-                'usage_end': self.usage_end,
-                'usage_start': self.usage_start}
-
-    @property
-    def usage_end(self):
-        """Usage end date."""
-        if not self._usage_end:
-            self._usage_end = self.dh.this_month_start + self.dh.one_day
-        return self._usage_end
-
-    @usage_end.setter
-    def usage_end(self, date):
-        """Usage end date setter."""
-        self._usage_end = date
-        if self._line_item:
-            self._line_item['usage_end'] = date
-
-    @property
-    def resource_id(self):
-        """resource_id."""
-        if not self._resource_id:
-            self._resource_id = self.fake.ean8()
-        return self._resource_id
-
-    @property
-    def usage_start(self):
-        """Usage start date."""
-        if not self._usage_start:
-            self._usage_start = self.dh.this_month_start
-        return self._usage_start
-
-    @usage_start.setter
-    def usage_start(self, date):
-        """Usage start date setter."""
-        self._usage_start = date
-        if self._line_item:
-            self._line_item['usage_start'] = date
-
-    def _get_tags(self):
-        """Create tags for output data."""
-        apps = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        organizations = [self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                         self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        markets = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                   self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        versions = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                    self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-
-        seeded_labels = {'environment': ['dev', 'ci', 'qa', 'stage', 'prod'],
-                         'app': apps,
-                         'organization': organizations,
-                         'market': markets,
-                         'version': versions
-                         }
-        gen_label_keys = [self.fake.word(), self.fake.word(), self.fake.word(),  # pylint: disable=no-member
-                          self.fake.word(), self.fake.word(), self.fake.word()]  # pylint: disable=no-member
-        all_label_keys = list(seeded_labels.keys()) + gen_label_keys
-        num_labels = random.randint(2, len(all_label_keys))
-        chosen_label_keys = random.choices(all_label_keys, k=num_labels)
-
-        labels = {}
-        for label_key in chosen_label_keys:
-            label_value = self.fake.word()  # pylint: disable=no-member
-            if label_key in seeded_labels:
-                label_value = random.choice(seeded_labels[label_key])
-
-            labels['{}_label'.format(label_key)] = label_value
-
-        return labels
 
 
 class ReportQueryUtilsTest(TestCase):
@@ -644,8 +261,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_transform_null_group(self):
         """Test transform data with null group value."""
-        handler = AWSReportQueryHandler({}, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
         groups = ['region']
         group_index = 0
         data = {None: [{'region': None, 'units': 'USD'}]}
@@ -663,158 +279,81 @@ class ReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-    def test_has_filter_no_filter(self):
-        """Test the default filter query parameters."""
-        handler = AWSReportQueryHandler({}, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertTrue(handler.check_query_params('filter', 'time_scope_units'))
-        self.assertTrue(handler.check_query_params('filter', 'time_scope_value'))
-        self.assertTrue(handler.check_query_params('filter', 'resolution'))
-        self.assertEqual(handler.query_parameters.get('filter').get('time_scope_units'), 'day')
-        self.assertEqual(handler.query_parameters.get('filter').get('time_scope_value'), '-10')
-        self.assertEqual(handler.query_parameters.get('filter').get('resolution'), 'daily')
-
-    def test_has_filter_with_filter(self):
-        """Test the has_filter method with filter in the query params."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertIsNotNone(handler.check_query_params('filter', 'time_scope_value'))
-
-    def test_get_group_by_no_data(self):
-        """Test the get_group_by_data method with no data in the query params."""
-        handler = AWSReportQueryHandler({}, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertFalse(handler.get_query_param_data('group_by', 'service'))
-
-    def test_get_group_by_with_service_list(self):
-        """Test the get_group_by_data method with no data in the query params."""
-        expected = ['a', 'b']
-        query_string = '?group_by[service]=a&group_by[service]=b'
-        handler = AWSReportQueryHandler({'group_by':
-                                        {'service': expected}},
-                                        query_string,
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
-        service = handler.get_query_param_data('group_by', 'service')
-        self.assertEqual(expected, service)
-
     def test_get_group_by_with_group_by_and_limit_params(self):
         """Test the _get_group_by method with limit and group by params."""
         expected = ['account']
-        query_string = '?group_by[account]=*&filter[limit]=1'
-        handler = AWSReportQueryHandler(
-            {
-                'group_by': {'account': ['*']},
-                'filter': {'limit': 1}
-            },
-            query_string,
-            self.tenant,
-            **{'report_type': 'instance_type'}
-        )
+        # '?group_by[account]=*&filter[limit]=1'
+        params = {'group_by': {'account': ['*']},
+                  'filter': {'limit': 1}}
+        query_params = FakeQueryParameters(params, report_type='instance_type')
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         group_by = handler._get_group_by()
-
         self.assertEqual(expected, group_by)
 
     def test_get_group_by_with_group_by_and_no_limit_params(self):
         """Test the _get_group_by method with group by params."""
         expected = ['account', 'instance_type']
-        query_string = '?group_by[account]=*'
-        handler = AWSReportQueryHandler(
-            {
-                'group_by': {'account': ['*']},
-            },
-            query_string,
-            self.tenant,
-            **{'report_type': 'instance_type'}
-        )
+        # '?group_by[account]=*'
+        params = {'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, report_type='instance_type')
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         group_by = handler._get_group_by()
-
         self.assertEqual(expected, group_by)
 
     def test_get_group_by_with_limit_and_no_group_by_params(self):
         """Test the _get_group_by method with limit params."""
         expected = ['instance_type']
-        query_string = '?group_by[account]=*'
-        handler = AWSReportQueryHandler(
-            {
-                'filter': {'limit': 1},
-            },
-            query_string,
-            self.tenant,
-            **{'report_type': 'instance_type'}
-        )
+        # '?filter[limit]=1'
+        params = {'filter': {'limit': 1}}
+        query_params = FakeQueryParameters(params, report_type='instance_type')
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         group_by = handler._get_group_by()
-
         self.assertEqual(expected, group_by)
-
-    def test_get_resolution_empty_default(self):
-        """Test get_resolution returns default when query params are empty."""
-        query_params = {}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.resolution, 'daily')
 
     def test_get_resolution_empty_day_time_scope(self):
         """Test get_resolution returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_value': -10}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_value]=-10'
+        params = {'filter': {'time_scope_value': -10}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         self.assertEqual(handler.get_resolution(), 'daily')
 
     def test_get_time_scope_units_empty_default(self):
         """Test get_time_scope_units returns default when query params are empty."""
-        query_params = {}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_units(), 'day')
+        # '?'
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
         self.assertEqual(handler.get_time_scope_units(), 'day')
 
-    def test_get_time_scope_units_empty_month_time_scope(self):
+    def test_get_time_scope_units_existing_value(self):
         """Test get_time_scope_units returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_value': -1}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_units(), 'month')
-
-    def test_get_time_scope_units_empty_day_time_scope(self):
-        """Test get_time_scope_units returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_value': -10}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_units(), 'day')
+        # '?filter[time_scope_units]=foo'
+        params = {'filter': {'time_scope_units': 'foo'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_units(), 'foo')
 
     def test_get_time_scope_value_empty_default(self):
         """Test get_time_scope_value returns default when query params are empty."""
-        query_params = {}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_value(), -10)
+        # '?'
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
         self.assertEqual(handler.get_time_scope_value(), -10)
 
-    def test_get_time_scope_value_empty_month_time_scope(self):
-        """Test get_time_scope_value returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_value(), -1)
-
-    def test_get_time_scope_value_empty_day_time_scope(self):
-        """Test get_time_scope_value returns default when time_scope is month."""
-        query_params = {'filter': {'time_scope_units': 'day'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
-        self.assertEqual(handler.get_time_scope_value(), -10)
+    def test_get_time_scope_value_existing_value(self):
+        """Test get_time_scope_value returns expected value when time_scope is already set."""
+        # '?filter[time_scope_value]=9999'
+        params = {'filter': {'time_scope_value': '9999'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        self.assertEqual(handler.get_time_scope_value(), 9999)
 
     def test_get_time_frame_filter_current_month(self):
         """Test _get_time_frame_filter for current month."""
-        query_params = {'filter':
-                        {'resolution': 'daily',
-                         'time_scope_value': -1,
-                         'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -825,12 +364,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_previous_month(self):
         """Test _get_time_frame_filter for previous month."""
-        query_params = {'filter':
-                        {'resolution': 'daily',
-                         'time_scope_value': -2,
-                         'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -2,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         start = handler.start_datetime
         end = handler.end_datetime
         interval = handler.time_interval
@@ -841,12 +380,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_last_ten(self):
         """Test _get_time_frame_filter for last ten days."""
-        query_params = {'filter':
-                        {'resolution': 'daily',
-                         'time_scope_value': -10,
-                         'time_scope_units': 'day'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -10,
+                             'time_scope_units': 'day'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         dh = DateHelper()
         nine_days_ago = dh.n_days_ago(dh.today, 9)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -859,12 +398,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_get_time_frame_filter_last_thirty(self):
         """Test _get_time_frame_filter for last thirty days."""
-        query_params = {'filter':
-                        {'resolution': 'daily',
-                         'time_scope_value': -30,
-                         'time_scope_units': 'day'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -30,
+                             'time_scope_units': 'day'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         dh = DateHelper()
         twenty_nine_days_ago = dh.n_days_ago(dh.today, 29)
         start = handler.start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -877,9 +416,9 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
-        query_params = {}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?'
+        query_params = FakeQueryParameters(parameters={}, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -888,11 +427,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
-        query_params = {'filter':
-                        {'resolution': 'daily', 'time_scope_value': -1,
-                         'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        params = {'filter': {'resolution': 'daily',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -902,11 +442,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'}}
-        handler = AWSReportQueryHandler(query_params, '', self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -916,13 +457,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'service': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[service]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'service': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -944,13 +485,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'service': ['AmazonEC2']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[service]=AmazonEC2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'service': ['AmazonEC2']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -972,13 +513,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'service': ['eC2']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[service]=eC2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'service': ['eC2']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1000,13 +541,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1028,15 +569,14 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_by_account_by_service(self):
         """Test execute_query for current month breakdown by account by service."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*'],
-                                     'service': ['*']}}
-        query_string = '?group_by[account]=*&group_by[service]=*'
-        handler = AWSReportQueryHandler(query_params, query_string,
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*'],
+                               'service': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1061,15 +601,14 @@ class ReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             instance_type = AWSCostEntryProduct.objects.first().instance_type
 
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'}}
-        query_string = '?filter[time_scope_value]=-1&filter[resolution]=monthly'
-        extras = {'report_type': 'instance_type',
-                  'group_by': ['instance_type']}
-        handler = AWSReportQueryHandler(query_params, query_string,
-                                        self.tenant,
-                                        **extras)
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'instance_type': ['*']}}
+        query_params = FakeQueryParameters(params, report_type='instance_type',
+                                           tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1091,13 +630,14 @@ class ReportQueryTest(IamTestCase):
         for _ in range(3):
             self.add_data_to_tenant(FakeAWSCostData())
 
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month', 'limit': 2},
-                        'group_by': {'account': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 2},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1122,14 +662,14 @@ class ReportQueryTest(IamTestCase):
         for _ in range(3):
             self.add_data_to_tenant(FakeAWSCostData())
 
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']},
-                        'order_by': {'cost': 'asc'}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[cost]=asc'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']},
+                  'order_by': {'cost': 'asc'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1159,14 +699,14 @@ class ReportQueryTest(IamTestCase):
         for _ in range(3):
             self.add_data_to_tenant(FakeAWSCostData())
 
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']},
-                        'order_by': {'account': 'asc'}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account]=asc'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']},
+                  'order_by': {'account': 'asc'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1193,13 +733,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_region(self):
         """Test execute_query for current month on monthly breakdown by region."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'region': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[region]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'region': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1222,14 +762,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_region(self):
         """Test execute_query for current month on monthly breakdown by filtered region."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'region': [self.fake_aws.region]}}
-        handler = AWSReportQueryHandler(query_params,
-                                        f'?group_by[region]={self.fake_aws.region}',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=[some_region]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'region': [self.fake_aws.region]}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1251,13 +790,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by avail_zone."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'az': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[az]=*',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'az': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1280,15 +819,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_filtered_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
-        zone = self.fake_aws.availability_zone
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'az': [zone]}}
-        handler = AWSReportQueryHandler(query_params,
-                                        f'?group_by[az]={zone}',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=[some_zone]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'az': [self.fake_aws.availability_zone]}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -1311,13 +848,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'account': [self.fake_aws.account_alias]}}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]=[some_account]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'account': [self.fake_aws.account_alias]}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1335,13 +872,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'service': ['AmazonEC2']}}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=[AmazonEC2]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'service': ['AmazonEC2']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -1361,13 +898,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self):
         """Test execute_query for current month on monthly filtered by region."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'region': [self.fake_aws.region]}}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=[some_region]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'region': [self.fake_aws.region]}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1385,13 +922,13 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_avail_zone(self):
         """Test execute_query for current month on monthly filtered by avail_zone."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'az': [self.fake_aws.availability_zone]}}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]=[some_az]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'az': [self.fake_aws.availability_zone]}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1409,14 +946,14 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_current_month_filter_avail_zone_csv(self):
         """Test execute_query for current month on monthly filtered by avail_zone for csv."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'az': [self.fake_aws.availability_zone]}}
-        handler = AWSReportQueryHandler(query_params, '',
-                                        self.tenant,
-                                        **{'accept_type': 'text/csv',
-                                            'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]=[some_az]'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'az': [self.fake_aws.availability_zone]}}
+        query_params = FakeQueryParameters(params, accept_type='text/csv',
+                                           tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1436,14 +973,15 @@ class ReportQueryTest(IamTestCase):
         for _ in range(5):
             self.add_data_to_tenant(FakeAWSCostData())
 
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month', 'limit': 2},
-                        'group_by': {'account': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                        self.tenant,
-                                        **{'accept_type': 'text/csv',
-                                           'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 2},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, accept_type=['text/csv'],
+                                           tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -1454,7 +992,7 @@ class ReportQueryTest(IamTestCase):
         self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data[0].get('accounts')), 3)
+        self.assertEqual(len(data), 3)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1494,17 +1032,14 @@ class ReportQueryTest(IamTestCase):
             (current_total - prev_total) / prev_total * 100
         )
 
-        query_params = {'filter':
-                        {'resolution': 'monthly',
-                         'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']},
-                        'delta': 'cost'}
-
-        handler = AWSReportQueryHandler(query_params,
-                                        '?group_by[account]=*&delta=True',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&delta=cost'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']},
+                  'delta': 'cost'}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
 
         # test the calculations
         query_output = handler.execute_query()
@@ -1528,15 +1063,11 @@ class ReportQueryTest(IamTestCase):
         expected_delta_value = Decimal(self.current_month_total)
         expected_delta_percent = None
 
-        query_params = {
-            'filter': {'time_scope_value': -1},
-            'delta': 'cost'
-        }
-
-        handler = AWSReportQueryHandler(query_params,
-                                        '?filter[time_scope_value]=-10&delta=total',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_value]=-1&delta=cost'
+        params = {'filter': {'time_scope_value': -1},
+                  'delta': 'cost'}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1572,17 +1103,15 @@ class ReportQueryTest(IamTestCase):
             previous_data.usage_end = dh.last_month_start + timedelta(days=1)
             previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
-        query_params = {'filter':
-                        {'resolution': 'monthly',
-                         'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'order_by': {'delta': 'asc'},
-                        'group_by': {'account': ['*']},
-                        'delta': 'cost'}
-        handler = AWSReportQueryHandler(query_params,
-                                        '?group_by[account]=*&order_by[delta]=asc&delta=True',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[account]=*&delta=cost'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'order_by': {'delta': 'asc'},
+                  'group_by': {'account': ['*']},
+                  'delta': 'cost'}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1600,16 +1129,14 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_account_alias(self):
         """Test execute_query when account alias is avaiable."""
-        query_params = {'filter':
-                        {'resolution': 'monthly',
-                         'time_scope_value': -1,
-                         'time_scope_units': 'month',
-                         'limit': 2},
-                        'group_by': {'account': ['*']}}
-        handler = AWSReportQueryHandler(query_params,
-                                        '?group_by[account]=*&filter[limit]=2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 2},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -1627,16 +1154,14 @@ class ReportQueryTest(IamTestCase):
         expected = OrderedDict(sorted(expected.items()))
 
         # execute query
-        query_params = {'filter':
-                        {'resolution': 'monthly',
-                         'time_scope_value': -1,
-                         'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']},
-                        'order_by': {'account_alias': 'asc'}}
-        handler = AWSReportQueryHandler(query_params,
-                                        '?group_by[account]=[*]&order_by[account_alias]=asc',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account_alias]=asc'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']},
+                  'order_by': {'account_alias': 'asc'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -1651,19 +1176,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month'
-            }
-        }
-        handler = AWSReportQueryHandler(
-            query_params,
-            '',
-            self.tenant,
-            **{'report_type': 'costs'}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         expected_units = 'USD'
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{'cost_units': expected_units})
@@ -1673,19 +1191,20 @@ class ReportQueryTest(IamTestCase):
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
-        args = [{}, '', self.tenant]
-        rqh = AWSReportQueryHandler(*args, **{'report_type': 'costs'})
-        self.assertEqual(rqh._percent_delta(10, 5), 100)
+        # '?'
+        handler = AWSReportQueryHandler(FakeQueryParameters({}).mock_qp)
+        self.assertEqual(handler._percent_delta(10, 5), 100)
 
     def test_rank_list(self):
         """Test rank list limit with account alias."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month', 'limit': 2},
-                        'group_by': {'account': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 2},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         data_list = [
             {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
             {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
@@ -1703,13 +1222,14 @@ class ReportQueryTest(IamTestCase):
 
     def test_rank_list_no_account(self):
         """Test rank list limit with out account alias."""
-        query_params = {'filter':
-                        {'resolution': 'monthly', 'time_scope_value': -1,
-                         'time_scope_units': 'month', 'limit': 2},
-                        'group_by': {'service': ['*']}}
-        handler = AWSReportQueryHandler(query_params, '?group_by[service]=*&filter[limit]=2',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 2},
+                  'group_by': {'service': ['*']}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         data_list = [
             {'service': '1', 'total': 5, 'rank': 1},
             {'service': '2', 'total': 4, 'rank': 2},
@@ -1727,19 +1247,15 @@ class ReportQueryTest(IamTestCase):
 
     def test_rank_list_with_offset(self):
         """Test rank list limit and offset with account alias."""
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 1,
-                'offset': 1
-            },
-            'group_by': {'account': ['*']}
-        }
-        handler = AWSReportQueryHandler(query_params, '?group_by[account]=*&filter[limit]=2&filter[offset]=1',
-                                        self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             'limit': 1,
+                             'offset': 1},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         data_list = [
             {'account': '1', 'account_alias': '1', 'total': 5, 'rank': 1},
             {'account': '2', 'account_alias': '2', 'total': 4, 'rank': 2},
@@ -1762,16 +1278,13 @@ class ReportQueryTest(IamTestCase):
             self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
             self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
 
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'},
-                        'group_by': {'account': ['*']}}
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month&' + \
-                       'group_by[account]=*'
-        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
-                                        **{'report_type': 'costs'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'account': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1794,15 +1307,14 @@ class ReportQueryTest(IamTestCase):
         for _ in range(0, random.randint(3, 5)):
             self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
 
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'}}
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month'
-        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
-                                        **{'report_type': 'instance_type',
-                                           'group_by': ['instance_type']})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'instance_type': ['*']}}
+        query_params = FakeQueryParameters(params, report_type='instance_type',
+                                           tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1827,16 +1339,14 @@ class ReportQueryTest(IamTestCase):
         for _ in range(0, random.randint(3, 5)):
             self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
 
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month'},
-                        'group_by': {'service': ['*']}}
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month&' +  \
-                       'group_by[service]=*'
-        handler = AWSReportQueryHandler(query_params, query_string, self.tenant,
-                                        **{'report_type': 'storage'})
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {'service': ['*']}}
+        query_params = FakeQueryParameters(params, report_type='storage',
+                                           tenant=self.tenant)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1859,179 +1369,143 @@ class ReportQueryTest(IamTestCase):
         """Test that order_by returns properly sorted data."""
         today = datetime.utcnow()
         yesterday = today - timedelta(days=1)
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month'
-            }
-        }
-        handler = AWSReportQueryHandler(
-            query_params,
-            '',
-            self.tenant,
-            **{'report_type': 'costs'}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
 
-        unordered_data = [
-            {
-                'date': today,
-                'delta_percent': 8,
-                'total': 6.2,
-                'rank': 2
-            },
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 1
-            },
-            {
-                'date': today,
-                'delta_percent': 7,
-                'total': 8.2,
-                'rank': 1
-            },
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 2
-            },
-        ]
+        unordered_data = [{'date': today,
+                           'delta_percent': 8,
+                           'total': 6.2,
+                           'rank': 2},
+                          {'date': yesterday,
+                           'delta_percent': 4,
+                           'total': 2.2,
+                           'rank': 1},
+                          {'date': today,
+                           'delta_percent': 7,
+                           'total': 8.2,
+                           'rank': 1},
+                          {'date': yesterday,
+                           'delta_percent': 4,
+                           'total': 2.2,
+                           'rank': 2}, ]
 
         order_fields = ['date', 'rank']
-        expected = [
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 1
-            },
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 2
-            },
-            {
-                'date': today,
-                'delta_percent': 7,
-                'total': 8.2,
-                'rank': 1
-            },
-            {
-                'date': today,
-                'delta_percent': 8,
-                'total': 6.2,
-                'rank': 2
-            },
-
-        ]
+        expected = [{'date': yesterday,
+                     'delta_percent': 4,
+                     'total': 2.2,
+                     'rank': 1},
+                    {'date': yesterday,
+                     'delta_percent': 4,
+                     'total': 2.2,
+                     'rank': 2},
+                    {'date': today,
+                     'delta_percent': 7,
+                     'total': 8.2,
+                     'rank': 1},
+                    {'date': today,
+                     'delta_percent': 8,
+                     'total': 6.2,
+                     'rank': 2}, ]
 
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
         order_fields = ['date', '-delta']
-        expected = [
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 1
-            },
-            {
-                'date': yesterday,
-                'delta_percent': 4,
-                'total': 2.2,
-                'rank': 2
-            },
-            {
-                'date': today,
-                'delta_percent': 8,
-                'total': 6.2,
-                'rank': 2
-            },
-            {
-                'date': today,
-                'delta_percent': 7,
-                'total': 8.2,
-                'rank': 1
-            },
-        ]
+        expected = [{'date': yesterday,
+                     'delta_percent': 4,
+                     'total': 2.2,
+                     'rank': 1},
+                    {'date': yesterday,
+                     'delta_percent': 4,
+                     'total': 2.2,
+                     'rank': 2},
+                    {'date': today,
+                     'delta_percent': 8,
+                     'total': 6.2,
+                     'rank': 2},
+                    {'date': today,
+                     'delta_percent': 7,
+                     'total': 8.2,
+                     'rank': 1}, ]
 
-        ordered_data = handler.order_by(unordered_data, order_fields)
-        self.assertEqual(ordered_data, expected)
-
-    def test_order_by_null_values(self):
-        """Test that order_by returns properly sorted data with null data."""
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month'
-            }
-        }
-        handler = OCPReportQueryHandler(
-            query_params,
-            '',
-            self.tenant,
-            **{'report_type': 'costs'}
-        )
-
-        unordered_data = [
-            {
-                'node': None,
-                'cluster': 'cluster-1'
-            },
-            {
-                'node': 'alpha',
-                'cluster': 'cluster-2'
-            },
-            {
-                'node': 'bravo',
-                'cluster': 'cluster-3'
-            },
-            {
-                'node': 'oscar',
-                'cluster': 'cluster-4'
-            },
-        ]
-
-        order_fields = ['node']
-        expected = [
-            {
-                'node': 'alpha',
-                'cluster': 'cluster-2'
-            },
-            {
-                'node': 'bravo',
-                'cluster': 'cluster-3'
-            },
-            {
-                'node': 'no-node',
-                'cluster': 'cluster-1'
-            },
-            {
-                'node': 'oscar',
-                'cluster': 'cluster-4'
-            },
-
-        ]
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
     def test_strip_tag_prefix(self):
         """Verify that our tag prefix is stripped from a string."""
         tag_str = 'tag:project'
-
         result = strip_tag_prefix(tag_str)
-
         self.assertEqual(result, tag_str.replace('tag:', ''))
+
+    def test_execute_query_with_wildcard_tag_filter(self):
+        """Test that data is filtered to include entries with tag key."""
+        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        handler = AWSTagQueryHandler(query_params.mock_qp)
+        tag_keys = handler.get_tag_keys(filters=False)
+        filter_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': filter_key})\
+                .aggregate(
+                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:some_key]=some_value'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             f'tag:{filter_key}': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
+
+    def test_execute_query_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        handler = AWSTagQueryHandler(query_params.mock_qp)
+        tag_keys = handler.get_tag_keys(filters=False)
+        group_by_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = AWSCostEntryLineItemDailySummary.objects\
+                .filter(usage_start__gte=self.dh.this_month_start)\
+                .filter(**{'tags__has_key': group_by_key})\
+                .aggregate(
+                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'},
+                  'group_by': {f'tag:{group_by_key}': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertEqual(result, totals[key])
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = AWSTagQueryHandler('', {}, self.tenant)
+        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        handler = AWSTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys(filters=False)
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
@@ -2050,140 +1524,16 @@ class ReportQueryTest(IamTestCase):
                 .filter(**{f'tags__{filter_key}': filter_value})\
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
 
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                f'tag:{filter_key}': [filter_value]
-            }
-        }
-        query_string = f'?filter[tag:{filter_key}]={filter_value}'
-
-        handler = AWSReportQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{'report_type': 'costs', 'tag_keys': tag_keys}
-        )
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month',
+                             f'tag:{filter_key}': ['*']}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
+        handler = AWSReportQueryHandler(query_params.mock_qp)
 
         data = handler.execute_query()
         data_totals = data.get('total', {})
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
-
-    def test_execute_query_with_wildcard_tag_filter(self):
-        """Test that data is filtered to include entries with tag key."""
-        handler = AWSTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
-        filter_key = tag_keys[0]
-        tag_keys = ['tag:' + tag for tag in tag_keys]
-
-        with tenant_context(self.tenant):
-            totals = AWSCostEntryLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
-                .filter(**{'tags__has_key': filter_key})\
-                .aggregate(
-                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
-
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                f'tag:{filter_key}': ['*']
-            }
-        }
-        query_string = f'?filter[tag:{filter_key}]=*'
-
-        handler = AWSReportQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{'report_type': 'costs', 'tag_keys': tag_keys}
-        )
-
-        data = handler.execute_query()
-        data_totals = data.get('total', {})
-        for key in totals:
-            result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])
-
-    def test_execute_query_with_tag_group_by(self):
-        """Test that data is grouped by tag key."""
-        handler = AWSTagQueryHandler('', {}, self.tenant)
-        tag_keys = handler.get_tag_keys(filters=False)
-        group_by_key = tag_keys[0]
-        tag_keys = ['tag:' + tag for tag in tag_keys]
-
-        with tenant_context(self.tenant):
-            totals = AWSCostEntryLineItemDailySummary.objects\
-                .filter(usage_start__gte=self.dh.this_month_start)\
-                .filter(**{'tags__has_key': group_by_key})\
-                .aggregate(
-                    **{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
-
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {
-                f'tag:{group_by_key}': ['*']
-            }
-        }
-        query_string = quote_plus(f'?group_by[tag:{group_by_key}]=*')
-
-        handler = AWSReportQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{'report_type': 'costs', 'tag_keys': tag_keys}
-        )
-
-        data = handler.execute_query()
-        data_totals = data.get('total', {})
-        data = data.get('data', [])
-        expected_keys = ['date', group_by_key + 's']
-        for entry in data:
-            self.assertEqual(list(entry.keys()), expected_keys)
-        for key in totals:
-            result = data_totals.get(key, {}).get('value')
-            self.assertEqual(result, totals[key])
-
-    def test_ocp_cpu_query_group_by_cluster(self):
-        """Test that group by cluster includes cluster and cluster_alias."""
-        for _ in range(1, 5):
-            OCPReportDataGenerator(self.tenant).add_data_to_tenant()
-
-        query_params = {'filter': {'resolution': 'monthly',
-                                   'time_scope_value': -1,
-                                   'time_scope_units': 'month',
-                                   'limit': 3},
-                        'group_by': {'cluster': ['*']}}
-        query_string = '?filter[resolution]=monthly&' + \
-                       'filter[time_scope_value]=-1&' + \
-                       'filter[time_scope_units]=month&' + \
-                       'filter[limit]=3&' + \
-                       'group_by[cluster]=*'
-
-        handler = OCPReportQueryHandler(
-            query_params,
-            query_string,
-            self.tenant,
-            **{'report_type': 'cpu'}
-        )
-
-        query_data = handler.execute_query()
-        for data in query_data.get('data'):
-            self.assertIn('clusters', data)
-            for cluster_data in data.get('clusters'):
-                self.assertIn('cluster', cluster_data)
-                self.assertIn('values', cluster_data)
-                for cluster_value in cluster_data.get('values'):
-                    self.assertIn('cluster', cluster_value)
-                    self.assertIn('cluster_alias', cluster_value)
-                    self.assertIsNotNone('cluster', cluster_value)
-                    self.assertIsNotNone('cluster_alias', cluster_value)

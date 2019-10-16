@@ -18,7 +18,6 @@
 import copy
 import datetime
 import logging
-from collections import OrderedDict
 
 from dateutil import relativedelta
 from django.db.models.functions import TruncDay, TruncMonth
@@ -53,22 +52,21 @@ class TruncDayString(TruncDay):
 class QueryHandler:
     """Handles report queries and responses."""
 
-    def __init__(self, query_parameters,
-                 tenant, default_ordering, **kwargs):
+    def __init__(self, parameters):
         """Establish query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            tenant    (String): the tenant to use to access CUR data
-            default_ordering (String) default ordering of response items
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
-        LOG.debug(f'Query Params: {query_parameters}')
+        LOG.debug(f'Query Params: {parameters}')
 
-        self.tenant = tenant
-        self.default_ordering = default_ordering
-        self.kwargs = kwargs
+        self.tenant = parameters.tenant
+        self.access = parameters.access
+
+        self.default_ordering = self._mapper._report_type_map.get('default_ordering')
+
+        self.parameters = parameters
         self.resolution = None
         self.time_interval = []
         self.time_scope_units = None
@@ -79,52 +77,7 @@ class QueryHandler:
 
         self._get_timeframe()
 
-    @property
-    def query_parameters(self):
-        """Return the query parameters."""
-        return self._query_parameters
-
-    @query_parameters.setter
-    def query_parameters(self, new_value):
-        """Set the default filter parameters in addition to new_value."""
-        time_scope_units = None
-        time_scope_value = None
-        resolution = None
-
-        if new_value == '':
-            new_value = {}
-
-        if new_value.get('filter'):
-            time_scope_units = new_value.get('filter').get('time_scope_units')
-            time_scope_value = new_value.get('filter').get('time_scope_value')
-            resolution = new_value.get('filter').get('resolution')
-        else:
-            new_value['filter'] = OrderedDict()
-
-        if not time_scope_value:
-            if time_scope_units == 'month':
-                time_scope_value = -1
-            else:
-                time_scope_value = -10
-
-        if not time_scope_units:
-            if int(time_scope_value) in [-1, -2]:
-                time_scope_units = 'month'
-            else:
-                time_scope_units = 'day'
-
-        if not resolution:
-            if int(time_scope_value) in [-1, -2]:
-                resolution = 'monthly'
-            else:
-                resolution = 'daily'
-
-        new_value.get('filter').update({'time_scope_value': str(time_scope_value),
-                                        'time_scope_units': str(time_scope_units),
-                                        'resolution': str(resolution)})
-
-        self._query_parameters = new_value
-
+    # FIXME: move this to a standalone utility function.
     @staticmethod
     def has_wildcard(in_list):
         """Check if list has wildcard.
@@ -160,7 +113,7 @@ class QueryHandler:
 
         The default is 'total'
         """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        order_by = self.parameters.get('order_by', self.default_ordering)
         return list(order_by.keys()).pop()
 
     @property
@@ -171,7 +124,7 @@ class QueryHandler:
             (str) 'asc' or 'desc'; default is 'desc'
 
         """
-        order_by = self.query_parameters.get('order_by', self.default_ordering)
+        order_by = self.parameters.get('order_by', self.default_ordering)
         return list(order_by.values()).pop()
 
     @property
@@ -194,9 +147,8 @@ class QueryHandler:
         if self.resolution:
             return self.resolution
 
-        self.resolution = self.get_query_param_data('filter',
-                                                    'resolution',
-                                                    default='daily')
+        self.resolution = self.parameters.get_filter('resolution',
+                                                     default='daily')
 
         if self.resolution == 'monthly':
             self.date_to_string = lambda dt: dt.strftime('%Y-%m')
@@ -222,23 +174,8 @@ class QueryHandler:
             (Boolean): True if they keys given appear in given query parameters.
 
         """
-        return (self.query_parameters and key in self.query_parameters and  # noqa: W504
-                in_key in self.query_parameters.get(key))
-
-    def get_query_param_data(self, dictkey, key, default=None):
-        """Extract the value from a query parameter dictionary or return None.
-
-        Args:
-            dictkey (String): the key to access a query parameter dictionary
-            key     (String): the key to obtain from the dictionar data
-        Returns:
-            (Object): The value found with the given key or the default value
-
-        """
-        value = default
-        if self.check_query_params(dictkey, key):
-            value = self.query_parameters.get(dictkey).get(key)
-        return value
+        return (self.parameters and key in self.parameters and  # noqa: W504
+                in_key in self.parameters.get(key))
 
     def get_time_scope_units(self):
         """Extract time scope units or provide default.
@@ -250,9 +187,8 @@ class QueryHandler:
         if self.time_scope_units:
             return self.time_scope_units
 
-        time_scope_units = self.get_query_param_data('filter',
-                                                     'time_scope_units',
-                                                     default='day')
+        time_scope_units = self.parameters.get_filter('time_scope_units',
+                                                      default='day')
         self.time_scope_units = time_scope_units
         return self.time_scope_units
 
@@ -266,9 +202,8 @@ class QueryHandler:
         if self.time_scope_value:
             return self.time_scope_value
 
-        time_scope_value = self.get_query_param_data('filter',
-                                                     'time_scope_value',
-                                                     default=-10)
+        time_scope_value = self.parameters.get_filter('time_scope_value',
+                                                      default=-10)
         self.time_scope_value = int(time_scope_value)
         return self.time_scope_value
 
@@ -389,7 +324,7 @@ class QueryHandler:
                 clustered_group_by.extend(['cluster', 'cluster_alias'])
                 break
 
-        for value in self.query_parameters.get('filter', {}).keys():
+        for value in self.parameters.get('filter', {}).keys():
             if value in ('project', 'node') and 'cluster_id' not in clustered_group_by:
                 clustered_group_by.extend(['cluster', 'cluster_alias'])
                 break

@@ -36,6 +36,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.query_handler import TruncDayString
 from api.report.ocp.view import OCPCpuView, OCPMemoryView
+from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
@@ -969,7 +970,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -1011,7 +1015,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -1055,7 +1062,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -1094,7 +1104,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
@@ -1114,7 +1127,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_costs_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
@@ -1491,7 +1507,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_filter(self):
         """Test the filter[and:tag:] param in the view."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
 
@@ -1519,7 +1538,10 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_and_tag_group_by(self):
         """Test the group_by[and:tag:] param in the view."""
-        handler = OCPTagQueryHandler({'filter': {'type': 'pod'}}, '?filter[type]=pod', self.tenant)
+        # '?filter[type]=pod'
+        params = {'filter': {'type': 'pod'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
+        handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
