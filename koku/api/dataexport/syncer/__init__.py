@@ -1,6 +1,7 @@
 """Data export syncer."""
 from abc import ABC, abstractmethod
 from datetime import timedelta
+from itertools import product
 
 import boto3
 from botocore.exceptions import ClientError
@@ -10,6 +11,7 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 
 LOG = get_task_logger(__name__)
+_PROVIDER_TYPES = ['aws', 'ocp', 'azure']
 
 
 class SyncedFileInColdStorageError(Exception):
@@ -111,13 +113,21 @@ class AwsS3Syncer(SyncerInterface):
             s3_destination_bucket = self.s3_resource.Bucket(s3_destination_bucket_name)
 
             # Copy the specific month level files
-            for month in months:
+            for month, provider_type in product(months, _PROVIDER_TYPES):
                 for source_object in self.s3_source_bucket.objects.filter(
-                        Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{month.month:02d}/00/'):
+                    Prefix=(
+                        f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                        f'{month.year:04d}/{month.month:02d}/00/'
+                    )
+                ):
                     self._copy_object(s3_destination_bucket, source_object)
 
             # Copy all the day files
-            for day in days:
+            for day, provider_type in product(days, _PROVIDER_TYPES):
                 for source_object in self.s3_source_bucket.objects.filter(
-                        Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{day.month:02d}/{day.day:02d}/'):
+                    Prefix=(
+                        f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                        f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
+                    )
+                ):
                     self._copy_object(s3_destination_bucket, source_object)
