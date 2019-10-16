@@ -20,7 +20,6 @@
 # pylint: disable=unused-import
 from masu.api.download import download_report
 from masu.api.expired_data import expired_data
-from masu.api.region_map import update_region_map
 from masu.api.report_data import report_data
 from masu.api.status import get_status
 from masu.api.update_charge import update_charge
