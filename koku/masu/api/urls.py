@@ -28,7 +28,6 @@ urlpatterns = [
     # url(r'^openapi.json', openapi, name='openapi'),
     url(r'^download/$', download_report, name='report_download'),
     url(r'^expired_data/$', expired_data, name='expired_data'),
-    # url(r'^regionmap/$', update_region_map, name='update_region_map'),
     url(r'^report_data/$', report_data, name='report_data'),
     url(r'^update_charge/$', update_charge, name='update_charge'),
 ]
