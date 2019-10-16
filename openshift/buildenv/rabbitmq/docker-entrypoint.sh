@@ -3,7 +3,7 @@ set -eu
 
 # Create Rabbitmq user
 RUSER=${RABBITMQ_USER:-koku}
-RPASS=${RABBITMQ_PASSWORD:-koku}
+RPASSWORD=${RABBITMQ_PASSWORD:-koku}
 rabbitmqctl add_user $RUSER $RPASSWORD 2>/dev/null
 rabbitmqctl set_user_tags $RUSER administrator
 rabbitmqctl set_permissions -p / $RUSER  ".*" ".*" ".*"
