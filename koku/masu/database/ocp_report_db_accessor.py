@@ -418,12 +418,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_pod_charge.sql'
         )
-        charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            cpu_temp=cpu_temp_table,
-            mem_temp=mem_temp_table,
-            schema=self.schema
+        charge_line_sql = daily_charge_sql.decode('utf-8')
+        charge_line_sql_params = {
+            'cpu_temp': cpu_temp_table,
+            'mem_temp': mem_temp_table,
+            'schema': self.schema
+        }
+        charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
+            charge_line_sql, charge_line_sql_params
         )
-
         self._commit_and_vacuum(table_name, charge_line_sql)
 
     def populate_storage_charge(self, temp_table_name):
@@ -442,11 +445,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocp_storage_charge.sql'
         )
-        charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            temp_table=temp_table_name,
-            schema=self.schema
+        charge_line_sql = daily_charge_sql.decode('utf-8')
+        charge_line_sql_params = {
+            'temp_table': temp_table_name,
+            'schema': self.schema
+        }
+        charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
+            charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(table_name, charge_line_sql)
+        self._commit_and_vacuum(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
