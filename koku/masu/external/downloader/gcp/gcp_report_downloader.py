@@ -89,32 +89,24 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_id = self._get_existing_manifest_db_id(
                 manifest_data['assembly_id']
             )
-            LOG.info(
-                'This manifest has already been downloaded and processed:\n'
-                ' customer: "%(customer)s",\n'
-                ' provider_id: %(provider_id)s,\n'
-                ' manifest_id: %(manifest_id)s',
-                {
-                    'customer': self.customer_name,
-                    'provider_id': self._provider_id,
-                    'manifest_id': manifest_id,
-                },
+            stmt = (
+                f'This manifest has already been downloaded and processed:\n'
+                f' schema_name: {self.customer_name}\n'
+                f' provider_id: {self._provider_id}\n'
+                f' manifest_id: {manifest_id}'
             )
+            LOG.info(stmt)
             return {}
 
         file_names_count = len(manifest_data['file_names'])
         if not file_names_count:
-            LOG.info(
-                'No relevant files found for month starting on %(start_date)s '
-                ' for customer "%(customer_name)s", provider_id %(provider_id)s, '
-                ' and bucket_name: %(bucket_name)s',
-                {
-                    'start_date': manifest_data['start_date'],
-                    'customer_name': self.customer_name,
-                    'provider_id': self._provider_id,
-                    'bucket_name': self.bucket_name,
-                },
+            stmt = (
+                f'No relevant files found for month starting {manifest_data["start_date"]}'
+                f' for customer "{self.customer_name}",'
+                f' provider_id {self._provider_id},'
+                f' and bucket_name: {self.bucket_name}'
             )
+            LOG.info(stmt)
             return {}
 
         manifest_id = self._process_manifest_db_record(

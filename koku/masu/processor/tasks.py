@@ -82,7 +82,7 @@ def get_report_files(customer_name,
         )
         for report in reports:
             stmt += ' file: ' + str(report['file']) + '\n'
-        LOG.info(stmt[:-1]) # -1 removes the last new line
+        LOG.info(stmt[:-1])
         reports_to_summarize = []
         for report_dict in reports:
             manifest_id = report_dict.get('manifest_id')
