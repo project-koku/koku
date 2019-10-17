@@ -427,7 +427,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
+        self._commit_and_vacuum(
+            table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_storage_charge(self, temp_table_name):
         """Populate the storage charge into the daily summary table.
@@ -453,7 +454,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
+        self._commit_and_vacuum(
+            table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -551,7 +553,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 'schema': self.schema
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-            self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+            self._commit_and_vacuum(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
