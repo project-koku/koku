@@ -322,8 +322,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8')
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date,
-            'end_date': end_date,
+            'start_date': start_date.date(),
+            'end_date': end_date.date(),
             'cluster_id': cluster_id,
             'schema': self.schema
         }
