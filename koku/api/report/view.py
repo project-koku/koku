@@ -21,81 +21,17 @@ import logging
 from django.utils.translation import ugettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError, UndefinedUnitError
-from querystring_parser import parser
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
-from tenant_schemas.utils import tenant_context
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import ReportPagination, ReportRankedPagination
-from api.models import Tenant, User
+from api.query_params import QueryParameters
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
-
-
-def get_tag_keys(request, summary_model):
-    """Get a list of tag keys to validate filters."""
-    tenant = get_tenant(request.user)
-    with tenant_context(tenant):
-        tags = summary_model.objects.values('key')
-        tag_list = [':'.join(['tag', tag.get('key')]) for tag in tags]
-        tag_list.extend([':'.join(['and:tag', tag.get('key')]) for tag in tags])
-        tag_list.extend([':'.join(['or:tag', tag.get('key')]) for tag in tags])
-
-    return tag_list
-
-
-def process_query_parameters(url_data, provider_serializer, tag_keys=None, **kwargs):
-    """Process query parameters and raise any validation errors.
-
-    Args:
-        url_data    (String): the url string
-    Returns:
-        (Boolean): True if query params are valid, False otherwise
-        (Dict): Dictionary parsed from query params string
-
-    """
-    try:
-        query_params = parser.parse(url_data)
-    except parser.MalformedQueryStringError:
-        LOG.error('Invalid query parameter format %s.', url_data)
-        error = {'details': _(f'Invalid query parameter format.')}
-        raise ValidationError(error)
-
-    if tag_keys:
-        tag_keys = process_tag_query_params(query_params, tag_keys)
-        qps = provider_serializer(data=query_params, tag_keys=tag_keys, context=kwargs)
-    else:
-        qps = provider_serializer(data=query_params, context=kwargs)
-
-    output = None
-    validation = qps.is_valid()
-    if not validation:
-        output = qps.errors
-    else:
-        output = qps.data
-
-    return (validation, output)
-
-
-def process_tag_query_params(query_params, tag_keys):
-    """Reduce the set of tag keys based on those being queried."""
-    tag_key_set = set(tag_keys)
-    param_tag_keys = set()
-    for key, value in query_params.items():
-        if isinstance(value, dict) or isinstance(value, list):
-            for inner_param_key in value:
-                if inner_param_key in tag_key_set:
-                    param_tag_keys.add(inner_param_key)
-        elif value in tag_key_set:
-            param_tag_keys.add(value)
-        if key in tag_key_set:
-            param_tag_keys.add(key)
-
-    return param_tag_keys
 
 
 def get_paginator(filter_query_params, count):
@@ -106,30 +42,6 @@ def get_paginator(filter_query_params, count):
     else:
         paginator = ReportPagination()
     return paginator
-
-
-def get_tenant(user):
-    """Get the tenant for the given user.
-
-    Args:
-        user    (DjangoUser): user to get the associated tenant
-    Returns:
-        (Tenant): Object used to get tenant specific data tables
-    Raises:
-        (ValidationError): If no tenant could be found for the user
-
-    """
-    tenant = None
-    if user:
-        try:
-            customer = user.customer
-            tenant = Tenant.objects.get(schema_name=customer.schema_name)
-        except User.DoesNotExist:
-            pass
-    if tenant is None:
-        error = {'details': _('Invalid user definition')}
-        raise ValidationError(error)
-    return tenant
 
 
 def _find_unit():
@@ -234,42 +146,22 @@ class ReportView(APIView):
 
         """
         LOG.debug(f'API: {request.path} USER: {request.user.username}')
-        tenant = get_tenant(request.user)
 
-        tag_keys = []
-        if self.report != 'tags':
-            for tag_model in self._tag_handler:
-                tag_keys.extend(get_tag_keys(request, tag_model))
+        try:
+            params = QueryParameters(request=request,
+                                     caller=self)
+        except ValidationError as exc:
+            return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        url_data = request.GET.urlencode()
-        validation, params = process_query_parameters(
-            url_data,
-            self._serializer,
-            tag_keys,
-            request=request
-        )
-
-        if not validation:
-            return Response(
-                data=params,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        handler = self._query_handler(params,
-                                      url_data,
-                                      tenant,
-                                      accept_type=request.META.get('HTTP_ACCEPT'),
-                                      report_type=self.report,
-                                      tag_keys=tag_keys,
-                                      access=request.user.access)
+        handler = self.query_handler(params)
         output = handler.execute_query()
         max_rank = handler.max_rank
 
-        if 'units' in params:
+        if 'units' in params.parameters:
             from_unit = _find_unit()(output['data'])
             if from_unit:
                 try:
-                    to_unit = params['units']
+                    to_unit = params.parameters.get('units')
                     unit_converter = UnitConverter()
                     output = _fill_in_missing_units(from_unit)(output)
                     output = _convert_units(unit_converter, output, to_unit)
@@ -277,7 +169,7 @@ class ReportView(APIView):
                     error = {'details': _('Unit conversion failed.')}
                     raise ValidationError(error)
 
-        paginator = get_paginator(params.get('filter', {}), max_rank)
+        paginator = get_paginator(params.parameters.get('filter', {}), max_rank)
         paginated_result = paginator.paginate_queryset(output, request)
         LOG.debug(f'DATA: {output}')
         return paginator.get_paginated_response(paginated_result)

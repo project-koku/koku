@@ -16,20 +16,20 @@
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import url
 
-from masu.api.views import (download_report,
-                            expired_data,
-                            get_status,
-                            report_data,
-                            update_charge)
+from masu.api.views import (
+    download_report,
+    expired_data,
+    get_status,
+    report_data,
+    update_charge,
+    upload_normalized_data,
+)
 
-# # pylint: disable=invalid-name
 urlpatterns = [
     url(r'^status/$', get_status, name='server-status'),
-    # url(r'^openapi.json', openapi, name='openapi'),
     url(r'^download/$', download_report, name='report_download'),
     url(r'^expired_data/$', expired_data, name='expired_data'),
-    # url(r'^notification/$', post_notification, name='post_notification'),
-    # url(r'^regionmap/$', update_region_map, name='update_region_map'),
     url(r'^report_data/$', report_data, name='report_data'),
     url(r'^update_charge/$', update_charge, name='update_charge'),
+    url(r'^upload_normalized_data/$', upload_normalized_data, name='upload_normalized_data'),
 ]

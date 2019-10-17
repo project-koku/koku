@@ -71,29 +71,6 @@ def _check_s3_access(bucket, credentials):
     return s3_exists
 
 
-def _get_configured_sns_topics(bucket, credentials):
-    """Get a list of configured SNS topics."""
-    # create an SNS client
-    s3_client = boto3.client('s3', **credentials)
-    topics = []
-    try:
-        notification_configuration = s3_client.get_bucket_notification_configuration(Bucket=bucket)
-        configuration = notification_configuration.get('TopicConfigurations', None)
-        if configuration:
-            for event in configuration:
-                # FIXME: Once we complete the Masu #75 userstory we should verify that
-                # the correct TopicArn is configured as well as the correct
-                # events (i.e. 's3:ObjectCreated:*'). For now lets just keep a list of all
-                # topics subscribed to and log it.
-                topic_arn = event.get('TopicArn')
-                topics.append(topic_arn) if topic_arn else None
-    except (ClientError, BotoConnectionError,
-            NoCredentialsError, ParamValidationError) as boto_error:
-        LOG.exception(boto_error)
-
-    return topics
-
-
 def _check_org_access(credentials):
     """Check for provider organization access."""
     access_ok = True
@@ -180,14 +157,6 @@ class AWSProvider(ProviderInterface):
             message = 'Unable to obtain organization data with {}.'.format(
                 credential_name)
             LOG.info(message)
-
-        sns_topics = _get_configured_sns_topics(storage_resource_name, creds)
-        topics_string = ', '.join(sns_topics)
-        if sns_topics:
-            LOG.info('S3 Notification Topics: %s for S3 bucket: %s',
-                     topics_string, storage_resource_name)
-        else:
-            LOG.info('SNS is not configured for S3 bucket %s', storage_resource_name)
 
     def infra_type_implementation(self, provider_uuid, tenant):
         """Return infrastructure type."""
