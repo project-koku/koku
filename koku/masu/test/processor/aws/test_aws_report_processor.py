@@ -176,7 +176,7 @@ class AWSReportProcessorTest(MasuTestCase):
         expected = (
             f'INFO:masu.processor.aws.aws_report_processor:Deleting data for\n'
             f' schema_name: acct10001\n'
-            f' provider_id: {self.aws_provider.id}'
+            f' provider_id: {self.aws_provider.id}\n'
             f' bill date: {bill_date}'
         )
         logging.disable(
