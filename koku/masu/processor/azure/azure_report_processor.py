@@ -20,11 +20,15 @@ import csv
 import logging
 from datetime import datetime
 
+from tenant_schemas.utils import schema_context
+
 import pytz
 from dateutil import parser
 
 from masu.config import Config
+from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
@@ -288,48 +292,62 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        self._delete_line_items()
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
             with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
-                temp_table = report_db.create_temp_table(
-                    self.table_name._meta.db_table,
-                    drop_column='id'
-                )
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
-                        self._save_to_db(temp_table, report_db)
-                        report_db.merge_temp_table(
-                            self.table_name._meta.db_table,
-                            temp_table,
-                            self.line_item_columns,
-                            self.line_item_conflict_columns
-                        )
                         LOG.info('Saving report rows %d to %d for %s', row_count,
                                  row_count + len(self.processed_report.line_items),
                                  self._report_name)
+                        self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
 
                 if self.processed_report.line_items:
-                    self._save_to_db(temp_table, report_db)
-                    report_db.merge_temp_table(
-                        self.table_name._meta.db_table,
-                        temp_table,
-                        self.line_item_columns,
-                        self.line_item_conflict_columns
-                    )
                     LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
+                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
+
+                report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
+                report_db.commit()
 
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
             return True
+
+    def _delete_line_items(self):
+        """Delete stale data for the report being processed, if necessary."""
+        if not self.manifest_id:
+            return False
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            if manifest.num_processed_files != 0:
+                return False
+            # Override the bill date to correspond with the manifest
+            bill_date = manifest.billing_period_start_datetime.date()
+            provider_id = manifest.provider_id
+
+        LOG.info('Deleting data for schema: %s and bill date: %s',
+                 self._schema_name, str(bill_date))
+
+        with AzureReportDBAccessor(self._schema_name, self.column_map) as accessor:
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            bills = bills.filter(billing_period_start=bill_date).all()
+            with schema_context(self._schema_name):
+                for bill in bills:
+                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    line_item_query.delete()
+
+        return True
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""
