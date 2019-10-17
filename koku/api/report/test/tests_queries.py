@@ -1443,9 +1443,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
         handler = AWSTagQueryHandler(query_params.mock_qp)
-        tag_keys = handler.get_tag_keys(filters=False)
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1471,9 +1474,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
         handler = AWSTagQueryHandler(query_params.mock_qp)
-        tag_keys = handler.get_tag_keys(filters=False)
+        tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
@@ -1504,9 +1510,12 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        query_params = FakeQueryParameters({}, tenant=self.tenant)
+        params = {'filter': {'resolution': 'monthly',
+                             'time_scope_value': -1,
+                             'time_scope_units': 'month'}}
+        query_params = FakeQueryParameters(params, tenant=self.tenant)
         handler = AWSTagQueryHandler(query_params.mock_qp)
-        tag_keys = handler.get_tag_keys(filters=False)
+        tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
 
