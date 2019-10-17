@@ -74,7 +74,15 @@ def get_report_files(customer_name,
                                 provider_uuid)
 
     try:
-        LOG.info('Reports to be processed: %s', str(reports))
+        stmt = (
+            f'Reports to be processed:\n'
+            f' schema_name: {customer_name}\n'
+            f' provider: {provider_type}\n'
+            f' provider_uuid: {provider_uuid}\n'
+        )
+        for report in reports:
+            stmt += ' file: ' + str(report['file']) + '\n'
+        LOG.info(stmt[:-1]) # -1 removes the last new line
         reports_to_summarize = []
         for report_dict in reports:
             manifest_id = report_dict.get('manifest_id')
@@ -97,8 +105,14 @@ def get_report_files(customer_name,
                          file_name, str(started_date), str(completed_date))
                 continue
 
-            LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
-                     schema_name, provider_uuid, report_dict.get('file'))
+            stmt = (
+                f'Processing starting:\n'
+                f' schema_name: {customer_name}\n'
+                f' provider: {provider_type}\n'
+                f' provider_uuid: {provider_uuid}\n'
+                f' file: {report_dict.get("file")}'
+            )
+            LOG.info(stmt)
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
             _process_report_file(schema_name,
                                  provider_type,

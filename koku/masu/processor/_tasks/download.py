@@ -68,24 +68,19 @@ def _get_report_files(customer_name,
     else:
         number_of_months = 2
 
-    stmt = ('Downloading report for'
-            ' credential: {},'
-            ' source: {},'
-            ' customer_name: {},'
-            ' provider: {},'
-            ' number_of_months: {}')
-    log_statement = stmt.format(str(authentication),
-                                str(billing_source),
-                                customer_name,
-                                provider_type,
-                                number_of_months)
+    log_statement = (f'Downloading report for:\n'
+                     f' schema_name: {customer_name}\n'
+                     f' provider: {provider_type}\n'
+                     f' account (provider uuid): {provider_uuid}\n'
+                     f' number_of_months: {number_of_months}')
     LOG.info(log_statement)
     try:
         disk = psutil.disk_usage(Config.PVC_DIR)
-        disk_msg = 'Available disk space: {} bytes ({}%)'.format(disk.free, 100 - disk.percent)
+        disk_msg = f'Available disk space: {disk.free} bytes ({100 - disk.percent}%)'
+        LOG.info(disk_msg)
     except OSError:
-        disk_msg = 'Unable to find available disk space. {} does not exist'.format(Config.PVC_DIR)
-    LOG.info(disk_msg)
+        disk_msg = f'Unable to find available disk space. {Config.PVC_DIR} does not exist'
+        LOG.error(disk_msg)
 
     reports = None
     try:
