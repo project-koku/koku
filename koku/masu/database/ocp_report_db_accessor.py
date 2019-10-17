@@ -484,7 +484,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8')
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date, 
+            'start_date': start_date,
             'end_date': end_date,
             'cluster_id': cluster_id,
             'schema': self.schema
