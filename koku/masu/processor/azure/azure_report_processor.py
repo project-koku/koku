@@ -20,15 +20,12 @@ import csv
 import logging
 from datetime import datetime
 
-from tenant_schemas.utils import schema_context
-
 import pytz
 from dateutil import parser
 
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from masu.util.azure import common as utils
@@ -81,6 +78,7 @@ class AzureReportProcessor(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=manifest_id,
             processed_report=ProcessedAzureReport()
         )
         self.table_name = AzureCostEntryLineItemDaily()
@@ -278,12 +276,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    @property
-    def line_item_conflict_columns(self):
-        """Create a property to check conflict on line items."""
-        return ['cost_entry_bill_id', 'cost_entry_product_id', 'meter_id',
-                'subscription_guid', 'usage_date_time']
-
     def process(self):
         """Process cost/usage file.
 
@@ -292,7 +284,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        self._delete_line_items()
+        self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
@@ -322,32 +314,6 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
             return True
-
-    def _delete_line_items(self):
-        """Delete stale data for the report being processed, if necessary."""
-        if not self.manifest_id:
-            return False
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
-            if manifest.num_processed_files != 0:
-                return False
-            # Override the bill date to correspond with the manifest
-            bill_date = manifest.billing_period_start_datetime.date()
-            provider_id = manifest.provider_id
-
-        LOG.info('Deleting data for schema: %s and bill date: %s',
-                 self._schema_name, str(bill_date))
-
-        with AzureReportDBAccessor(self._schema_name, self.column_map) as accessor:
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
-            bills = bills.filter(billing_period_start=bill_date).all()
-            with schema_context(self._schema_name):
-                for bill in bills:
-                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
-                    line_item_query.delete()
-
-        return True
 
     def _update_mappings(self):
         """Update cache of database objects for reference."""

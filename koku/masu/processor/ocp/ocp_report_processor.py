@@ -169,6 +169,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=None,
             processed_report=ProcessedOCPReport()
         )
 
