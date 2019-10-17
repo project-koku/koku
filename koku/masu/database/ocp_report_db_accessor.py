@@ -503,7 +503,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
             summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def populate_cost_summary_table(self, cluster_id, start_date=None, end_date=None):
         """Populate the cost summary table.
