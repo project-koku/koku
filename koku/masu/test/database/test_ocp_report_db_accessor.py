@@ -896,6 +896,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_storage_line_item_daily_table(
             start_date, end_date, cluster_id
         )
+        # import pdb
+        # pdb.set_trace()
         self.accessor.populate_storage_line_item_daily_summary_table(
             start_date, end_date, cluster_id
         )

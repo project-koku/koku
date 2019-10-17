@@ -481,7 +481,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpstoragelineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode
+        summary_sql = summary_sql.decode('utf-8')
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
             'start_date': start_date, 
