@@ -387,14 +387,19 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpstoragelineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        daily_sql = daily_sql.decode('utf-8')
+        daily_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date.date(),
+            'end_date': end_date.date(),
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
+            daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
         """Populate the memory and cpu charge on daily summary table.
