@@ -341,7 +341,6 @@ LOGGING = {
         'api': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
-            'propagate': False,
         },
         'celery': {
             'handlers': LOGGING_HANDLERS,
@@ -355,17 +354,14 @@ LOGGING = {
         'providers': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
-            'propagate': False,
         },
         'reporting': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
-            'propagate': False,
         },
         'reporting_common': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
-            'propagate': False,
         },
         'masu': {
             'handlers': LOGGING_HANDLERS,
@@ -375,7 +371,6 @@ LOGGING = {
         'sources': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
-            'propagate': False,
         },
     },
 }
