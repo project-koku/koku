@@ -47,6 +47,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
 
         self.bucket_name = billing_source['bucket']
+        self.report_prefix = billing_source.get('report_prefix', '')
         self.customer_name = customer_name.replace(' ', '_')
         self._provider_id = kwargs.get('provider_id')
 
@@ -206,9 +207,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dates_as_strings = [date.strftime('%Y-%m-%d') for date in dates]
         available_file_names = self._get_bucket_file_names()
         relevant_file_names = set()
+        prefix = f'{self.report_prefix}-' if self.report_prefix else ''
+
         for file_name in available_file_names:
             for date_string in dates_as_strings:
-                if file_name.endswith(f'{date_string}.csv'):
+                if file_name == f'{prefix}{date_string}.csv':
                     relevant_file_names.add(file_name)
                     break
 
