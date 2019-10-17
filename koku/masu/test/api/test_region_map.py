@@ -20,7 +20,20 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.test.utils import override_settings
-from masu.test.util.aws.test_region_map import MockResponse, TEST_HTML
+
+TEST_HTML = './koku/masu/test/data/test_region_page.html'
+
+
+class MockResponse:
+    """A fake requests.Response object."""
+
+    status_code = None
+    text = None
+
+    def __init__(self, data, status):
+        self.status_code = status
+        self.text = str(data)
+
 
 @override_settings(ROOT_URLCONF='masu.urls')
 class RegionMapAPIViewTest(TestCase):
