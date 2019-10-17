@@ -319,14 +319,19 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        daily_sql = daily_sql.decode('utf-8')
+        daily_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
+            daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def get_ocp_infrastructure_map(self, start_date, end_date):
         """Get the OCP on infrastructure map.
@@ -456,13 +461,19 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date, cluster_id=cluster_id,
-            schema=self.schema
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of storage line items table.
