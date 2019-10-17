@@ -1,5 +1,6 @@
 """Collection of tests for the data export syncer."""
 from datetime import date, timedelta
+from itertools import product
 from unittest.mock import Mock, patch
 
 import faker
@@ -8,7 +9,11 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 from django.conf import settings
 from django.test import TestCase
 
-from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
+from api.dataexport.syncer import (
+    AwsS3Syncer,
+    SyncedFileInColdStorageError,
+    _PROVIDER_TYPES,
+)
 
 fake = faker.Faker()
 
@@ -51,15 +56,26 @@ class AwsS3SyncerTest(TestCase):
         mock_buckets.assert_any_call(source_bucket_name)
         mock_buckets.assert_any_call(destination_bucket_name)
 
-        for day in days:
-            mock_filter.assert_any_call(Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{day.month:02d}/{day.day:02d}/')
-        for month in months:
-            mock_filter.assert_any_call(Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{month.month:02d}/00/')
+        for day, provider_type in product(days, _PROVIDER_TYPES):
+            mock_filter.assert_any_call(
+                Prefix=(
+                    f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                    f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
+                )
+            )
+        for month, provider_type in product(months, _PROVIDER_TYPES):
+            mock_filter.assert_any_call(
+                Prefix=(
+                    f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                    f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
+                )
+            )
 
         mock_destination_object.assert_called_with(source_object.key)
         mock_copy_from.assert_called_with(
             ACL='bucket-owner-full-control',
-            CopySource={'Bucket': source_bucket_name, 'Key': source_object.key})
+            CopySource={'Bucket': source_bucket_name, 'Key': source_object.key},
+        )
 
     @patch('api.dataexport.syncer.boto3')
     def test_sync_file_fail_disabled(self, mock_boto3):
@@ -126,10 +142,20 @@ class AwsS3SyncerTest(TestCase):
         mock_buckets.assert_any_call(source_bucket_name)
         mock_buckets.assert_any_call(destination_bucket_name)
 
-        for day in days:
-            mock_filter.assert_any_call(Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{day.month:02d}/{day.day:02d}/')
-        for month in months:
-            mock_filter.assert_any_call(Prefix=f'{settings.S3_BUCKET_PATH}/{account}/{month.month:02d}/00/')
+        for day, provider_type in product(days, _PROVIDER_TYPES):
+            mock_filter.assert_any_call(
+                Prefix=(
+                    f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                    f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
+                )
+            )
+        for month, provider_type in product(months, _PROVIDER_TYPES):
+            mock_filter.assert_any_call(
+                Prefix=(
+                    f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
+                    f'{month.year:04d}/{month.month:02d}/00/'
+                )
+            )
 
         mock_destination_object.assert_not_called()
         mock_copy_from.assert_not_called()
@@ -207,8 +233,7 @@ class AwsS3SyncerTest(TestCase):
     def test_sync_fail_boto3_client_exception(self, mock_boto3):
         """Test that if an client error, we raise that error."""
         client_error = ClientError(
-            error_response={'Error': {'Code': fake.word()}},
-            operation_name=Mock(),
+            error_response={'Error': {'Code': fake.word()}}, operation_name=Mock()
         )
         source_bucket_name = fake.slug()
         destination_bucket_name = fake.slug()
