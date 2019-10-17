@@ -19,12 +19,14 @@ class DataExportRequestValidator:
         self.instance = getattr(serializer, 'instance', None)
 
     def pending_instance_exists(self, start_date, end_date):
-        """Check for a pending instance that matches the requested dates."""
+        """Check for a pending or processing instance that matches the requested dates."""
         if self.instance is not None:
             # This is an update and does not need to check for existence.
             return
         queryset = self.queryset.filter(
-            status=DataExportRequest.PENDING, start_date=start_date, end_date=end_date
+            status__in=(DataExportRequest.PENDING, DataExportRequest.PROCESSING),
+            start_date=start_date,
+            end_date=end_date,
         )
         return queryset.exists()
 
@@ -40,6 +42,7 @@ class DataExportRequestValidator:
             raise ValidationError(bad_items, code='bad_request')
         if self.pending_instance_exists(start_date, end_date):
             exists_message = _(
-                'A pending data export already exists with the given "start_date" and "end_date".'
+                'A pending or processing data export already exists with the given '
+                '"start_date" and "end_date".'
             )
             raise ValidationError(exists_message, code='bad_request')

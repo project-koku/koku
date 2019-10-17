@@ -26,7 +26,6 @@ from faker import Faker
 from providers.aws.provider import (AWSProvider,
                                     _check_cost_report_access,
                                     _check_s3_access,
-                                    _get_configured_sns_topics,
                                     _get_sts_access,
                                     error_obj)
 from rest_framework.exceptions import ValidationError
@@ -126,41 +125,6 @@ class AWSProviderTestCase(TestCase):
         self.assertFalse(s3_exists)
 
     @patch('providers.aws.provider.boto3.client')
-    def test_get_configured_sns_topics(self, mock_boto3_client):
-        """Test _get_configured_sns_topics success."""
-        expected_topics = ['t1', 't2']
-        s3_client = Mock()
-        notification_configuration = {
-            'TopicConfigurations': [{'TopicArn': 't1'},
-                                    {'TopicArn': 't2'}]
-        }
-        s3_client.get_bucket_notification_configuration.return_value = notification_configuration
-        mock_boto3_client.return_value = s3_client
-        topics = _get_configured_sns_topics('bucket', {})
-        self.assertEqual(topics, expected_topics)
-
-    @patch('providers.aws.provider.boto3.client')
-    def test_get_configured_sns_topics_empty(self, mock_boto3_client):
-        """Test _get_configured_sns_topics no topic configuration."""
-        expected_topics = []
-        s3_client = Mock()
-        notification_configuration = {}
-        s3_client.get_bucket_notification_configuration.return_value = notification_configuration
-        mock_boto3_client.return_value = s3_client
-        topics = _get_configured_sns_topics('bucket', {})
-        self.assertEqual(topics, expected_topics)
-
-    @patch('providers.aws.provider.boto3.client')
-    def test_get_configured_sns_topics_fail(self, mock_boto3_client):
-        """Test _get_configured_sns_topics fail."""
-        expected_topics = []
-        s3_client = Mock()
-        s3_client.get_bucket_notification_configuration.side_effect = _mock_boto3_kwargs_exception
-        mock_boto3_client.return_value = s3_client
-        topics = _get_configured_sns_topics('bucket', {})
-        self.assertEqual(topics, expected_topics)
-
-    @patch('providers.aws.provider.boto3.client')
     def test_check_cost_report_access(self, mock_boto3_client):
         """Test _check_cost_report_access success."""
         s3_client = Mock()
@@ -212,13 +176,11 @@ class AWSProviderTestCase(TestCase):
     @patch('providers.aws.provider._check_s3_access', return_value=True)
     @patch('providers.aws.provider._check_org_access', return_value=True)
     @patch('providers.aws.provider._check_cost_report_access', return_value=True)
-    @patch('providers.aws.provider._get_configured_sns_topics', return_value=['t1'])
     def test_cost_usage_source_is_reachable(self,
                                             mock_get_sts_access,
                                             mock_check_s3_access,
                                             mock_check_org_access,
-                                            mock_check_cost_report_access,
-                                            mock_get_configured_sns_topics):
+                                            mock_check_cost_report_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
@@ -275,12 +237,10 @@ class AWSProviderTestCase(TestCase):
                              aws_session_token=FAKE.md5()))
     @patch('providers.aws.provider._check_s3_access', return_value=True)
     @patch('providers.aws.provider._check_cost_report_access', return_value=True)
-    @patch('providers.aws.provider._get_configured_sns_topics', return_value=[])
     def test_cost_usage_source_is_reachable_no_topics(self,
                                                       mock_get_sts_access,
                                                       mock_check_s3_access,
-                                                      mock_check_cost_report_access,
-                                                      mock_get_configured_sns_topics):
+                                                      mock_check_cost_report_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         try:
