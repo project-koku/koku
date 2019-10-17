@@ -481,13 +481,18 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpstoragelineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date, end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        summary_sql = summary_sql.decode
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date, 
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def populate_cost_summary_table(self, cluster_id, start_date=None, end_date=None):
         """Populate the cost summary table.
