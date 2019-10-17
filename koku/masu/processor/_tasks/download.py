@@ -77,10 +77,9 @@ def _get_report_files(customer_name,
     try:
         disk = psutil.disk_usage(Config.PVC_DIR)
         disk_msg = f'Available disk space: {disk.free} bytes ({100 - disk.percent}%)'
-        LOG.info(disk_msg)
     except OSError:
         disk_msg = f'Unable to find available disk space. {Config.PVC_DIR} does not exist'
-        LOG.error(disk_msg)
+    LOG.info(disk_msg)
 
     reports = None
     try:

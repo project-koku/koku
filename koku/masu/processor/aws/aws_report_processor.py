@@ -192,8 +192,8 @@ class AWSReportProcessor(ReportProcessorBase):
 
         stmt = (
             f'Deleting data for:\n'
-            f' schema_name: {self._schema_name}'
-            f' provider_id: {provider_id}'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
             f' bill date: {str(bill_date)}'
         )
         LOG.info(stmt)
