@@ -427,7 +427,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
             charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(table_name, charge_line_sql)
+        self._commit_and_vacuum(table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_storage_charge(self, temp_table_name):
         """Populate the storage charge into the daily summary table.
@@ -542,14 +542,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_ocpcosts_summary.sql'
         )
         if start_date and end_date:
-            summary_sql = summary_sql.decode('utf-8').format(
-                uuid=str(uuid.uuid4()).replace('-', '_'),
-                start_date=start_date,
-                end_date=end_date,
-                cluster_id=cluster_id,
-                schema=self.schema
-            )
-            self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+            summary_sql = summary_sql.decode('utf-8')
+            summary_sql_params = {
+                'uuid': str(uuid.uuid4()).replace('-', '_'),
+                'start_date': start_date.date(),
+                'end_date': end_date.date(),
+                'cluster_id': cluster_id,
+                'schema': self.schema
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            self._commit_and_vacuum(table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
