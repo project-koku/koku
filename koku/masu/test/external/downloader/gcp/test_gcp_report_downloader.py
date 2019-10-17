@@ -38,7 +38,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
 
     def create_gcp_downloader_with_mock_gcp_storage(
-        self, customer_name=None, bucket_name=None, provider_id=None
+        self, customer_name=None, bucket_name=None, provider_id=None, report_prefix=None
     ):
         """
         Create a GCPReportDownloader instance that skips the initial GCP client/bucket check.
@@ -50,6 +50,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             customer_name (str): optional customer name; will be randomly generated if None
             bucket_name (str): optional bucket name; will be randomly generated if None
             provider_id (int): optional provider ID; will be randomly generated if None
+            report_prefix (str): optional report prefix
 
         Returns:
             GCPReportDownloader instance with faked argument data and Mocks in
@@ -61,6 +62,8 @@ class GCPReportDownloaderTest(MasuTestCase):
         if not bucket_name:
             bucket_name = FAKE.slug()
         billing_source = {'bucket': bucket_name}
+        if report_prefix:
+            billing_source['report_prefix'] = report_prefix
         if not provider_id:
             provider_id = FAKE.pyint()
         with patch(
@@ -233,9 +236,9 @@ class GCPReportDownloaderTest(MasuTestCase):
         assembly_id = downloader._generate_assembly_id(start_date, end_date, file_count)
         self.assertEqual(assembly_id, expected_assembly_id)
 
-    def test_get_relevant_file_names(self):
+    def test_get_relevant_file_names_no_prefix(self):
         """
-        Assert _get_relevant_file_names gets names and filters them by dates.
+        Assert _get_relevant_file_names gets names and filters them by dates with no prefix.
 
         Note that the data here is specifically crafted to exercise boundary conditions.
         With the given dates, we expect only some of the files formatted with dates to
@@ -243,9 +246,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         """
         downloader = self.create_gcp_downloader_with_mock_gcp_storage()
         expected_relevant_names = [
-            'whats-2019-08-31.csv',
-            'taters-2019-09-01.csv',
-            'precious-2019-09-02.csv',
+            '2019-09-02.csv',
             '2019-09-03.csv',
         ]
         irrelevant_names = [FAKE.file_path() for _ in range(10)] + [
@@ -254,6 +255,47 @@ class GCPReportDownloaderTest(MasuTestCase):
             'little-2019-09-02.xls',
             'hobbitses-2019-09-04.csv',
             '2019-09-05.csv',
+            'whats-2019-08-31.csv',
+            '2019-09-03/taters-2019-09-01.csv',
+            'precious-2019-09-02.csv',
+            '2019-09-25/2019-09-03.csv',
+            'my-nicest-folder/2019-08-29.csv',
+        ]
+        all_found_names = sorted(expected_relevant_names + irrelevant_names)
+        start_date = datetime(2019, 8, 28)  # chosen to exclude the older dates
+        end_date = datetime(2019, 9, 3)  # chosen to exclude newer dates
+        with patch.object(downloader, '_get_bucket_file_names') as mock_get_names:
+            mock_get_names.return_value = all_found_names
+            actual_names = downloader._get_relevant_file_names(start_date, end_date)
+        self.assertListEqual(sorted(actual_names), sorted(expected_relevant_names))
+
+    def test_get_relevant_file_names_prefix(self):
+        """
+        Assert _get_relevant_file_names gets names and filters them by dates with a prefix.
+
+        Note that the data here is specifically crafted to exercise boundary conditions.
+        With the given dates, we expect only some of the files formatted with dates to
+        be included in the results.
+        """
+        downloader = self.create_gcp_downloader_with_mock_gcp_storage(report_prefix='precious')
+        expected_relevant_names = [
+            'precious-2019-08-28.csv',
+            'precious-2019-09-01.csv',
+            'precious-2019-09-02.csv',
+        ]
+        irrelevant_names = [FAKE.file_path() for _ in range(10)] + [
+            '2019-08-24.csv' 'filthy-2019-08-25.csv',
+            'sneaky-2019-09-01.tgz',
+            'little-2019-09-02.xls',
+            'hobbitses-2019-09-04.csv',
+            '2019-09-02.csv',
+            '2019-09-03',
+            '2019-09-05.csv',
+            'whats-2019-08-31.csv',
+            '2019-09-03/taters-2019-09-01.csv',
+            '2019-09-25/2019-09-03.csv',
+            'my-nicest-folder/2019-08-29.csv',
+            'very/precious-2019-09-02.csv',
         ]
         all_found_names = sorted(expected_relevant_names + irrelevant_names)
         start_date = datetime(2019, 8, 28)  # chosen to exclude the older dates
