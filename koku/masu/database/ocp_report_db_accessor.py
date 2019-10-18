@@ -314,10 +314,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #Cast start_date and end_date into date object instead of string
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
+        # Cast start_date and end_date into date object instead of string
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -349,11 +349,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #In case someone passes this function a string instead of the date object like we asked...
-        #Cast the string into a date object, end_date into date object instead of string
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()        
+        # In case someone passes this function a string instead of the date object like we asked...
+        # Cast the string into a date object, end_date into date object instead of string
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
@@ -394,10 +394,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #Cast string to date object
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()           
+        # Cast string to date object
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -486,10 +489,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #Cast strings to dates, sometimes.
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()           
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -521,10 +527,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #Cast strings to dates, sometimes
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()   
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -556,10 +565,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        #Cast string to date object, if it its a string
-        if(isinstance(start_date, str)):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date() 
+        # Cast start_date to date object
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
