@@ -20,6 +20,7 @@ import logging
 from tenant_schemas.utils import tenant_context
 
 from api.query_filter import QueryFilter
+from api.report.azure.provider_map import AzureProviderMap
 from api.tags.queries import TagQueryHandler
 from reporting.models import AzureCostEntryLineItemDailySummary
 
@@ -35,6 +36,20 @@ class AzureTagQueryHandler(TagQueryHandler):
     SUPPORTED_FILTERS = ['subscription_guid']
     FILTER_MAP = {'subscription_guid': {'field': 'subscription_guid',
                                         'operation': 'icontains'}}
+    provider = 'AZURE'
+
+    def __init__(self, parameters):
+        """Establish Azure report query handler.
+
+        Args:
+            parameters    (QueryParameters): parameter object for query
+
+        """
+        if not hasattr(self, '_mapper'):
+            self._mapper = AzureProviderMap(provider=self.provider,
+                                            report_type=parameters.report_type)
+        # super() needs to be called after _mapper is set
+        super().__init__(parameters)
 
     def _get_time_based_filters(self, delta=False):
         """Overridden from QueryHandler."""
@@ -46,7 +61,7 @@ class AzureTagQueryHandler(TagQueryHandler):
 
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
-        type_filter = self.parameter_filter.get('type')
+        type_filter = self.parameters.get_filter('type')
 
         merged_data = []
         with tenant_context(self.tenant):

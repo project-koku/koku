@@ -282,13 +282,12 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         if not should_download:
             manifest_id = self._get_existing_manifest_db_id(manifest_dict.get('assembly_id'))
-            stmt = ('This manifest has already been downloaded and processed:\n'
-                    ' customer: {},\n'
-                    ' provider_id: {},\n'
-                    ' manifest_id: {}')
-            stmt = stmt.format(self.customer_name,
-                               self._provider_id,
-                               manifest_id)
+            stmt = (
+                f'This manifest has already been downloaded and processed:\n'
+                f' schema_name: {self.customer_name},\n'
+                f' provider_id: {self._provider_id},\n'
+                f' manifest_id: {manifest_id}'
+            )
             LOG.info(stmt)
             return report_dict
 

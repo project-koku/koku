@@ -189,6 +189,9 @@ class AzureProviderMap(ProviderMap):
                         'sum_columns': ['usage', 'cost', 'infrastructure_cost', 'derived_cost', 'markup_cost'],
                         'default_ordering': {'usage': 'desc'},
                     },
+                    'tags': {
+                        'default_ordering': {'cost': 'desc'},
+                    },
                 },
                 'start_date': 'costentrybill__billing_period_start',
                 'tables': {

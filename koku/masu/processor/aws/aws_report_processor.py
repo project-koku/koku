@@ -114,8 +114,13 @@ class AWSReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_name, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {self._report_name}'
+        )
+        LOG.info(stmt)
 
     def _should_process_row(self, row, is_finalized, is_new):
         """Determine if we want to process this row.
@@ -263,8 +268,13 @@ class AWSReportProcessor(ReportProcessorBase):
             bill_date = manifest.billing_period_start_datetime.date()
             provider_id = manifest.provider_id
 
-        LOG.info('Deleting data for schema: %s and bill date: %s',
-                 self._schema_name, str(bill_date))
+        stmt = (
+            f'Deleting data for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' bill date: {str(bill_date)}'
+        )
+        LOG.info(stmt)
 
         with AWSReportDBAccessor(self._schema_name, self.column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)

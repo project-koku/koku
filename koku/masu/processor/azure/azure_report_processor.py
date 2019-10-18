@@ -100,8 +100,13 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 report_path, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {report_path}'
+        )
+        LOG.info(stmt)
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.

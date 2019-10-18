@@ -318,6 +318,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'celery': {
+            'class': 'logging.StreamHandler',
+            'formatter': LOGGING_FORMATTER
+        },
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': LOGGING_FORMATTER
@@ -338,6 +342,11 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'celery': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
+        },
         'koku': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
@@ -357,6 +366,7 @@ LOGGING = {
         'masu': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
         },
         'sources': {
             'handlers': LOGGING_HANDLERS,
@@ -420,9 +430,10 @@ RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
 
 CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
 CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
-BROKER_POOL_LIMIT = None
-CELERYD_CONCURRENCY = 2
-CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_POOL_LIMIT = None
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_CONCURRENCY = 2
+
 
 # AWS S3 Bucket Settings
 S3_BUCKET_NAME = ENVIRONMENT.get_value('S3_BUCKET_NAME', default='koku-reports')

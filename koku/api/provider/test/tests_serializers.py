@@ -29,7 +29,7 @@ from api.iam.serializers import (UserSerializer,
                                  create_schema_name)
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider, Sources
-from api.provider.serializers import AdminProviderSerializer, ProviderSerializer
+from api.provider.serializers import AdminProviderSerializer, ProviderSerializer, REPORT_PREFIX_MAX_LENGTH
 
 FAKE = Faker()
 
@@ -396,6 +396,7 @@ class ProviderSerializerTest(IamTestCase):
             'billing_source': {
                 'data_source': {
                     'bucket': 'test_bucket',
+                    'report_prefix': 'precious'
                 }
             }
         }
@@ -408,6 +409,55 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsInstance(instance.uuid, uuid.UUID)
         self.assertIsNone(schema_name)
         self.assertFalse('schema_name' in serializer.data['customer'])
+
+    def test_create_gcp_provider_validate_no_data_source_bucket(self):
+        """Test the data_source.bucket validation for GCP provider."""
+        provider = {
+            'name': 'test_provider_val_data_source',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'data_source': {
+                    'potato': ''
+                }
+            }
+        }
+
+        with self.assertRaises(ValidationError) as e:
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
+
+        self.assertEqual(e.exception.status_code, 400)
+        self.assertEqual(
+            str(e.exception.detail['billing_source']['data_source.bucket'][0]), 'This field is required.')
+
+    def test_create_gcp_provider_validate_report_prefix_too_long(self):
+        """Test the data_source.report_prefix validation for GCP provider."""
+        provider = {
+            'name': 'test_provider_val_data_source',
+            'type': Provider.PROVIDER_GCP,
+            'authentication': {
+                'credentials': {'project_id': 'gcp_project'}
+            },
+            'billing_source': {
+                'data_source': {
+                    'bucket': 'precious-taters',
+                    'report_prefix': 'an-unnecessarily-long-prefix-that-is-here-simply-for-the-purpose-of'
+                                     'testing-the-custom-validator-the-checks-for-too-long-of-a-report_prefix'
+                }
+            }
+        }
+
+        with self.assertRaises(ValidationError) as e:
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            serializer.is_valid(raise_exception=True)
+
+        self.assertEqual(e.exception.status_code, 400)
+        self.assertEqual(
+            str(e.exception.detail['billing_source']['data_source.report_prefix'][0]),
+            f'Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.')
 
     def test_create_gcp_provider_duplicate_bucket(self):
         """Test that the same blank billing entry is used for all OCP providers."""

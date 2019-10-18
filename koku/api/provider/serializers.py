@@ -32,6 +32,8 @@ from api.provider.models import (Provider,
 
 PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
 
+REPORT_PREFIX_MAX_LENGTH = 64
+
 
 def error_obj(key, message):
     """Create an error object."""
@@ -156,11 +158,23 @@ class GCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 
     data_source = serializers.JSONField(allow_null=True, required=True)
 
-    def validate_data_source(self, data_source):
+    def validate(self, data):
         """Validate data_source field."""
-        key = 'provider.data_source'
-        fields = ['bucket']
-        return validate_field(data_source, fields, key)
+        data_source = data.get('data_source')
+        bucket = data_source.get('bucket', '')
+        if not bucket:
+            key = 'data_source.bucket'
+            message = 'This field is required.'
+            raise serializers.ValidationError(error_obj(key, message))
+
+        report_prefix = data_source.get('report_prefix', '')
+        if report_prefix:
+            if len(report_prefix) > REPORT_PREFIX_MAX_LENGTH:
+                key = 'data_source.report_prefix'
+                message = f'Ensure this field has no more than {REPORT_PREFIX_MAX_LENGTH} characters.'
+                raise serializers.ValidationError(error_obj(key, message))
+
+        return data
 
 
 class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):

@@ -25,7 +25,7 @@ import os
 from celery.utils.log import get_task_logger
 
 import masu.prometheus_stats as worker_stats
-from koku.celery import CELERY as celery
+from koku.celery import app
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import (AccountsAccessor, AccountsAccessorError)
 from masu.external.date_accessor import DateAccessor
@@ -40,7 +40,7 @@ LOG = get_task_logger(__name__)
 
 
 # pylint: disable=too-many-locals
-@celery.task(name='masu.processor.tasks.get_report_files', queue_name='download')
+@app.task(name='masu.processor.tasks.get_report_files', queue_name='download')
 def get_report_files(customer_name,
                      authentication,
                      billing_source,
@@ -74,7 +74,15 @@ def get_report_files(customer_name,
                                 provider_uuid)
 
     try:
-        LOG.info('Reports to be processed: %s', str(reports))
+        stmt = (
+            f'Reports to be processed:\n'
+            f' schema_name: {customer_name}\n'
+            f' provider: {provider_type}\n'
+            f' provider_uuid: {provider_uuid}\n'
+        )
+        for report in reports:
+            stmt += ' file: ' + str(report['file']) + '\n'
+        LOG.info(stmt[:-1])
         reports_to_summarize = []
         for report_dict in reports:
             manifest_id = report_dict.get('manifest_id')
@@ -97,8 +105,14 @@ def get_report_files(customer_name,
                          file_name, str(started_date), str(completed_date))
                 continue
 
-            LOG.info('Processing starting - schema_name: %s, provider_uuid: %s, File: %s',
-                     schema_name, provider_uuid, report_dict.get('file'))
+            stmt = (
+                f'Processing starting:\n'
+                f' schema_name: {customer_name}\n'
+                f' provider: {provider_type}\n'
+                f' provider_uuid: {provider_uuid}\n'
+                f' file: {report_dict.get("file")}'
+            )
+            LOG.info(stmt)
             worker_stats.PROCESS_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
             _process_report_file(schema_name,
                                  provider_type,
@@ -119,7 +133,7 @@ def get_report_files(customer_name,
     return reports_to_summarize
 
 
-@celery.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
+@app.task(name='masu.processor.tasks.remove_expired_data', queue_name='remove_expired')
 def remove_expired_data(schema_name, provider, simulate, provider_id=None):
     """
     Remove expired report data.
@@ -142,8 +156,8 @@ def remove_expired_data(schema_name, provider, simulate, provider_id=None):
     _remove_expired_data(schema_name, provider, simulate, provider_id)
 
 
-@celery.task(name='masu.processor.tasks.summarize_reports',
-             queue_name='process')
+@app.task(name='masu.processor.tasks.summarize_reports',
+          queue_name='process')
 def summarize_reports(reports_to_summarize):
     """
     Summarize reports returned from line summary task.
@@ -176,8 +190,8 @@ def summarize_reports(reports_to_summarize):
         )
 
 
-@celery.task(name='masu.processor.tasks.update_summary_tables',
-             queue_name='reporting')
+@app.task(name='masu.processor.tasks.update_summary_tables',
+          queue_name='reporting')
 def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_date=None,
                           manifest_id=None):
     """Populate the summary tables for reporting.
@@ -224,8 +238,8 @@ def update_summary_tables(schema_name, provider, provider_uuid, start_date, end_
                 manifest_id))
 
 
-@celery.task(name='masu.processor.tasks.update_all_summary_tables',
-             queue_name='reporting')
+@app.task(name='masu.processor.tasks.update_all_summary_tables',
+          queue_name='reporting')
 def update_all_summary_tables(start_date, end_date=None):
     """Populate all the summary tables for reporting.
 
@@ -252,8 +266,8 @@ def update_all_summary_tables(start_date, end_date=None):
         LOG.error('Unable to get accounts. Error: %s', str(error))
 
 
-@celery.task(name='masu.processor.tasks.update_charge_info',
-             queue_name='reporting')
+@app.task(name='masu.processor.tasks.update_charge_info',
+          queue_name='reporting')
 def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=None):
     """Update usage charge information.
 
@@ -278,8 +292,8 @@ def update_charge_info(schema_name, provider_uuid, start_date=None, end_date=Non
     updater.update_charge_info(start_date, end_date)
 
 
-@celery.task(name='masu.processor.tasks.update_cost_summary_table',
-             queue_name='reporting')
+@app.task(name='masu.processor.tasks.update_cost_summary_table',
+          queue_name='reporting')
 def update_cost_summary_table(schema_name, provider_uuid, start_date,
                               end_date=None, manifest_id=None):
     """Update derived costs summary table.
