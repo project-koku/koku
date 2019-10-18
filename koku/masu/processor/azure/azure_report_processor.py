@@ -24,6 +24,7 @@ import pytz
 from dateutil import parser
 
 from masu.config import Config
+from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
@@ -77,6 +78,7 @@ class AzureReportProcessor(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=manifest_id,
             processed_report=ProcessedAzureReport()
         )
         self.table_name = AzureCostEntryLineItemDaily()
@@ -100,8 +102,13 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 report_path, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {report_path}'
+        )
+        LOG.info(stmt)
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -274,12 +281,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    @property
-    def line_item_conflict_columns(self):
-        """Create a property to check conflict on line items."""
-        return ['cost_entry_bill_id', 'cost_entry_product_id', 'meter_id',
-                'subscription_guid', 'usage_date_time']
-
     def process(self):
         """Process cost/usage file.
 
@@ -288,44 +289,32 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
             with AzureReportDBAccessor(self._schema_name, self.column_map) as report_db:
-                temp_table = report_db.create_temp_table(
-                    self.table_name._meta.db_table,
-                    drop_column='id'
-                )
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
-                        self._save_to_db(temp_table, report_db)
-                        report_db.merge_temp_table(
-                            self.table_name._meta.db_table,
-                            temp_table,
-                            self.line_item_columns,
-                            self.line_item_conflict_columns
-                        )
                         LOG.info('Saving report rows %d to %d for %s', row_count,
                                  row_count + len(self.processed_report.line_items),
                                  self._report_name)
+                        self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                         row_count += len(self.processed_report.line_items)
                         self._update_mappings()
 
                 if self.processed_report.line_items:
-                    self._save_to_db(temp_table, report_db)
-                    report_db.merge_temp_table(
-                        self.table_name._meta.db_table,
-                        temp_table,
-                        self.line_item_columns,
-                        self.line_item_conflict_columns
-                    )
                     LOG.info('Saving report rows %d to %d for %s', row_count,
                              row_count + len(self.processed_report.line_items),
                              self._report_name)
+                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
+
+                report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
+                report_db.commit()
 
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)

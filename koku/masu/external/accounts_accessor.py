@@ -84,13 +84,19 @@ class AccountsAccessor:
         """
         poll = False
         if utils.ingest_method_for_provider(account.get('provider_type')) == POLL_INGEST:
-            LOG.info('Polling for account type: %s, uuid: %s',
-                     account.get('provider_type'), account.get('provider_uuid'))
+            log_statement = (f'Polling for\n'
+                             f' schema_name: {account.get("schema_name")}\n'
+                             f' provider: {account.get("provider_type")}\n'
+                             f' account (provider uuid): {account.get("provider_uuid")}')
+            LOG.info(log_statement)
             poll = True
         else:
             if ocp_utils.poll_ingest_override_for_provider(account.get('provider_uuid')):
-                LOG.info('Polling override for account type: %s, uuid: %s',
-                         account.get('provider_type'), account.get('provider_uuid'))
+                log_statement = (f'Polling for'
+                                 f' schema_name: {account.get("schema_name")}\n'
+                                 f' provider: {account.get("provider_type")}\n'
+                                 f' account (provider uuid): {account.get("provider_uuid")}')
+                LOG.info(log_statement)
                 poll = True
         return poll
 

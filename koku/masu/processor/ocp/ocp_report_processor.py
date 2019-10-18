@@ -169,6 +169,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=None,
             processed_report=ProcessedOCPReport()
         )
 
@@ -370,8 +371,13 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             provider_id=provider_id
         )
         self.table_name = OCPUsageLineItem()
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_path, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {self._report_path}'
+        )
+        LOG.info(stmt)
 
     def _create_usage_report_line_item(self,
                                        row,
@@ -440,8 +446,13 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             provider_id=provider_id
         )
         self.table_name = OCPStorageLineItem()
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_path, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {self._report_path}'
+        )
+        LOG.info(stmt)
 
     def _create_usage_report_line_item(self,
                                        row,

@@ -184,7 +184,7 @@ class OrchestratorTest(MasuTestCase):
         ]
         mock_remover.return_value = expected_results
 
-        expected = 'INFO:masu.processor.orchestrator:Expired data removal queued - customer: acct10001, Task ID: {}'
+        expected = 'INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: acct10001, Task ID: {}'
         # unset disabling all logging below CRITICAL from masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs('masu.processor.orchestrator', level='INFO') as logger:
