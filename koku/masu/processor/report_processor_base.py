@@ -137,8 +137,13 @@ class ReportProcessorBase():
             bill_date = manifest.billing_period_start_datetime.date()
             provider_id = manifest.provider_id
 
-        LOG.info('Deleting data for schema: %s and bill date: %s',
-                 self._schema_name, str(bill_date))
+        stmt = (
+            f'Deleting data for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' bill date: {str(bill_date)}'
+        )
+        LOG.info(stmt)
 
         with db_accessor(self._schema_name, column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)

@@ -601,7 +601,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         ]
         fake_remover.return_value = expected_results
 
-        expected = 'INFO:masu.processor._tasks.remove_expired:Expired Data: {}'
+        expected = 'INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}'
 
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)

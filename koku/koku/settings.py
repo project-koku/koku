@@ -318,6 +318,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'celery': {
+            'class': 'logging.StreamHandler',
+            'formatter': LOGGING_FORMATTER
+        },
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': LOGGING_FORMATTER
@@ -338,6 +342,11 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'celery': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
+        },
         'koku': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
@@ -357,6 +366,7 @@ LOGGING = {
         'masu': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
         },
         'sources': {
             'handlers': LOGGING_HANDLERS,

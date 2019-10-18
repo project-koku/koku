@@ -106,8 +106,13 @@ class AWSReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 self._report_name, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {self._report_name}'
+        )
+        LOG.info(stmt)
 
     def process(self):
         """Process CUR file.
