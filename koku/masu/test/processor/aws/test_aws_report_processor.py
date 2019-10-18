@@ -173,7 +173,12 @@ class AWSReportProcessorTest(MasuTestCase):
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
-        expected = f'INFO:masu.processor.aws.aws_report_processor:Deleting data for schema: acct10001 and bill date: {bill_date}'
+        expected = (
+            f'INFO:masu.processor.aws.aws_report_processor:Deleting data for:\n'
+            f' schema_name: acct10001\n'
+            f' provider_id: {self.aws_provider.id}\n'
+            f' bill date: {bill_date}'
+        )
         logging.disable(
             logging.NOTSET
         )  # We are currently disabling all logging below CRITICAL in masu/__init__.py

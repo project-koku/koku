@@ -96,14 +96,15 @@ class Orchestrator():
         """
         async_result = None
         for account in self._polling_accounts:
-            provider_status = ProviderStatus(account.get('provider_uuid'))
+            provider_uuid = account.get('provider_uuid')
+            provider_status = ProviderStatus(provider_uuid)
             if provider_status.is_valid() and not provider_status.is_backing_off():
-                LOG.info('Getting report files for account: %s', account)
+                LOG.info('Getting report files for account (provider uuid): %s', provider_uuid)
                 async_result = (get_report_files.s(**account) | summarize_reports.s()).\
                     apply_async()
 
-                LOG.info('Download queued - customer: %s, Task ID: %s',
-                         account.get('customer_name'),
+                LOG.info('Download queued - schema_name: %s, Task ID: %s',
+                         account.get('schema_name'),
                          str(async_result))
 
                 # update labels
@@ -137,8 +138,8 @@ class Orchestrator():
             async_result = remove_expired_data.delay(schema_name=account.get('schema_name'),
                                                      provider=account.get('provider_type'),
                                                      simulate=simulate)
-            LOG.info('Expired data removal queued - customer: %s, Task ID: %s',
-                     account.get('customer_name'),
+            LOG.info('Expired data removal queued - schema_name: %s, Task ID: %s',
+                     account.get('schema_name'),
                      str(async_result))
             async_results.append({'customer': account.get('customer_name'),
                                   'async_id': str(async_result)})
