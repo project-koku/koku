@@ -159,6 +159,7 @@ class MasuTestCase(TransactionTestCase):
 
     def tearDown(self):
         """Tear down and restore database on the tenant schema."""
+
         connection.set_schema(self.schema)
         for db_name in self._databases_names(include_mirrors=False):
             # Flush the tenant schema's data
