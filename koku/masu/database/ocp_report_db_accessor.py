@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
+import datetime
 import logging
 import pkgutil
 import uuid
@@ -313,6 +314,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #Cast start_date and end_date into date object instead of string
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -322,8 +327,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8')
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date.date(),
-            'end_date': end_date.date(),
+            'start_date': start_date,
+            'end_date': end_date,
             'cluster_id': cluster_id,
             'schema': self.schema
         }
@@ -344,6 +349,11 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #In case someone passes this function a string instead of the date object like we asked...
+        #Cast the string into a date object, end_date into date object instead of string
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()        
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
@@ -351,15 +361,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         infra_sql = infra_sql.decode('utf-8')
         infra_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date.date(),
-            'end_date': end_date.date(),
+            'start_date': start_date,
+            'end_date': end_date,
             'schema': self.schema
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
             infra_sql, infra_sql_params)
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(infra_sql, infra_sql_params)
+            cursor.execute(infra_sql, list(infra_sql_params))
             results = cursor.fetchall()
 
         db_results = []
@@ -384,6 +394,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #Cast string to date object
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()           
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
         daily_sql = pkgutil.get_data(
@@ -393,8 +407,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         daily_sql = daily_sql.decode('utf-8')
         daily_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date.date(),
-            'end_date': end_date.date(),
+            'start_date': start_date,
+            'end_date': end_date,
             'cluster_id': cluster_id,
             'schema': self.schema
         }
@@ -472,6 +486,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #Cast strings to dates, sometimes.
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()           
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -481,8 +499,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8')
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date.date(),
-            'end_date': end_date.date(),
+            'start_date': start_date,
+            'end_date': end_date,
             'cluster_id': cluster_id,
             'schema': self.schema
         }
@@ -503,6 +521,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #Cast strings to dates, sometimes
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()   
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
@@ -512,8 +534,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         summary_sql = summary_sql.decode('utf-8')
         summary_sql_params = {
             'uuid': str(uuid.uuid4()).replace('-', '_'),
-            'start_date': start_date.date(),
-            'end_date': end_date.date(),
+            'start_date': start_date,
+            'end_date': end_date,
             'cluster_id': cluster_id,
             'schema': self.schema
         }
@@ -534,6 +556,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        #Cast string to date object, if it its a string
+        if(isinstance(start_date, str)):
+            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
+            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date() 
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
@@ -550,8 +576,8 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             summary_sql = summary_sql.decode('utf-8')
             summary_sql_params = {
                 'uuid': str(uuid.uuid4()).replace('-', '_'),
-                'start_date': start_date.date(),
-                'end_date': end_date.date(),
+                'start_date': start_date,
+                'end_date': end_date,
                 'cluster_id': cluster_id,
                 'schema': self.schema
             }
