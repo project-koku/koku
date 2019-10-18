@@ -167,7 +167,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
                     update(markup_cost=(F('pretax_cost') * markup))
 
     def get_lineitem_query_for_billid(self, bill_id):
-        """Get the AWS cost entry line item for a given bill query."""
+        """Get the Azure cost entry line item for a given bill query."""
         table_name = AzureCostEntryLineItemDaily
         with schema_context(self.schema):
             base_query = self._get_db_obj_query(table_name)
