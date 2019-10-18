@@ -39,7 +39,7 @@ from masu.database.account_alias_accessor import AccountAliasAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.util.azure import common as azure_utils
+from masu.util import common as azure_utils
 
 # A subset of AWS product family values
 AWS_PRODUCT_FAMILY = [

@@ -22,7 +22,7 @@ from tenant_schemas.utils import schema_context
 
 from unittest.mock import patch
 
-from django.db.models import Max, Min, Sum
+from django.db.models import Max, Min
 
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
@@ -30,10 +30,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.test import MasuTestCase
-from masu.test.database.helpers import (
-    ReportObjectCreator,
-    map_django_field_type_to_python_type,
-)
+from masu.test.database.helpers import ReportObjectCreator
 
 
 class AzureReportDBAccessorTest(MasuTestCase):

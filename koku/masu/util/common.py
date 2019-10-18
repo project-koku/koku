@@ -16,6 +16,7 @@
 #
 
 """Common util functions."""
+import calendar
 import gzip
 import logging
 import re
@@ -95,6 +96,30 @@ def clear_temp_directory(report_path, current_assembly_id):
             except FileNotFoundError:
                 LOG.warning('Unable to locate file: %s', file_path)
     return removed_files
+
+
+def month_date_range(for_date_time):
+    """
+    Get a formatted date range string for the given date.
+
+    Date range is aligned on the first day of the current
+    month and ends on the first day of the next month from the
+    specified date.
+
+    Args:
+        for_date_time (DateTime): The starting datetime object
+
+    Returns:
+        (String): "YYYYMMDD-YYYYMMDD", example: "19701101-19701201"
+
+    """
+    start_month = for_date_time.replace(day=1, second=1, microsecond=1)
+    _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
+    end_month = start_month.replace(day=num_days)
+    timeformat = '%Y%m%d'
+    return '{}-{}'.format(
+        start_month.strftime(timeformat), end_month.strftime(timeformat)
+    )
 
 
 class NamedTemporaryGZip:
