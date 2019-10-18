@@ -97,3 +97,12 @@ class ReportManifestDBAccessor(KokuDBAccess):
             file.last_completed_datetime = None
             file.last_started_datetime = None
             file.save()
+
+    def get_manifest_list_for_provider_and_bill_date(self, provider_id, bill_date):
+        """Return all manifests for a provider and bill date."""
+        filters = {
+            'provider_id': provider_id,
+            'billing_period_start_datetime__date': bill_date
+        }
+        return CostUsageReportManifest.objects.\
+            filter(**filters).all()
