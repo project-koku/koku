@@ -58,6 +58,6 @@ class AWSTagView(TagView):
     """
 
     provider = 'aws'
-    _serializer = AWSTagsQueryParamSerializer
-    _query_handler = AWSTagQueryHandler
-    _tag_handler = [AWSTagsSummary]
+    serializer = AWSTagsQueryParamSerializer
+    query_handler = AWSTagQueryHandler
+    tag_handler = [AWSTagsSummary]

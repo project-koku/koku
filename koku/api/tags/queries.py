@@ -60,7 +60,7 @@ class TagQueryHandler(QueryHandler):
 
     """
 
-    _DEFAULT_ORDERING = {'tags': 'asc'}
+    provider = 'TAGS'
     data_sources = []
     SUPPORTED_FILTERS = ['project', 'account']
     FILTER_MAP = {
@@ -73,31 +73,16 @@ class TagQueryHandler(QueryHandler):
                      'composition_key': 'account_filter'}]
     }
 
-    def __init__(self, query_parameters, url_data, tenant,
-                 default_ordering=None, **kwargs):
+    def __init__(self, parameters):
         """Establish tag query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
-            db_table  (String): Database table name containing tags
-            db_column (String): Database column name containing tags
+            parameters    (QueryParameters): parameter object for query
 
         """
-        if default_ordering is None:
-            default_ordering = self._DEFAULT_ORDERING
-
-        self.query_parameters = query_parameters
-
-        super().__init__(query_parameters, tenant, default_ordering, **kwargs)
-
+        super().__init__(parameters)
+        # super() needs to be called before calling _get_filter()
         self.query_filter = self._get_filter()
-        self.parameter_filter = {}
-
-        if query_parameters:
-            self.parameter_filter = query_parameters.get('filter', {})
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -106,7 +91,7 @@ class TagQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.query_parameters)
+        output = copy.deepcopy(self.parameters.parameters)
         output['data'] = self.query_data
 
         return output
@@ -123,7 +108,7 @@ class TagQueryHandler(QueryHandler):
         filters = super()._get_filter(delta)
 
         for filter_key in self.SUPPORTED_FILTERS:
-            filter_value = self.get_query_param_data('filter', filter_key)
+            filter_value = self.parameters.get_filter(filter_key)
             if filter_value and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.FILTER_MAP.get(filter_key)
                 if isinstance(filter_obj, list):
@@ -179,7 +164,7 @@ class TagQueryHandler(QueryHandler):
         composed_filter = Q()
         for filter_key in self.SUPPORTED_FILTERS:
             operator_key = operator + ':' + filter_key
-            filter_value = self.get_query_param_data('filter', operator_key)
+            filter_value = self.parameters.get_filter(operator_key)
             logical_operator = operator
             if filter_value and len(filter_value) < 2:
                 logical_operator = 'or'
@@ -211,7 +196,7 @@ class TagQueryHandler(QueryHandler):
 
     def get_tag_keys(self, filters=True):
         """Get a list of tag keys to validate filters."""
-        type_filter = self.parameter_filter.get('type')
+        type_filter = self.parameters.get_filter('type')
         tag_keys = []
         with tenant_context(self.tenant):
             for source in self.data_sources:
@@ -246,7 +231,7 @@ class TagQueryHandler(QueryHandler):
 
     def get_tags(self):
         """Get a list of tags and values to validate filters."""
-        type_filter = self.parameter_filter.get('type')
+        type_filter = self.parameters.get_filter('type')
 
         merged_data = []
         with tenant_context(self.tenant):
@@ -286,7 +271,7 @@ class TagQueryHandler(QueryHandler):
             (Dict): Dictionary response of query params and data
 
         """
-        if self.query_parameters.get('key_only'):
+        if self.parameters.get('key_only'):
             tag_data = self.get_tag_keys()
             query_data = sorted(tag_data, reverse=self.order_direction == 'desc')
         else:

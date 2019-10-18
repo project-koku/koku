@@ -32,10 +32,6 @@ LISTEN_INGEST = 'listen-ingest'
 UNCOMPRESSED = 'PLAIN'
 GZIP_COMPRESSED = 'GZIP'
 
-# Notificaton Definitions
-AWS_SNS_HEADER_MSG_TYPE = 'X-Amz-Sns-Message-Type'
-AWS_SNS_HEADER_TOPIC_ARN = 'X-Amz-Sns-Topic-Arn'
-
 # Valid AWS Regions from https://docs.aws.amazon.com/general/latest/gr/rande.html
 AWS_REGIONS = ['us-east-2',
                'us-east-1',

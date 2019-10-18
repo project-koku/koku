@@ -19,8 +19,11 @@ LOGGER.info('Starting celery.')
 database.config()
 LOGGER.info('Database configured.')
 
-CELERY = Celery('koku', broker=settings.CELERY_BROKER_URL)
-CELERY.config_from_object('django.conf:settings', namespace='CELERY')
+# 'app' is the recommended convention from celery docs
+# following this for ease of comparison to reference implementation
+# pylint: disable=invalid-name
+app = Celery('koku', broker=settings.CELERY_BROKER_URL)
+app.config_from_object('django.conf:settings', namespace='CELERY')
 
 LOGGER.info('Celery autodiscover tasks.')
 
@@ -33,7 +36,7 @@ if ENVIRONMENT.bool('SCHEDULE_REPORT_CHECKS', default=False):
     CHECK_REPORT_UPDATES_DEF = {'task': 'masu.celery.tasks.check_report_updates',
                                 'schedule': REPORT_CHECK_INTERVAL.seconds,
                                 'args': []}
-    CELERY.conf.beat_schedule['check-report-updates'] = CHECK_REPORT_UPDATES_DEF
+    app.conf.beat_schedule['check-report-updates'] = CHECK_REPORT_UPDATES_DEF
 
 
 # Specify the day of the month for removal of expired report data.
@@ -54,11 +57,11 @@ if REMOVE_EXPIRED_REPORT_DATA_ON_DAY != 0:
                                                    minute=int(MINUTE),
                                                    day_of_month=CLEANING_DAY),
                                'args': []}
-    CELERY.conf.beat_schedule['remove-expired-data'] = REMOVE_EXPIRED_DATA_DEF
+    app.conf.beat_schedule['remove-expired-data'] = REMOVE_EXPIRED_DATA_DEF
 
-CELERY.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
+app.conf.beat_schedule['daily_upload_normalized_reports_to_s3'] = {
     'task': 'masu.celery.tasks.upload_normalized_data',
     'schedule': int(os.getenv('UPLOAD_NORMALIZED_DATA_INTERVAL', '86400'))
 }
 
-CELERY.autodiscover_tasks()
+app.autodiscover_tasks()
