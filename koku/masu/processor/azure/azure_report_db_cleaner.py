@@ -79,11 +79,11 @@ class AzureReportDBCleaner:
 
                     if not simulate:
 
-                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete() #AzureCostEntryLineItemDaily
+                        del_count = accessor.get_lineitem_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s cost entry line items for bill id %s',
                                  del_count, bill_id)
 
-                        del_count = accessor.get_summary_query_for_billid(bill_id).delete() #AzureCostEntryLineItemDailySummary
+                        del_count = accessor.get_summary_query_for_billid(bill_id).delete()
                         LOG.info('Removing %s cost entry summary items for bill id %s',
                                  del_count, bill_id)
 
