@@ -22,6 +22,8 @@ import json
 import logging
 from os import path
 
+import ciso8601
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -29,6 +31,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external.date_accessor import DateAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
 from reporting.provider.aws.models import (AWSCostEntry,
                                            AWSCostEntryBill,
@@ -93,6 +96,9 @@ class AWSReportProcessor(ReportProcessorBase):
         self._report_name = path.basename(report_path)
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
+        self.date_accessor = DateAccessor()
+        data_cutoff_datetime = self.date_accessor.today_with_timezone('UTC') - relativedelta(days=3)
+        self.data_cutoff_date = data_cutoff_datetime.date()
 
         # Gather database accessors
         with ReportingCommonDBAccessor() as report_common_db:
@@ -111,6 +117,24 @@ class AWSReportProcessor(ReportProcessorBase):
         LOG.info('Initialized report processor for file: %s and schema: %s',
                  self._report_name, self._schema_name)
 
+    def _should_process_row(self, row, is_finalized, is_new):
+        """Determine if we want to process this row.
+
+        Args:
+            row (dict): The line item entry from the AWS report file
+            is_finalized (boolean): If this is a finalized bill
+            is_new (boolean): If this is the first time we've processed this bill
+
+        Returns:
+            (bool): Whether this row should be processed
+        """
+        if is_finalized or is_new:
+            return True
+        row_date = ciso8601.parse_datetime(row['lineItem/UsageStartDate']).date()
+        if row_date < self.data_cutoff_date:
+            return False
+        return True
+
     def process(self):
         """Process CUR file.
 
@@ -119,15 +143,21 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
-        self._delete_line_items()
-        opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
+        is_new = self._check_for_new_bill()
+        self._delete_line_items(is_finalized_data, is_new)
+        opener, mode = self._get_file_opener(self._compression)
         # pylint: disable=invalid-name
         with opener(self._report_path, mode) as f:
             with AWSReportDBAccessor(self._schema_name, self.column_map) as report_db:
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
+                    # If this isn't an initial load and it isn't finalized data
+                    # we should only process recent data.
+                    row_date = ciso8601.parse_datetime(row['lineItem/UsageStartDate']).date()
+                    if not self._should_process_row(row, is_finalized_data, is_new):
+                        continue
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
                         LOG.debug('Saving report rows %d to %d for %s', row_count,
@@ -172,7 +202,55 @@ class AWSReportProcessor(ReportProcessorBase):
             invoice_id = row.get('bill/InvoiceId')
             return invoice_id is not None and invoice_id != ''
 
-    def _delete_line_items(self):
+    def _is_new_bill(self):
+        """Determine if this is the first time we're processing this bill."""
+        if not self.manifest_id:
+            log_statement = (
+                f'No manifest provided, processing as a new billing period.\n'
+                f' schema_name: {self.schema_name},\n'
+                f' provider_id: {self._provider_id},\n'
+                f' manifest_id: {self.manifest_id}'
+            )
+            LOG.info(log_statement)
+            return True
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            bill_date = manifest.billing_period_start_datetime.date()
+            provider_id = manifest.provider_id
+
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            provider_id,
+            bill_date
+        )
+
+        if len(manifest_list) == 1:
+            # This is the first manifest for this bill and we are currently
+            # processing it
+            log_statement = (
+                f'Processing bill starting on {bill_date} for the first time.\n'
+                f' schema_name: {self.schema_name},\n'
+                f' provider_id: {self._provider_id},\n'
+                f' manifest_id: {self.manifest_id}'
+            )
+            LOG.info(log_statement)
+            return True
+
+        for manifest in manifest_list:
+            if manifest.num_processed_files >= manifest.num_total_files:
+                log_statement = (
+                    f'Processing another manifest for bill starting on {bill_date}.\n'
+                    f' schema_name: {self.schema_name},\n'
+                    f' provider_id: {self._provider_id},\n'
+                    f' manifest_id: {self.manifest_id}'
+                )
+                LOG.info(log_statement)
+                # We have fully processed a manifest for this provider
+                return False
+
+        return True
+
+    def _delete_line_items(self, is_finalized, is_new):
         """Delete stale data for the report being processed, if necessary."""
         if not self.manifest_id:
             return False
@@ -194,6 +272,12 @@ class AWSReportProcessor(ReportProcessorBase):
             with schema_context(self._schema_name):
                 for bill in bills:
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    if not is_finalized and not is_new:
+                        # This means we are processing a new manifest during the
+                        # course of a month.
+                        line_item_query = line_item_query.filter(
+                            usage_start__gte=self.data_cutoff_date
+                        )
                     line_item_query.delete()
 
         return True
