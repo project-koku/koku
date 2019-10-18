@@ -318,6 +318,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         if isinstance(start_date, str):
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
