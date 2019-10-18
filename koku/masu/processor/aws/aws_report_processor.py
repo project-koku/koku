@@ -97,7 +97,7 @@ class AWSReportProcessor(ReportProcessorBase):
         self._datetime_format = Config.AWS_DATETIME_STR_FORMAT
         self._batch_size = Config.REPORT_PROCESSING_BATCH_SIZE
         self.date_accessor = DateAccessor()
-        data_cutoff_datetime = self.date_accessor.today_with_timezone('UTC') - relativedelta(days=3)
+        data_cutoff_datetime = self.date_accessor.today_with_timezone('UTC') - relativedelta(days=2)
         self.data_cutoff_date = data_cutoff_datetime.date()
 
         # Gather database accessors
@@ -207,12 +207,12 @@ class AWSReportProcessor(ReportProcessorBase):
             invoice_id = row.get('bill/InvoiceId')
             return invoice_id is not None and invoice_id != ''
 
-    def _is_new_bill(self):
+    def _check_for_new_bill(self):
         """Determine if this is the first time we're processing this bill."""
         if not self.manifest_id:
             log_statement = (
                 f'No manifest provided, processing as a new billing period.\n'
-                f' schema_name: {self.schema_name},\n'
+                f' schema_name: {self._schema_name},\n'
                 f' provider_id: {self._provider_id},\n'
                 f' manifest_id: {self.manifest_id}'
             )
@@ -234,7 +234,7 @@ class AWSReportProcessor(ReportProcessorBase):
             # processing it
             log_statement = (
                 f'Processing bill starting on {bill_date} for the first time.\n'
-                f' schema_name: {self.schema_name},\n'
+                f' schema_name: {self._schema_name},\n'
                 f' provider_id: {self._provider_id},\n'
                 f' manifest_id: {self.manifest_id}'
             )
@@ -245,7 +245,7 @@ class AWSReportProcessor(ReportProcessorBase):
             if manifest.num_processed_files >= manifest.num_total_files:
                 log_statement = (
                     f'Processing another manifest for bill starting on {bill_date}.\n'
-                    f' schema_name: {self.schema_name},\n'
+                    f' schema_name: {self._schema_name},\n'
                     f' provider_id: {self._provider_id},\n'
                     f' manifest_id: {self.manifest_id}'
                 )
@@ -268,13 +268,6 @@ class AWSReportProcessor(ReportProcessorBase):
             bill_date = manifest.billing_period_start_datetime.date()
             provider_id = manifest.provider_id
 
-        stmt = (
-            f'Deleting data for:\n'
-            f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
-            f' bill date: {str(bill_date)}'
-        )
-        LOG.info(stmt)
 
         with AWSReportDBAccessor(self._schema_name, self.column_map) as accessor:
             bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
@@ -282,12 +275,22 @@ class AWSReportProcessor(ReportProcessorBase):
             with schema_context(self._schema_name):
                 for bill in bills:
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    delete_date = bill_date
                     if not is_finalized and not is_new:
+                        delete_date = self.data_cutoff_date
                         # This means we are processing a new manifest during the
                         # course of a month.
                         line_item_query = line_item_query.filter(
                             usage_start__gte=self.data_cutoff_date
                         )
+                    log_statement = (
+                        f'Deleting data for:\n'
+                        f' schema_name: {self._schema_name}\n'
+                        f' provider_id: {provider_id}\n'
+                        f' bill date: {str(bill_date)}'
+                        f' deleting on or after {delete_date}'
+                    )
+                    LOG.info(log_statement)
                     line_item_query.delete()
 
         return True
