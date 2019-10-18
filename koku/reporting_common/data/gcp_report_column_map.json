@@ -36,63 +36,63 @@
   },
   {
     "database_column": "line_item_type",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Line Item",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "start_time",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Start Time",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "end_time",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "End Time",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "measurement_type",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Measurement1",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "consumption",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Measurement1 Total Consumption",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "unit",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Measurement1 Units",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "cost",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Cost",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "currency",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Currency",
     "report_type": "GCP",
     "provider_type": "GCP"
   },
   {
     "database_column": "description",
-    "database_table": "reporting_gcpcostentrylineitem_daily",
+    "database_table": "reporting_gcpcostentrylineitemdaily",
     "provider_column_name": "Description",
     "report_type": "GCP",
     "provider_type": "GCP"
