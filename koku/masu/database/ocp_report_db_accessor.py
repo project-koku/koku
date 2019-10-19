@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 """Database accessor for OCP report data."""
+import datetime
 import logging
 import pkgutil
 import uuid
@@ -313,20 +314,33 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Cast start_date and end_date into date object instead of string
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
+
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily']
 
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        daily_sql = daily_sql.decode('utf-8')
+        daily_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
+            daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def get_ocp_infrastructure_map(self, start_date, end_date):
         """Get the OCP on infrastructure map.
@@ -339,19 +353,27 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # In case someone passes this function a string instead of the date object like we asked...
+        # Cast the string into a date object, end_date into date object instead of string
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
         infra_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpinfrastructure_provider_map.sql'
         )
-        infra_sql = infra_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            schema=self.schema
-        )
+        infra_sql = infra_sql.decode('utf-8')
+        infra_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'schema': self.schema
+        }
+        infra_sql, infra_sql_params = self.jinja_sql.prepare_query(
+            infra_sql, infra_sql_params)
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(infra_sql)
+            cursor.execute(infra_sql, list(infra_sql_params))
             results = cursor.fetchall()
 
         db_results = []
@@ -376,20 +398,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Cast string to date object
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily']
 
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpstoragelineitem_daily.sql'
         )
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        daily_sql = daily_sql.decode('utf-8')
+        daily_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(
+            daily_sql, daily_sql_params
         )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     def populate_pod_charge(self, cpu_temp_table, mem_temp_table):
         """Populate the memory and cpu charge on daily summary table.
@@ -408,13 +442,17 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_pod_charge.sql'
         )
-        charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            cpu_temp=cpu_temp_table,
-            mem_temp=mem_temp_table,
-            schema=self.schema
+        charge_line_sql = daily_charge_sql.decode('utf-8')
+        charge_line_sql_params = {
+            'cpu_temp': cpu_temp_table,
+            'mem_temp': mem_temp_table,
+            'schema': self.schema
+        }
+        charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
+            charge_line_sql, charge_line_sql_params
         )
-
-        self._commit_and_vacuum(table_name, charge_line_sql)
+        self._commit_and_vacuum(
+            table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_storage_charge(self, temp_table_name):
         """Populate the storage charge into the daily summary table.
@@ -432,11 +470,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_ocp_storage_charge.sql'
         )
-        charge_line_sql = daily_charge_sql.decode('utf-8').format(
-            temp_table=temp_table_name,
-            schema=self.schema
+        charge_line_sql = daily_charge_sql.decode('utf-8')
+        charge_line_sql_params = {
+            'temp_table': temp_table_name,
+            'schema': self.schema
+        }
+        charge_line_sql, charge_line_sql_params = self.jinja_sql.prepare_query(
+            charge_line_sql, charge_line_sql_params
         )
-        self._commit_and_vacuum(table_name, charge_line_sql)
+        self._commit_and_vacuum(
+            table_name, charge_line_sql, bind_params=list(charge_line_sql_params))
 
     def populate_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of line items table.
@@ -450,19 +493,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Cast start_date to date
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpusagelineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date, cluster_id=cluster_id,
-            schema=self.schema
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def populate_storage_line_item_daily_summary_table(self, start_date, end_date, cluster_id):
         """Populate the daily aggregate of storage line items table.
@@ -475,19 +531,32 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Cast start_date and end_date to date object, if they aren't already
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
 
         summary_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpstoragelineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date, end_date=end_date,
-            cluster_id=cluster_id,
-            schema=self.schema
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params
         )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
     def populate_cost_summary_table(self, cluster_id, start_date=None, end_date=None):
         """Populate the cost summary table.
@@ -500,6 +569,13 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        # Cast start_date to date object
+        if isinstance(start_date, str):
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').date()
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+            end_date = end_date.date()
         table_name = OCP_REPORT_TABLE_MAP['cost_summary']
         if start_date is None:
             start_date_qry = self._get_db_obj_query(table_name).order_by('usage_start').first()
@@ -513,14 +589,18 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'sql/reporting_ocpcosts_summary.sql'
         )
         if start_date and end_date:
-            summary_sql = summary_sql.decode('utf-8').format(
-                uuid=str(uuid.uuid4()).replace('-', '_'),
-                start_date=start_date,
-                end_date=end_date,
-                cluster_id=cluster_id,
-                schema=self.schema
-            )
-            self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+            summary_sql = summary_sql.decode('utf-8')
+            summary_sql_params = {
+                'uuid': str(uuid.uuid4()).replace('-', '_'),
+                'start_date': start_date,
+                'end_date': end_date,
+                'cluster_id': cluster_id,
+                'schema': self.schema
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+                summary_sql, summary_sql_params)
+            self._commit_and_vacuum(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
@@ -538,9 +618,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpusagepodlabel_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_claim_label_summary_table(self):
@@ -551,9 +634,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_ocpstoragevolumeclaimlabel_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     # pylint: disable=invalid-name
     def populate_volume_label_summary_table(self):
