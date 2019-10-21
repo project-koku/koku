@@ -83,6 +83,100 @@
                 }
             }
         },
+        "/authentication/": {
+            "post": {
+                "tags": [
+                    "Sources Authentication"
+                ],
+                "summary": "Create an authentication entry for a Platform-Source.",
+                "operationId": "createAuthentication",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SourcesAuthentication"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the authentication.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SourcesAuthenticationOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/billing_source/": {
+            "post": {
+                "tags": [
+                    "Sources Billing Source"
+                ],
+                "summary": "Create a billing source for a Platform-Source.",
+                "operationId": "createBillingSource",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SourcesBillingSource"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the billing source.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SourcesBillingSourceOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/costmodels/": {
             "get": {
                 "tags": [
@@ -2305,6 +2399,95 @@
                         }
                     }
                 }]
+            },
+            "SourcesAuthenticationIn": {
+                "properties": {
+                    "credentials": {
+                        "type": "object",
+                        "example": {
+                            "credentials" : {
+                                "subscription_id": "f59e67e3-d131-45b0-88e5-3cbe29b4ab9c"
+                            }
+                        }
+                    }
+                }
+            },
+            "SourcesAuthenticationOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/SourcesAuthenticationIn"
+                }, {
+                    "type": "object",
+                    "required": [
+                        "source_id"
+                    ],
+                    "properties": {
+                        "uuid": {
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
+                        }
+                    }
+                }]
+            },
+            "SourcesAuthentication": {
+                "required": [
+                    "source_id",
+                    "credentials"
+                ],
+                "properties": {
+                    "source_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "credentials": {
+                        "$ref": "#/components/schemas/SourcesAuthenticationIn"
+                    }
+                }
+            },
+            "SourcesBillingSourceIn": {
+                "properties": {
+                    "billing_source": {
+                        "type": "object",
+                        "example": {
+                            "data_source" : {
+                                "resource_group": "My Resource Group 1",
+                                "storage_account": "My Storage Account 2"
+                            }
+                        }
+                    }
+                }
+            },
+            "SourcesBillingSourceOut": {
+                "allOf": [{
+                    "$ref": "#/components/schemas/SourcesBillingSourceIn"
+                }, {
+                    "type": "object",
+                    "required": [
+                        "source_id"
+                    ],
+                    "properties": {
+                        "uuid": {
+                            "type": "integer",
+                            "format": "int64",
+                            "example": 1
+                        }
+                    }
+                }]
+            },
+            "SourcesBillingSource": {
+                "required": [
+                    "source_id",
+                    "billing_source"
+                ],
+                "properties": {
+                    "source_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "billing_source": {
+                        "$ref": "#/components/schemas/SourcesBillingSourceIn"
+                    }
+                }
             },
             "Customer": {
                 "required": [

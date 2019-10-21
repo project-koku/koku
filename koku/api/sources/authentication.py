@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""View for Sources Azure authentications endpoint."""
-
+"""View for Sources-Proxy Azure authentications endpoint."""
+import requests
+from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -24,7 +25,6 @@ from rest_framework.decorators import (api_view,
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from sources.storage import SourcesStorageError, add_subscription_id_to_credentials
 
 
 @api_view(http_method_names=['POST'])
@@ -33,19 +33,12 @@ from sources.storage import SourcesStorageError, add_subscription_id_to_credenti
 def authentication(request):
     """Create Subscription-ID for Azure authentication."""
     request_data = request.data
-
     try:
-        if request_data.get('credentials'):
-            subscription_id = request_data.get('credentials').get('subscription_id')
-            if subscription_id:
-                add_subscription_id_to_credentials(request_data, subscription_id)
-            else:
-                raise SourcesStorageError('Subscription ID not found')
-        else:
-            raise SourcesStorageError('Malformed JSON data.')
-        response = request_data
-        status_code = status.HTTP_201_CREATED
-    except SourcesStorageError as error:
-        response = str(error)
+        url = f'http://localhost:4000/api/cost-management/v1/authentication/'
+        response = requests.post(url, json=request_data)
+        status_code = response.status_code
+        response = response.json()
+    except RequestException as conn_err:
+        response = str(conn_err)
         status_code = status.HTTP_400_BAD_REQUEST
     return Response(response, status=status_code)
