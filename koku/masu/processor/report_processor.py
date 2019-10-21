@@ -91,12 +91,11 @@ class ReportProcessor:
                                       report_path=self.report_path,
                                       compression=self.compression,
                                       provider_uuid=self.provider_uuid)
-                                      provider_id=self.provider_id)
         if self.provider_type in (GCP, GCP_LOCAL):
             return GCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
-                                      provider_id=self.provider_id)
+                                      provider_uuid=self.provider_uuid)
         return None
 
     def process(self):
