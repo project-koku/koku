@@ -54,8 +54,7 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 
 # pylint: disable=invalid-name
 urlpatterns = [
-    url(r'^authentication/$', authentication, name='authentication'),
-    url(r'^billing_source/$', billing_source, name='billing-source'),
+
     url(r'^status/$', StatusView.as_view(), name='server-status'),
     url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
@@ -88,5 +87,7 @@ urlpatterns = [
     url(r'^reports/openshift/infrastructures/aws/instance-types/$',
         OCPAWSInstanceTypeView.as_view(),
         name='reports-openshift-aws-instance-type'),
+    url(r'^sources/authentication/$', authentication, name='authentication'),
+    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 ]

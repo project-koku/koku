@@ -17,9 +17,9 @@
 
 """Test the authentication proxy endpoint view."""
 import json
+
 import requests
 import requests_mock
-
 from django.test import TestCase
 from django.urls import reverse
 from faker import Faker

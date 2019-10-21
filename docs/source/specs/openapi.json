@@ -83,100 +83,6 @@
                 }
             }
         },
-        "/authentication/": {
-            "post": {
-                "tags": [
-                    "Sources Authentication"
-                ],
-                "summary": "Create an authentication entry for a Platform-Source.",
-                "operationId": "createAuthentication",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SourcesAuthentication"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "security": [{
-                    "basic_auth": []
-                }],
-                "responses": {
-                    "201": {
-                        "description": "An object describing the authentication.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SourcesAuthenticationOut"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/billing_source/": {
-            "post": {
-                "tags": [
-                    "Sources Billing Source"
-                ],
-                "summary": "Create a billing source for a Platform-Source.",
-                "operationId": "createBillingSource",
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SourcesBillingSource"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "security": [{
-                    "basic_auth": []
-                }],
-                "responses": {
-                    "201": {
-                        "description": "An object describing the billing source.",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SourcesBillingSourceOut"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/costmodels/": {
             "get": {
                 "tags": [
@@ -1819,6 +1725,100 @@
                 "security": [{
                     "basic_auth": []
                 }]
+            }
+        },
+        "/sources/authentication/": {
+            "post": {
+                "tags": [
+                    "Sources Authentication"
+                ],
+                "summary": "Create an authentication entry for a Platform-Source.",
+                "operationId": "createAuthentication",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SourcesAuthentication"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the authentication.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SourcesAuthenticationOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sources/billing_source/": {
+            "post": {
+                "tags": [
+                    "Sources Billing Source"
+                ],
+                "summary": "Create a billing source for a Platform-Source.",
+                "operationId": "createBillingSource",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SourcesBillingSource"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [{
+                    "basic_auth": []
+                }],
+                "responses": {
+                    "201": {
+                        "description": "An object describing the billing source.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SourcesBillingSourceOut"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/tags/aws/": {

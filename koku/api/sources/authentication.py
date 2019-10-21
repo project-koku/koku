@@ -17,9 +17,8 @@
 
 """View for Sources-Proxy Azure authentications endpoint."""
 import requests
-from requests.exceptions import RequestException
 from django.conf import settings
-
+from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,

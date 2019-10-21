@@ -17,10 +17,9 @@
 
 """View for Sources-Proxy AWS and Azure billing source endpoint."""
 import requests
-from requests.exceptions import RequestException
-
 from django.conf import settings
 from django.views.decorators.cache import never_cache
+from requests.exceptions import RequestException
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
