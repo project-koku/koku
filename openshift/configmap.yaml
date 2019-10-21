@@ -54,6 +54,10 @@ objects:
     s3-glacier-transition: ${S3_GLACIER_TRANSITION}
     enable-s3-archiving: "True"
 
+    # Sources Client
+    sources-host: ${KOKU_SOURCES_CLIENT_HOST}
+    sources-port: ${KOKU_SOURCES_CLIENT_PORT}
+
 # logging configs
 - kind: ConfigMap
   apiVersion: v1
@@ -220,6 +224,16 @@ parameters:
 - description: Port number for Masu service
   displayName: Masu port
   name: MASU_PORT
+  required: true
+  value: "8080"
+- description: Hostname for Sources Client service
+  displayName: Sources Client host
+  name: KOKU_SOURCES_CLIENT_HOST
+  required: true
+  value: koku-sources.koku.svc.cluster.local
+- description: Port number for Sources Client service
+  displayName: Sources Client host port
+  name: KOKU_SOURCES_CLIENT_PORT
   required: true
   value: "8080"
 - description: Hostname for Koku service

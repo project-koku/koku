@@ -400,6 +400,18 @@ objects:
                   name: ${NAME}-app
                   key: masu-port
                   optional: false
+            - name: KOKU_SOURCES_CLIENT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: sources-host
+                  optional: false
+            - name: KOKU_SOURCES_CLIENT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: sources-port
+                  optional: false
             - name: APP_NAMESPACE
               valueFrom:
                 configMapKeyRef:
