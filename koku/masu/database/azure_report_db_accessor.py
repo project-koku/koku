@@ -29,6 +29,7 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
+                                             AzureCostEntryLineItemDaily,
                                              AzureCostEntryLineItemDailySummary,
                                              AzureCostEntryProductService,
                                              AzureMeter)
@@ -164,3 +165,27 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             else:
                 AzureCostEntryLineItemDailySummary.objects.\
                     update(markup_cost=(F('pretax_cost') * markup))
+
+    def get_bill_query_before_date(self, date):
+        """Get the cost entry bill objects with billing period before provided date."""
+        table_name = AzureCostEntryBill
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            return cost_entry_bill_query
+
+    def get_lineitem_query_for_billid(self, bill_id):
+        """Get the Azure cost entry line item for a given bill query."""
+        table_name = AzureCostEntryLineItemDaily
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return line_item_query
+
+    def get_summary_query_for_billid(self, bill_id):
+        """Get the Azure cost summary item for a given bill query."""
+        table_name = AzureCostEntryLineItemDailySummary
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return summary_item_query

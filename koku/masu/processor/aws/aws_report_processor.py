@@ -24,12 +24,10 @@ from os import path
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
-from tenant_schemas.utils import schema_context
 
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.report_processor_base import ReportProcessorBase
@@ -89,6 +87,7 @@ class AWSReportProcessor(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=manifest_id,
             processed_report=ProcessedReport()
         )
 
@@ -148,6 +147,8 @@ class AWSReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        self._delete_line_items(AWSReportDBAccessor, self.column_map)
+        opener, mode = self._get_file_opener(self._compression)
         is_finalized_data = self._check_for_finalized_bill()
         is_new = self._check_for_new_bill()
         self._delete_line_items(is_finalized_data, is_new)

@@ -1,5 +1,5 @@
 -- Place our query in a temporary table
-CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}} AS (
     SELECT  li.cluster_id,
         li.cluster_alias,
         li.namespace,
@@ -23,23 +23,23 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_summary_{uuid} AS (
         li.cluster_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as cluster_capacity_memory_gigabyte_hours,
         li.total_capacity_cpu_core_seconds / 3600 as total_capacity_cpu_core_hours,
         li.total_capacity_memory_byte_seconds / 3600 * POWER(2, -30) as total_capacity_memory_gigabyte_hours
-    FROM {schema}.reporting_ocpusagelineitem_daily AS li
-    WHERE usage_start >= '{start_date}'
-        AND usage_start <= '{end_date}'
-        AND cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily AS li
+    WHERE usage_start >= {{start_date}}
+        AND usage_start <= {{end_date}}
+        AND cluster_id = {{cluster_id}}
 )
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}'
-    AND cluster_id = '{cluster_id}'
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
+    AND cluster_id = {{cluster_id}}
     AND data_source = 'Pod'
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_id,
     cluster_alias,
     data_source,
@@ -89,5 +89,5 @@ INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
         cluster_capacity_memory_gigabyte_hours,
         total_capacity_cpu_core_hours,
          total_capacity_memory_gigabyte_hours
-    FROM reporting_ocpusagelineitem_daily_summary_{uuid}
+    FROM reporting_ocpusagelineitem_daily_summary_{{uuid | sqlsafe}}
 ;
