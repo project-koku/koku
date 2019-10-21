@@ -19,7 +19,7 @@ django-tenant-schemas==1.9.0
 django==2.2.6
 djangorestframework-csv==2.1.0
 djangorestframework==3.10.3
-docutils==0.14
+docutils==0.15.2
 drf-nested-routers==0.91
 entrypoints==0.3
 flake8==3.7.8
