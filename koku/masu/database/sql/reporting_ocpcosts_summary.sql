@@ -9,10 +9,10 @@ CREATE TEMPORARY TABLE reporting_ocp_infrastructure_cost AS (
         ocp_aws.pod_labels,
         sum(ocp_aws.unblended_cost) AS infra_cost,
         sum(ocp_aws.pod_cost) AS project_infra_cost
-    FROM {schema}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
-    WHERE date(ocp_aws.usage_start) >= '{start_date}'
-        AND date(ocp_aws.usage_start) <= '{end_date}'
-        AND ocp_aws.cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    WHERE date(ocp_aws.usage_start) >= {{start_date}}
+        AND date(ocp_aws.usage_start) <= {{end_date}}
+        AND ocp_aws.cluster_id = {{cluster_id}}
     GROUP BY ocp_aws.usage_start,
         ocp_aws.cluster_id,
         ocp_aws.cluster_alias,
@@ -54,7 +54,7 @@ UPDATE reporting_ocpusagelineitem_daily_summary ods
         AND ods.volume_labels = ic.pod_labels
 ;
 
-CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{{uuid | sqlsafe}} AS (
     SELECT usageli.usage_start,
         usageli.usage_end,
         usageli.cluster_id,
@@ -68,10 +68,10 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         0::decimal AS persistentvolumeclaim_charge_gb_month,
         0::decimal as infra_cost,
         0::decimal as project_infra_cost
-    FROM {schema}.reporting_ocpusagelineitem_daily_summary as usageli
-    WHERE date(usageli.usage_start) >= '{start_date}'
-        AND date(usageli.usage_start) <= '{end_date}'
-        AND usageli.cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as usageli
+    WHERE date(usageli.usage_start) >= {{start_date}}
+        AND date(usageli.usage_start) <= {{end_date}}
+        AND usageli.cluster_id = {{cluster_id}}
         AND usageli.data_source='Pod'
 
     UNION ALL
@@ -89,10 +89,10 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         COALESCE(storageli.persistentvolumeclaim_charge_gb_month, 0::decimal) AS persistentvolumeclaim_charge_gb_month,
         0::decimal as infra_cost,
         0::decimal as project_infra_cost
-    FROM {schema}.reporting_ocpusagelineitem_daily_summary as storageli
-    WHERE date(storageli.usage_start) >= '{start_date}'
-        AND date(storageli.usage_start) <= '{end_date}'
-        AND storageli.cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as storageli
+    WHERE date(storageli.usage_start) >= {{start_date}}
+        AND date(storageli.usage_start) <= {{end_date}}
+        AND storageli.cluster_id = {{cluster_id}}
         AND storageli.data_source='Storage'
 
     UNION ALL
@@ -110,22 +110,22 @@ CREATE TEMPORARY TABLE reporting_ocpcosts_summary_{uuid} AS (
         0::decimal AS persistentvolumeclaim_charge_gb_month,
         ocp_aws.unblended_cost AS infra_cost,
         ocp_aws.pod_cost AS project_infra_cost
-    FROM {schema}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
-    WHERE date(ocp_aws.usage_start) >= '{start_date}'
-        AND date(ocp_aws.usage_start) <= '{end_date}'
-        AND ocp_aws.cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary AS ocp_aws
+    WHERE date(ocp_aws.usage_start) >= {{start_date}}
+        AND date(ocp_aws.usage_start) <= {{end_date}}
+        AND ocp_aws.cluster_id = {{cluster_id}}
 )
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_ocpcosts_summary
-WHERE date(usage_start) >= '{start_date}'
-    AND date(usage_start) <= '{end_date}'
-    AND cluster_id = '{cluster_id}'
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpcosts_summary
+WHERE date(usage_start) >= {{start_date}}
+    AND date(usage_start) <= {{end_date}}
+    AND cluster_id = {{cluster_id}}
 ;
 
 -- Populate the ocp costs summary table
-INSERT INTO {schema}.reporting_ocpcosts_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpcosts_summary (
     cluster_id,
     cluster_alias,
     namespace,
@@ -153,5 +153,5 @@ INSERT INTO {schema}.reporting_ocpcosts_summary (
         infra_cost,
         project_infra_cost,
         pod_labels
-    FROM reporting_ocpcosts_summary_{uuid}
+    FROM reporting_ocpcosts_summary_{{uuid | sqlsafe}}
 ;

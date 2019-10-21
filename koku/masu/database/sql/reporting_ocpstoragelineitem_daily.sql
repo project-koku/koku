@@ -1,10 +1,10 @@
-CREATE TEMPORARY TABLE volume_nodes_{uuid} AS (
+CREATE TEMPORARY TABLE volume_nodes_{{uuid | sqlsafe}} AS (
     SELECT li.id,
         uli.node
-    FROM {schema}.reporting_ocpstoragelineitem as li
-    JOIN {schema}.reporting_ocpusagereportperiod AS rp
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem as li
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
-    LEFT JOIN {schema}.reporting_ocpusagelineitem_daily as uli
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily as uli
         ON li.pod = uli.pod
             AND li.namespace = uli.namespace
             AND rp.cluster_id = uli.cluster_id
@@ -12,7 +12,7 @@ CREATE TEMPORARY TABLE volume_nodes_{uuid} AS (
 )
 ;
 
-CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS (
     SELECT  rp.cluster_id,
         coalesce(max(p.name), rp.cluster_id) as cluster_alias,
         date(ur.interval_start) as usage_start,
@@ -30,18 +30,18 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
         sum(li.persistentvolumeclaim_usage_byte_seconds) as persistentvolumeclaim_usage_byte_seconds,
         max(li.persistentvolumeclaim_capacity_bytes) as persistentvolumeclaim_capacity_bytes,
         count(ur.interval_start) * 3600 as total_seconds
-    FROM {schema}.reporting_ocpstoragelineitem AS li
-    JOIN {schema}.reporting_ocpusagereport AS ur
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem AS li
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereport AS ur
         ON li.report_id = ur.id
-    JOIN {schema}.reporting_ocpusagereportperiod AS rp
+    JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
     LEFT JOIN public.api_provider as p
         ON rp.provider_id = p.id
-    LEFT JOIN volume_nodes_{uuid} as uli
+    LEFT JOIN volume_nodes_{{uuid | sqlsafe}} as uli
         ON li.id = uli.id
-    WHERE date(ur.interval_start) >= '{start_date}'
-        AND date(ur.interval_start) <= '{end_date}'
-        AND rp.cluster_id = '{cluster_id}'
+    WHERE date(ur.interval_start) >= {{start_date}}
+        AND date(ur.interval_start) <= {{end_date}}
+        AND rp.cluster_id = {{cluster_id}}
     GROUP BY rp.cluster_id,
         date(ur.interval_start),
         li.namespace,
@@ -55,14 +55,14 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{uuid} AS (
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_ocpstoragelineitem_daily
-WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}'
-    AND cluster_id = '{cluster_id}'
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
+    AND cluster_id = {{cluster_id}}
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {schema}.reporting_ocpstoragelineitem_daily (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily (
     cluster_id,
     cluster_alias,
     usage_start,
@@ -98,5 +98,5 @@ INSERT INTO {schema}.reporting_ocpstoragelineitem_daily (
         volume_request_storage_byte_seconds,
         persistentvolumeclaim_usage_byte_seconds,
         total_seconds
-    FROM reporting_ocpstoragelineitem_daily_{uuid}
+    FROM reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}}
 ;

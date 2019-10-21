@@ -1,4 +1,4 @@
-CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}} AS (
     SELECT  li.cluster_id,
         li.cluster_alias,
         li.namespace,
@@ -25,23 +25,23 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_summary_{uuid} AS (
             86400 *
             extract(days FROM date_trunc('month', li.usage_start) + interval '1 month - 1 day')
             * POWER(2, -30) as persistentvolumeclaim_usage_gigabyte_months
-    FROM {schema}.reporting_ocpstoragelineitem_daily AS li
-    WHERE usage_start >= '{start_date}'
-        AND usage_start <= '{end_date}'
-        AND cluster_id = '{cluster_id}'
+    FROM {{schema | sqlsafe}}.reporting_ocpstoragelineitem_daily AS li
+    WHERE usage_start >= {{start_date}}
+        AND usage_start <= {{end_date}}
+        AND cluster_id = {{cluster_id}}
 )
 ;
 
 -- Clear out old entries first
-DELETE FROM {schema}.reporting_ocpusagelineitem_daily_summary
-WHERE usage_start >= '{start_date}'
-    AND usage_start <= '{end_date}'
-    AND cluster_id = '{cluster_id}'
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE usage_start >= {{start_date}}
+    AND usage_start <= {{end_date}}
+    AND cluster_id = {{cluster_id}}
     AND data_source = 'Storage'
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     cluster_id,
     cluster_alias,
     data_source,
@@ -75,5 +75,5 @@ INSERT INTO {schema}.reporting_ocpusagelineitem_daily_summary (
         persistentvolumeclaim_capacity_gigabyte_months,
         volume_request_storage_gigabyte_months,
         persistentvolumeclaim_usage_gigabyte_months
-    FROM reporting_ocpstoragelineitem_daily_summary_{uuid}
+    FROM reporting_ocpstoragelineitem_daily_summary_{{uuid | sqlsafe}}
 ;
