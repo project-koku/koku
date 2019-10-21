@@ -42,4 +42,4 @@ def billing_source(request):
     except SourcesStorageError as error:
         response = str(error)
         status_code = status.HTTP_400_BAD_REQUEST
-    return Response({'Billing source creation:': response}, status=status_code)
+    return Response(response, status=status_code)
