@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime
 
 import pytz
+import numpy as np
 from dateutil import parser
 from faker import Faker
 from tenant_schemas.utils import schema_context
@@ -70,7 +71,7 @@ class GCPReportProcessorTest(MasuTestCase):
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': self.start_date_utc,
             'num_total_files': 1,
-            'provider_id': self.gcp_provider.id,
+            'provider_uuid': self.gcp_provider.uuid,
         }
         manifest_accessor = ReportManifestDBAccessor()
         self.manifest = manifest_accessor.add(**self.manifest_dict)
@@ -79,7 +80,7 @@ class GCPReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.gcp_provider.id,
+            provider_uuid=self.gcp_provider.uuid,
             manifest_id=self.manifest.id
         )
         self.accessor = GCPReportDBAccessor(self.schema, self.column_map)
@@ -114,7 +115,7 @@ class GCPReportProcessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             entry_bill = GCPCostEntryBill.objects.create(
-                provider_id=self.gcp_provider.id,
+                provider=self.gcp_provider,
                 billing_period_start=start_date_utc,
                 billing_period_end=end_date_utc
             )
@@ -180,7 +181,7 @@ class GCPReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.gcp_provider.id,
+            provider_uuid=self.gcp_provider.uuid,
             manifest_id=self.manifest.id
         )
         processor.process()
@@ -197,3 +198,30 @@ class GCPReportProcessorTest(MasuTestCase):
                 num_bills,
                 len(GCPCostEntryBill.objects.all())
             )
+
+    def test_consolidate_line_items(self):
+        """Test that logic for consolidating lines work"""
+        line1 = {
+            'int': fake.pyint(),
+            'float': fake.pyfloat(),
+            'date': datetime.now(),
+            'npint': np.int64(fake.pyint()),
+            'cost_entry_bill_id': fake.pyint(),
+            'project_id': fake.pyint()
+        }
+        line2 = {
+            'int': fake.pyint(),
+            'float': fake.pyfloat(),
+            'date': datetime.now(),
+            'npint': np.int64(fake.pyint()),
+            'cost_entry_bill_id': fake.pyint(),
+            'project_id': fake.pyint()
+        }
+        consolidated_line = self.processor._consolidate_line_items(line1, line2)
+
+        self.assertEquals(consolidated_line['int'], line1['int'] + line2['int'])
+        self.assertEquals(consolidated_line['float'], line1['float'] + line2['float'])
+        self.assertEquals(consolidated_line['npint'], line1['npint'] + line2['npint'])
+        self.assertEquals(consolidated_line['date'], line1['date'])
+        self.assertEquals(consolidated_line['cost_entry_bill_id'], line1['cost_entry_bill_id'])
+        self.assertEquals(consolidated_line['project_id'], line1['project_id'])

@@ -2,6 +2,7 @@
 import logging
 from collections import OrderedDict
 from datetime import datetime
+from numbers import Number
 
 import pandas
 import pytz
@@ -24,19 +25,21 @@ class ProcessedGCPReport:
     def __init__(self):
         """Initialize new cost entry containers."""
         self.line_items = []
+        self.unique_line_items = {}
         self.bills = {}
         self.projects = {}
 
     def remove_processed_rows(self):
         """Clear a batch of rows after they've been saved."""
         self.line_items = []
+        self.unique_line_items = {}
 
 
 class GCPReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     def __init__(self, schema_name, report_path, compression,
-                 provider_id, manifest_id=None):
+                 provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -50,7 +53,7 @@ class GCPReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             processed_report=ProcessedGCPReport()
         )
@@ -93,10 +96,10 @@ class GCPReportProcessor(ReportProcessorBase):
         data = {
             'billing_period_start': datetime.strftime(start_date_utc, '%Y-%m-%d %H:%M%z'),
             'billing_period_end': datetime.strftime(end_date_utc, '%Y-%m-%d %H:%M%z'),
-            'provider_id': self._provider_id,
+            'provider_id': self._provider_uuid,
         }
 
-        key = (start_date_utc, self._provider_id)
+        key = (start_date_utc, self._provider_uuid)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -105,6 +108,7 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['billing_period_start', 'provider_id']
         )
+        report_db_accessor.commit()
         self.processed_report.bills[key] = bill_id
 
         return bill_id
@@ -135,6 +139,8 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             conflict_columns=['project_id']
         )
+        report_db_accessor.commit()
+
         self.processed_report.projects[key] = project_id
         return project_id
 
@@ -152,23 +158,50 @@ class GCPReportProcessor(ReportProcessorBase):
             data,
             self.line_item_table_name
         )
+
         data['cost_entry_bill_id'] = bill_id
         data['project_id'] = project_id
 
-        self.processed_report.line_items.append(data)
+        key = (project_id, data['start_time'], data['line_item_type'])
+
+        # If we've already seen the key in this report, we have a duplicate line item
+        # and should consolidate the two lines into one.
+        if key in self.processed_report.unique_line_items:
+            data = self._consolidate_line_items(
+                self.processed_report.unique_line_items[key],
+                data)
+
+        self.processed_report.unique_line_items[key] = data
         if self.line_item_columns is None:
             self.line_item_columns = list(data.keys())
+
+    def _consolidate_line_items(self, line1, line2):
+        """Given 2 line items consolidate them into one, by adding all numerical values together."""
+        ignored_keys = ['cost_entry_bill_id', 'project_id']
+        consolidated_line_item = {}
+        for key, value in line1.items():
+            consolidated_line_item[key] = value
+
+            # If key is an id, ignore it during consolidation
+            if key in ignored_keys:
+                continue
+            if isinstance(value, Number):
+                consolidated_line_item[key] += line2[key]
+        return consolidated_line_item
+
+    @property
+    def line_item_conflict_columns(self):
+        """Create a property to check conflict on line items."""
+        return ['project_id', 'line_item_type', 'start_time']
 
     def process(self):
         """Process GCP billing file."""
         row_count = 0
 
-        # Delete all line items with the associated provider_id and start_time.
-        self._delete_line_items(GCPReportDBAccessor, self.column_map)
-
         # Read the csv in batched chunks.
         report_csv = pandas.read_csv(self._report_path, chunksize=self._batch_size,
                                      compression='infer')
+
         with GCPReportDBAccessor(self._schema_name, self.column_map) as report_db:
 
             for chunk in report_csv:
@@ -182,6 +215,7 @@ class GCPReportProcessor(ReportProcessorBase):
                     first_row = OrderedDict(zip(rows.columns.tolist(), rows.iloc[0].tolist()))
 
                     bill_id = self._get_or_create_cost_entry_bill(first_row, report_db)
+
                     project_id = self._get_or_create_gcp_project(first_row, report_db)
 
                     for row in rows.values:
@@ -189,17 +223,28 @@ class GCPReportProcessor(ReportProcessorBase):
                         self._create_cost_entry_line_item(processed_row, bill_id, project_id, report_db)
 
                 LOG.info('Saving report rows %d to %d for %s', row_count,
-                         row_count + len(self.processed_report.line_items),
+                         row_count + len(self.processed_report.unique_line_items),
                          self._report_name)
+
+                # Create a temp table with all the line items, and merge the temp table to the line item table.
+                # This is faster than django's bulk_create.
+                temp_table = report_db.create_temp_table(
+                    self.line_item_table_name,
+                    drop_column='id'
+                )
+
+                # Have to put values into line_items because the parent class needs it to _save_to_db
+                self.processed_report.line_items = list(self.processed_report.unique_line_items.values())
+                self._save_to_db(temp_table, report_db)
+                report_db.merge_temp_table(
+                    self.line_item_table_name,
+                    temp_table,
+                    self.line_item_columns,
+                    self.line_item_conflict_columns
+                )
+
                 row_count += len(self.processed_report.line_items)
-
-                # Save all line_items in ProcessedGCPReport to the database.
-                self._save_to_db(self.line_item_table_name, report_db)
                 self.processed_report.remove_processed_rows()
-
-            # Clean up database, commit all changes.
-            report_db.vacuum_table(self.line_item_table_name)
-            report_db.commit()
 
             LOG.info('Completed report processing for file: %s and schema: %s',
                      self._report_name, self._schema_name)

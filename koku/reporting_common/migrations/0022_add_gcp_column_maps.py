@@ -22,7 +22,7 @@ def load_gcp_column_map(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting_common', '0018_auto_20190923_1838'),
+        ('reporting_common', '0021_auto_20191022_1635'),
     ]
 
     operations = [
