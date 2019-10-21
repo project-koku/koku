@@ -187,9 +187,9 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             email = json_rh_auth.get('identity', {}).get('user', {}).get('email')
             account = json_rh_auth.get('identity', {}).get('account_number')
             is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
-            is_hybrid_cloud = json_rh_auth.get(
-                'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
-            if not is_hybrid_cloud:
+            is_cost_management = json_rh_auth.get(
+                'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
+            if not is_cost_management:
                 raise PermissionDenied()
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
