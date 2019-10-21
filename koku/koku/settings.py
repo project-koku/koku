@@ -445,10 +445,10 @@ ENABLE_S3_ARCHIVING = ENVIRONMENT.get_value('ENABLE_S3_ARCHIVING', default=True)
 COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv('COLD_STORAGE_RETRIVAL_WAIT_TIME', default='10800'))
 
 # Sources Client API Endpoints
-SOURCES_CLIENT_HOST = ENVIRONMENT.get_value('SOURCES_CLIENT_HOST',
-                                            default='localhost')
-SOURCES_CLIENT_PORT = ENVIRONMENT.get_value('SOURCES_CLIENT_PORT',
-                                            default='4000')
-SOURCES_CLIENT_BASE_URL = 'http://{}:{}{}/v1'.format(SOURCES_CLIENT_HOST,
-                                                     SOURCES_CLIENT_PORT,
+KOKU_SOURCES_CLIENT_HOST = ENVIRONMENT.get_value('KOKU_SOURCES_CLIENT_HOST',
+                                                 default='localhost')
+KOKU_SOURCES_CLIENT_PORT = ENVIRONMENT.get_value('KOKU_SOURCES_CLIENT_PORT',
+                                                 default='4000')
+SOURCES_CLIENT_BASE_URL = 'http://{}:{}{}/v1'.format(KOKU_SOURCES_CLIENT_HOST,
+                                                     KOKU_SOURCES_CLIENT_PORT,
                                                      API_PATH_PREFIX)
