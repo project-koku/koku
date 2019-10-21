@@ -99,10 +99,10 @@
         },
         "azure-storage-common": {
             "hashes": [
-                "sha256:4ec87c7537d457ec95252e0e46477e2c1ccf33774ffefd05d8544682cb0ae401",
-                "sha256:de4817cce35a23d1c89563edc38b481ebd8da4655bdf32d26fa2b06095179e4a"
+                "sha256:b01a491a18839b9d05a4fe3421458a0ddb5ab9443c14e487f40d16f9a1dc2fbe",
+                "sha256:ccedef5c67227bc4d6670ffd37cec18fb529a1b7c3a5e53e4096eb0cf23dc73f"
             ],
-            "version": "==1.4.2"
+            "version": "==2.1.0"
         },
         "beautifulsoup4": {
             "hashes": [
