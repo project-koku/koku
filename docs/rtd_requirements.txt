@@ -10,7 +10,7 @@ celery-prometheus-exporter==1.7.0
 celery==4.3.0
 certifi==2019.9.11
 chardet==3.0.4
-django-cors-headers==3.0.2
+django-cors-headers==3.1.1
 django-environ==0.4.5
 django-filter==2.2.0
 django-prometheus==1.0.15
