@@ -171,6 +171,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         access = self.rbac.get_access_for_user(user)
         return access
 
+    # pylint: disable=too-many-locals
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
 
