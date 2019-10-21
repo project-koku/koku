@@ -95,7 +95,7 @@ class IamTestCase(TestCase):
     @classmethod
     def _create_request_context(cls, customer_data, user_data,
                                 create_customer=True, create_tenant=False,
-                                is_admin=True, is_hybrid_cloud=True):
+                                is_admin=True, is_cost_management=True):
         """Create the request context for a user."""
         customer = customer_data
         account = customer.get('account_id')
@@ -115,7 +115,7 @@ class IamTestCase(TestCase):
                 }
             },
             'entitlements': {
-                'hybrid_cloud': {'is_entitled': is_hybrid_cloud}
+                'cost_management': {'is_entitled': is_cost_management}
             }
         }
         json_identity = json_dumps(identity)
