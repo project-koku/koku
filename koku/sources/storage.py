@@ -349,6 +349,8 @@ def add_subscription_id_to_credentials(request_data, subscription_id):
         if query.source_type not in ('AZURE',):
             raise SourcesStorageError('Source is not AZURE.')
         auth_dict = query.authentication
+        if not auth_dict.get('credentials'):
+            raise SourcesStorageError('Missing credentials key')
         auth_dict['credentials']['subscription_id'] = subscription_id
         query.authentication = auth_dict
         if query.koku_uuid:
