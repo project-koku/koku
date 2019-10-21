@@ -18,6 +18,8 @@
 """View for Sources-Proxy Azure authentications endpoint."""
 import requests
 from requests.exceptions import RequestException
+from django.conf import settings
+
 from rest_framework import status
 from rest_framework.decorators import (api_view,
                                        permission_classes,
@@ -34,7 +36,7 @@ def authentication(request):
     """Create Subscription-ID for Azure authentication."""
     request_data = request.data
     try:
-        url = f'http://localhost:4000/api/cost-management/v1/authentication/'
+        url = f'{settings.SOURCES_CLIENT_BASE_URL}/authentication/'
         response = requests.post(url, json=request_data)
         status_code = response.status_code
         response = response.json()

@@ -19,6 +19,7 @@
 import requests
 from requests.exceptions import RequestException
 
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import (api_view,
@@ -37,7 +38,7 @@ def billing_source(request):
     """Create billing source for AWS and Azure sources."""
     request_data = request.data
     try:
-        url = f'http://localhost:4000/api/cost-management/v1/billing_source/'
+        url = f'{settings.SOURCES_CLIENT_BASE_URL}/billing_source/'
         response = requests.post(url, json=request_data)
         status_code = response.status_code
         response = response.json()
