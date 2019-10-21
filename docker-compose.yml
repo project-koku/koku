@@ -35,6 +35,7 @@ services:
         - MASU_SECRET_KEY=abc
         - prometheus_multiproc_dir=/tmp
         - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       privileged: true
       ports:
           - 8000:8000
@@ -161,6 +162,7 @@ services:
         - S3_BUCKET_NAME=koku-bucket
         - S3_BUCKET_PATH=data_archive
         - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
       privileged: true
       volumes:
         - '.:/koku'
