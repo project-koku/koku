@@ -174,7 +174,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                                        create_customer=True,
                                                        create_tenant=True,
                                                        is_admin=True,
-                                                       is_hybrid_cloud=False)
+                                                       is_cost_management=False)
         mock_request = request_context['request']
         mock_request.path = '/api/v1/providers/'
         mock_request.META['QUERY_STRING'] = ''
