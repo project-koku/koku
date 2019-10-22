@@ -51,7 +51,7 @@ ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='data
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-# ROUTER.register(r'attributes', AttributeViewSet)
+ROUTER.register(r'attributes2', AttributeViewSet, base_name='attributes')
 
 # pylint: disable=invalid-name
 urlpatterns = [
