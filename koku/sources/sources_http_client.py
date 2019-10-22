@@ -129,7 +129,7 @@ class SourcesHTTPClient:
 
         authentications_url = \
             (f'{self._base_url}/authentications?filter[resource_type]=Endpoint&'
-             f'[authtype]=access_key_secret_key&[resource_id]={str(resource_id)}')
+             f'[authtype]=tenant_id_client_id_client_secret&[resource_id]={str(resource_id)}')
         r = requests.get(authentications_url, headers=self._identity_header)
         authentications_response = r.json()
         if not authentications_response.get('data'):
