@@ -46,7 +46,8 @@ class AWSCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE,
+                                 db_column='provider_uuid')
 
 
 class AWSCostEntry(models.Model):

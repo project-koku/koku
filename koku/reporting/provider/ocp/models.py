@@ -44,7 +44,8 @@ class OCPUsageReportPeriod(models.Model):
 
     # provider_id is intentionally not a foreign key
     # to prevent masu complication
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE,
+                                 db_column='provider_uuid')
 
 
 class OCPUsageReport(models.Model):
