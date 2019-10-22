@@ -199,8 +199,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             query_string = ''
             if request.META['QUERY_STRING']:
                 query_string = '?{}'.format(request.META['QUERY_STRING'])
-            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
-                        f' -- ACCOUNT: {account} USER: {username}')
+            stmt = (
+                f'API: {request.path}{query_string}'
+                f' -- ACCOUNT: {account} USER: {username}'
+            )
+            logger.info(stmt)
             try:
                 customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:
