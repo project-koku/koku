@@ -12,21 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='awscostentrybill',
-            name='provider',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AddField(
-            model_name='azurecostentrybill',
-            name='provider',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
-        migrations.AddField(
-            model_name='ocpusagereportperiod',
-            name='provider',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
-        ),
         migrations.AlterUniqueTogether(
             name='awscostentrybill',
             unique_together=set(),
@@ -50,6 +35,21 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='ocpusagereportperiod',
             name='provider_id',
+        ),
+        migrations.AddField(
+            model_name='awscostentrybill',
+            name='provider',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        ),
+        migrations.AddField(
+            model_name='azurecostentrybill',
+            name='provider',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
+        ),
+        migrations.AddField(
+            model_name='ocpusagereportperiod',
+            name='provider',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='api.Provider'),
         ),
         migrations.RunSQL(
             """
