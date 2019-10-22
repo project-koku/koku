@@ -253,6 +253,23 @@ class SourcesStorageTest(TestCase):
         with self.assertRaises(SourcesStorageError):
             storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
 
+    def test_add_subscription_id_to_credentials_malformed_cred(self):
+        """Test to add subscription_id to with a malformed authentication structure."""
+        test_source_id = 3
+        subscription_id = 'test_sub_id'
+        azure_obj = Sources(source_id=test_source_id,
+                            auth_header=self.test_header,
+                            offset=3,
+                            source_type='AZURE',
+                            name='Test AZURE Source',
+                            authentication={},
+                            billing_source={'billing_source': {'data_source': {'resource_group': 'foo',
+                                                                               'storage_account': 'bar'}}})
+        azure_obj.save()
+
+        with self.assertRaises(SourcesStorageError):
+            storage.add_subscription_id_to_credentials({'source_id': test_source_id}, subscription_id)
+
     def test_validate_billing_source(self):
         """Test to validate that the billing source dictionary is valid."""
         test_matrix = [{'provider_type': 'AWS', 'billing_source': {'bucket': 'test-bucket'},
