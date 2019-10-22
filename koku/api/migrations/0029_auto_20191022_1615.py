@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('api', '0028_auto_20191022_1602'),
+        ('reporting_common', '0019_auto_20191022_1602')
     ]
 
     operations = [
