@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     'reporting_common',
     'cost_models',
     'sources',
+    'attributes'
 ]
 
 SHARED_APPS = (
