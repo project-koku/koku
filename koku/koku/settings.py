@@ -100,6 +100,7 @@ SHARED_APPS = (
     'django.contrib.messages',
     'rest_framework',
     'sources',
+    'attributes'
 )
 
 TENANT_APPS = (
