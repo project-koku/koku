@@ -32,7 +32,7 @@ class OCPUsageReportPeriod(models.Model):
     class Meta:
         """Meta for OCPUsageReportPeriod."""
 
-        unique_together = ('cluster_id', 'report_period_start', 'provider_id')
+        unique_together = ('cluster_id', 'report_period_start', 'provider')
 
     cluster_id = models.CharField(max_length=50, null=False)
     report_period_start = models.DateTimeField(null=False)
@@ -44,7 +44,7 @@ class OCPUsageReportPeriod(models.Model):
 
     # provider_id is intentionally not a foreign key
     # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class OCPUsageReport(models.Model):

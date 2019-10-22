@@ -33,7 +33,7 @@ class AWSCostEntryBill(models.Model):
         """Meta for AWSCostEntryBill."""
 
         unique_together = ('bill_type', 'payer_account_id',
-                           'billing_period_start', 'provider_id')
+                           'billing_period_start', 'provider')
 
     billing_resource = models.CharField(max_length=50, default='aws',
                                         null=False)
@@ -46,9 +46,7 @@ class AWSCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    # provider_id is intentionally not a foreign key
-    # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class AWSCostEntry(models.Model):

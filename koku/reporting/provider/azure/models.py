@@ -31,7 +31,7 @@ class AzureCostEntryBill(models.Model):
     class Meta:
         """Meta for AzureCostEntryBill."""
 
-        unique_together = ('billing_period_start', 'provider_id')
+        unique_together = ('billing_period_start', 'provider')
 
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
@@ -40,9 +40,7 @@ class AzureCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    # provider_id is intentionally not a foreign key
-    # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class AzureCostEntryProductService(models.Model):
