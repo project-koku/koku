@@ -51,13 +51,7 @@ class ProviderAuthentication(models.Model):
                 check=~models.Q(models.Q(provider_resource_name=None) \
                                 & models.Q(credentials={})),
                 name='credentials_and_resource_name_both_null'
-            ),
-            # NOT (provider_resource_name IS NOT NULL AND credentials IS NOT NULL)
-            CheckConstraint(
-                check=~models.Q(~models.Q(provider_resource_name=None) \
-                                & ~models.Q(credentials={})),
-                name='credentials_and_resource_name_both_not_null'
-            ),
+            )
         ]
 
 
@@ -87,13 +81,7 @@ class ProviderBillingSource(models.Model):
                 check=~models.Q(models.Q(bucket=None) \
                                 & models.Q(data_source={})),
                 name='bucket_and_data_source_both_null'
-            ),
-            # NOT (bucket IS NOT NULL or '' AND data_source IS NOT NULL)
-            CheckConstraint(
-                check=~models.Q(~(models.Q(bucket=None) | models.Q(bucket='')) \
-                                & ~models.Q(data_source={})),
-                name='bucket_and_data_source_both_not_null'
-            ),
+            )
         ]
 
 
@@ -113,19 +101,24 @@ class Provider(models.Model):
     PROVIDER_AWS = 'AWS'
     PROVIDER_OCP = 'OCP'
     PROVIDER_AZURE = 'AZURE'
+    PROVIDER_GCP = 'GCP'
 
     if settings.DEBUG:
         PROVIDER_AWS_LOCAL = 'AWS-local'
         PROVIDER_AZURE_LOCAL = 'AZURE-local'
+        PROVIDER_GCP_LOCAL = 'GCP-local'
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
                             (PROVIDER_AZURE, PROVIDER_AZURE),
+                            (PROVIDER_GCP, PROVIDER_GCP),
                             (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
-                            (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),)
+                            (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
+                            (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL))
     else:
         PROVIDER_CHOICES = ((PROVIDER_AWS, PROVIDER_AWS),
                             (PROVIDER_OCP, PROVIDER_OCP),
-                            (PROVIDER_AZURE, PROVIDER_AZURE))
+                            (PROVIDER_AZURE, PROVIDER_AZURE),
+                            (PROVIDER_GCP, PROVIDER_GCP))
 
     uuid = models.UUIDField(default=uuid4, editable=False,
                             unique=True, null=False)
@@ -163,20 +156,23 @@ class Sources(models.Model):
     name = models.CharField(max_length=256, null=True)
 
     # Red Hat identity header.  Passed along to Koku API for entitlement and rbac reasons.
-    auth_header = models.CharField(max_length=512, null=True)
+    auth_header = models.TextField(null=True)
 
     # Kafka message offset for Platform-Sources kafka stream
     offset = models.IntegerField(null=False)
+
+    # Endpoint ID.  Identifier to connect source to authentication.
+    endpoint_id = models.IntegerField(null=True)
 
     # Koku Specific data.
     # Provider type (i.e. AWS, OCP, AZURE)
     source_type = models.CharField(max_length=50, null=False)
 
     # Provider authentication (AWS roleARN, OCP Sources UID, etc.)
-    authentication = models.CharField(max_length=128, null=False)
+    authentication = JSONField(null=False, default=dict)
 
     # Provider billing source (AWS S3 bucket)
-    billing_source = models.CharField(max_length=128, null=True)
+    billing_source = JSONField(null=True, default=dict)
 
     # Unique identifier for koku Provider
     koku_uuid = models.CharField(max_length=512, null=True)
@@ -185,6 +181,11 @@ class Sources(models.Model):
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully
     # removed.
     pending_delete = models.BooleanField(default=False)
+
+    # When a source is being updated by either Platform-Sources or from API (auth, billing source)
+    # this flag will indicate that the update needs to be picked up by the Koku-Provider synchronization
+    # handler.
+    pending_update = models.BooleanField(default=False)
 
 
 class ProviderStatus(models.Model):

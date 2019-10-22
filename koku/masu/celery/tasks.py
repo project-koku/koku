@@ -23,10 +23,15 @@ import calendar
 import collections
 from datetime import date
 
+from botocore.exceptions import ClientError
+from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 
-from koku.celery import CELERY as celery
+from api.dataexport.models import DataExportRequest
+from api.dataexport.syncer import AwsS3Syncer, SyncedFileInColdStorageError
+from koku.celery import app
 from masu.external.date_accessor import DateAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.util.upload import query_and_upload_to_s3
@@ -34,14 +39,14 @@ from masu.util.upload import query_and_upload_to_s3
 LOG = get_task_logger(__name__)
 
 
-@celery.task(name='masu.celery.tasks.check_report_updates')
+@app.task(name='masu.celery.tasks.check_report_updates')
 def check_report_updates():
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator()
     orchestrator.prepare()
 
 
-@celery.task(name='masu.celery.tasks.remove_expired_data')
+@app.task(name='masu.celery.tasks.remove_expired_data')
 def remove_expired_data():
     """Scheduled task to initiate a job to remove expired report data."""
     today = DateAccessor().today()
@@ -51,13 +56,22 @@ def remove_expired_data():
 
 
 TableExportSetting = collections.namedtuple(
-    'TableExportSettings',
-    ['provider', 'table_name', 'sql']
+    'TableExportSetting', ['provider', 'output_name', 'iterate_daily', 'sql']
 )
+TableExportSetting.__doc__ = """\
+Settings for exporting table data using a custom SQL query.
+
+- provider (str): the provider service's name (e.g. "aws", "azure", "ocp")
+- output_name (str): a name to use when saving the query's results
+- iterate_daily (bool): if True, the query should be run once per day over a date range
+- sql (str): raw SQL query to execute to gather table data
+"""
 
 table_export_settings = [
     TableExportSetting(
-        'aws', 'reporting_awscostentrylineitem',
+        'aws',
+        'reporting_awscostentrylineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_awscostentrylineitem
         LEFT OUTER JOIN {schema}.reporting_awscostentrybill
@@ -72,9 +86,12 @@ table_export_settings = [
             ON (reporting_awscostentrylineitem.cost_entry_pricing_id = reporting_awscostentrypricing.id)
         WHERE reporting_awscostentry.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_awscostentry.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
+        """,
+    ),
     TableExportSetting(
-        'ocp', 'reporting_ocpusagelineitem',
+        'ocp',
+        'reporting_ocpusagelineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_ocpusagelineitem
         LEFT OUTER JOIN {schema}.reporting_ocpusagereport
@@ -83,9 +100,12 @@ table_export_settings = [
             ON (reporting_ocpusagelineitem.report_period_id = reporting_ocpusagereportperiod.id)
         WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
+        """,
+    ),
     TableExportSetting(
-        'ocp', 'reporting_ocpstoragelineitem',
+        'ocp',
+        'reporting_ocpstoragelineitem',
+        False,
         """
         SELECT * FROM {schema}.reporting_ocpstoragelineitem
         LEFT OUTER JOIN {schema}.reporting_ocpusagereport
@@ -94,23 +114,101 @@ table_export_settings = [
             ON (reporting_ocpstoragelineitem.report_period_id = reporting_ocpusagereportperiod.id)
         WHERE reporting_ocpusagereport.interval_start BETWEEN %(start_date)s AND %(end_date)s
         OR reporting_ocpusagereport.interval_end BETWEEN %(start_date)s AND %(end_date)s;
-        """),
-    TableExportSetting('azure', 'reporting_azurecostentrylineitem_daily', """
-    SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
-    LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
-        ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
-    LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
-        ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
-            = reporting_azurecostentryproductservice.id)
-    LEFT OUTER JOIN {schema}.reporting_azuremeter
-        ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
-    WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
-    OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
-    """)
+        """,
+    ),
+    TableExportSetting(
+        'azure',
+        'reporting_azurecostentrylineitem_daily',
+        False,
+        """
+        SELECT * FROM {schema}.reporting_azurecostentrylineitem_daily
+        LEFT OUTER JOIN {schema}.reporting_azurecostentrybill
+            ON (reporting_azurecostentrylineitem_daily.cost_entry_bill_id = reporting_azurecostentrybill.id)
+        LEFT OUTER JOIN {schema}.reporting_azurecostentryproductservice
+            ON (reporting_azurecostentrylineitem_daily.cost_entry_product_id
+                = reporting_azurecostentryproductservice.id)
+        LEFT OUTER JOIN {schema}.reporting_azuremeter
+            ON (reporting_azurecostentrylineitem_daily.meter_id = reporting_azuremeter.id)
+        WHERE reporting_azurecostentrybill.billing_period_start BETWEEN %(start_date)s AND %(end_date)s
+        OR reporting_azurecostentrybill.billing_period_end BETWEEN %(start_date)s AND %(end_date)s;
+        """,
+    ),
+    TableExportSetting(
+        'aws',
+        'reporting_awscostentrylineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        FROM
+            {schema}.reporting_awscostentrylineitem_daily_summary ds
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.cost_entry_bill_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'azure',
+        'reporting_azurecostentrylineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, b.*, m.*
+        FROM
+            {schema}.reporting_azurecostentrylineitem_daily_summary ds
+            JOIN {schema}.reporting_azurecostentrybill b ON b.id = ds.cost_entry_bill_id
+            JOIN {schema}.reporting_azuremeter m ON m.id = ds.meter_id
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpawscostlineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        FROM
+            {schema}.reporting_ocpawscostlineitem_daily_summary ds
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpawscostlineitem_project_daily_summary',
+        True,
+        """
+        SELECT ds.*, aa.account_id, aa.account_alias, b.*
+        FROM
+            {schema}.reporting_ocpawscostlineitem_project_daily_summary ds
+            JOIN {schema}.reporting_awscostentrybill b ON b.id = ds.account_alias_id
+            LEFT JOIN {schema}.reporting_awsaccountalias aa ON aa.id = ds.account_alias_id
+            -- LEFT JOIN because sometimes this doesn't exist, but it's unclear why.
+            -- It seems that "real" data has it, but fake data from AWS-local+nise does not.
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
+    TableExportSetting(
+        'ocp',
+        'reporting_ocpusagelineitem_daily_summary',
+        True,
+        """
+        SELECT ds.*
+        FROM {schema}.reporting_ocpusagelineitem_daily_summary ds
+        WHERE ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
+            -- No need to filter usage_end because usage_end should always match usage_start for this table.
+        """,
+    ),
 ]
 
 
-@celery.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
+@app.task(name='masu.celery.tasks.upload_normalized_data', queue_name='upload')
 def upload_normalized_data():
     """Scheduled task to export normalized data to s3."""
     curr_date = DateAccessor().today()
@@ -135,3 +233,53 @@ def upload_normalized_data():
 
             # Upload last month's reports
             query_and_upload_to_s3(schema, table, (prev_month_first_day, prev_month_last_day))
+
+
+@app.task(name='masu.celery.tasks.sync_data_to_customer',
+          queue_name='customer_data_sync',
+          retry_kwargs={'max_retries': 5,
+                        'countdown': settings.COLD_STORAGE_RETRIVAL_WAIT_TIME})
+def sync_data_to_customer(dump_request_uuid):
+    """
+    Scheduled task to sync normalized data to our customers S3 bucket.
+
+    If the sync request raises SyncedFileInColdStorageError, this task
+    will automatically retry in a set amount of time. This time is to give
+    the storage solution time to retrieve a file from cold storage.
+    This task will retry 5 times, and then fail.
+
+    """
+    dump_request = DataExportRequest.objects.get(uuid=dump_request_uuid)
+    dump_request.status = DataExportRequest.PROCESSING
+    dump_request.save()
+
+    try:
+        syncer = AwsS3Syncer(settings.S3_BUCKET_NAME)
+        syncer.sync_bucket(
+            dump_request.created_by.customer.schema_name,
+            dump_request.bucket_name,
+            (dump_request.start_date, dump_request.end_date))
+    except ClientError:
+        LOG.exception(
+            f'Encountered an error while processing DataExportRequest '
+            f'{dump_request.uuid}, for {dump_request.created_by}.')
+        dump_request.status = DataExportRequest.ERROR
+        dump_request.save()
+        return
+    except SyncedFileInColdStorageError:
+        LOG.info(
+            f'One of the requested files is currently in cold storage for '
+            f'DataExportRequest {dump_request.uuid}. This task will automatically retry.')
+        dump_request.status = DataExportRequest.WAITING
+        dump_request.save()
+        try:
+            raise sync_data_to_customer.retry(countdown=10, max_retries=5)
+        except MaxRetriesExceededError:
+            LOG.exception(
+                f'Max retires exceeded for restoring a file in cold storage for '
+                f'DataExportRequest {dump_request.uuid}, for {dump_request.created_by}.')
+            dump_request.status = DataExportRequest.ERROR
+            dump_request.save()
+            return
+    dump_request.status = DataExportRequest.COMPLETE
+    dump_request.save()

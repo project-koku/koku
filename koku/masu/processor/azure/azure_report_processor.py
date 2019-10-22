@@ -78,8 +78,10 @@ class AzureReportProcessor(ReportProcessorBase):
             report_path=report_path,
             compression=compression,
             provider_id=provider_id,
+            manifest_id=manifest_id,
             processed_report=ProcessedAzureReport()
         )
+        self.table_name = AzureCostEntryLineItemDaily()
 
         self.manifest_id = manifest_id
         self._report_name = report_path
@@ -100,8 +102,13 @@ class AzureReportProcessor(ReportProcessorBase):
 
         self.line_item_columns = None
 
-        LOG.info('Initialized report processor for file: %s and schema: %s',
-                 report_path, self._schema_name)
+        stmt = (
+            f'Initialized report processor for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' file: {report_path}'
+        )
+        LOG.info(stmt)
 
     def _create_cost_entry_bill(self, row, report_db_accessor):
         """Create a cost entry bill object.
@@ -237,8 +244,7 @@ class AzureReportProcessor(ReportProcessorBase):
             (None)
 
         """
-        table_name = AzureCostEntryLineItemDaily
-        data = self._get_data_for_table(row, table_name._meta.db_table)
+        data = self._get_data_for_table(row, self.table_name._meta.db_table)
         tag_str = ''
 
         if 'tags' in data:
@@ -246,7 +252,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         data = report_db_accesor.clean_data(
             data,
-            table_name._meta.db_table
+            self.table_name._meta.db_table
         )
 
         data['tags'] = tag_str
@@ -283,6 +289,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         """
         row_count = 0
+        self._delete_line_items(AzureReportDBAccessor, self.column_map)
         # pylint: disable=invalid-name
         opener, mode = self._get_file_opener(self._compression)
         with opener(self._report_path, mode, encoding='utf-8-sig') as f:
@@ -291,24 +298,24 @@ class AzureReportProcessor(ReportProcessorBase):
                 reader = csv.DictReader(f)
                 for row in reader:
                     _ = self.create_cost_entry_objects(row, report_db)
-                if len(self.processed_report.line_items) >= self._batch_size:
-                    LOG.debug('Saving report rows %d to %d for %s', row_count,
-                              row_count + len(self.processed_report.line_items),
-                              self._report_name)
-                    self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
-
-                    row_count += len(self.processed_report.line_items)
-                    self._update_mappings()
+                    if len(self.processed_report.line_items) >= self._batch_size:
+                        LOG.info('Saving report rows %d to %d for %s', row_count,
+                                 row_count + len(self.processed_report.line_items),
+                                 self._report_name)
+                        self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
+                        row_count += len(self.processed_report.line_items)
+                        self._update_mappings()
 
                 if self.processed_report.line_items:
-                    LOG.debug('Saving report rows %d to %d for %s', row_count,
-                              row_count + len(self.processed_report.line_items),
-                              self._report_name)
+                    LOG.info('Saving report rows %d to %d for %s', row_count,
+                             row_count + len(self.processed_report.line_items),
+                             self._report_name)
                     self._save_to_db(AZURE_REPORT_TABLE_MAP['line_item'], report_db)
                     row_count += len(self.processed_report.line_items)
 
                 report_db.vacuum_table(AZURE_REPORT_TABLE_MAP['line_item'])
                 report_db.commit()
+
                 LOG.info('Completed report processing for file: %s and schema: %s',
                          self._report_name, self._schema_name)
             return True

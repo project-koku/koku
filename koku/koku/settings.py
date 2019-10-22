@@ -106,20 +106,36 @@ TENANT_APPS = (
     'cost_models',
 )
 
+CACHE_REQUESTS = ENVIRONMENT.bool('CACHE_REQUESTS', default=False)
+
 DEFAULT_FILE_STORAGE = 'tenant_schemas.storage.TenantFileSystemStorage'
 
+### Middleware setup
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'koku.middleware.DisableCSRF',
     'django.middleware.security.SecurityMiddleware',
-    'django.middleware.common.CommonMiddleware',
+]
+if CACHE_REQUESTS:
+    MIDDLEWARE.extend([
+        'django.middleware.cache.UpdateCacheMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.cache.FetchFromCacheMiddleware',
+    ])
+else:
+    MIDDLEWARE.append('django.middleware.common.CommonMiddleware')
+MIDDLEWARE.extend([
     'koku.middleware.IdentityHeaderMiddleware',
     'koku.middleware.KokuTenantMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django_prometheus.middleware.PrometheusAfterMiddleware',
-]
+])
+### End Middleware
+
+CACHE_MIDDLEWARE_ALIAS = 'default'
+CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value('CACHE_TIMEOUT', default=3600)
 
 DEVELOPMENT = ENVIRONMENT.bool('DEVELOPMENT', default=False)
 if DEVELOPMENT:
@@ -176,7 +192,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         },
         "rbac": {
@@ -184,7 +201,8 @@ else:
             "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "IGNORE_EXCEPTIONS": True
+                "IGNORE_EXCEPTIONS": True,
+                "MAX_ENTRIES": 1000,
             },
         }
     }
@@ -300,6 +318,10 @@ LOGGING = {
         },
     },
     'handlers': {
+        'celery': {
+            'class': 'logging.StreamHandler',
+            'formatter': LOGGING_FORMATTER
+        },
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': LOGGING_FORMATTER
@@ -320,6 +342,11 @@ LOGGING = {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
         },
+        'celery': {
+            'handlers': LOGGING_HANDLERS,
+            'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
+        },
         'koku': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
@@ -339,6 +366,7 @@ LOGGING = {
         'masu': {
             'handlers': LOGGING_HANDLERS,
             'level': KOKU_LOGGING_LEVEL,
+            'propagate': False,
         },
         'sources': {
             'handlers': LOGGING_HANDLERS,
@@ -384,7 +412,7 @@ CORS_ALLOW_HEADERS = default_headers + (
 APPEND_SLASH = False
 
 # disable log messages less than CRITICAL when running unit tests.
-if len(sys.argv) > 1 and sys.argv[1] == 'test':
+if len(sys.argv) > 1 and sys.argv[1] == 'test' and not DEBUG:
     logging.disable(logging.CRITICAL)
 
 # Masu API Endpoints
@@ -402,12 +430,25 @@ RABBITMQ_PORT = os.getenv('RABBITMQ_PORT', '5672')
 
 CELERY_BROKER_URL = f'amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}'
 CELERY_IMPORTS = ('masu.processor.tasks', 'masu.celery.tasks',)
-BROKER_POOL_LIMIT = None
-CELERYD_CONCURRENCY = 2
-CELERYD_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_POOL_LIMIT = None
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_WORKER_CONCURRENCY = 2
+
 
 # AWS S3 Bucket Settings
 S3_BUCKET_NAME = ENVIRONMENT.get_value('S3_BUCKET_NAME', default='koku-reports')
 S3_BUCKET_PATH = ENVIRONMENT.get_value('S3_BUCKET_PATH', default='data_archive')
 S3_REGION = ENVIRONMENT.get_value('S3_REGION', default='us-east-1')
 ENABLE_S3_ARCHIVING = ENVIRONMENT.get_value('ENABLE_S3_ARCHIVING', default=True)
+
+# Time to wait between cold storage retrieval for data export. Default is 3 hours
+COLD_STORAGE_RETRIVAL_WAIT_TIME = int(os.getenv('COLD_STORAGE_RETRIVAL_WAIT_TIME', default='10800'))
+
+# Sources Client API Endpoints
+KOKU_SOURCES_CLIENT_HOST = ENVIRONMENT.get_value('KOKU_SOURCES_CLIENT_HOST',
+                                                 default='localhost')
+KOKU_SOURCES_CLIENT_PORT = ENVIRONMENT.get_value('KOKU_SOURCES_CLIENT_PORT',
+                                                 default='4000')
+SOURCES_CLIENT_BASE_URL = 'http://{}:{}{}/v1'.format(KOKU_SOURCES_CLIENT_HOST,
+                                                     KOKU_SOURCES_CLIENT_PORT,
+                                                     API_PATH_PREFIX)

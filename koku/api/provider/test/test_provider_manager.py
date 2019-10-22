@@ -20,14 +20,16 @@ import logging
 from unittest.mock import patch
 
 from dateutil import parser
+from django.http import HttpRequest, QueryDict
 from providers.provider_access import ProviderAccessor, ProviderAccessorError
+from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
 from api.iam.models import Customer
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics.models import CostModelMetricsMap
-from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource
+from api.provider.models import Provider, ProviderAuthentication, ProviderBillingSource, Sources
 from api.provider.provider_manager import ProviderManager, ProviderManagerError
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
@@ -60,6 +62,28 @@ class ProviderManagerTest(IamTestCase):
         serializer = UserSerializer(data=self.user_data, context=self.request_context)
         if serializer.is_valid(raise_exception=True):
             self.user = serializer.save()
+
+    @staticmethod
+    def _create_delete_request(user, headers={}):
+        """Delete HTTP request."""
+        django_request = HttpRequest()
+        qd = QueryDict(mutable=True)
+        django_request.DELETE = qd
+        request = Request(django_request)
+        request.user = user
+        request.headers = headers
+        return request
+
+    @staticmethod
+    def _create_put_request(user, headers={}):
+        """Delete HTTP request."""
+        django_request = HttpRequest()
+        qd = QueryDict(mutable=True)
+        django_request.PUT = qd
+        request = Request(django_request)
+        request.user = user
+        request.headers = headers
+        return request
 
     def test_get_name(self):
         """Can the provider name be returned."""
@@ -154,7 +178,8 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
-            manager.remove(other_user)
+            manager.remove(self._create_delete_request(other_user))
+
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         auth_count = ProviderAuthentication.objects.count()
         billing_count = ProviderBillingSource.objects.count()
@@ -194,7 +219,7 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
-            manager.remove(other_user)
+            manager.remove(self._create_delete_request(other_user))
         auth_count = ProviderAuthentication.objects.count()
         billing_count = ProviderBillingSource.objects.count()
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
@@ -242,11 +267,56 @@ class ProviderManagerTest(IamTestCase):
             manager.create(**ocp_data)
 
             manager = ProviderManager(provider_uuid)
-            manager.remove(other_user)
+            manager.remove(self._create_delete_request(other_user))
             cost_model_query = CostModelMap.objects.all().filter(provider_uuid=provider_uuid)
             self.assertFalse(cost_model_query)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
         self.assertFalse(provider_query)
+
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_remove_ocp_added_via_sources(self, mock_delete_report):
+        """Remove ocp provider added via sources."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        sources = Sources.objects.create(source_id=1,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         koku_uuid=provider_uuid)
+        sources.save()
+        delete_request = self._create_delete_request(self.user, {'Sources-Client': 'True'})
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            manager.remove(delete_request)
+        provider_query = Provider.objects.all().filter(uuid=provider_uuid)
+        self.assertFalse(provider_query)
+
+    @patch('api.provider.provider_manager.ProviderManager._delete_report_data')
+    def test_direct_remove_ocp_added_via_sources(self, mock_delete_report):
+        """Remove ocp provider added via sources directly."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        sources = Sources.objects.create(source_id=1,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         koku_uuid=provider_uuid)
+        sources.save()
+        delete_request = self._create_delete_request(self.user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            with self.assertRaises(ProviderManagerError):
+                manager.remove(delete_request)
 
     @patch('api.provider.provider_manager.requests.delete')
     def test_delete_report_data(self, mock_delete):
@@ -274,6 +344,42 @@ class ProviderManagerTest(IamTestCase):
         with self.assertLogs('api.provider.provider_manager', level='INFO') as logger:
             manager._delete_report_data()
             self.assertIn(expected_message, logger.output)
+
+    def test_update_ocp_added_via_sources(self):
+        """Raise error on update to ocp provider added via sources."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        sources = Sources.objects.create(source_id=1,
+                                         auth_header='testheader',
+                                         offset=1,
+                                         koku_uuid=provider_uuid)
+        sources.save()
+        put_request = self._create_put_request(self.user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            with self.assertRaises(ProviderManagerError):
+                manager.update(put_request)
+
+    def test_update_ocp_not_added_via_sources(self):
+        """Return None on update to ocp provider not added via sources."""
+        # Create Provider
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        provider_uuid = provider.uuid
+
+        put_request = self._create_put_request(self.user)
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            self.assertIsNone(manager.update(put_request))
 
     def test_provider_statistics(self):
         """Test that the provider statistics method returns report stats."""

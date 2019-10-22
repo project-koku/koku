@@ -192,6 +192,8 @@ class ReportObjectCreator:
                                    report_period,
                                    report,
                                    resource_id=None,
+                                   pod=None,
+                                   namespace=None,
                                    null_cpu_usage=False):
         """Create an OCP usage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -208,10 +210,14 @@ class ReportObjectCreator:
         data['report_id'] = report.id
         if null_cpu_usage:
             data['pod_usage_cpu_core_seconds'] = None
+        if pod:
+            data['pod'] = pod
+        if namespace:
+            data['namespace'] = namespace
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_ocp_storage_line_item(self, report_period, report):
+    def create_ocp_storage_line_item(self, report_period, report, pod=None, namespace=None):
         """Create an OCP storage line item database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['storage_line_item']
         data = self.create_columns_for_table(table_name)
@@ -222,6 +228,10 @@ class ReportObjectCreator:
 
         data['report_period_id'] = report_period.id
         data['report_id'] = report.id
+        if pod:
+            data['pod'] = pod
+        if namespace:
+            data['namespace'] = namespace
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
@@ -281,7 +291,7 @@ class ReportObjectCreator:
             return dt
         return timezone.make_aware(dt)
 
-    def create_cost_model(self, provider_uuid, source_type, rates):
+    def create_cost_model(self, provider_uuid, source_type, rates=[], markup={}):
         """Create an OCP rate database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['cost_model']
         cost_model_map = OCP_REPORT_TABLE_MAP['cost_model_map']
@@ -293,7 +303,8 @@ class ReportObjectCreator:
             'name': self.fake.pystr()[:8],
             'description': self.fake.pystr(),
             'source_type': source_type,
-            'rates': rates
+            'rates': rates,
+            'markup': markup
         }
 
 
@@ -327,23 +338,28 @@ class ReportObjectCreator:
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_awscostentrylineitem_daily_summary(self, account_id, schema):
-        """Create an ocpawscostlineitem_project_daily_summary( object for test."""
+    def create_awscostentrylineitem_daily_summary(
+        self, account_id, schema, cost_entry_bill, usage_date=None
+    ):
+        """Create reporting_awscostentrylineitem_daily_summary object for test."""
         table_name = AWS_CUR_TABLE_MAP['line_item_daily_summary']
         data = self.create_columns_for_table(table_name)
+        if usage_date is None:
+            usage_date = self.fake.past_datetime()
 
         with AccountAliasAccessor(account_id, schema) as accessor:
             account_alias = accessor._get_db_obj_query().first()
             data = {
                 'account_alias_id': account_alias.id,
-                'cost_entry_bill': self.create_cost_entry_bill(),
-                'usage_start': self.make_datetime_aware(self.fake.past_datetime()),
+                'cost_entry_bill': cost_entry_bill,
+                'usage_start': self.make_datetime_aware(usage_date),
                 'product_code': self.fake.pystr()[:8],
                 'usage_account_id': self.fake.pystr()[:8]
             }
 
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
-            return accessor.create_db_object(table_name, data)
+            obj = accessor.create_db_object(table_name, data)
+        return obj
 
     def create_azure_cost_entry_bill(self, provider_id, bill_date=None):
         """Create an Azure cost entry bill database object for test."""

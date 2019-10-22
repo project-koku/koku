@@ -26,13 +26,12 @@ from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
-from api.provider.models import Provider
+from api.provider.models import Provider, Sources
 from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting_common.models import CostUsageReportManifest, CostUsageReportStatus
-
 
 DATE_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 LOG = logging.getLogger(__name__)
@@ -55,7 +54,12 @@ class ProviderManager:
         try:
             self.model = Provider.objects.get(uuid=self._uuid)
         except (ObjectDoesNotExist, ValidationError) as e:
-            raise(ProviderManagerError(str(e)))
+            raise (ProviderManagerError(str(e)))
+        try:
+            self.sources_model = Sources.objects.get(koku_uuid=self._uuid)
+        except ObjectDoesNotExist:
+            self.sources_model = None
+            LOG.info(f'Provider {str(self._uuid)} has no Sources entry.')
 
     @staticmethod
     def get_providers_queryset_for_customer(customer):
@@ -105,8 +109,8 @@ class ProviderManager:
 
     def provider_statistics(self, tenant=None):
         """Return a json object of provider report statistics."""
-        manifest_months_query = CostUsageReportManifest.objects\
-            .filter(provider=self.model).distinct('billing_period_start_datetime')\
+        manifest_months_query = CostUsageReportManifest.objects \
+            .filter(provider=self.model).distinct('billing_period_start_datetime') \
             .order_by('billing_period_start_datetime').all()
 
         months = []
@@ -118,8 +122,8 @@ class ProviderManager:
             stats_key = str(month.date())
             provider_stats[stats_key] = []
             month_stats = []
-            stats_query = CostUsageReportManifest.objects.\
-                filter(provider=self.model, billing_period_start_datetime=month).\
+            stats_query = CostUsageReportManifest.objects. \
+                filter(provider=self.model, billing_period_start_datetime=month). \
                 order_by('manifest_creation_datetime')
 
             for provider_manifest in stats_query.reverse()[:3]:
@@ -132,10 +136,10 @@ class ProviderManager:
                 last_process_start_date = None
                 last_process_complete_date = None
                 if report_status and report_status.last_started_datetime:
-                    last_process_start_date = report_status.\
+                    last_process_start_date = report_status. \
                         last_started_datetime.strftime(DATE_TIME_FORMAT)
                 if report_status and report_status.last_completed_datetime:
-                    last_process_complete_date = report_status.\
+                    last_process_complete_date = report_status. \
                         last_completed_datetime.strftime(DATE_TIME_FORMAT)
                 status['last_process_start_date'] = last_process_start_date
                 status['last_process_complete_date'] = last_process_complete_date
@@ -149,16 +153,27 @@ class ProviderManager:
 
         return provider_stats
 
+    def update(self, request):
+        """Check if provider is a sources model."""
+        if self.sources_model and not request.headers.get('Sources-Client'):
+            err_msg = f'Provider {self._uuid} must be deleted via Sources Integration Service'
+            raise ProviderManagerError(err_msg)
+
     @transaction.atomic
-    def remove(self, current_user, customer_remove_context=False):
+    def remove(self, request, customer_remove_context=False):
         """Remove the provider with current_user."""
+        current_user = request.user
+        if self.sources_model and not request.headers.get('Sources-Client'):
+            err_msg = f'Provider {self._uuid} must be deleted via Sources Integration Service'
+            raise ProviderManagerError(err_msg)
+
         if self.is_removable_by_user(current_user):
             authentication_model = self.model.authentication
             billing_source = self.model.billing_source
             provider_rate_objs = CostModelMap.objects.filter(provider_uuid=self._uuid)
-            auth_count = Provider.objects.exclude(uuid=self._uuid)\
+            auth_count = Provider.objects.exclude(uuid=self._uuid) \
                 .filter(authentication=authentication_model).count()
-            billing_count = Provider.objects.exclude(uuid=self._uuid)\
+            billing_count = Provider.objects.exclude(uuid=self._uuid) \
                 .filter(billing_source=billing_source).count()
             # Multiple providers can use the same role or bucket.
             # This will only delete the associated records if it is the

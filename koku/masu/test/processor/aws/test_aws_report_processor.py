@@ -173,12 +173,17 @@ class AWSReportProcessorTest(MasuTestCase):
             counts[table_name] = count
 
         bill_date = self.manifest.billing_period_start_datetime.date()
-        expected = f'INFO:masu.processor.aws.aws_report_processor:Deleting data for schema: acct10001 and bill date: {bill_date}'
+        expected = (
+            f'INFO:masu.processor.report_processor_base:Deleting data for:\n'
+            f' schema_name: acct10001\n'
+            f' provider_id: {self.aws_provider.id}\n'
+            f' bill date: {bill_date}'
+        )
         logging.disable(
             logging.NOTSET
         )  # We are currently disabling all logging below CRITICAL in masu/__init__.py
         with self.assertLogs(
-            'masu.processor.aws.aws_report_processor', level='INFO'
+            'masu.processor.report_processor_base', level='INFO'
         ) as logger:
             processor.process()
             self.assertIn(expected, logger.output)
@@ -903,7 +908,6 @@ class AWSReportProcessorTest(MasuTestCase):
             f.close()
             if (
                 not item['file'].startswith(manifest_data.get('assemblyId'))
-                and item['processed_date']
             ):
                 expected_delete_list.append(path)
 
@@ -967,7 +971,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
         processor.process()
-        result = processor._delete_line_items()
+        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
 
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
@@ -989,7 +993,7 @@ class AWSReportProcessorTest(MasuTestCase):
             manifest_id=self.manifest.id,
         )
         processor.process()
-        result = processor._delete_line_items()
+        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():
@@ -1006,7 +1010,7 @@ class AWSReportProcessorTest(MasuTestCase):
             provider_id=self.aws_provider.id,
         )
         processor.process()
-        result = processor._delete_line_items()
+        result = processor._delete_line_items(AWSReportDBAccessor, self.column_map)
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills()
             for bill_id in bills.values():

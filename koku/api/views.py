@@ -23,6 +23,9 @@ from api.iam.view.user_preference import UserPreferenceViewSet
 from api.metrics.views import CostModelMetricsMapViewSet
 from api.openapi.view import openapi
 from api.provider.view import ProviderViewSet
+from api.report.azure.view import (AzureCostView,
+                                   AzureInstanceTypeView,
+                                   AzureStorageView)
 from api.report.aws.view import (AWSCostView,
                                  AWSInstanceTypeView,
                                  AWSStorageView)
@@ -35,5 +38,8 @@ from api.report.ocp_aws.view import (OCPAWSCostView,
                                      OCPAWSStorageView)
 from api.status.views import StatusView
 from api.tags.aws.view import AWSTagView
+from api.tags.azure.view import AzureTagView
 from api.tags.ocp.view import OCPTagView
-from api.tags.ocp_aws.views import OCPAWSTagView
+from api.tags.ocp_aws.view import OCPAWSTagView
+from api.sources.billing_source import billing_source
+from api.sources.authentication import authentication

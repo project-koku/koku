@@ -18,7 +18,7 @@ DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 # required OpenShift template parameters
 # if a value is defined in a parameter file, we try to use that.
 # otherwise, we use a default value
-NAME = $(or $(shell grep -h '^[^\#]*NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
+NAME = $(or $(shell grep -h '^NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
 NAMESPACE = $(or $(shell grep -h '^[^\#]*NAMESPACE=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
 
 OC_TEMPLATE_DIR = $(TOPDIR)/openshift
@@ -288,6 +288,17 @@ oc-create-masu:
 	$(OC_PARAMS) $(MAKE) __oc-apply-object
 	$(OC_PARAMS) $(MAKE) __oc-create-object
 
+oc-create-sources: OC_OBJECT := 'bc/$(NAME)-sources dc/$(NAME)-sources'
+oc-create-sources: OC_PARAMETER_FILE := sources.env
+oc-create-sources: OC_TEMPLATE_FILE := sources.yaml
+oc-create-sources: OC_PARAMS := OC_OBJECT=$(OC_OBJECT) OC_PARAMETER_FILE=$(OC_PARAMETER_FILE) OC_TEMPLATE_FILE=$(OC_TEMPLATE_FILE)
+oc-create-sources:
+	$(OC_PARAMS) $(MAKE) oc-create-imagestream
+	$(OC_PARAMS) $(MAKE) oc-create-configmap
+	$(OC_PARAMS) $(MAKE) oc-create-secret
+	$(OC_PARAMS) $(MAKE) __oc-apply-object
+	$(OC_PARAMS) $(MAKE) __oc-create-object
+
 oc-create-rabbitmq: OC_OBJECT := statefulsets/rabbitmq
 oc-create-rabbitmq: OC_PARAMETER_FILE := rabbitmq.env
 oc-create-rabbitmq: OC_TEMPLATE_FILE := rabbitmq.yaml
@@ -429,6 +440,12 @@ docker-up:
 
 docker-up-db:
 	docker-compose up -d db
+
+docker-iqe-smokes-tests:
+	./testing/run_smoke_tests.sh
+
+docker-iqe-api-tests:
+	./testing/run_api_tests.sh
 
 ########################
 ### Internal targets ###

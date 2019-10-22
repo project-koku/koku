@@ -22,6 +22,9 @@ import json
 import logging
 from os import listdir
 
+from tenant_schemas.utils import schema_context
+
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
 from masu.processor import ALLOWED_COMPRESSIONS
@@ -38,7 +41,7 @@ class ReportProcessorBase():
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, schema_name, report_path, compression, provider_id, processed_report):
+    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id, processed_report):
         """Initialize the report processor base class.
 
         Args:
@@ -56,6 +59,7 @@ class ReportProcessorBase():
         self._report_path = report_path
         self._compression = compression.upper()
         self._provider_id = provider_id
+        self._manifest_id = manifest_id
         self.processed_report = processed_report
 
     def _get_data_for_table(self, row, table_name):
@@ -119,6 +123,37 @@ class ReportProcessorBase():
             csv_file,
             temp_table,
             columns)
+
+    def _delete_line_items(self, db_accessor, column_map):
+        """Delete stale data for the report being processed, if necessary."""
+        if not self.manifest_id:
+            return False
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            if manifest.num_processed_files != 0:
+                return False
+            # Override the bill date to correspond with the manifest
+            bill_date = manifest.billing_period_start_datetime.date()
+            provider_id = manifest.provider_id
+
+        stmt = (
+            f'Deleting data for:\n'
+            f' schema_name: {self._schema_name}\n'
+            f' provider_id: {provider_id}\n'
+            f' bill date: {str(bill_date)}'
+        )
+        LOG.info(stmt)
+
+        with db_accessor(self._schema_name, column_map) as accessor:
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            bills = bills.filter(billing_period_start=bill_date).all()
+            with schema_context(self._schema_name):
+                for bill in bills:
+                    line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    line_item_query.delete()
+
+        return True
 
     @staticmethod
     def remove_temp_cur_files(report_path):

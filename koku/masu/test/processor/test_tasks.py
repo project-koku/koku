@@ -122,12 +122,12 @@ class GetReportFileTests(MasuTestCase):
         """Test task for logging when temp directory does not exist."""
         logging.disable(logging.NOTSET)
 
-        Config.TMP_DIR = '/this/path/does/not/exist'
+        Config.PVC_DIR = '/this/path/does/not/exist'
 
         account = fake_arn(service='iam', generate_account_id=True)
         expected = (
             'INFO:masu.processor._tasks.download:Unable to find'
-            + f' available disk space. {Config.TMP_DIR} does not exist'
+            + f' available disk space. {Config.PVC_DIR} does not exist'
         )
         with self.assertLogs('masu.processor._tasks.download', level='INFO') as logger:
             _get_report_files(
@@ -256,13 +256,14 @@ class GetReportFileTests(MasuTestCase):
 class ProcessReportFileTests(MasuTestCase):
     """Test Cases for the Orchestrator object."""
 
+    @patch('masu.processor._tasks.process.ProviderDBAccessor')
     @patch('masu.processor._tasks.process.ReportProcessor')
     @patch('masu.processor._tasks.process.ReportStatsDBAccessor')
     @patch('masu.processor._tasks.process.ReportManifestDBAccessor')
-    def test_process_file(
-        self, mock_manifest_accessor, mock_stats_accessor, mock_processor
+    def test_process_file_initial_ingest(
+        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
     ):
-        """Test the process_report_file functionality."""
+        """Test the process_report_file functionality on initial ingest."""
         report_dir = tempfile.mkdtemp()
         path = '{}/{}'.format(report_dir, 'file1.csv')
         schema_name = self.schema
@@ -277,13 +278,52 @@ class ProcessReportFileTests(MasuTestCase):
         mock_proc = mock_processor()
         mock_stats_acc = mock_stats_accessor().__enter__()
         mock_manifest_acc = mock_manifest_accessor().__enter__()
+        mock_provider_acc = mock_provider_accessor().__enter__()
+        mock_provider_acc.get_setup_complete.return_value = False
 
         _process_report_file(schema_name, provider, provider_uuid, report_dict)
 
         mock_proc.process.assert_called()
+        mock_proc.remove_processed_files.assert_not_called()
         mock_stats_acc.log_last_started_datetime.assert_called()
         mock_stats_acc.log_last_completed_datetime.assert_called()
         mock_manifest_acc.mark_manifest_as_updated.assert_called()
+        mock_provider_acc.setup_complete.assert_called()
+        shutil.rmtree(report_dir)
+
+    @patch('masu.processor._tasks.process.ProviderDBAccessor')
+    @patch('masu.processor._tasks.process.ReportProcessor')
+    @patch('masu.processor._tasks.process.ReportStatsDBAccessor')
+    @patch('masu.processor._tasks.process.ReportManifestDBAccessor')
+    def test_process_file_non_initial_ingest(
+        self, mock_manifest_accessor, mock_stats_accessor, mock_processor, mock_provider_accessor
+    ):
+        """Test the process_report_file functionality on non-initial ingest."""
+        report_dir = tempfile.mkdtemp()
+        path = '{}/{}'.format(report_dir, 'file1.csv')
+        schema_name = self.schema
+        provider = 'AWS'
+        provider_uuid = self.aws_test_provider_uuid
+        report_dict = {
+            'file': path,
+            'compression': 'gzip',
+            'start_date': str(DateAccessor().today()),
+        }
+
+        mock_proc = mock_processor()
+        mock_stats_acc = mock_stats_accessor().__enter__()
+        mock_manifest_acc = mock_manifest_accessor().__enter__()
+        mock_provider_acc = mock_provider_accessor().__enter__()
+        mock_provider_acc.get_setup_complete.return_value = True
+
+        _process_report_file(schema_name, provider, provider_uuid, report_dict)
+
+        mock_proc.process.assert_called()
+        mock_proc.remove_processed_files.assert_called()
+        mock_stats_acc.log_last_started_datetime.assert_called()
+        mock_stats_acc.log_last_completed_datetime.assert_called()
+        mock_manifest_acc.mark_manifest_as_updated.assert_called()
+        mock_provider_acc.setup_complete.assert_called()
         shutil.rmtree(report_dir)
 
     @patch('masu.processor._tasks.process.ReportProcessor')
@@ -561,7 +601,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         ]
         fake_remover.return_value = expected_results
 
-        expected = 'INFO:masu.processor._tasks.remove_expired:Expired Data: {}'
+        expected = 'INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}'
 
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
@@ -731,21 +771,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch('masu.processor.tasks.update_cost_summary_table')
     @patch('masu.processor.tasks.update_charge_info')
-    @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates'
-    )
-    @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates'
-    )
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor._make_rate_by_metric_map')
+    @patch('masu.database.cost_model_db_accessor.CostModelDBAccessor.get_markup')
     def test_update_summary_tables_ocp(
-        self, mock_cpu_rate, mock_mem_rate, mock_charge_info, mock_cost_summary
+        self, mock_markup, mock_rate_map, mock_charge_info, mock_cost_summary
     ):
         """Test that the summary table task runs."""
+        markup = {}
         mem_rate = {'tiered_rates': [{'value': '1.5', 'unit': 'USD'}]}
         cpu_rate = {'tiered_rates': [{'value': '2.5', 'unit': 'USD'}]}
+        rate_metric_map = {'cpu_core_usage_per_hour': cpu_rate, 'memory_gb_usage_per_hour': mem_rate}
 
-        mock_cpu_rate.return_value = cpu_rate
-        mock_mem_rate.return_value = mem_rate
+        mock_markup.return_value = markup
+        mock_rate_map.return_value = rate_metric_map
 
         provider = 'OCP'
         provider_ocp_uuid = self.ocp_test_provider_uuid
@@ -796,9 +834,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.assertIsNotNone(item.volume_request_storage_byte_seconds)
                 self.assertIsNotNone(item.persistentvolumeclaim_usage_byte_seconds)
 
-            storage_summary_name = OCP_REPORT_TABLE_MAP['storage_line_item_daily_summary']
+            storage_summary_name = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
             items = self.ocp_accessor._get_db_obj_query(storage_summary_name).filter(
-                cluster_id=cluster_id
+                cluster_id=cluster_id,
+                data_source='Storage'
             )
             for item in items:
                 self.assertIsNotNone(item.volume_request_storage_gigabyte_months)
@@ -809,10 +848,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
     @patch('masu.processor.tasks.update_charge_info')
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_memory_gb_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates'
     )
     @patch(
-        'masu.database.ocp_rate_db_accessor.OCPRateDBAccessor.get_cpu_core_usage_per_hour_rates'
+        'masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates'
     )
     def test_update_summary_tables_ocp_end_date(
         self, mock_cpu_rate, mock_mem_rate, mock_charge_info
@@ -885,6 +924,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             day=1, hour=0, minute=0, second=0, microsecond=0
         ) + relativedelta.relativedelta(months=-1)
 
-        update_cost_summary_table(self.schema, provider_aws_uuid, None)
+        update_cost_summary_table(self.schema, provider_aws_uuid, start_date=start_date)
 
         mock_update.assert_called()

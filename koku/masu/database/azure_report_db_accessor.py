@@ -20,6 +20,8 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db.models import F
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -27,6 +29,8 @@ from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.azure.models import (AzureCostEntryBill,
+                                             AzureCostEntryLineItemDaily,
+                                             AzureCostEntryLineItemDailySummary,
                                              AzureCostEntryProductService,
                                              AzureMeter)
 
@@ -50,6 +54,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         self.column_map = column_map
         self._schema_name = schema
         self.date_accessor = DateAccessor()
+        self.jinja_sql = JinjaSql()
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -113,13 +118,18 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_azurecostentrylineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date, cost_entry_bill_ids=','.join(bill_ids),
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     # pylint: disable=invalid-name
     def populate_tags_summary_table(self):
@@ -130,8 +140,12 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_azuretags_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {'schema': self.schema}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(
+            agg_sql, agg_sql_params
+        )
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def get_cost_entry_bills_by_date(self, start_date):
         """Return a cost entry bill for the specified start date."""
@@ -139,3 +153,39 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name)\
                 .filter(billing_period_start=start_date)
+
+    def populate_markup_cost(self, markup, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids:
+                for bill_id in bill_ids:
+                    AzureCostEntryLineItemDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(markup_cost=(F('pretax_cost') * markup))
+            else:
+                AzureCostEntryLineItemDailySummary.objects.\
+                    update(markup_cost=(F('pretax_cost') * markup))
+
+    def get_bill_query_before_date(self, date):
+        """Get the cost entry bill objects with billing period before provided date."""
+        table_name = AzureCostEntryBill
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            cost_entry_bill_query = base_query.filter(billing_period_start__lte=date)
+            return cost_entry_bill_query
+
+    def get_lineitem_query_for_billid(self, bill_id):
+        """Get the Azure cost entry line item for a given bill query."""
+        table_name = AzureCostEntryLineItemDaily
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            line_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return line_item_query
+
+    def get_summary_query_for_billid(self, bill_id):
+        """Get the Azure cost summary item for a given bill query."""
+        table_name = AzureCostEntryLineItemDailySummary
+        with schema_context(self.schema):
+            base_query = self._get_db_obj_query(table_name)
+            summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
+            return summary_item_query

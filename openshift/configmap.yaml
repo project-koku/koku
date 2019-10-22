@@ -54,6 +54,10 @@ objects:
     s3-glacier-transition: ${S3_GLACIER_TRANSITION}
     enable-s3-archiving: "True"
 
+    # Sources Client
+    sources-host: ${KOKU_SOURCES_CLIENT_HOST}
+    sources-port: ${KOKU_SOURCES_CLIENT_PORT}
+
 # logging configs
 - kind: ConfigMap
   apiVersion: v1
@@ -112,7 +116,7 @@ objects:
     name: ${NAME}-messaging
   data:
     rabbitmq-host: ${RABBITMQ_HOST}
-    worker-queues: "celery,download,remove_expired,reporting,process,upload"
+    worker-queues: "celery,download,remove_expired,reporting,process,upload,customer_data_sync"
     kafka-connect: "True"
     kafka-host: ${KAFKA_HOST}
     kafka-port: ${KAFKA_PORT}
@@ -130,6 +134,18 @@ objects:
     rbac-cache-ttl: "30"
     redis-host: ${REDIS_HOST}
     redis-port: ${REDIS_PORT}
+
+# Platform Sources configs
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: ${NAME}-sources
+  data:
+    koku-host: ${KOKU_HOST}
+    koku-port: ${KOKU_PORT}
+    sources-kafka-topic: ${SOURCES_KAFKA_TOPIC}
+    sources-host: ${SOURCES_API_HOST}
+    sources-port: ${SOURCES_API_PORT}
 
 # monitoring configs
 - kind: ConfigMap
@@ -160,6 +176,21 @@ parameters:
   name: KAFKA_PORT
   required: true
   value: "29092"
+- description: Platform Sources Kafka Topic
+  displayName: Sources Kafka topic
+  name: SOURCES_KAFKA_TOPIC
+  required: true
+  value: "platform.sources.event-stream"
+- description: Hostname for Sources API service
+  displayName: Sources host
+  name: SOURCES_API_HOST
+  required: true
+  value: localhost
+- description: Port number for Sources service
+  displayName: Sources port
+  name: SOURCES_API_PORT
+  required: true
+  value: "3000"
 - description: Hostname for Redis service
   displayName: Redis host
   name: REDIS_HOST
@@ -193,6 +224,26 @@ parameters:
 - description: Port number for Masu service
   displayName: Masu port
   name: MASU_PORT
+  required: true
+  value: "8080"
+- description: Hostname for Sources Client service
+  displayName: Sources Client host
+  name: KOKU_SOURCES_CLIENT_HOST
+  required: true
+  value: koku-sources.koku.svc.cluster.local
+- description: Port number for Sources Client service
+  displayName: Sources Client host port
+  name: KOKU_SOURCES_CLIENT_PORT
+  required: true
+  value: "8080"
+- description: Hostname for Koku service
+  displayName: Koku host
+  name: KOKU_HOST
+  required: true
+  value: koku.koku.svc.cluster.local
+- description: Port number for Koku service
+  displayName: Koku port
+  name: KOKU_PORT
   required: true
   value: "8080"
 - description: Hostname for RBAC Auth service

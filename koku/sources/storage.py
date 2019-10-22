@@ -26,17 +26,47 @@ class SourcesStorageError(Exception):
     """Sources Storage error."""
 
 
+def _aws_provider_ready_for_create(provider):
+    """Determine if AWS provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and provider.authentication
+            and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _ocp_provider_ready_for_create(provider):
+    """Determine if OCP provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.authentication
+            and provider.auth_header and not provider.koku_uuid):
+        return True
+    return False
+
+
+def _azure_provider_ready_for_create(provider):
+    """Determine if AZURE provider is ready for provider creation."""
+    if (provider.source_id and provider.name and provider.auth_header
+            and provider.billing_source and not provider.koku_uuid):
+        billing_source = provider.billing_source.get('data_source', {})
+
+        authentication = provider.authentication.get('credentials', {})
+        required_auth_keys = ['client_id', 'tenant_id', 'client_secret', 'subscription_id']
+        required_billing_keys = ['resource_group', 'storage_account']
+        if set(billing_source.keys()) == set(required_billing_keys)\
+                and set(authentication.keys()) == set(required_auth_keys):
+            return True
+    return False
+
+
 def screen_and_build_provider_sync_create_event(provider):
     """Determine if the source should be queued for synchronization."""
     provider_event = {}
-    if provider.source_type == 'AWS':
-        if (provider.source_id and provider.name and provider.auth_header
-                and provider.billing_source and not provider.koku_uuid):
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
-    else:
-        if (provider.source_id and provider.name
-                and provider.auth_header and not provider.koku_uuid):
-            provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
+    screen_map = {'AWS': _aws_provider_ready_for_create,
+                  'OCP': _ocp_provider_ready_for_create,
+                  'AZURE': _azure_provider_ready_for_create}
+    screen_fn = screen_map.get(provider.source_type)
+    if screen_fn and screen_fn(provider):
+        provider_event = {'operation': 'create', 'provider': provider, 'offset': provider.offset}
     return provider_event
 
 
@@ -66,6 +96,26 @@ def load_providers_to_create():
     return providers_to_create
 
 
+def load_providers_to_update():
+    """
+    Build a list of Sources have pending Koku Provider updates.
+
+    Args:
+        None
+
+    Returns:
+        [Dict] - List of events that can be processed by the synchronize_sources method.
+
+    """
+    providers_to_update = []
+    providers = Sources.objects.filter(pending_update=True, pending_delete=False,
+                                       koku_uuid__isnull=False).all()
+    for provider in providers:
+        providers_to_update.append({'operation': 'update', 'provider': provider})
+
+    return providers_to_update
+
+
 def load_providers_to_delete():
     """
     Build a list of Sources that need to be deleted from the Koku provider database.
@@ -92,7 +142,7 @@ def load_providers_to_delete():
     return providers_to_delete
 
 
-async def enqueue_source_delete(queue, source_id):
+def enqueue_source_delete(source_id):
     """
     Queues a source destroy event to be processed by the synchronize_sources method.
 
@@ -108,7 +158,46 @@ async def enqueue_source_delete(queue, source_id):
         source = Sources.objects.get(source_id=source_id)
         source.pending_delete = True
         source.save()
-        await queue.put({'operation': 'destroy', 'provider': source})
+    except Sources.DoesNotExist:
+        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+
+
+def enqueue_source_update(source_id):
+    """
+    Queues a source update event to be processed by the synchronize_sources method.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier.
+
+    Returns:
+        None
+
+    """
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if source.koku_uuid and not source.pending_delete:
+            source.pending_update = True
+            source.save(update_fields=['pending_update'])
+    except Sources.DoesNotExist:
+        LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
+
+
+def clear_update_flag(source_id):
+    """
+    Clear pending update flag after successfully updating Koku provider.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier.
+
+    Returns:
+        None
+
+    """
+    try:
+        source = Sources.objects.get(source_id=source_id)
+        if source.koku_uuid:
+            source.pending_update = False
+            source.save()
     except Sources.DoesNotExist:
         LOG.error('Unable to enqueue source delete.  %s not found.', str(source_id))
 
@@ -119,7 +208,7 @@ def create_provider_event(source_id, auth_header, offset):
 
     Args:
         source_id (Integer) - Platform-Sources identifier
-        auth_header (String) - HTTP Authenticaiton Header
+        auth_header (String) - HTTP Authentication Header
         offset (Integer) - Kafka offset
 
     Returns:
@@ -158,7 +247,53 @@ def destroy_provider_event(source_id):
     return koku_uuid
 
 
-def add_provider_sources_network_info(source_id, name, source_type, authentication):
+def get_source_type(source_id):
+    """Get Source Type from Source ID."""
+    source_type = None
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        source_type = query.source_type
+    except Sources.DoesNotExist:
+        LOG.error('Unable to get Source Type.  Source ID: %s does not exist', str(source_id))
+    return source_type
+
+
+def get_source_from_endpoint(endpoint_id):
+    """Get Source ID from Endpoint ID."""
+    source_id = None
+    try:
+        query = Sources.objects.get(endpoint_id=endpoint_id)
+        source_id = query.source_id
+    except Sources.DoesNotExist:
+        LOG.debug('Unable to find Source ID from Endpoint ID: %s', str(endpoint_id))
+    return source_id
+
+
+def add_provider_sources_auth_info(source_id, authentication):
+    """
+    Add additional Sources information to a Source database object.
+
+    Args:
+        source_id (Integer) - Platform-Sources identifier
+        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
+
+    Returns:
+        None
+
+    """
+    try:
+        query = Sources.objects.get(source_id=source_id)
+        current_auth_dict = query.authentication
+        subscription_id = current_auth_dict.get('credentials', {}).get('subscription_id')
+        if subscription_id and authentication.get('credentials'):
+            authentication['credentials']['subscription_id'] = subscription_id
+        query.authentication = authentication
+        query.save()
+    except Sources.DoesNotExist:
+        LOG.error('Unable to add authentication details.  Source ID: %s does not exist', str(source_id))
+
+
+def add_provider_sources_network_info(source_id, name, source_type, endpoint_id):
     """
     Add additional Sources information to a Source database object.
 
@@ -166,7 +301,6 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         source_id (Integer) - Platform-Sources identifier
         name (String) - Source name
         source_type (String) - Source type. i.e. AWS, OCP, Azure
-        authentication (String) - OCP: Sources UID, AWS: RoleARN, etc.
 
     Returns:
         None
@@ -176,30 +310,96 @@ def add_provider_sources_network_info(source_id, name, source_type, authenticati
         query = Sources.objects.get(source_id=source_id)
         query.name = name
         query.source_type = source_type
-        query.authentication = authentication
+        query.endpoint_id = endpoint_id
         query.save()
     except Sources.DoesNotExist:
         LOG.error('Unable to add network details.  Source ID: %s does not exist', str(source_id))
 
 
-def add_provider_billing_source(source_id, billing_source):
+def get_query_from_api_data(request_data):
+    """Get database query based on request_data from API."""
+    source_id = request_data.get('source_id')
+    source_name = request_data.get('source_name')
+    if source_id and source_name:
+        raise SourcesStorageError('Expected either source_id or source_name, not both.')
+    try:
+        if source_id:
+            query = Sources.objects.get(source_id=source_id)
+        if source_name:
+            query = Sources.objects.get(name=source_name)
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
+    return query
+
+
+def add_subscription_id_to_credentials(request_data, subscription_id):
     """
-    Add AWS billing source to Sources database object.
+    Add AZURE subscription_id Sources database object.
 
     Args:
-        source_id (Integer) - Platform-Sources identifier
-        billign_source (String) - S3 bucket
+        request_data (dict) - Dictionary containing either source_id or source_name
+        subscription_id (String) - Subscription ID
 
     Returns:
         None
 
     """
     try:
-        query = Sources.objects.get(source_id=source_id)
-        if query.source_type != 'AWS':
-            raise SourcesStorageError('Source is not AWS.')
+        query = get_query_from_api_data(request_data)
+        if query.source_type not in ('AZURE',):
+            raise SourcesStorageError('Source is not AZURE.')
+        auth_dict = query.authentication
+        if not auth_dict.get('credentials'):
+            raise SourcesStorageError('Missing credentials key')
+        auth_dict['credentials']['subscription_id'] = subscription_id
+        query.authentication = auth_dict
+        if query.koku_uuid:
+            query.pending_update = True
+            query.save(update_fields=['authentication', 'pending_update'])
+        else:
+            query.save()
+    except Sources.DoesNotExist:
+        raise SourcesStorageError('Source does not exist')
+
+
+def _validate_billing_source(provider_type, billing_source):
+    """Validate billing source parameters."""
+    if provider_type == 'AWS':
+        if not billing_source.get('bucket'):
+            raise SourcesStorageError('Missing AWS bucket.')
+    elif provider_type == 'AZURE':
+        data_source = billing_source.get('data_source')
+        if not data_source:
+            raise SourcesStorageError('Missing AZURE data_source.')
+        if not data_source.get('resource_group'):
+            raise SourcesStorageError('Missing AZURE resource_group')
+        if not data_source.get('storage_account'):
+            raise SourcesStorageError('Missing AZURE storage_account')
+
+
+def add_provider_billing_source(request_data, billing_source):
+    """
+    Add AWS or AZURE billing source to Sources database object.
+
+    Args:
+        request_data (dict) - Dictionary containing either source_id or source_name
+        billing_source (String) - S3 bucket
+
+    Returns:
+        None
+
+    """
+    try:
+        query = get_query_from_api_data(request_data)
+        if query.source_type not in ('AWS', 'AZURE'):
+            raise SourcesStorageError('Source is not AWS nor AZURE.')
+        _validate_billing_source(query.source_type, billing_source)
         query.billing_source = billing_source
-        query.save()
+        if query.koku_uuid:
+            query.pending_update = True
+            query.save(update_fields=['billing_source', 'pending_update'])
+        else:
+            query.save()
     except Sources.DoesNotExist:
         raise SourcesStorageError('Source does not exist')
 

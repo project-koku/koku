@@ -1,5 +1,5 @@
 -- Place our query for data with no tags in a temporary table
-CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
+CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}} AS (
     SELECT li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
@@ -24,16 +24,21 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
         max(li.public_on_demand_rate) as public_on_demand_rate,
         array_agg(DISTINCT li.resource_id) as resource_ids,
         count(DISTINCT li.resource_id) as resource_count
-    FROM {schema}.reporting_awscostentrylineitem_daily AS li
-    JOIN {schema}.reporting_awscostentryproduct AS p
+    FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily AS li
+    JOIN {{schema | sqlsafe}}.reporting_awscostentryproduct AS p
         ON li.cost_entry_product_id = p.id
-    LEFT JOIN {schema}.reporting_awscostentrypricing as pr
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awscostentrypricing as pr
         ON li.cost_entry_pricing_id = pr.id
-    LEFT JOIN {schema}.reporting_awsaccountalias AS aa
+    LEFT JOIN {{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON li.usage_account_id = aa.account_id
-    WHERE date(li.usage_start) >= '{start_date}'
-        AND date(li.usage_start) <= '{end_date}'
-        {bill_id_where_clause}
+    WHERE date(li.usage_start) >= {{start_date}}
+        AND date(li.usage_start) <= {{end_date}}
+        {% if bill_ids %}
+        AND cost_entry_bill_id IN (
+            {%- for bill_id in bill_ids  -%}
+                {{bill_id}}{% if not loop.last %},{% endif %}
+            {%- endfor -%})
+        {% endif %}
     GROUP BY li.cost_entry_bill_id,
         li.usage_start,
         li.usage_end,
@@ -49,14 +54,19 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_summary_{uuid} AS (
 ;
 
 -- -- Clear out old entries first
-DELETE FROM {schema}.reporting_awscostentrylineitem_daily_summary AS li
-WHERE li.usage_start >= '{start_date}'
-    AND li.usage_start <= '{end_date}'
-    {bill_id_where_clause}
+DELETE FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary AS li
+WHERE li.usage_start >= {{start_date}}
+    AND li.usage_start <= {{end_date}}
+    {% if bill_ids %}
+    AND cost_entry_bill_id IN (
+        {%- for bill_id in bill_ids  -%}
+            {{bill_id}}{% if not loop.last %},{% endif %}
+        {%- endfor -%})
+    {% endif %}
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO {schema}.reporting_awscostentrylineitem_daily_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary (
     cost_entry_bill_id,
     usage_start,
     usage_end,
@@ -106,5 +116,5 @@ SELECT cost_entry_bill_id,
         public_on_demand_rate,
         resource_ids,
         resource_count
-    FROM reporting_awscostentrylineitem_daily_summary_{uuid}
+    FROM reporting_awscostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;

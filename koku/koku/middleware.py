@@ -46,7 +46,9 @@ unique_user_counter = Counter('hccm_unique_user',  # pylint: disable=invalid-nam
 def is_no_auth(request):
     """Check condition for needing to authenticate the user."""
     no_auth_list = ['status', 'metrics', 'openapi.json',
-                    'download', 'report_data', 'expired_data', 'update_charge', 'billing_source']
+                    'download', 'report_data', 'expired_data', 'update_charge',
+                    'upload_normalized_data',
+                    'authentication', 'billing_source']
     no_auth = any(no_auth_path in request.path for no_auth_path in no_auth_list)
     return no_auth
 
@@ -169,6 +171,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
         access = self.rbac.get_access_for_user(user)
         return access
 
+    # pylint: disable=too-many-locals
     def process_request(self, request):  # noqa: C901
         """Process request for csrf checks.
 
@@ -185,9 +188,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             email = json_rh_auth.get('identity', {}).get('user', {}).get('email')
             account = json_rh_auth.get('identity', {}).get('account_number')
             is_admin = json_rh_auth.get('identity', {}).get('user', {}).get('is_org_admin')
+            is_cost_management = json_rh_auth.get(
+                'entitlements', {}).get('cost_management', {}).get('is_entitled', False)
             is_hybrid_cloud = json_rh_auth.get(
                 'entitlements', {}).get('hybrid_cloud', {}).get('is_entitled', False)
-            if not is_hybrid_cloud:
+            if not is_hybrid_cloud and not is_cost_management:
                 raise PermissionDenied()
         except (KeyError, JSONDecodeError):
             logger.warning('Could not obtain identity on request.')
@@ -197,8 +202,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):  # pylint: disable=R0903
             query_string = ''
             if request.META['QUERY_STRING']:
                 query_string = '?{}'.format(request.META['QUERY_STRING'])
-            logger.info(f'API: {request.path}{query_string}'  # pylint: disable=W1203
-                        f' -- ACCOUNT: {account} USER: {username}')
+            stmt = (
+                f'API: {request.path}{query_string}'
+                f' -- ACCOUNT: {account} USER: {username}'
+            )
+            logger.info(stmt)
             try:
                 customer = Customer.objects.filter(account_id=account).get()
             except Customer.DoesNotExist:

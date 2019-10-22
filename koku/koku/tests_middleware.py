@@ -17,6 +17,7 @@
 """Test the project middleware."""
 from unittest.mock import Mock, patch
 
+from django.core.cache import caches
 from django.core.exceptions import PermissionDenied
 
 from api.iam.models import Customer, Tenant, User
@@ -158,7 +159,6 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         middleware.process_request(mock_request)
 
         user_uuid = mock_request.user.uuid
-        from django.core.cache import caches
         cache = caches['rbac']
         self.assertEqual(cache.get(user_uuid), mock_access)
 
@@ -174,7 +174,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
                                                        create_customer=True,
                                                        create_tenant=True,
                                                        is_admin=True,
-                                                       is_hybrid_cloud=False)
+                                                       is_cost_management=False)
         mock_request = request_context['request']
         mock_request.path = '/api/v1/providers/'
         mock_request.META['QUERY_STRING'] = ''

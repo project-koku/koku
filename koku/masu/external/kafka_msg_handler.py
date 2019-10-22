@@ -89,10 +89,10 @@ def extract_payload(url):
     # Create temporary directory for initial file staging and verification in the
     # OpenShift PVC directory so that any failures can be triaged in the event
     # the pod goes down.
-    os.makedirs(Config.TMP_DIR, exist_ok=True)
-    temp_dir = tempfile.mkdtemp(dir=Config.TMP_DIR)
+    os.makedirs(Config.PVC_DIR, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(dir=Config.PVC_DIR)
 
-    # Download file from quarntine bucket as tar.gz
+    # Download file from quarantine bucket as tar.gz
     try:
         download_response = requests.get(url)
         download_response.raise_for_status()
@@ -115,7 +115,7 @@ def extract_payload(url):
         mytar.extractall(path=temp_dir)
         files = mytar.getnames()
         manifest_path = [manifest for manifest in files if 'manifest.json' in manifest]
-    except ReadError as error:
+    except (ReadError, EOFError) as error:
         LOG.error('Unable to untar file. Reason: %s', str(error))
         shutil.rmtree(temp_dir)
         raise KafkaMsgHandlerError('Extraction failure.')
@@ -231,6 +231,7 @@ def handle_message(msg):
     if msg.topic == HCCM_TOPIC:
         value = json.loads(msg.value.decode('utf-8'))
         try:
+            LOG.info(f'Extracting Payload for msg: {str(msg)}')
             report_meta = extract_payload(value['url'])
             return SUCCESS_CONFIRM_STATUS, report_meta
         except KafkaMsgHandlerError as error:

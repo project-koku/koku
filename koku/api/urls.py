@@ -22,6 +22,10 @@ from api.views import (
     AWSInstanceTypeView,
     AWSStorageView,
     AWSTagView,
+    AzureCostView,
+    AzureInstanceTypeView,
+    AzureStorageView,
+    AzureTagView,
     CostModelMetricsMapViewSet,
     DataExportRequestViewSet,
     OCPAWSCostView,
@@ -36,6 +40,8 @@ from api.views import (
     ProviderViewSet,
     StatusView,
     UserPreferenceViewSet,
+    authentication,
+    billing_source,
     openapi
 )
 
@@ -48,9 +54,11 @@ ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
 
 # pylint: disable=invalid-name
 urlpatterns = [
+
     url(r'^status/$', StatusView.as_view(), name='server-status'),
     url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
+    url(r'^tags/azure/$', AzureTagView.as_view(), name='azure-tags'),
     url(r'^tags/openshift/$', OCPTagView.as_view(), name='openshift-tags'),
     url(r'^tags/openshift/infrastructures/aws/$', OCPAWSTagView.as_view(),
         name='openshift-aws-tags'),
@@ -59,6 +67,11 @@ urlpatterns = [
         name='reports-aws-instance-type'),
     url(r'^reports/aws/storage/$', AWSStorageView.as_view(),
         name='reports-aws-storage'),
+    url(r'^reports/azure/costs/$', AzureCostView.as_view(), name='reports-azure-costs'),
+    url(r'^reports/azure/instance-types/$', AzureInstanceTypeView.as_view(),
+        name='reports-azure-instance-type'),
+    url(r'^reports/azure/storage/$', AzureStorageView.as_view(),
+        name='reports-azure-storage'),
     url(r'^reports/openshift/costs/$', OCPCostView.as_view(),
         name='reports-openshift-costs'),
     url(r'^reports/openshift/memory/$', OCPMemoryView.as_view(),
@@ -74,5 +87,7 @@ urlpatterns = [
     url(r'^reports/openshift/infrastructures/aws/instance-types/$',
         OCPAWSInstanceTypeView.as_view(),
         name='reports-openshift-aws-instance-type'),
+    url(r'^sources/authentication/$', authentication, name='authentication'),
+    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 ]

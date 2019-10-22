@@ -23,7 +23,6 @@ from django.db.models import F, Value, Window
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.report.access_utils import update_query_parameters_for_openshift
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -31,40 +30,32 @@ from api.report.queries import ReportQueryHandler
 class OCPReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for OCP."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
+    provider = 'OCP'
+
+    def __init__(self, parameters):
         """Establish OCP report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
-        provider = 'OCP'
-        self._initialize_kwargs(kwargs)
-        if kwargs.get('access'):
-            query_parameters = update_query_parameters_for_openshift(query_parameters,
-                                                                     kwargs.get('access'))
-
-        self._mapper = OCPProviderMap(provider=provider,
-                                      report_type=kwargs.get('report_type'))
+        self._mapper = OCPProviderMap(provider=self.provider,
+                                      report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self.query_parameters = query_parameters
-        self.url_data = url_data
-        self._limit = self.get_query_param_data('filter', 'limit')
+        self._limit = parameters.get_filter('limit')
+
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
 
         # Update which field is used to calculate cost by group by param.
         group_by = self._get_group_by()
         if (group_by and 'project' in group_by
-                or 'project' in self.query_parameters.get('filter', {}).keys()) \
-                and kwargs.get('report_type') == 'costs':
-            self._report_type = kwargs.get('report_type') + '_by_project'
-            self._mapper = OCPProviderMap(provider=provider,
-                                          report_type=self._report_type)
-
-        super().__init__(query_parameters, tenant, **kwargs)
+                or 'project' in parameters.get('filter', {}).keys()) \
+                and parameters.report_type == 'costs':
+            self._report_type = parameters.report_type + '_by_project'
+            self._mapper = OCPProviderMap(provider=self.provider,
+                                          report_type=parameters.report_type)
 
     @property
     def annotations(self):
@@ -96,7 +87,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 annotations['capacity'] = annotations['capacity'].get('cluster')
                 return annotations
 
-        for filt in self.query_parameters.get('filter', {}).keys():
+        for filt in self.parameters.get('filter', {}).keys():
             if filt in ('project', 'cluster', 'node'):
                 annotations['capacity'] = annotations['capacity'].get('cluster')
                 return annotations
@@ -111,7 +102,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.query_parameters)
+        output = copy.deepcopy(self.parameters.parameters)
         output['data'] = self.query_data
         self.query_sum = self._pack_data_object(self.query_sum, **self._mapper.PACK_DEFINITIONS)
         output['total'] = self.query_sum
@@ -168,7 +159,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,
@@ -217,7 +208,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     self.order_direction
                 )()
             )
-        elif self.query_parameters.get('order_by', default_ordering):
+        elif self.parameters.get('order_by', default_ordering):
             rank_orders.append(
                 getattr(F(self.order_field), self.order_direction)()
             )

@@ -1,9 +1,17 @@
 """Tests for celery tasks."""
 from datetime import date, datetime
-from unittest.mock import call, patch
+from unittest.mock import call, patch, Mock
 
+import faker
+from botocore.exceptions import ClientError
+from celery.exceptions import Retry, MaxRetriesExceededError
+
+from api.dataexport.models import DataExportRequest as APIExportRequest
+from api.dataexport.syncer import SyncedFileInColdStorageError
 from masu.celery import tasks
 from masu.test import MasuTestCase
+
+fake = faker.Faker()
 
 
 class TestCeleryTasks(MasuTestCase):
@@ -73,3 +81,67 @@ class TestCeleryTasks(MasuTestCase):
         with patch('masu.celery.tasks.table_export_settings', [test_export_setting]):
             tasks.upload_normalized_data()
             mock_upload.assert_has_calls([call_curr_month, call_prev_month])
+
+    @patch('masu.celery.tasks.DataExportRequest')
+    @patch('masu.celery.tasks.AwsS3Syncer')
+    def test_sync_data_to_customer_success(self, mock_sync, mock_data_export_request):
+        """Test that the scheduled task correctly calls the sync function."""
+        mock_data_export_request.uuid = fake.uuid4()
+        mock_data_get = mock_data_export_request.objects.get
+        mock_data_save = mock_data_get.return_value.save
+
+        tasks.sync_data_to_customer(mock_data_export_request.uuid)
+
+        mock_data_get.assert_called_once_with(uuid=mock_data_export_request.uuid)
+        self.assertEqual(mock_data_save.call_count, 2)
+        mock_sync.assert_called_once()
+        mock_sync.return_value.sync_bucket.assert_called_once()
+
+    @patch('masu.celery.tasks.LOG')
+    @patch('masu.celery.tasks.DataExportRequest')
+    @patch('masu.celery.tasks.AwsS3Syncer')
+    def test_sync_data_to_customer_fail_exc(self, mock_sync, mock_data_export_request, mock_log):
+        """Test that the scheduled task correctly calls the sync function, which explodes."""
+        mock_data_export_request.uuid = fake.uuid4()
+        mock_data_get = mock_data_export_request.objects.get
+        mock_data_save = mock_data_get.return_value.save
+
+        mock_sync.return_value.sync_bucket.side_effect = ClientError(
+            error_response={'error': fake.word()}, operation_name=fake.word())
+
+        tasks.sync_data_to_customer(mock_data_export_request.uuid)
+
+        mock_data_get.assert_called_once_with(uuid=mock_data_export_request.uuid)
+        self.assertEqual(mock_data_save.call_count, 2)
+        mock_sync.assert_called_once()
+        mock_sync.return_value.sync_bucket.assert_called_once()
+        mock_log.exception.assert_called_once()
+
+    @patch('masu.celery.tasks.DataExportRequest.objects')
+    @patch('masu.celery.tasks.AwsS3Syncer')
+    def test_sync_data_to_customer_cold_storage_retry(self, mock_sync, mock_data_export_request):
+        """Test that the sync task retries syncer fails with a cold storage error."""
+        data_export_object = Mock()
+        data_export_object.uuid = fake.uuid4()
+        data_export_object.status = APIExportRequest.PENDING
+
+        mock_data_export_request.get.return_value = data_export_object
+        mock_sync.return_value.sync_bucket.side_effect = SyncedFileInColdStorageError()
+        with self.assertRaises(Retry):
+            tasks.sync_data_to_customer(data_export_object.uuid)
+        self.assertEquals(data_export_object.status, APIExportRequest.WAITING)
+
+    @patch('masu.celery.tasks.sync_data_to_customer.retry', side_effect=MaxRetriesExceededError())
+    @patch('masu.celery.tasks.DataExportRequest.objects')
+    @patch('masu.celery.tasks.AwsS3Syncer')
+    def test_sync_data_to_customer_max_retry(self, mock_sync, mock_data_export_request, mock_retry):
+        """Test that the sync task retries syncer fails with a cold storage error."""
+        data_export_object = Mock()
+        data_export_object.uuid = fake.uuid4()
+        data_export_object.status = APIExportRequest.PENDING
+
+        mock_data_export_request.get.return_value = data_export_object
+        mock_sync.return_value.sync_bucket.side_effect = SyncedFileInColdStorageError()
+
+        tasks.sync_data_to_customer(data_export_object.uuid)
+        self.assertEquals(data_export_object.status, APIExportRequest.ERROR)

@@ -7,8 +7,8 @@
 
 if (env.CHANGE_ID) {
     runSmokeTest (
-        ocDeployerBuilderPath: "hccm/hccm",
-        ocDeployerComponentPath: "hccm/hccm",
+        ocDeployerBuilderPath: "hccm/koku",
+        ocDeployerComponentPath: "hccm",
         ocDeployerServiceSets: "hccm,platform,platform-mq",
         iqePlugins: ["iqe-hccm-plugin"],
         pytestMarker: "hccm_smoke",

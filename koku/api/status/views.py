@@ -16,6 +16,7 @@
 #
 
 """View for server status."""
+from django.views.decorators.cache import never_cache
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -73,6 +74,7 @@ class StatusView(APIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = StatusSerializer
 
+    @never_cache
     def get(self, request):
         """Return the server status."""
         status_info = Status()

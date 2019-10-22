@@ -20,6 +20,8 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.db.models import F
+from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.config import Config
@@ -34,6 +36,10 @@ from reporting.provider.aws.models import (AWSCostEntry,
                                            AWSCostEntryPricing,
                                            AWSCostEntryProduct,
                                            AWSCostEntryReservation)
+from reporting.provider.ocp_aws.models import (
+    OCPAWSCostLineItemDailySummary,
+    OCPAWSCostLineItemProjectDailySummary
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -55,6 +61,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         self.column_map = column_map
         self._schema_name = schema
         self.date_accessor = DateAccessor()
+        self.jinja_sql = JinjaSql()
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -186,29 +193,29 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
         Args:
             start_date (datetime.date) The date to start populating the table.
             end_date (datetime.date) The date to end on.
+            bill_ids (list)
 
         Returns
             (None)
 
         """
         table_name = AWS_CUR_TABLE_MAP['line_item_daily']
+
         daily_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily.sql'
         )
-        bill_id_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-
-        daily_sql = daily_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            bill_id_where_clause=bill_id_where_clause,
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, daily_sql, start_date, end_date)
+        daily_sql = daily_sql.decode('utf-8')
+        daily_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'schema': self.schema
+        }
+        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
+        self._commit_and_vacuum(
+            table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
 
     # pylint: disable=invalid-name
     def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
@@ -227,18 +234,18 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             'sql/reporting_awscostentrylineitem_daily_summary.sql'
         )
-        bill_id_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            bill_id_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date,
-            end_date=end_date,
-            bill_id_where_clause=bill_id_where_clause,
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
@@ -260,8 +267,12 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             'masu.database',
             f'sql/reporting_awstags_summary.sql'
         )
-        agg_sql = agg_sql.decode('utf-8').format(schema=self.schema)
-        self._commit_and_vacuum(table_name, agg_sql)
+        agg_sql = agg_sql.decode('utf-8')
+        agg_sql_params = {
+            'schema': self.schema
+        }
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._commit_and_vacuum(table_name, agg_sql, bind_params=list(agg_sql_params))
 
     def populate_ocp_on_aws_cost_daily_summary(self, start_date, end_date,
                                                cluster_id, bill_ids):
@@ -275,24 +286,51 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
-        aws_where_clause = ''
-        ocp_where_clause = ''
-        if bill_ids:
-            ids = ','.join(bill_ids)
-            aws_where_clause = f'AND cost_entry_bill_id IN ({ids})'
-        if cluster_id:
-            ocp_where_clause = f"AND cluster_id = '{cluster_id}'"
-
         table_name = AWS_CUR_TABLE_MAP['ocp_on_aws_daily_summary']
         summary_sql = pkgutil.get_data(
             'masu.database',
             'sql/reporting_ocpawscostlineitem_daily_summary.sql'
         )
-        summary_sql = summary_sql.decode('utf-8').format(
-            uuid=str(uuid.uuid4()).replace('-', '_'),
-            start_date=start_date, end_date=end_date,
-            aws_where_clause=aws_where_clause,
-            ocp_where_clause=ocp_where_clause,
-            schema=self.schema
-        )
-        self._commit_and_vacuum(table_name, summary_sql, start_date, end_date)
+        summary_sql = summary_sql.decode('utf-8')
+        summary_sql_params = {
+            'uuid': str(uuid.uuid4()).replace('-', '_'),
+            'start_date': start_date,
+            'end_date': end_date,
+            'bill_ids': bill_ids,
+            'cluster_id': cluster_id,
+            'schema': self.schema
+        }
+        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(
+            summary_sql, summary_sql_params)
+
+        self._commit_and_vacuum(
+            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params))
+
+    def populate_markup_cost(self, markup, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids:
+                for bill_id in bill_ids:
+                    AWSCostEntryLineItemDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(markup_cost=(F('unblended_cost') * markup))
+            else:
+                AWSCostEntryLineItemDailySummary.objects.\
+                    update(markup_cost=(F('unblended_cost') * markup))
+
+    def populate_ocp_on_aws_markup_cost(self, markup, bill_ids=None):
+        """Set markup costs in the database."""
+        with schema_context(self.schema):
+            if bill_ids:
+                for bill_id in bill_ids:
+                    OCPAWSCostLineItemDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(markup_cost=(F('unblended_cost') * markup))
+                    OCPAWSCostLineItemProjectDailySummary.objects.\
+                        filter(cost_entry_bill_id=bill_id).\
+                        update(project_markup_cost=(F('unblended_cost') * markup))
+            else:
+                OCPAWSCostLineItemDailySummary.objects.\
+                    update(markup_cost=(F('unblended_cost') * markup))
+                OCPAWSCostLineItemProjectDailySummary.objects.\
+                    update(project_markup_cost=(F('unblended_cost') * markup))

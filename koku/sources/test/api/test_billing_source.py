@@ -16,6 +16,8 @@
 #
 
 """Test the billing_source endpoint view."""
+import json
+
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -46,33 +48,34 @@ class BillingSourceTests(TestCase):
 
     def test_post_billing_source(self):
         """Test the POST billing_source endpoint."""
-        params = {
-            'source_id': '1',
-            'billing_source': 'cost-usage-bucket',
-        }
-        billing_source = 'cost-usage-bucket'
+        billing_source = {'bucket': 'cost-usage-bucket'}
         test_name = 'AWS Test'
         test_source_type = 'AWS'
-        test_auth = 'testarn'
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_auth)
-        response = self.client.post(reverse('billing-source'), params)
-        body = response.json()
+        test_source_id = 1
+        test_resource_id = 1
 
-        self.assertEqual(response.status_code, 201)
-        self.assertIn(billing_source, str(body))
-        self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, billing_source)
+        test_matrix = [{'source_id': test_source_id, 'billing_source': billing_source},
+                       {'source_name': test_name, 'billing_source': billing_source}]
+        for params in test_matrix:
+            add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
+            response = self.client.post(reverse('billing-source'), json.dumps(params), content_type='application/json')
+            body = response.json()
+
+            self.assertEqual(response.status_code, 201)
+            self.assertIn(str(billing_source), str(body))
+            self.assertEqual(Sources.objects.get(source_id=self.test_source_id).billing_source, billing_source)
 
     def test_post_billing_source_non_aws(self):
         """Test the POST billing_source endpoint for a non-AWS source."""
         params = {
             'source_id': '1',
-            'billing_source': 'cost-usage-bucket',
+            'billing_source': {'bucket': 'cost-usage-bucket'},
         }
-        expected_string = 'Source is not AWS.'
+        expected_string = 'Source is not AWS nor AZURE.'
         test_name = 'OCP Test'
         test_source_type = 'OCP'
-        test_auth = 'testarn'
-        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_auth)
+        test_resource_id = 1
+        add_provider_sources_network_info(self.test_source_id, test_name, test_source_type, test_resource_id)
         response = self.client.post(reverse('billing-source'), params)
         body = response.json()
 
@@ -83,7 +86,7 @@ class BillingSourceTests(TestCase):
         """Test the POST billing_source endpoint for a non-existent source."""
         params = {
             'source_id': '2',
-            'billing_source': 'cost-usage-bucket',
+            'billing_source': {'bucket': 'cost-usage-bucket'},
         }
         expected_string = 'does not exist'
         response = self.client.post(reverse('billing-source'), params)

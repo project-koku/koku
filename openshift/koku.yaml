@@ -83,6 +83,8 @@ objects:
             value: ${PIPENV_PYPI_MIRROR}
           - name: ENABLE_PIPENV
             value: "true"
+          - name: UPGRADE_PIP_TO_LATEST
+            value: "true"
           - name: APP_CONFIG
             valueFrom:
               configMapKeyRef:
@@ -271,6 +273,12 @@ objects:
                   name: ${NAME}-app
                   key: enable-s3-archiving
                   optional: false
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
           command:
           - /bin/bash
           - -c
@@ -391,6 +399,18 @@ objects:
                 configMapKeyRef:
                   name: ${NAME}-app
                   key: masu-port
+                  optional: false
+            - name: KOKU_SOURCES_CLIENT_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: sources-host
+                  optional: false
+            - name: KOKU_SOURCES_CLIENT_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-app
+                  key: sources-port
                   optional: false
             - name: APP_NAMESPACE
               valueFrom:
@@ -526,6 +546,12 @@ objects:
                 resourceFieldRef:
                   containerName: ${NAME}
                   resource: limits.memory
+            - name: prometheus_multiproc_dir
+              valueFrom:
+                configMapKeyRef:
+                  name: ${NAME}-monitoring
+                  key: prometheus-dir
+                  optional: false
           livenessProbe:
             failureThreshold: 3
             httpGet:

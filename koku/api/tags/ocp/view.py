@@ -17,12 +17,15 @@
 
 """View for OpenShift tags."""
 
-from rest_framework.permissions import AllowAny
+from api.tags.ocp.queries import OCPTagQueryHandler
+from api.tags.serializers import OCPTagsQueryParamSerializer
+from api.tags.view import TagView
+from reporting.provider.ocp.models import (OCPStorageVolumeClaimLabelSummary,
+                                           OCPStorageVolumeLabelSummary,
+                                           OCPUsagePodLabelSummary)
 
-from api.report.view import ReportView
 
-
-class OCPTagView(ReportView):
+class OCPTagView(TagView):
     """Get OpenShift tags.
 
     @api {get} /cost-management/v1/tags/openshift/
@@ -56,6 +59,9 @@ class OCPTagView(ReportView):
 
     """
 
-    permission_classes = [AllowAny]
     provider = 'ocp'
-    report = 'tags'
+    serializer = OCPTagsQueryParamSerializer
+    query_handler = OCPTagQueryHandler
+    tag_handler = [OCPUsagePodLabelSummary,
+                   OCPStorageVolumeClaimLabelSummary,
+                   OCPStorageVolumeLabelSummary]

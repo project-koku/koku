@@ -119,6 +119,9 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
 
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
+
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
@@ -172,6 +175,9 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
+    # Whether the data comes from a pod or volume report
+    data_source = models.CharField(max_length=64, null=True)
+
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
 
@@ -219,6 +225,12 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                          null=True)
+
+    project_markup_cost = models.DecimalField(
+        max_digits=17,
+        decimal_places=9,
+        null=True
+    )
 
     pod_cost = models.DecimalField(
         max_digits=24,

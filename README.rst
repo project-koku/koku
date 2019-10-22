@@ -23,7 +23,6 @@ Prerequisites
 
 * Docker
 * PostgreSQL
-* Node.js
 
 For Mac OSX
 ^^^^^^^^^^^
@@ -35,10 +34,6 @@ For Mac OSX
     Install PostgreSQL: ::
 
         brew install postgresql
-
-    Install Node.js: ::
-
-        brew install node
 
 
 Development
@@ -69,7 +64,12 @@ psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely
     The following environment variables can be set in the koku repo's .env file
         LDFLAGS="-L/usr/local/opt/openssl/lib"
         CPPFLAGS="-I/usr/local/opt/openssl/include"
-
+    These environment variables will then be available next time you activate your virtualenv. For immediate use running `source .env` will load the environment variables into your existing terminal environment. 
+    
+    Alternatively, run the following commands:
+        `export LDFLAGS="-L/usr/local/opt/openssl/lib"`
+        `export CPPFLAGS="-I/usr/local/opt/openssl/include"`
+        
 If dependency installation still fails, try using ::
 
     pipenv install --dev --sequential
@@ -126,22 +126,6 @@ If a docker container running Postgres is not feasible, it is possible to run Po
 
     make run-migrations
 
-API Documentation Generation
-----------------------------
-
-Generate the project API documenttion by running the following command ::
-
-  make gen-apidoc
-
-Server
-^^^^^^
-
-Generate the API documentation and collect the static files. To run a local dev Django server, use ::
-
-    make serve
-
-Now point a browser to **http://127.0.0.1:8000/apidoc/index.html**.
-
 Testing and Linting
 -------------------
 
@@ -158,6 +142,23 @@ To run unit tests specifically::
 To lint the code base ::
 
     tox -e lint
+
+To run IQE Smoke or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+
+    make docker-iqe-smokes-tests
+    make docker-iqe-api-tests
+
+
+pgAdmin
+-------------------
+
+If you want to interact with the Postgres database from a GUI:
+
+ 1. Copy the `pgadmin_servers.json.example` into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
+ 2. `docker-compose up` causes pgAdmin to run on http://localhost:8432
+ 3. In the login screen, the default login email is `postgres`
+
+Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
 
 Contributing
 =============

@@ -29,6 +29,7 @@ from django.db import (InterfaceError,
                        OperationalError,
                        ProgrammingError,
                        connection)
+from django.views.decorators.cache import never_cache
 from rest_framework.decorators import (api_view,
                                        permission_classes,
                                        renderer_classes)
@@ -36,7 +37,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from koku.celery import CELERY as celery_app
+from koku.celery import app as celery_app
 from masu.api import API_VERSION
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
@@ -47,6 +48,7 @@ BROKER_CONNECTION_ERROR = 'Unable to establish connection with broker.'
 CELERY_WORKER_NOT_FOUND = 'No running Celery workers were found.'
 
 
+@never_cache
 @api_view(http_method_names=['GET'])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))

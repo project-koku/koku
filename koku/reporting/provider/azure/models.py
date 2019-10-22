@@ -79,6 +79,8 @@ class AzureMeter(models.Model):
 
     currency = models.CharField(max_length=10, null=False)
 
+    unit_of_measure = models.CharField(max_length=63, null=True)
+
 
 class AzureCostEntryLineItemDaily(models.Model):
     """A line item in a cost entry.
@@ -158,6 +160,9 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
                                       null=True)
 
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
+                                      null=True)
+
     offer_id = models.PositiveIntegerField(null=True)
 
     currency = models.CharField(max_length=10, null=False, default='USD')
@@ -165,6 +170,8 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
 
     instance_count = models.IntegerField(null=True)
+
+    unit_of_measure = models.CharField(max_length=63, null=True)
 
 
 class AzureTagsSummary(models.Model):

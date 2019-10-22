@@ -27,6 +27,10 @@
         "description": "Operations about updating derived cost"
       },
       {
+        "name": "Upload Normalized Data",
+        "description": "Operations about uploading normalized data"
+      },
+      {
         "name": "Status",
         "description": "Operations about status"
       }
@@ -315,6 +319,30 @@
           ]
         },
         "parameters": []
+      },
+      "/upload_normalized_data/": {
+        "post": {
+          "summary": "Upload normalized data",
+          "operationId": "uploadNormalizedData",
+          "description": "Call the upload_normalized_data task.",
+          "parameters": [],
+          "responses": {
+            "201": {
+              "description": "Celery AsyncResult ID of the upload_normalized_data task",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/UploadNormalizedDataPostResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "Upload Normalized Data"
+          ]
+        },
+        "parameters": []
       }
     },
     "components": {
@@ -363,6 +391,16 @@
           "type": "object",
           "properties": {
             "Update Charge Task ID": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        },
+        "UploadNormalizedDataPostResponse": {
+          "type": "object",
+          "properties": {
+            "AsyncResult ID": {
               "type": "string",
               "format": "uuid",
               "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"

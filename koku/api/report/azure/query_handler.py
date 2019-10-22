@@ -22,7 +22,6 @@ from django.db.models import (F, Value, Window)
 from django.db.models.functions import Coalesce, Concat, RowNumber
 from tenant_schemas.utils import tenant_context
 
-from api.query_filter import QueryFilter
 from api.report.azure.provider_map import AzureProviderMap
 from api.report.queries import ReportQueryHandler
 
@@ -32,34 +31,27 @@ LOG = logging.getLogger(__name__)
 class AzureReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for Azure."""
 
-    def __init__(self, query_parameters, url_data,
-                 tenant, **kwargs):
+    provider = 'AZURE'
+
+    def __init__(self, parameters):
         """Establish AWS report query handler.
 
         Args:
-            query_parameters    (Dict): parameters for query
-            url_data        (String): URL string to provide order information
-            tenant    (String): the tenant to use to access CUR data
-            kwargs    (Dict): A dictionary for internal query alteration based on path
+            parameters    (QueryParameters): parameter object for query
 
         """
-        provider = 'AZURE'
-
-        self._initialize_kwargs(kwargs)
-
         # do not override mapper if its already set
         try:
             getattr(self, '_mapper')
         except AttributeError:
-            self._mapper = AzureProviderMap(provider=provider,
-                                            report_type=kwargs.get('report_type'))
+            self._mapper = AzureProviderMap(provider=self.provider,
+                                            report_type=parameters.report_type)
 
         self.group_by_options = self._mapper.provider_map.get('group_by_options')
-        self.query_parameters = query_parameters
-        self.url_data = url_data
-        self._limit = self.get_query_param_data('filter', 'limit')
+        self._limit = parameters.get_filter('limit')
 
-        super().__init__(query_parameters, tenant, **kwargs)
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
 
     @property
     def annotations(self):
@@ -69,15 +61,15 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        # units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
+        units_fallback = self._mapper.report_type_map.get('cost_units_fallback')
         annotations = {
             'date': self.date_trunc('usage_start'),
-            # 'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
+            'cost_units': Coalesce(self._mapper.cost_units_key, Value(units_fallback))
         }
-        # if self._mapper.usage_units_key:
-        #     units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
-        #     annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
-        #                                           Value(units_fallback))
+        if self._mapper.usage_units_key:
+            units_fallback = self._mapper.report_type_map.get('usage_units_fallback')
+            annotations['usage_units'] = Coalesce(self._mapper.usage_units_key,
+                                                  Value(units_fallback))
 
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get('annotations')
@@ -92,7 +84,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (Dict): Dictionary response of query params, data, and total
 
         """
-        output = copy.deepcopy(self.query_parameters)
+        output = copy.deepcopy(self.parameters.parameters)
         output['data'] = self.query_data
         output['total'] = self.query_sum
 
@@ -139,21 +131,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
 
-    def _get_time_based_filters(self, delta=False):
-        if delta:
-            date_delta = self._get_date_delta()
-            start = self.start_datetime - date_delta
-            end = self.end_datetime - date_delta
-        else:
-            start = self.start_datetime
-            end = self.end_datetime
-
-        start_filter = QueryFilter(field='usage_start', operation='gte',
-                                   parameter=start)
-        end_filter = QueryFilter(field='usage_end', operation='lte',
-                                 parameter=end)
-        return start_filter, end_filter
-
     def execute_query(self):
         """Execute query and return provided data.
 
@@ -189,7 +166,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self._accept_type and 'text/csv' in self._accept_type
+            is_csv_output = self.parameters.accept_type and 'text/csv' in self.parameters.accept_type
 
             query_data, query_group_by = self.strip_label_column_name(
                 query_data,

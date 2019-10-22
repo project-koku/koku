@@ -23,6 +23,7 @@ from operator import and_
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils.encoding import force_text
+from django.views.decorators.cache import never_cache
 from django_filters import CharFilter, FilterSet
 from django_filters.filters import BaseCSVFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -35,7 +36,7 @@ from rest_framework.serializers import UUIDField
 from api.iam.models import Customer
 from api.provider import serializers
 from api.provider.models import Provider
-from api.report.view import get_tenant
+from api.query_params import get_tenant
 from .provider_manager import ProviderManager
 
 
@@ -76,15 +77,25 @@ class ProviderDeleteException(APIException):
         self.detail = {'detail': force_text(self.default_detail)}
 
 
+class ProviderMethodException(APIException):
+    """General Exception class for Provider errors."""
+
+    def __init__(self, message):
+        """Set custom error message for Provider errors."""
+        self.status_code = status.HTTP_405_METHOD_NOT_ALLOWED
+        self.detail = {'detail': force_text(message)}
+
+
 class ProviderViewSet(mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
+                      mixins.UpdateModelMixin,
                       viewsets.GenericViewSet):
     """Provider View.
 
     A viewset that provides default `create()`, `retrieve()`,
-    and `list()` actions.
+    `update()`, and `list()` actions.
     """
 
     lookup_field = 'uuid'
@@ -115,10 +126,26 @@ class ProviderViewSet(mixins.CreateModelMixin,
                 LOG.error('No customer found for user %s.', user)
         return queryset
 
+    @never_cache
     def create(self, request, *args, **kwargs):
         """Create a Provider."""
         return super().create(request=request, args=args, kwargs=kwargs)
 
+    @never_cache
+    def update(self, request, *args, **kwargs):
+        """Update a Provider."""
+        if request.method == 'PATCH':
+            raise ProviderMethodException('PATCH not supported')
+        user = request.user
+        uuid = UUIDField().to_internal_value(data=kwargs.get('uuid'))
+        get_object_or_404(Provider, uuid=uuid, customer=user.customer)
+
+        manager = ProviderManager(kwargs['uuid'])
+        manager.update(request)
+
+        return super().update(request=request, args=args, kwargs=kwargs)
+
+    @never_cache
     def list(self, request, *args, **kwargs):
         """Obtain the list of providers."""
         response = super().list(request=request, args=args, kwargs=kwargs)
@@ -129,6 +156,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
             provider['infrastructure'] = manager.get_infrastructure_name(tenant)
         return response
 
+    @never_cache
     def retrieve(self, request, *args, **kwargs):
         """Get a provider."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
@@ -138,6 +166,7 @@ class ProviderViewSet(mixins.CreateModelMixin,
         response.data['stats'] = manager.provider_statistics(tenant)
         return response
 
+    @never_cache
     def destroy(self, request, *args, **kwargs):
         """Delete a provider."""
         # throws ValidationError if pk is not a valid UUID
@@ -147,9 +176,9 @@ class ProviderViewSet(mixins.CreateModelMixin,
 
         manager = ProviderManager(uuid)
         try:
-            manager.remove(request.user)
-        except Exception:
-            LOG.error('{} failed to remove provider uuid: {}.'.format(request.user, uuid))
+            manager.remove(request)
+        except Exception as error:
+            LOG.error(f'{request.user} failed to remove provider uuid: {uuid}. Error: {str(error)}')
             raise ProviderDeleteException
 
         return Response(status=status.HTTP_204_NO_CONTENT)
