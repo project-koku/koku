@@ -713,8 +713,8 @@ class ReportQueryHandler(QueryHandler):
                                                      delta_group_by)
         for row in query_data:
             key = tuple((row[key] for key in delta_group_by))
-            previous_total = previous_dict.get(key, 0)
-            current_total = row.get(self._delta, 0)
+            previous_total = previous_dict.get(key) or 0
+            current_total = row.get(self._delta) or 0
             row['delta_value'] = current_total - previous_total
             row['delta_percent'] = self._percent_delta(current_total, previous_total)
         # Calculate the delta on the total aggregate
