@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -15,19 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""TestCase for Attribute Model"""
-from django.test import TestCase
+"""TestCase for Attribute Model. """
 from attribute.models import Attribute
 
+from django.test import TestCase
+
 class AttributeTest(TestCase):
+    """ Test creating and reading mock model """
     def create_attribute(self, \
-        name="TEST_AWS_ACCOUNT_ID", \
-        value="TEST_12345678910", \
-        description="TEST Cost Management's AWS Account ID"):
-            return Attribute.objects.create(name=name, value=value, description=description)
+        name='TEST_AWS_ACCOUNT_ID', \
+        value='TEST_12345678910', \
+        description='TEST Cost Management\'s AWS Account ID'):
+        """ Helper method to create a model for tests """
+        return Attribute.objects.create(name=name, value=value, description=description)
+
     def test_attribute_creation(self):
+        """ Test creating and reading a mock model """
         attribute = self.create_attribute()
         self.assertTrue(isinstance(attribute, Attribute))
         self.assertEqual(attribute.name, 'TEST_AWS_ACCOUNT_ID')
-        self.assertEqual(attribute.value, "TEST_12345678910")
-        self.assertEqual(attribute.description, "TEST Cost Management's AWS Account ID")
+        self.assertEqual(attribute.value, 'TEST_12345678910')
+        self.assertEqual(attribute.description, 'TEST Cost Management\'s AWS Account ID')

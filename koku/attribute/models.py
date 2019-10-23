@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2019 Red Hat, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,10 @@
 """Model for Attributes."""
 from django.db import models
 
-
 """A dictionary of configuration-related key-value pairs."""
 class Attribute(models.Model):
+
+
     name = models.CharField(max_length=255, help_text='The name of the attribute')
     value = models.TextField(null=True)
     description = models.TextField(null=True)

@@ -23,7 +23,7 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 from django.conf import settings
 from django.conf.urls import include, url
 from django.urls import path
-from attribute import urls
+
 API_PATH_PREFIX = settings.API_PATH_PREFIX
 if API_PATH_PREFIX != '':
     if API_PATH_PREFIX.startswith('/'):
