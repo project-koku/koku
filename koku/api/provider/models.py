@@ -201,6 +201,7 @@ class ProviderStatus(models.Model):
     #
     STATES = ((0, 'New'),
               (1, 'Ready'),
+              (10, 'In Progress'),
               (33, 'Warning'),
               (98, 'Disabled: Error'),
               (99, 'Disabled: Admin'),)

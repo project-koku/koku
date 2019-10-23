@@ -19,14 +19,16 @@
 
 import random
 import logging
+from unittest.mock import patch, Mock
+from datetime import datetime, timedelta
 
 import faker
-from unittest.mock import patch
 
+from masu.database.provider_status_accessor import ProviderStatusCode
 from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts_accessor import AccountsAccessor, AccountsAccessorError
 from masu.processor.expired_data_remover import ExpiredDataRemover
-from masu.processor.orchestrator import Orchestrator
+from masu.processor.orchestrator import INPROGRESS_TIMEOUT_ACTION, Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
@@ -136,7 +138,7 @@ class OrchestratorTest(MasuTestCase):
     def test_prepare_no_accounts(self, mock_downloader, mock_accounts_accessor):
         """Test downloading cost usage reports."""
         orchestrator = Orchestrator()
-        reports = orchestrator.prepare()
+        reports = orchestrator.prepare(Mock())
 
         self.assertIsNone(reports)
 
@@ -231,7 +233,7 @@ class OrchestratorTest(MasuTestCase):
         mock_accessor().is_backing_off.return_value = False
 
         orchestrator = Orchestrator()
-        orchestrator.prepare()
+        orchestrator.prepare(Mock())
         mock_task.assert_called()
 
     @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
@@ -244,7 +246,7 @@ class OrchestratorTest(MasuTestCase):
         mock_accessor.is_backing_off.return_value = False
 
         orchestrator = Orchestrator()
-        orchestrator.prepare()
+        orchestrator.prepare(Mock())
         mock_task.assert_not_called()
 
     @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
@@ -257,5 +259,123 @@ class OrchestratorTest(MasuTestCase):
         mock_accessor.is_backing_off.return_value = True
 
         orchestrator = Orchestrator()
-        orchestrator.prepare()
+        orchestrator.prepare(Mock())
         mock_task.assert_not_called()
+
+    @patch('masu.processor.orchestrator.AccountLabel', spec=True)
+    @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
+    @patch('masu.processor.orchestrator.get_report_files.apply_async',
+           return_value=True)
+    def test_status_inprogress(self, mock_task, mock_accessor, mock_labeler):
+        """Test that prepare() sets ProviderStatus to IN_PROGRESS."""
+
+        # this test is using a different pattern than other tests because we need to keep
+        # track of the exact Mock instance the Orchestrator is operating upon.
+        mock_status = Mock(is_valid=Mock(return_value=True),
+                           is_backing_off=Mock(return_value=False))
+        mock_accessor.return_value = mock_status
+
+        mock_labeler.return_value = Mock(get_label_details=Mock(return_value=(True, True)))
+
+        expected_id = self.fake.word()
+        mock_celery = Mock(request=Mock(root_id=expected_id))
+        orchestrator = Orchestrator()
+        orchestrator.prepare(mock_celery)
+
+        mock_status.set_status.assert_called_with(ProviderStatusCode.IN_PROGRESS,
+                                                  expected_id)
+
+    @patch('masu.processor.orchestrator.AccountLabel', spec=True)
+    @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
+    @patch('masu.processor.orchestrator.get_report_files.apply_async',
+           return_value=True)
+    def test_status_stuck_inprogress_same_task(self, mock_task, mock_accessor, mock_labeler):
+        """Test that prepare() handles a Provider stuck in IN_PROGRESS in the same task."""
+        task_id = self.fake.word()
+        provider_id = self.fake.word()
+
+        # this test is using a different pattern than other tests because we need to keep
+        # track of the exact Mock instance the Orchestrator is operating upon.
+        mock_status = Mock(is_valid=Mock(return_value=False),
+                           is_backing_off=Mock(return_value=False),
+                           get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
+                           get_last_message=task_id)
+        mock_accessor.return_value = mock_status
+
+        mock_labeler.return_value = Mock(get_label_details=Mock(return_value=(True, True)))
+
+        logging.disable(logging.NOTSET)
+        with self.assertLogs('masu.processor.orchestrator', level='INFO') as logger:
+            mock_celery = Mock(request=Mock(root_id=task_id))
+            orchestrator = Orchestrator()
+            orchestrator._polling_accounts = [{'provider_uuid': provider_id}]
+            orchestrator.prepare(mock_celery)
+
+            msg = (f'Provider "{provider_id}" skipped.'
+                   ' Unable to process reports already in-progress.')
+            self.assertIn(f'INFO:masu.processor.orchestrator:{msg}', logger.output)
+
+        mock_task.assert_not_called()
+
+    @patch('masu.processor.orchestrator.AccountLabel', spec=True)
+    @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
+    @patch('masu.processor.orchestrator.get_report_files.apply_async',
+           return_value=True)
+    def test_status_stuck_inprogress_new_task(self, mock_task, mock_accessor, mock_labeler):
+        """Test that prepare() handles a Provider stuck in IN_PROGRESS from a different task."""
+        task_id = self.fake.word()
+        other_task_id = self.fake.word()
+
+        # if timestamp is within the timeout value, nothing should happen.
+        timestamp = datetime.now().replace(hour=(datetime.now() - timedelta(hours=3)).hour)
+
+        # this test is using a different pattern than other tests because we need to keep
+        # track of the exact Mock instance the Orchestrator is operating upon.
+        mock_status = Mock(is_valid=Mock(return_value=False),
+                           is_backing_off=Mock(return_value=False),
+                           get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
+                           get_last_message=other_task_id,
+                           get_timestamp=Mock(return_value=timestamp)
+                           )
+        mock_accessor.return_value = mock_status
+
+        mock_labeler.return_value = Mock(get_label_details=Mock(return_value=(True, True)))
+
+        mock_celery = Mock(request=Mock(root_id=task_id))
+        orchestrator = Orchestrator()
+        orchestrator.prepare(mock_celery)
+
+        mock_task.assert_not_called()
+        mock_status.set_status.assert_not_called()
+
+    @patch('masu.processor.orchestrator.AccountLabel', spec=True)
+    @patch('masu.processor.orchestrator.ProviderStatus', spec=True)
+    @patch('masu.processor.orchestrator.get_report_files.apply_async',
+           return_value=True)
+    def test_status_stuck_inprogress_new_task_timedout(self, mock_task, mock_accessor, mock_labeler):
+        """Test that prepare() handles timing out a Provider stuck in IN_PROGRESS."""
+        task_id = self.fake.word()
+        other_task_id = self.fake.word()
+
+        # if timestamp is outside the timeout value, the timeout action should fire.
+        timestamp = datetime.now().replace(hour=(datetime.now() - timedelta(hours=13)).hour)
+
+        # this test is using a different pattern than other tests because we need to keep
+        # track of the exact Mock instance the Orchestrator is operating upon.
+        mock_status = Mock(is_valid=Mock(return_value=False),
+                           is_backing_off=Mock(return_value=False),
+                           get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
+                           get_last_message=other_task_id,
+                           get_timestamp=Mock(return_value=timestamp)
+                           )
+        mock_accessor.return_value = mock_status
+
+        mock_labeler.return_value = Mock(get_label_details=Mock(return_value=(True, True)))
+
+        mock_celery = Mock(request=Mock(root_id=task_id))
+        orchestrator = Orchestrator()
+        orchestrator.prepare(mock_celery)
+
+        mock_task.assert_not_called()
+        mock_status.set_status.assert_called_with(INPROGRESS_TIMEOUT_ACTION,
+                                                  'In-progress timeout exceeded.')

@@ -19,6 +19,7 @@
 import logging
 import random
 from datetime import timedelta
+from pprint import pformat
 
 from masu.database.provider_status_accessor import (ProviderStatusAccessor,
                                                     ProviderStatusCode)
@@ -29,6 +30,18 @@ LOG = logging.getLogger(__name__)
 
 class ProviderStatus(ProviderStatusAccessor):
     """Provider Status."""
+
+    def __repr__(self):
+        """Unambiguous representation."""
+        out = {'is_valid': self.is_valid(),
+               'is_backing_off': self.is_backing_off()}
+        for field in self._obj._meta.fields:
+            out[field.name] = getattr(self._obj, field.name)
+        return out
+
+    def __str__(self):
+        """String representation."""
+        return pformat(self.__repr__())
 
     def is_backing_off(self):
         """Determine if the provider is waiting to retry."""

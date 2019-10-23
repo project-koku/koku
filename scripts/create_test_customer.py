@@ -59,6 +59,8 @@ except ImportError:
     from yaml import Loader
 import requests
 
+sys.path.append(os.getcwd())
+DEFAULT_CONFIG = pkgutil.get_data('scripts', 'test_customer.yaml')
 SUPPORTED_PROVIDERS = ['aws', 'ocp', 'azure']
 
 
@@ -258,17 +260,12 @@ if __name__ == '__main__':
     ARGS = vars(PARSER.parse_args())
 
     try:
-        sys.path.append(os.getcwd())
-        DEFAULT_CONFIG = pkgutil.get_data('scripts', 'test_customer.yaml')
-        CONFIG = load(DEFAULT_CONFIG, Loader=Loader)
+        CONFIG = load_yaml(ARGS.get('config_file', DEFAULT_CONFIG))
     except AttributeError:
-        CONFIG = None
+        sys.exit('Invalid configuration file.')
 
-    if ARGS.get('config_file'):
-        CONFIG = load_yaml(ARGS.get('config_file'))
-
-    if CONFIG is None:
-        sys.exit('No configuration file provided')
+    if not CONFIG:
+        sys.exit('No configuration file provided.')
 
     CONFIG.update(ARGS)
     print(f'Config: {CONFIG}')

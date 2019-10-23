@@ -37,9 +37,22 @@ class ProviderStatusCode(enum.IntEnum):
 
     NEW = 0
     READY = 1
+    IN_PROGRESS = 10
     WARNING = 33
     DISABLED_ERROR = 98
     DISABLED_ADMIN = 99
+
+
+class InProgressTimeoutActions(enum.IntEnum):
+    """Enum class of provider status timeout actions.
+
+    The values intentionally match ProviderStatusCode
+
+    """
+
+    DO_NOTHING = 10  # Using this value will cause an infinite loop. Beware.
+    SET_READY = 1
+    SET_DISABLED_ERROR = 98
 
 
 class ProviderStatusAccessor(KokuDBAccess):

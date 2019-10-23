@@ -39,11 +39,11 @@ from masu.util.upload import query_and_upload_to_s3
 LOG = get_task_logger(__name__)
 
 
-@app.task(name='masu.celery.tasks.check_report_updates')
-def check_report_updates():
+@app.task(name='masu.celery.tasks.check_report_updates', bind=True)
+def check_report_updates(self):
     """Scheduled task to initiate scanning process on a regular interval."""
     orchestrator = Orchestrator()
-    orchestrator.prepare()
+    orchestrator.prepare(task=self)
 
 
 @app.task(name='masu.celery.tasks.remove_expired_data')
