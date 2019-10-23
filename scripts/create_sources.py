@@ -185,7 +185,7 @@ class SourcesDataGenerator:
         return response.get('id')
 
     def create_azure_authentication(self, resource_id, username, password, tenant):
-        json_data = {'authtype': 'access_key_secret_key', 'name': 'Azure default', 'password': str(password),
+        json_data = {'authtype': 'tenant_id_client_id_client_secret', 'name': 'Azure default', 'password': str(password),
                      'status': 'valid', 'status_details': 'Details Here', 'username': str(username),
                      'extra': {'azure': {'tenant_id': str(tenant)}}, 'resource_type': 'Endpoint',
                      'resource_id': str(resource_id)}
