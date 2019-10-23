@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Attribute Model Serializer."""
+"""Serializer for Attribute"""
 from rest_framework import serializers
 from .models import Attribute
 
