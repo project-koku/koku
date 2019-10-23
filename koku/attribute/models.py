@@ -15,9 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""Model for Attributes"""
+"""Model for Attributes."""
 from django.db import models
 
+
+"""A dictionary of configuration-related key-value pairs."""
 class Attribute(models.Model):
     name = models.CharField(max_length=255, help_text='The name of the attribute')
     value = models.TextField(null=True)
