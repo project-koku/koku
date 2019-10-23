@@ -45,6 +45,7 @@ from api.views import (
     openapi
 )
 
+
 ROUTER = DefaultRouter()
 ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='dataexportrequests')
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
