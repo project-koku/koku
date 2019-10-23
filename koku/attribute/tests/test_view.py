@@ -7,7 +7,9 @@ class AttributeViewTestCase(TestCase):
 
     def test_attribute_view_set(self):
         client = RequestsClient()
-        response = client.get(reverse('attributes'))
+        response = client.get('http:/' + reverse('attributes-list'))
+        import pdb
+        pdb.set_trace()
         self.assertEquals(response.status_code, 200, response.text)
     def testTrue(self):
         self.assertTrue(True, "hello world")

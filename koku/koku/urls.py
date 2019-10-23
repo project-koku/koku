@@ -35,6 +35,6 @@ if API_PATH_PREFIX != '':
 urlpatterns = [
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('api.urls')),
     url(r'^{}v1/'.format(API_PATH_PREFIX), include('cost_models.urls')),
-    url(r'^{}v1/attribute'.format(API_PATH_PREFIX), include('attribute.urls')),
+    url(r'^{}v1/'.format(API_PATH_PREFIX), include('attribute.urls'), name='cherry'),
     path('', include('django_prometheus.urls')),
 ]

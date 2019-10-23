@@ -106,6 +106,7 @@ SHARED_APPS = (
 TENANT_APPS = (
     'reporting',
     'cost_models',
+    'attribute',
 )
 
 CACHE_REQUESTS = ENVIRONMENT.bool('CACHE_REQUESTS', default=False)
