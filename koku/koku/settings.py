@@ -85,8 +85,7 @@ INSTALLED_APPS = [
     'reporting',
     'reporting_common',
     'cost_models',
-    'sources',
-    'attribute'
+    'sources'
 ]
 
 SHARED_APPS = (
@@ -99,14 +98,12 @@ SHARED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
-    'sources',
-    'attribute'
+    'sources'
 )
 
 TENANT_APPS = (
     'reporting',
     'cost_models',
-    'attribute',
 )
 
 CACHE_REQUESTS = ENVIRONMENT.bool('CACHE_REQUESTS', default=False)
