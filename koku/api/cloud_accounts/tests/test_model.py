@@ -15,24 +15,27 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""TestCase for Cloud Account Model. """
-from api.cloud_accounts.models import CloudAccount
-
+"""TestCase for Cloud Account Model."""
 from django.test import TestCase
 
+from api.cloud_accounts.models import CloudAccount
+
+
 class CloudAccountTest(TestCase):
-    """ Test creating and reading mock model """
-    def create_cloud_account(self, \
-        name='TEST_AWS_ACCOUNT_ID', \
-        value='TEST_12345678910', \
-        description='TEST Cost Management\'s AWS Account ID'):
-        """ Helper method to create a model for tests """
+    """Test creating and reading mock model."""
+
+    def create_cloud_account(
+            self,
+            name='TEST_AWS_ACCOUNT_ID',
+            value='TEST_12345678910',
+            description="TEST Cost Management's AWS Account ID"):
+        """Create a model for tests."""
         return CloudAccount.objects.create(name=name, value=value, description=description)
 
     def test_cloud_account_creation(self):
-        """ Test creating and reading a mock model """
+        """Test creating and reading a mock model."""
         cloud_account = self.create_cloud_account()
         self.assertTrue(isinstance(cloud_account, CloudAccount))
         self.assertEqual(cloud_account.name, 'TEST_AWS_ACCOUNT_ID')
         self.assertEqual(cloud_account.value, 'TEST_12345678910')
-        self.assertEqual(cloud_account.description, 'TEST Cost Management\'s AWS Account ID')
+        self.assertEqual(cloud_account.description, "TEST Cost Management's AWS Account ID")

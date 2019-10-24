@@ -14,14 +14,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-"""Serializer for Cloud Account"""
+"""Serializer for CloudAccount."""
+
 from rest_framework import serializers
 
 from api.cloud_accounts.models import CloudAccount
 
 
 class CloudAccountSerializer(serializers.ModelSerializer):
-    """ Serializer for CloudAccount """
+    """Serializer for CloudAccount."""
+
     class Meta:
         model = CloudAccount
         fields = ('name', 'value', 'description', 'updated_timestamp')

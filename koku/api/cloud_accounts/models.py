@@ -20,7 +20,24 @@ from django.db import models
 
 
 class CloudAccount(models.Model):
-    """ A model representing a cloud account  """
+    """
+    A model representing a cloud account.
+
+    A cloud account value should contain
+    the ID of a cloud account so that other systems may allow that ID to access their
+    systems for the purpose of Koku gathering data.
+
+    In the example of AWS, a business can give priviledges to Cost Management's
+    AWS account so that it can read data from that business's cost data bucket.
+
+    See user story: #1284 https://github.com/project-koku/koku/issues/1284
+
+    An example cloud account is
+        name: AWS_ACCOUNT_ID
+        value: 012345678910
+        description: Cost Management's AWS Account ID
+    """
+
     name = models.CharField(max_length=255, help_text='The name of the attribute')
     value = models.TextField(null=True)
     description = models.TextField(null=True)

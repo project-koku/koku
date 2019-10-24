@@ -26,6 +26,7 @@ from api.views import (
     AzureInstanceTypeView,
     AzureStorageView,
     AzureTagView,
+    CloudAccountViewSet,
     CostModelMetricsMapViewSet,
     DataExportRequestViewSet,
     OCPAWSCostView,
@@ -42,8 +43,7 @@ from api.views import (
     UserPreferenceViewSet,
     authentication,
     billing_source,
-    openapi,
-    CloudAccountViewSet
+    openapi
 )
 
 

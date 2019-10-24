@@ -17,13 +17,15 @@
 
 """View for Cloud Account."""
 from rest_framework import viewsets
+from rest_framework.permissions import AllowAny
+
 from api.cloud_accounts.models import CloudAccount
 from api.cloud_accounts.serializers import CloudAccountSerializer
-from rest_framework.permissions import AllowAny
 
 
 class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
-    """ View for Cloud Accounts """
+    """View for Cloud Accounts."""
+
     queryset = CloudAccount.objects.all()
     serializer_class = CloudAccountSerializer
     permission_classes = (AllowAny,)
