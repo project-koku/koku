@@ -21,14 +21,29 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
 from api.iam.test.iam_test_case import IamTestCase
 
 
 class CloudAccountViewTest(IamTestCase):
-    """Test CloudAccountViewSet."""
+    """Test Cases for CloudAccountViewSet."""
 
-    def testCloudAccountViewSet(self):
+    def testCloudAccountEmptyViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
+        url = reverse('cloud_accounts-list')
+        client = APIClient()
+
+        response = client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def testCloudAccountOneItemViewSet(self):
+        """
+        Test that /cloud_account endpoint returns HTTP 200 OK.
+
+        Adds an account to CloudAccounts.
+        """
+        CloudAccountCommonTestUtilities.create_cloud_account(self)
+
         url = reverse('cloud_accounts-list')
         client = APIClient()
 

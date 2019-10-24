@@ -14,21 +14,20 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-
-"""TestCase for Cloud Account Model."""
-from django.test import TestCase
-
+"""Common functions for test cases to re-use."""
 from api.cloud_accounts.models import CloudAccount
-from api.cloud_accounts.tests.cloud_account_common_test_utilities import CloudAccountCommonTestUtilities
 
 
-class CloudAccountTest(TestCase):
-    """Test creating and reading mock model."""
+class CloudAccountCommonTestUtilities():
+    """Common functions that test cases re-use."""
 
-    def test_cloud_account_creation(self):
-        """Test creating and reading a mock model."""
-        cloud_account = CloudAccountCommonTestUtilities.create_cloud_account(self)
-        self.assertTrue(isinstance(cloud_account, CloudAccount))
-        self.assertEqual(cloud_account.name, 'TEST_AWS_ACCOUNT_ID')
-        self.assertEqual(cloud_account.value, 'TEST_12345678910')
-        self.assertEqual(cloud_account.description, "TEST Cost Management's AWS Account ID")
+    def create_cloud_account(
+            self,
+            name='TEST_AWS_ACCOUNT_ID',
+            value='TEST_12345678910',
+            description="TEST Cost Management's AWS Account ID"):
+        """Create a model for tests."""
+        cloud_account = CloudAccount.objects.create(
+            name=name, value=value, description=description)
+        cloud_account.save()
+        return cloud_account
