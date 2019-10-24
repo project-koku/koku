@@ -49,3 +49,30 @@ class CloudAccountViewTest(IamTestCase):
 
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def testCloudAccountName(self):
+        """
+        Test that an expected cloud account is an actual cloud account.
+
+        Tests that the contents match expected values.
+        """
+        CloudAccountCommonTestUtilities.create_cloud_account(self)
+
+        url = reverse('cloud_accounts-list')
+        client = APIClient()
+        response = client.get(url)
+        actualName = response.data['data'][0]['name']
+        expectedName = 'TEST_AWS_ACCOUNT_ID'
+        self.assertEqual(expectedName, actualName)
+
+    def testCloudAccountValue(self):
+        """Creates a cloud account, and tests that the value is TEST_012345678910."""
+        # Create a cloud account
+        CloudAccountCommonTestUtilities.create_cloud_account(self)
+
+        url = reverse('cloud_accounts-list')
+        client = APIClient()
+        response = client.get(url)
+        actualValue = response.data['data'][0]['value']
+        expectedValue = 'TEST_12345678910'
+        self.assertEqual(expectedValue, actualValue)
