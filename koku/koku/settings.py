@@ -85,7 +85,7 @@ INSTALLED_APPS = [
     'reporting',
     'reporting_common',
     'cost_models',
-    'sources'
+    'sources',
 ]
 
 SHARED_APPS = (
@@ -98,7 +98,7 @@ SHARED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'rest_framework',
-    'sources'
+    'sources',
 )
 
 TENANT_APPS = (
