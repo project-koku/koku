@@ -15,15 +15,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-"""TestCase for Seeded Cloud Account Model data"""
+"""TestCase for seeded Cloud Account data."""
 from django.test import TestCase
 
 from api.cloud_accounts.models import CloudAccount
 
 
 class CloudAccountSeedDataTest(TestCase):
-    """Test that database contains the seeded account IDs"""
+    """Test that database contains the seeded account IDs."""
+
+    AWS_ACCOUNT_ID = '589173575009'
+
     def testModelContainsAWSCloudAccountSeed(self):
-        """Test that the database contains the expected seeded Red Hat's Cost Management AWS Account ID of 589173575009."""
+        """
+        Check the seed.
+
+        Check that the seeded AWS account ID is stored in
+        the database.
+        """
         actualValue = CloudAccount.objects.get(name='AWS').value
-        self.assertEquals('589173575009', actualValue)
+        self.assertEquals(self.AWS_ACCOUNT_ID, actualValue)
