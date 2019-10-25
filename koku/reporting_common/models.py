@@ -39,8 +39,7 @@ class CostUsageReportManifest(models.Model):
     billing_period_start_datetime = models.DateTimeField()
     num_processed_files = models.IntegerField(default=0)
     num_total_files = models.IntegerField()
-    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE,
-                                 db_column='provider_uuid')
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class CostUsageReportStatus(models.Model):

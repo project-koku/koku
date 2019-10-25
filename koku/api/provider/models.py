@@ -205,8 +205,7 @@ class ProviderStatus(models.Model):
               (98, 'Disabled: Error'),
               (99, 'Disabled: Admin'),)
 
-    provider = models.ForeignKey('Provider', on_delete=models.CASCADE,
-                                 db_column='provider_uuid')
+    provider = models.ForeignKey('Provider', on_delete=models.CASCADE)
     status = models.IntegerField(null=False,
                                  choices=STATES,
                                  default=0)
