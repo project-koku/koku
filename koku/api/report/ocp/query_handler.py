@@ -55,7 +55,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 and parameters.report_type == 'costs':
             self._report_type = parameters.report_type + '_by_project'
             self._mapper = OCPProviderMap(provider=self.provider,
-                                          report_type=parameters.report_type)
+                                          report_type=self._report_type)
 
     @property
     def annotations(self):
