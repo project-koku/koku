@@ -18,6 +18,7 @@
 """View for Cloud Account."""
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
 
 from api.cloud_accounts.models import CloudAccount
 from api.cloud_accounts.serializers import CloudAccountSerializer
@@ -26,6 +27,14 @@ from api.cloud_accounts.serializers import CloudAccountSerializer
 class CloudAccountViewSet(viewsets.ReadOnlyModelViewSet):
     """View for Cloud Accounts."""
 
-    queryset = CloudAccount.objects.all()
     serializer_class = CloudAccountSerializer
     permission_classes = (AllowAny,)
+    filter_backends = (DjangoFilterBackend,)
+
+    def get_queryset(self):
+        """Override default get_queryset to filter on name."""
+        queryset = CloudAccount.objects.all()
+        cloud_account = self.request.query_params.get('name', None)
+        if cloud_account is not None:
+            queryset = queryset.filter(name=cloud_account)
+        return queryset

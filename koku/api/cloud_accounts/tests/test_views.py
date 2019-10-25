@@ -55,24 +55,17 @@ class CloudAccountViewTest(IamTestCase):
         Test that an expected cloud account is an actual cloud account.
 
         Tests that the contents match expected values.
+        There should only be one CloudAccount object returned in the response array.
         """
         CloudAccountCommonTestUtilities.create_cloud_account(self)
 
         url = reverse('cloud_accounts-list')
         client = APIClient()
-        response = client.get(url)
+        response = client.get(url + '?name=TEST_AWS_ACCOUNT_ID')
         actualName = response.data['data'][0]['name']
+
         expectedName = 'TEST_AWS_ACCOUNT_ID'
         self.assertEqual(expectedName, actualName)
-
-    def testCloudAccountValue(self):
-        """Creates a cloud account, and tests that the value is TEST_012345678910."""
-        # Create a cloud account
-        CloudAccountCommonTestUtilities.create_cloud_account(self)
-
-        url = reverse('cloud_accounts-list')
-        client = APIClient()
-        response = client.get(url)
         actualValue = response.data['data'][0]['value']
         expectedValue = 'TEST_12345678910'
         self.assertEqual(expectedValue, actualValue)
