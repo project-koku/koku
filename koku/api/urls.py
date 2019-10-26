@@ -26,6 +26,7 @@ from api.views import (
     AzureInstanceTypeView,
     AzureStorageView,
     AzureTagView,
+    CloudAccountViewSet,
     CostModelMetricsMapViewSet,
     DataExportRequestViewSet,
     OCPAWSCostView,
@@ -51,7 +52,7 @@ ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='data
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-
+ROUTER.register(r'cloud_accounts', CloudAccountViewSet, base_name='cloud_accounts')
 # pylint: disable=invalid-name
 urlpatterns = [
 
