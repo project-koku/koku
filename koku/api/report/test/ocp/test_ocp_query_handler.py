@@ -24,6 +24,7 @@ from django.db.models.expressions import OrderBy
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.test import FakeQueryParameters
@@ -42,12 +43,14 @@ class OCPReportQueryHandlerTest(IamTestCase):
         super().setUp()
         self.dh = DateHelper()
 
+        _, self.provider = create_generic_provider('OCP', self.headers)
+
         self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
         self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 9)}
         self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 29)}
         self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
                                   'usage_end__lte': self.dh.last_month_end}
-        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider, self.provider).add_data_to_tenant()
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -116,7 +119,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
         # Add data for a second cluster
-        OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -304,8 +307,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_add_current_month_deltas_no_previous_data_wo_query_data(self):
         """Test that current month deltas are calculated with no previous month data."""
-        OCPReportDataGenerator(self.tenant).remove_data_from_tenant()
-        OCPReportDataGenerator(self.tenant, current_month_only=True).add_data_to_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider).remove_data_from_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider, current_month_only=True).add_data_to_tenant()
 
         # '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
         params = {'filter': {'resolution': 'monthly',
@@ -340,8 +343,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_add_current_month_deltas_no_previous_data_w_query_data(self):
         """Test that current month deltas are calculated with no previous data for field two."""
-        OCPReportDataGenerator(self.tenant).remove_data_from_tenant()
-        OCPReportDataGenerator(self.tenant, current_month_only=True).add_data_to_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider).remove_data_from_tenant()
+        OCPReportDataGenerator(self.tenant, self.provider, current_month_only=True).add_data_to_tenant()
 
         # '?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1'
         params = {'filter': {'resolution': 'monthly',
@@ -513,7 +516,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_filter_by_infrastructure_ocp_on_aws(self):
         """Test that filter by infrastructure for ocp on aws."""
-        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider, current_month_only=True)
         data_generator.add_data_to_tenant()
 
         # '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
@@ -533,7 +536,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_filter_by_infrastructure_ocp(self):
         """Test that filter by infrastructure for ocp not on aws."""
-        data_generator = OCPReportDataGenerator(self.tenant, current_month_only=True)
+        data_generator = OCPReportDataGenerator(self.tenant, self.provider, current_month_only=True)
         data_generator.add_data_to_tenant()
 
         # '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
@@ -576,7 +579,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_cpu_query_group_by_cluster(self):
         """Test that group by cluster includes cluster and cluster_alias."""
         for _ in range(1, 5):
-            OCPReportDataGenerator(self.tenant).add_data_to_tenant()
+            OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
         params = {'filter': {'resolution': 'monthly',

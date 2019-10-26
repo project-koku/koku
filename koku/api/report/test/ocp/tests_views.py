@@ -34,6 +34,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
+from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
 from api.report.ocp.view import OCPCpuView, OCPMemoryView
 from api.report.test import FakeQueryParameters
@@ -56,11 +57,9 @@ class OCPReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.data_generator = OCPReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('OCP', self.headers)
+        self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
         self.report_ocp_cpu = {
             'group_by': {
@@ -839,7 +838,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {'namespaces': ['project_one', 'project_two']}
         project_of_interest = data_config['namespaces'][0]
-        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         data_generator.add_data_to_tenant(**data_config)
         data_generator.add_data_to_tenant(**data_config)
 
@@ -922,7 +921,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {'nodes': ['node_one', 'node_two']}
         node_of_interest = data_config['nodes'][0]
-        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         data_generator.add_data_to_tenant(**data_config)
         data_generator.add_data_to_tenant(**data_config)
 
@@ -948,7 +947,7 @@ class OCPReportViewTest(IamTestCase):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {'nodes': ['node_one', 'node_two']}
         node_of_interest = data_config['nodes'][0]
-        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         data_generator.add_data_to_tenant(**data_config)
         data_generator.add_data_to_tenant(**data_config)
 
@@ -1150,7 +1149,7 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_tag_and_limit(self):
         """Test that data is grouped by tag key and limited."""
-        data_generator = OCPReportDataGenerator(self.tenant, dated_tags=False)
+        data_generator = OCPReportDataGenerator(self.tenant, self.provider, dated_tags=False)
         data_generator.add_data_to_tenant()
         group_by_key = 'app_label'
 

@@ -24,6 +24,7 @@ from django.db.models import F, Sum
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
 from api.report.test import FakeQueryParameters
@@ -47,7 +48,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 29)}
         self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
                                   'usage_start__lte': self.dh.last_month_end}
-        self.generator = AzureReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('AZURE', self.headers)
+        self.generator = AzureReportDataGenerator(self.tenant, self.provider)
         self.generator.add_data_to_tenant()
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -70,8 +72,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant, config=self.generator.config).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider, config=self.generator.config).add_data_to_tenant()
 
         # '?'
         query_params = FakeQueryParameters({}, report_type='instance_type', tenant=self.tenant)
@@ -158,8 +159,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         valid_services = list(AZURE_SERVICES.keys())
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'
@@ -193,15 +193,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        for _ in range(0, 3):
-            config = self.generator.config
-            generator = AzureReportDataGenerator(self.tenant,
-                                                 current_month_only=True,
-                                                 config=config)
-            generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                       'resource_location',
-                                                       'tags',
-                                                       'service_name'])
+        config = self.generator.config
+        generator = AzureReportDataGenerator(self.tenant, self.provider,
+                                             current_month_only=True,
+                                             config=config)
+        generator.add_data_to_tenant(fixed_fields=['subscription_guid',
+                                                    'resource_location',
+                                                    'tags',
+                                                    'service_name'])
 
         valid_services = list(AZURE_SERVICES.keys())
         service = self.generator.config.service_name
@@ -242,15 +241,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        for _ in range(0, 3):
-            config = self.generator.config
-            generator = AzureReportDataGenerator(self.tenant,
-                                                 current_month_only=True,
-                                                 config=config)
-            generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                       'resource_location',
-                                                       'tags',
-                                                       'service_name'])
+        config = self.generator.config
+        generator = AzureReportDataGenerator(self.tenant, self.provider,
+                                             current_month_only=True,
+                                             config=config)
+        generator.add_data_to_tenant(fixed_fields=['subscription_guid',
+                                                    'resource_location',
+                                                    'tags',
+                                                    'service_name'])
 
         valid_services = list(AZURE_SERVICES.keys())
         selected_range = random.randrange(2, len(self.generator.config.service_name))
@@ -390,8 +388,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_subscription_guid_w_limit(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""
-        for _ in range(3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -418,15 +415,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(3, len(month_data))
+            self.assertEqual(2, len(month_data))
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('subscription_guid'), str)
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_curr_month_by_subscription_guid_w_order(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
-        for _ in range(3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -454,7 +450,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 4)
+            self.assertEqual(len(month_data), 2)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('subscription_guid'), str)
@@ -466,8 +462,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_subscription_guid_w_order_by_subscription_guid(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
-        for _ in range(3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -495,7 +490,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get('subscription_guids')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 4)
+            self.assertEqual(len(month_data), 2)
             current = '0'
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('subscription_guid'), str)
@@ -600,15 +595,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
-        for _ in range(0, 3):
-            config = self.generator.config
-            generator = AzureReportDataGenerator(self.tenant,
-                                                 current_month_only=True,
-                                                 config=config)
-            generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                       'resource_location',
-                                                       'tags',
-                                                       'service_name'])
+        config = self.generator.config
+        generator = AzureReportDataGenerator(self.tenant, self.provider,
+                                                current_month_only=True,
+                                                config=config)
+        generator.add_data_to_tenant(fixed_fields=['subscription_guid',
+                                                    'resource_location',
+                                                    'tags',
+                                                    'service_name'])
 
         service = self.generator.config.service_name
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=some_service'
@@ -698,8 +692,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
-        for _ in range(3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[resource_location]=some_location'
         params = {'filter': {'resolution': 'monthly',
@@ -722,15 +715,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
                          current_totals.get('cost'))
 
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 3)
+        self.assertEqual(len(data), 2)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         query_params = {'filter':
                         {'resolution': 'monthly',
@@ -759,18 +751,18 @@ class AzureReportQueryHandlerTest(IamTestCase):
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
                 curr = AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.this_month_start,
-                    usage_start__lte=self.dh.today,
+                    usage_start__date__gte=self.dh.this_month_start,
+                    usage_start__date__lte=self.dh.today,
                     subscription_guid=sub.get('subscription_guid')).aggregate(
                         value=Sum(F('pretax_cost') + F('markup_cost')))
                 current_total = Decimal(curr.get('value'))
 
                 prev = AzureCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.last_month_start,
-                    usage_start__lte=self.dh.today.replace(month=self.dh.today.month - 1),
+                    usage_start__date__gte=self.dh.last_month_start,
+                    usage_start__date__lte=self.dh.today.replace(month=self.dh.today.month - 1),
                     subscription_guid=sub.get('subscription_guid')).aggregate(
                         value=Sum(F('pretax_cost') + F('markup_cost')))
-                prev_total = Decimal(prev.get('value'))
+                prev_total = Decimal(prev.get('value', Decimal(0)))
 
             expected_delta_value = Decimal(current_total - prev_total)
             expected_delta_percent = Decimal(
@@ -813,7 +805,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
         self.generator.remove_data_from_tenant()
-        generator = AzureReportDataGenerator(self.tenant,
+        generator = AzureReportDataGenerator(self.tenant, self.provider,
                                              current_month_only=True)
         generator.add_data_to_tenant()
 
@@ -834,8 +826,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost'
         params = {'filter': {'resolution': 'monthly',
@@ -849,7 +840,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
-
         cmonth_str = self.dh.this_month_start.strftime('%Y-%m')
         for data_item in data:
             month_val = data_item.get('date')
@@ -859,7 +849,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('subscription_guid'), str)
                 self.assertIsInstance(month_item.get('values'), list)
-                self.assertIsInstance(month_item.get('values')[0].get('delta_percent'),
+                self.assertIsInstance(month_item.get('values')[0].get('delta_value'),
                                       Decimal)
 
     def test_calculate_total(self):
@@ -970,8 +960,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
         params = {'filter': {'resolution': 'monthly',
@@ -999,8 +988,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -1036,8 +1024,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         Query for storage, validating that cost totals are present.
 
         """
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'
         params = {'filter': {'resolution': 'monthly',

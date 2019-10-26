@@ -78,7 +78,7 @@ class TestUploadUtilsWithData(MasuTestCase):
         reservation = self.creator.create_cost_entry_reservation()
 
         bill = self.creator.create_cost_entry_bill(
-            provider_id=self.aws_provider.id, bill_date=the_datetime
+            provider_uuid=self.aws_provider_uuid, bill_date=the_datetime
         )
         cost_entry = self.creator.create_cost_entry(bill, entry_datetime=the_datetime)
         self.creator.create_cost_entry_line_item(

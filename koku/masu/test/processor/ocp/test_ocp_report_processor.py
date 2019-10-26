@@ -121,7 +121,7 @@ class OCPReportProcessorTest(MasuTestCase):
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': self.billing_start,
             'num_total_files': 2,
-            'provider_id': self.ocp_provider.id
+            'provider_uuid': self.ocp_provider_uuid
         }
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
@@ -130,7 +130,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.ocp_provider.id,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
     def tearDown(self):
@@ -152,7 +152,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.test_report,
                 compression='unsupported',
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
 
     def test_detect_report_type(self):
@@ -160,7 +160,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(usage_processor.report_type, OCPReportTypes.CPU_MEM_USAGE)
 
@@ -168,7 +168,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         self.assertEqual(storage_processor.report_type, OCPReportTypes.STORAGE)
 
@@ -177,7 +177,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.unknown_report,
                 compression=UNCOMPRESSED,
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
 
     def test_process_default(self):
@@ -187,7 +187,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         report_db = self.accessor
         report_schema = report_db.report_schema
@@ -216,7 +216,7 @@ class OCPReportProcessorTest(MasuTestCase):
                 schema_name='acct10001',
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=1,
+                provider_uuid=self.ocp_provider_uuid,
             )
             report_db = self.accessor
             report_schema = report_db.report_schema
@@ -244,7 +244,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -263,7 +263,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -295,7 +295,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=tmp_file,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -455,7 +455,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         storage_processor._processor._create_usage_report_line_item(
             row, report_period_id, report_id, self.accessor
@@ -480,7 +480,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         with OCPReportDBAccessor(self.schema, self.column_map) as accessor:
             report_period_id = storage_processor._processor._create_report_period(
@@ -574,7 +574,7 @@ class OCPReportProcessorTest(MasuTestCase):
             path = '{}/{}'.format(insights_local_dir, item['file'])
             f = open(path, 'w')
             obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.ocp_provider.id)
+                                                      self.ocp_provider_uuid)
             stats = ReportStatsDBAccessor(item['file'], obj.id)
             stats.update(last_completed_datetime=item['processed_date'])
             stats.commit()
@@ -636,7 +636,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor
@@ -659,7 +659,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         # Process for the first time
@@ -678,7 +678,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -694,7 +694,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor
@@ -714,7 +714,7 @@ class OCPReportProcessorTest(MasuTestCase):
             schema_name='acct10001',
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=1,
+            provider_uuid=self.ocp_provider_uuid,
         )
 
         report_db = self.accessor

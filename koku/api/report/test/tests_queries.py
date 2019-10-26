@@ -29,6 +29,7 @@ from django.test import TestCase
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.queries import strip_tag_prefix
 from api.report.test import FakeAWSCostData, FakeQueryParameters
@@ -104,7 +105,8 @@ class ReportQueryTest(IamTestCase):
         self.dh = DateHelper()
         super().setUp()
         self.current_month_total = Decimal(0)
-        self.fake_aws = FakeAWSCostData()
+        _, self.provider = create_generic_provider('AWS', self.headers)
+        self.fake_aws = FakeAWSCostData(self.provider)
         self.add_data_to_tenant(self.fake_aws)
 
     def _populate_daily_table(self):
@@ -627,8 +629,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
-        for _ in range(3):
-            self.add_data_to_tenant(FakeAWSCostData())
+        self.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -652,15 +653,14 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(3, len(month_data))
+            self.assertEqual(2, len(month_data))
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
                 self.assertIsInstance(month_item.get('values'), list)
 
     def test_execute_query_curr_month_by_account_w_order(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        for _ in range(3):
-            self.add_data_to_tenant(FakeAWSCostData())
+        self.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[cost]=asc'
         params = {'filter': {'resolution': 'monthly',
@@ -684,7 +684,7 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 4)
+            self.assertEqual(len(month_data), 2)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
@@ -696,8 +696,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
-        for _ in range(3):
-            self.add_data_to_tenant(FakeAWSCostData())
+        self.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account]=asc'
         params = {'filter': {'resolution': 'monthly',
@@ -721,7 +720,7 @@ class ReportQueryTest(IamTestCase):
             month_data = data_item.get('accounts')
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 4)
+            self.assertEqual(len(month_data), 2)
             current = '0'
             for month_item in month_data:
                 self.assertIsInstance(month_item.get('account'), str)
@@ -970,8 +969,7 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_account_w_limit_csv(self):
         """Test execute_query for current month on monthly by account with limt as csv."""
-        for _ in range(5):
-            self.add_data_to_tenant(FakeAWSCostData())
+        self.add_data_to_tenant(FakeAWSCostData(self.provider))
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -992,7 +990,7 @@ class ReportQueryTest(IamTestCase):
         self.assertAlmostEqual(total.get('cost', {}).get('value'), self.current_month_total, 6)
 
         cmonth_str = DateHelper().this_month_start.strftime('%Y-%m')
-        self.assertEqual(len(data), 3)
+        self.assertEqual(len(data), 2)
         for data_item in data:
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
@@ -1009,11 +1007,10 @@ class ReportQueryTest(IamTestCase):
         previous_data.usage_end = dh.last_month_start + dh.one_day
         previous_data.usage_start = dh.last_month_start
 
-        for _ in range(0, 3):
-            # add some current data.
-            self.add_data_to_tenant(self.fake_aws)
-            # add some previous data.
-            self.add_data_to_tenant(previous_data)
+        # add some current data.
+        self.add_data_to_tenant(self.fake_aws)
+        # add some previous data.
+        self.add_data_to_tenant(previous_data)
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
@@ -1081,27 +1078,25 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
         dh = DateHelper()
-        current_data = FakeAWSCostData()
+        current_data = FakeAWSCostData(self.provider)
         previous_data = copy.deepcopy(current_data)
         previous_data.billing_period_end = dh.last_month_end
         previous_data.billing_period_start = dh.last_month_start
         previous_data.usage_end = dh.last_month_start + timedelta(days=1)
         previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
-        for _ in range(3):
-            for _ in range(3):
-                # add some current data.
-                self.add_data_to_tenant(self.fake_aws)
-                # add some past data.
-                self.add_data_to_tenant(previous_data)
+        # add some current data.
+        self.add_data_to_tenant(self.fake_aws)
+        # add some past data.
+        self.add_data_to_tenant(previous_data)
 
-            # create another account id for the next loop
-            current_data = FakeAWSCostData()
-            previous_data = copy.deepcopy(current_data)
-            previous_data.billing_period_end = dh.last_month_end
-            previous_data.billing_period_start = dh.last_month_start
-            previous_data.usage_end = dh.last_month_start + timedelta(days=1)
-            previous_data.usage_start = dh.last_month_start + timedelta(days=1)
+        # create another account id for the next loop
+        current_data = FakeAWSCostData(self.provider)
+        previous_data = copy.deepcopy(current_data)
+        previous_data.billing_period_end = dh.last_month_end
+        previous_data.billing_period_start = dh.last_month_start
+        previous_data.usage_end = dh.last_month_start + timedelta(days=1)
+        previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[account]=*&delta=cost'
         params = {'filter': {'resolution': 'monthly',
@@ -1147,10 +1142,9 @@ class ReportQueryTest(IamTestCase):
         """Test execute_query when account alias is avaiable."""
         # generate test data
         expected = {self.fake_aws.account_alias: self.fake_aws.account_id}
-        for _ in range(0, 3):
-            fake_data = FakeAWSCostData()
-            expected[fake_data.account_alias] = fake_data.account_id
-            self.add_data_to_tenant(fake_data)
+        fake_data = FakeAWSCostData(self.provider)
+        expected[fake_data.account_alias] = fake_data.account_id
+        self.add_data_to_tenant(fake_data)
         expected = OrderedDict(sorted(expected.items()))
 
         # execute query
@@ -1274,9 +1268,8 @@ class ReportQueryTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        for _ in range(0, random.randint(3, 5)):
-            self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
-            self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
+        self.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
+        self.add_data_to_tenant(FakeAWSCostData(self.provider), product='ebs')
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -1304,8 +1297,7 @@ class ReportQueryTest(IamTestCase):
         Query for instance_types, validating that cost totals are present.
 
         """
-        for _ in range(0, random.randint(3, 5)):
-            self.add_data_to_tenant(FakeAWSCostData(), product='ec2')
+        self.add_data_to_tenant(FakeAWSCostData(self.provider), product='ec2')
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'
         params = {'filter': {'resolution': 'monthly',
@@ -1336,8 +1328,7 @@ class ReportQueryTest(IamTestCase):
         Query for storage, validating that cost totals are present.
 
         """
-        for _ in range(0, random.randint(3, 5)):
-            self.add_data_to_tenant(FakeAWSCostData(), product='ebs')
+        self.add_data_to_tenant(FakeAWSCostData(self.provider), product='ebs')
 
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'
         params = {'filter': {'resolution': 'monthly',

@@ -24,6 +24,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -37,11 +38,9 @@ class AzureTagsViewTest(IamTestCase):
         super().setUp()
         self.dh = DateHelper()
         self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
-        self.data_generator = AzureReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('AZURE', self.headers)
+        self.data_generator = AzureReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
     def test_execute_tags_queries_keys_only(self):
         """Test that tag key data is for the correct time queries."""
@@ -139,8 +138,7 @@ class AzureTagsViewTest(IamTestCase):
 
     def test_execute_query_with_and_filter(self):
         """Test the filter[and:] param in the view."""
-        for _ in range(0, 3):
-            AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
         url = reverse('azure-tags')
         client = APIClient()
 

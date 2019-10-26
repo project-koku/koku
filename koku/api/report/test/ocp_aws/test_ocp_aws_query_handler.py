@@ -19,6 +19,7 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
 from api.report.test import FakeQueryParameters
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
@@ -70,13 +71,14 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        _, self.provider = create_generic_provider('OCP', self.headers)
 
         self.this_month_filter = {'usage_start__gte': self.dh.this_month_start}
         self.ten_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 9)}
         self.thirty_day_filter = {'usage_start__gte': self.dh.n_days_ago(self.dh.today, 29)}
         self.last_month_filter = {'usage_start__gte': self.dh.last_month_start,
                                   'usage_end__lte': self.dh.last_month_end}
-        OCPAWSReportDataGenerator(self.tenant).add_data_to_tenant()
+        OCPAWSReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""

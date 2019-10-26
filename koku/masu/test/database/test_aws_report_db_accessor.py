@@ -151,11 +151,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.aws_provider.id,
+            'provider_id': self.aws_provider.uuid,
         }
 
         bill = self.creator.create_cost_entry_bill(
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider.uuid,
             bill_date=today,
         )
         cost_entry = self.creator.create_cost_entry(bill, entry_datetime=today)
@@ -596,7 +596,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         daily_table = getattr(self.accessor.report_schema, daily_table_name)
         with schema_context(self.schema):
             for _ in range(10):
-                bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
                 cost_entry = self.creator.create_cost_entry(bill)
                 product = self.creator.create_cost_entry_product()
                 pricing = self.creator.create_cost_entry_pricing()
@@ -607,7 +607,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             bills = self.accessor.get_cost_entry_bills_query_by_provider(
-                self.aws_provider.id
+                self.aws_provider.uuid
             )
             bill_ids = [str(bill.id) for bill in bills.all()]
 
@@ -680,7 +680,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         with schema_context(self.schema):
             for _ in range(10):
-                bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
                 cost_entry = self.creator.create_cost_entry(bill)
                 product = self.creator.create_cost_entry_product()
                 pricing = self.creator.create_cost_entry_pricing()
@@ -757,7 +757,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
             cost_entry = self.creator.create_cost_entry(bill)
             product = self.creator.create_cost_entry_product()
             pricing = self.creator.create_cost_entry_pricing()
@@ -767,7 +767,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.aws_provider.id
+            self.aws_provider.uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -859,7 +859,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bill_ids = None
 
         for _ in range(10):
-            bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+            bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
             cost_entry = self.creator.create_cost_entry(bill)
             product = self.creator.create_cost_entry_product()
             pricing = self.creator.create_cost_entry_pricing()
@@ -958,7 +958,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             for cost_entry_date in (today, last_month):
                 bill = self.creator.create_cost_entry_bill(
-                    provider_id=self.aws_provider.id, bill_date=cost_entry_date,
+                    provider_uuid=self.aws_provider.uuid, bill_date=cost_entry_date,
                 )
                 bill_ids.append(str(bill.id))
                 cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
@@ -1026,7 +1026,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         resource_id = 'i-12345'
         with schema_context(self.schema):
             for cost_entry_date in (today, last_month):
-                bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=cost_entry_date)
+                bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid, bill_date=cost_entry_date)
                 bill_ids.append(str(bill.id))
                 cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
                 product = self.creator.create_cost_entry_product('Compute Instance')
@@ -1051,11 +1051,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
             with ProviderDBAccessor(
                 provider_uuid=self.ocp_test_provider_uuid
             ) as provider_access:
-                provider_id = provider_access.get_provider().id
+                provider_uuid = provider_access.get_provider().uuid
 
             for cost_entry_date in (today, last_month):
                 period = self.creator.create_ocp_report_period(
-                    cost_entry_date, provider_id=provider_id, cluster_id=cluster_id
+                    provider_uuid, period_date=cost_entry_date, cluster_id=cluster_id
                 )
                 report = self.creator.create_ocp_report(period, cost_entry_date)
                 self.creator.create_ocp_usage_line_item(
@@ -1104,20 +1104,20 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(sum_cost, sum_project_cost)
             self.assertLessEqual(sum_cost, sum_aws_cost)
 
-    def test_bills_for_provider_id(self):
-        """Test that bills_for_provider_id returns the right bills."""
+    def test_bills_for_provider_uuid(self):
+        """Test that bills_for_provider_uuid returns the right bills."""
         bill1_date = datetime.datetime(2018, 1, 6, 0, 0, 0)
         bill2_date = datetime.datetime(2018, 2, 3, 0, 0, 0)
 
         self.creator.create_cost_entry_bill(
-            bill_date=bill1_date, provider_id=self.aws_provider.id
+            bill_date=bill1_date, provider_uuid=self.aws_provider.uuid
         )
         bill2 = self.creator.create_cost_entry_bill(
-            provider_id=self.aws_provider.id, bill_date=bill2_date
+            provider_uuid=self.aws_provider.uuid, bill_date=bill2_date
         )
 
-        bills = self.accessor.bills_for_provider_id(
-            self.aws_provider.id, start_date=bill2_date.strftime('%Y-%m-%d')
+        bills = self.accessor.bills_for_provider_uuid(
+            self.aws_provider.uuid, start_date=bill2_date.strftime('%Y-%m-%d')
         )
         with schema_context(self.schema):
             self.assertEquals(len(bills), 1)
@@ -1125,7 +1125,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_mark_bill_as_finalized(self):
         """Test that test_mark_bill_as_finalized sets finalized_datetime field."""
-        bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
         with schema_context(self.schema):
             self.assertIsNone(bill.finalized_datetime)
             self.accessor.mark_bill_as_finalized(bill.id)
@@ -1140,17 +1140,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
 
-        bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
-        cost_entry = self.creator.create_cost_entry(bill)
-        product = self.creator.create_cost_entry_product()
-        pricing = self.creator.create_cost_entry_pricing()
-        reservation = self.creator.create_cost_entry_reservation()
-        self.creator.create_cost_entry_line_item(
-            bill, cost_entry, product, pricing, reservation
-        )
-
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.aws_provider.id
+            self.aws_provider.uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -1190,7 +1181,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         ce_table = getattr(self.accessor.report_schema, ce_table_name)
 
-        bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider.uuid)
         cost_entry = self.creator.create_cost_entry(bill)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
@@ -1200,7 +1191,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.aws_provider.id
+            self.aws_provider.uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]

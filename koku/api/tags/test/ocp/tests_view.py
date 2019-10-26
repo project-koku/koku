@@ -27,6 +27,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPUsageLineItemDailySummary
@@ -45,11 +46,9 @@ class OCPTagsViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.data_generator = OCPReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('OCP', self.headers)
+        self.data_generator = OCPReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
     def _calculate_expected_range(self, time_scope_value, time_scope_units):
         today = self.dh.today

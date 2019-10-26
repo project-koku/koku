@@ -76,13 +76,13 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
             'num_processed_files': 1,
-            'provider_id': self.ocp_provider.id,
+            'provider_uuid': self.ocp_provider_uuid,
         }
 
         today = DateAccessor().today_with_timezone('UTC')
         cluster_id = self.ocp_provider_resource_name
         self.report_period = self.creator.create_ocp_report_period(
-            today, provider_id=self.provider.id, cluster_id=cluster_id
+            provider_uuid=self.ocp_provider_uuid, period_date=today, cluster_id=cluster_id
         )
         report = self.creator.create_ocp_report(self.report_period, today)
         self.creator.create_ocp_usage_line_item(self.report_period, report)
@@ -258,7 +258,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.ocp_provider.id,
+            'provider_uuid': self.ocp_provider_uuid,
         }
 
         self.manifest_accessor.delete(self.manifest)
@@ -277,7 +277,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         bill_date = billing_start.date()
 
         self.creator.create_ocp_report_period(
-            billing_start, provider_id=self.provider.id
+            provider_uuid=self.ocp_provider_uuid, period_date=billing_start
         )
         with schema_context(self.schema):
             period = self.accessor.get_usage_periods_by_date(bill_date)[0]

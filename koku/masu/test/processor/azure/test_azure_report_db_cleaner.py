@@ -18,9 +18,11 @@
 """Test the AzureReportDBCleaner object."""
 import datetime
 from dateutil import relativedelta
+from uuid import uuid4
 
 from tenant_schemas.utils import schema_context
 
+from api.provider.models import Provider, ProviderAuthentication
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.processor.azure.azure_report_db_cleaner import (
@@ -56,7 +58,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider_id)
+        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
         product_id = self.creator.create_azure_cost_entry_product()
         meter_id = self.creator.create_azure_meter()
         self.creator.create_azure_cost_entry_line_item(
@@ -68,19 +70,19 @@ class AzureReportDBCleanerTest(MasuTestCase):
         self.assertIsNotNone(self.report_schema)
 
     def test_purge_expired_report_data_no_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
 
         cleaner = AzureReportDBCleaner(self.schema)
         with self.assertRaises(AzureReportDBCleanerError):
             cleaner.purge_expired_report_data()
 
     def test_purge_expired_report_data_both_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         now = datetime.datetime.utcnow()
         cleaner = AzureReportDBCleaner(self.schema)
         with self.assertRaises(AzureReportDBCleanerError):
             cleaner.purge_expired_report_data(
-                expired_date=now, provider_id=self.azure_provider_id
+                expired_date=now, provider_uuid=self.azure_provider_uuid
             )
 
     def test_purge_expired_report_data_on_date(self):
@@ -103,7 +105,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
-            removed_data[0].get('provider_id'), first_bill.provider_id
+            removed_data[0].get('provider_uuid'), first_bill.provider_id
         )
         self.assertEqual(
             removed_data[0].get('billing_period_start'),
@@ -167,7 +169,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
-            removed_data[0].get('provider_id'), first_bill.provider_id
+            removed_data[0].get('provider_uuid'), first_bill.provider_id
         )
         self.assertEqual(
             removed_data[0].get('billing_period_start'),
@@ -198,7 +200,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
-            removed_data[0].get('provider_id'), first_bill.provider_id
+            removed_data[0].get('provider_uuid'), first_bill.provider_id
         )
         self.assertEqual(
             removed_data[0].get('billing_period_start'),
@@ -212,7 +214,7 @@ class AzureReportDBCleanerTest(MasuTestCase):
             )
 
     def test_purge_expired_report_data_for_provider(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         bill_table_name = AZURE_REPORT_TABLE_MAP['bill']
         line_item_table_name = AZURE_REPORT_TABLE_MAP['line_item']
 
@@ -228,11 +230,11 @@ class AzureReportDBCleanerTest(MasuTestCase):
                 self.accessor._get_db_obj_query(line_item_table_name).first()
             )
 
-        removed_data = cleaner.purge_expired_report_data(provider_id=self.azure_provider_id)
+        removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
-            removed_data[0].get('provider_id'), first_bill.provider_id
+            removed_data[0].get('provider_uuid'), first_bill.provider_id
         )
         self.assertEqual(
             removed_data[0].get('billing_period_start'),
@@ -244,9 +246,23 @@ class AzureReportDBCleanerTest(MasuTestCase):
             self.assertIsNone(self.accessor._get_db_obj_query(line_item_table_name).first())
 
     def test_purge_correct_expired_report_data_for_provider(self):
-        """Test that the provider_id deletes all data for the provider when another provider exists."""
-        # add another line item with different provider_id
-        bill_id = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider_id+1)
+        """Test that the provider_uuid deletes all data for the provider when another provider exists."""
+        # add another line item with different provider_uuid
+        ocp_auth = ProviderAuthentication.objects.create(
+            uuid=uuid4(),
+            provider_resource_name='test_provider',
+        )
+        ocp_auth.save()
+        ocp_provider = Provider.objects.create(
+            uuid=uuid4(),
+            name='Test Provider 2',
+            type='OCP',
+            authentication=ocp_auth,
+            customer=self.customer,
+            setup_complete=False,
+        )
+        ocp_provider.save()
+        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=ocp_provider.uuid)
         product_id = self.creator.create_azure_cost_entry_product()
         meter_id = self.creator.create_azure_meter()
         self.creator.create_azure_cost_entry_line_item(
@@ -269,11 +285,11 @@ class AzureReportDBCleanerTest(MasuTestCase):
                 self.accessor._get_db_obj_query(line_item_table_name).all().count(), 2
             )
 
-        removed_data = cleaner.purge_expired_report_data(provider_id=self.azure_provider_id)
+        removed_data = cleaner.purge_expired_report_data(provider_uuid=self.azure_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
-            removed_data[0].get('provider_id'), first_bill.provider_id
+            removed_data[0].get('provider_uuid'), first_bill.provider_id
         )
         self.assertEqual(
             removed_data[0].get('billing_period_start'),

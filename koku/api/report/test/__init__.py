@@ -50,7 +50,7 @@ class FakeAWSCostData:
                     'eu-west-1', 'eu-west-2', 'eu-west-3',
                     'sa-east-1']
 
-    def __init__(self, account_alias=None, account_id=None,
+    def __init__(self, provider, account_alias=None, account_id=None,
                  availability_zone=None, bill=None,
                  billing_period_end=None, billing_period_start=None,
                  cost_entry=None, instance_type=None, line_item=None,
@@ -58,6 +58,7 @@ class FakeAWSCostData:
                  resource_id=None):
         """Constructor."""
         # properties
+        self.provider = provider
         self._account_alias = account_alias
         self._account_id = account_id
         self._availability_zone = availability_zone
@@ -181,7 +182,8 @@ class FakeAWSCostData:
             self._bill = {'bill_type': 'Anniversary',
                           'payer_account_id': self.account_id,
                           'billing_period_start': self.billing_period_start,
-                          'billing_period_end': self.billing_period_end}
+                          'billing_period_end': self.billing_period_end,
+                          'provider_id': self.provider.uuid}
         return self._bill
 
     @bill.setter

@@ -391,8 +391,8 @@ class ProviderManagerTest(IamTestCase):
                                            customer=self.customer,
                                            authentication=provider_authentication,)
 
-        data_generator = OCPReportDataGenerator(self.tenant)
-        data_generator.add_data_to_tenant(**{'provider_id': provider.id})
+        data_generator = OCPReportDataGenerator(self.tenant, provider)
+        data_generator.add_data_to_tenant(**{'provider_uuid': provider.uuid})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -425,7 +425,7 @@ class ProviderManagerTest(IamTestCase):
                                            customer=self.customer,
                                            authentication=provider_authentication,)
 
-        data_generator = OCPReportDataGenerator(self.tenant)
+        data_generator = OCPReportDataGenerator(self.tenant, provider)
         data_generator.remove_data_from_reporting_common()
         data_generator.remove_data_from_tenant()
 
@@ -445,8 +445,8 @@ class ProviderManagerTest(IamTestCase):
                                            customer=self.customer,
                                            authentication=provider_authentication,)
 
-        data_generator = OCPReportDataGenerator(self.tenant)
-        data_generator.add_data_to_tenant(**{'provider_id': provider.id})
+        data_generator = OCPReportDataGenerator(self.tenant, provider)
+        data_generator.add_data_to_tenant(**{'provider_uuid': provider.uuid})
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
@@ -471,7 +471,13 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""
-        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='AWS',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
         data_generator.add_aws_data_to_tenant()
         data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
@@ -485,8 +491,14 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        ocp_aws_data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
-        data_generator = OCPReportDataGenerator(self.tenant, current_month_only=True)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='OCP',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        ocp_aws_data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
+        data_generator = OCPReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.add_data_to_tenant()
         ocp_aws_data_generator.create_ocp_provider(data_generator.cluster_id, data_generator.cluster_alias)
 
@@ -500,7 +512,13 @@ class ProviderManagerTest(IamTestCase):
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
-        data_generator = OCPAWSReportDataGenerator(self.tenant, current_month_only=True)
+        provider_authentication = ProviderAuthentication.objects.create(provider_resource_name='cluster_id_1001')
+        provider = Provider.objects.create(name='ocpprovidername',
+                                           type='OCP',
+                                           created_by=self.user,
+                                           customer=self.customer,
+                                           authentication=provider_authentication,)
+        data_generator = OCPAWSReportDataGenerator(self.tenant, provider, current_month_only=True)
         data_generator.create_ocp_provider('cool-cluster-id', 'awesome-alias')
 
         provider_uuid = data_generator.provider_uuid

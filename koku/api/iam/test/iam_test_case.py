@@ -18,6 +18,7 @@
 from base64 import b64encode
 from json import dumps as json_dumps
 from unittest.mock import Mock
+from uuid import UUID
 
 from django.db import connection
 from django.test import TestCase
@@ -25,7 +26,7 @@ from faker import Faker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
-from api.models import Customer, Tenant
+from api.models import Customer, Provider, Tenant
 from koku.koku_test_runner import KokuTestRunner
 
 
@@ -49,6 +50,7 @@ class IamTestCase(TestCase):
         cls.tenant = Tenant.objects.get_or_create(schema_name=cls.schema_name)[0]
         cls.tenant.save()
         cls.headers = cls.request_context['request'].META
+        cls.provider_uuid = UUID('00000000-0000-0000-0000-000000000001')
 
     @classmethod
     def tearDownClass(cls):

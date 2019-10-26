@@ -64,11 +64,11 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.aws_provider.id,
+            'provider_uuid': self.aws_provider_uuid,
         }
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=today)
+        bill = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=today)
         cost_entry = self.creator.create_cost_entry(bill, today)
         product = self.creator.create_cost_entry_product()
         pricing = self.creator.create_cost_entry_pricing()
@@ -80,7 +80,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
         self.manifest_accessor.commit()
 
-        with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             self.provider = provider_accessor.get_provider()
 
         self.updater = AWSReportSummaryUpdater(
@@ -192,7 +192,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.aws_provider.id,
+            'provider_uuid': self.aws_provider_uuid,
         }
         self.manifest_accessor.delete(self.manifest)
         self.manifest_accessor.commit()
@@ -211,7 +211,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = billing_start.date()
         self.creator.create_cost_entry_bill(
-            provider_id=self.provider.id, bill_date=billing_start
+            provider_uuid=self.provider.uuid, bill_date=billing_start
         )
         with schema_context(self.schema):
             bill = self.accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -257,7 +257,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
         """Test that summary tables are not run for a full month."""
 
         report_updater_base = ReportSummaryUpdater(
-            'acct10001', self.aws_test_provider_uuid, self.manifest.id
+            'acct10001', self.aws_provider_uuid, self.manifest.id
         )
 
         start_date = self.date_accessor.today_with_timezone('UTC')
@@ -346,7 +346,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
     ):
         """Test that summary tables are run for a full month."""
         report_updater_base = ReportSummaryUpdater(
-            'acct10001', self.aws_test_provider_uuid, self.manifest.id
+            'acct10001', self.aws_provider_uuid, self.manifest.id
         )
 
         start_date = self.date_accessor.today_with_timezone('UTC')
