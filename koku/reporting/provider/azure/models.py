@@ -95,13 +95,13 @@ class AzureCostEntryLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.PROTECT)
+                                        on_delete=models.CASCADE)
 
     cost_entry_product = models.ForeignKey('AzureCostEntryProductService',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
 
     meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.PROTECT, null=True)
+                              on_delete=models.SET_NULL, null=True)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 
@@ -133,10 +133,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.PROTECT)
+                                        on_delete=models.CASCADE)
 
     meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.PROTECT, null=True)
+                              on_delete=models.SET_NULL, null=True)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 

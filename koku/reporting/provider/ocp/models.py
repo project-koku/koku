@@ -68,7 +68,7 @@ class OCPUsageReport(models.Model):
     interval_end = models.DateTimeField(null=False)
 
     report_period = models.ForeignKey('OCPUsageReportPeriod',
-                                      on_delete=models.PROTECT)
+                                      on_delete=models.CASCADE)
 
 
 class OCPUsageLineItem(models.Model):
@@ -82,10 +82,10 @@ class OCPUsageLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey('OCPUsageReportPeriod',
-                                      on_delete=models.PROTECT)
+                                      on_delete=models.CASCADE)
 
     report = models.ForeignKey('OCPUsageReport',
-                               on_delete=models.PROTECT)
+                               on_delete=models.CASCADE)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
@@ -547,10 +547,10 @@ class OCPStorageLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     report_period = models.ForeignKey('OCPUsageReportPeriod',
-                                      on_delete=models.PROTECT)
+                                      on_delete=models.CASCADE)
 
     report = models.ForeignKey('OCPUsageReport',
-                               on_delete=models.PROTECT)
+                               on_delete=models.CASCADE)
 
     # Kubernetes objects by convention have a max name length of 253 chars
     namespace = models.CharField(max_length=253, null=False)
