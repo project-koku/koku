@@ -87,16 +87,16 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
                     for meter in meters}
 
     # pylint: disable=invalid-name
-    def get_cost_entry_bills_query_by_provider(self, provider_id):
+    def get_cost_entry_bills_query_by_provider(self, provider_uuid):
         """Return all cost entry bills for the specified provider."""
         table_name = AzureCostEntryBill
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name)\
-                .filter(provider_id=provider_id)
+                .filter(provider_id=provider_uuid)
 
-    def bills_for_provider_id(self, provider_id, start_date=None):
-        """Return all cost entry bills for provider_id on date."""
-        bills = self.get_cost_entry_bills_query_by_provider(provider_id)
+    def bills_for_provider_uuid(self, provider_uuid, start_date=None):
+        """Return all cost entry bills for provider_uuid on date."""
+        bills = self.get_cost_entry_bills_query_by_provider(provider_uuid)
         if start_date:
             bill_date = parse(start_date).replace(day=1)
             bills = bills.filter(billing_period_start=bill_date)

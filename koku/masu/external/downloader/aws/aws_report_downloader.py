@@ -72,7 +72,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         super().__init__(**kwargs)
 
         self.customer_name = customer_name.replace(' ', '_')
-        self._provider_id = kwargs.get('provider_id')
+        self._provider_uuid = kwargs.get('provider_uuid')
 
         LOG.debug('Connecting to AWS...')
         session = utils.get_assume_role_session(utils.AwsArn(auth_credential),
@@ -285,7 +285,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stmt = (
                 f'This manifest has already been downloaded and processed:\n'
                 f' schema_name: {self.customer_name},\n'
-                f' provider_id: {self._provider_id},\n'
+                f' provider_uuid: {self._provider_uuid},\n'
                 f' manifest_id: {manifest_id}'
             )
             LOG.info(stmt)
