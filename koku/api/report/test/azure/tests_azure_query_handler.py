@@ -198,9 +198,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                                              current_month_only=True,
                                              config=config)
         generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                    'resource_location',
-                                                    'tags',
-                                                    'service_name'])
+                                                   'resource_location',
+                                                   'tags',
+                                                   'service_name'])
 
         valid_services = list(AZURE_SERVICES.keys())
         service = self.generator.config.service_name
@@ -246,9 +246,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                                              current_month_only=True,
                                              config=config)
         generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                    'resource_location',
-                                                    'tags',
-                                                    'service_name'])
+                                                   'resource_location',
+                                                   'tags',
+                                                   'service_name'])
 
         valid_services = list(AZURE_SERVICES.keys())
         selected_range = random.randrange(2, len(self.generator.config.service_name))
@@ -597,12 +597,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly filtered by service."""
         config = self.generator.config
         generator = AzureReportDataGenerator(self.tenant, self.provider,
-                                                current_month_only=True,
-                                                config=config)
+                                             current_month_only=True,
+                                             config=config)
         generator.add_data_to_tenant(fixed_fields=['subscription_guid',
-                                                    'resource_location',
-                                                    'tags',
-                                                    'service_name'])
+                                                   'resource_location',
+                                                   'tags',
+                                                   'service_name'])
 
         service = self.generator.config.service_name
         # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=some_service'

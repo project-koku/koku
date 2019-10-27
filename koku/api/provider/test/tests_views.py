@@ -20,15 +20,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.urls import reverse
-from providers.provider_access import ProviderAccessor
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from api.provider.provider_manager import ProviderManager
 from api.provider.test import PROVIDERS, create_generic_provider
+from providers.provider_access import ProviderAccessor
 
 fields = ['name', 'type', 'authentication', 'billing_source']
 

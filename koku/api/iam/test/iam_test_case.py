@@ -26,7 +26,7 @@ from faker import Faker
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.serializers import create_schema_name
-from api.models import Customer, Provider, Tenant
+from api.models import Customer, Tenant
 from koku.koku_test_runner import KokuTestRunner
 
 

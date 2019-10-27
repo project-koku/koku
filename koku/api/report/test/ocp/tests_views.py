@@ -31,7 +31,6 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.provider.test import create_generic_provider

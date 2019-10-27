@@ -21,7 +21,6 @@ from unittest.mock import patch
 
 from dateutil import parser
 from django.http import HttpRequest, QueryDict
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
@@ -35,6 +34,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
+from providers.provider_access import ProviderAccessor, ProviderAccessorError
 
 
 class MockResponse:

@@ -68,6 +68,7 @@ PROVIDERS = {
     }
 }
 
+
 def create_generic_provider(provider_type, headers):
     """Create generic provider and return response."""
     provider_data = PROVIDERS[provider_type]

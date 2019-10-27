@@ -6,13 +6,13 @@ import os
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY, rrule
 from google.cloud import storage
-from providers.gcp.provider import GCPProvider
 from rest_framework.exceptions import ValidationError
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from providers.gcp.provider import GCPProvider
 
 
 DATA_DIR = Config.TMP_DIR

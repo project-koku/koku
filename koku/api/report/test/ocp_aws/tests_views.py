@@ -27,7 +27,6 @@ from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString

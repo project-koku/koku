@@ -16,7 +16,6 @@
 #
 """Test the Report Queries."""
 import copy
-import random
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
