@@ -187,6 +187,7 @@ AUTHENTICATION_SERIALIZERS = {'AWS': AWSAuthenticationSerializer,
                               'AZURE': AzureAuthenticationSerializer,
                               'AZURE-local': AzureAuthenticationSerializer,
                               'GCP': GCPAuthenticationSerializer,
+                              'GCP-local': GCPAuthenticationSerializer,
                               'OCP': OCPAuthenticationSerializer,
                               'OCP_AWS': AWSAuthenticationSerializer}
 
@@ -197,6 +198,7 @@ BILLING_SOURCE_SERIALIZERS = {'AWS': AWSBillingSourceSerializer,
                               'AZURE': AzureBillingSourceSerializer,
                               'AZURE-local': AzureBillingSourceSerializer,
                               'GCP': GCPBillingSourceSerializer,
+                              'GCP-local': GCPBillingSourceSerializer,
                               'OCP': OCPBillingSourceSerializer,
                               'OCP_AWS': AWSBillingSourceSerializer}
 

@@ -1,6 +1,12 @@
 #!/bin/bash
 set -eu
 
+# show who we're running as for debugging purposes
+/usr/bin/id
+
+# show directory permissions for debugging purposes
+ls -al /var/lib/rabbitmq
+
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
