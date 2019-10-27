@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0027_auto_20191008_1905'),
+        ('api', '0029_cloud_account_seeder'),
     ]
 
     operations = [
