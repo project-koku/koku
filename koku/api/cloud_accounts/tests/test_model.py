@@ -26,7 +26,7 @@ class CloudAccountTest(TestCase):
     """Test creating and reading mock model."""
 
     def test_cloud_account_creation(self):
-        """Test creating and reading a mock model."""
+        """Test creating and reading a mock CloudAccount model."""
         cloud_account = CloudAccountCommonTestUtilities.create_cloud_account(self)
         self.assertTrue(isinstance(cloud_account, CloudAccount))
         self.assertEqual(cloud_account.name, 'TEST_AWS_ACCOUNT_ID')
