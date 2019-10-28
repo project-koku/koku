@@ -116,4 +116,24 @@ class Migration(migrations.Migration):
             name='report_period',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='reporting.OCPUsageReportPeriod'),
         ),
+        migrations.AlterField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='account_alias',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='reporting.AWSAccountAlias'),
+        ),
+        migrations.AlterField(
+            model_name='ocpawscostlineitemdailysummary',
+            name='cost_entry_bill',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='reporting.AWSCostEntryBill'),
+        ),
+        migrations.AlterField(
+            model_name='ocpawscostlineitemprojectdailysummary',
+            name='account_alias',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='reporting.AWSAccountAlias'),
+        ),
+        migrations.AlterField(
+            model_name='ocpawscostlineitemprojectdailysummary',
+            name='cost_entry_bill',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='reporting.AWSCostEntryBill'),
+        ),
     ]
