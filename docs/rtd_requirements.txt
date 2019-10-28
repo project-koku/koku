@@ -25,7 +25,7 @@ entrypoints==0.3
 flake8==3.7.9
 gunicorn==19.9.0
 idna==2.8
-importlib-metadata==0.19
+importlib-metadata==0.23
 jmespath==0.9.4
 kafka-python==1.4.3
 kombu==4.6.4
