@@ -85,7 +85,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
             self.fake_auth_credential,
             self.fake_bucket_name,
             'AZURE-local',
-            self.azure_provider_id,
+            self.azure_provider_uuid,
         )
 
         self.azure_local_report_downloader = AzureLocalReportDownloader(
@@ -94,7 +94,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
                 'auth_credential': self.fake_auth_credential,
                 'billing_source': self.fake_bucket_name,
                 'bucket': self.fake_bucket_name,
-                'provider_id': self.azure_provider_id,
+                'provider_uuid': self.azure_provider_uuid,
             }
         )
 

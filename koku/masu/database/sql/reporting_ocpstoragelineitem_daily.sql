@@ -36,7 +36,7 @@ CREATE TEMPORARY TABLE reporting_ocpstoragelineitem_daily_{{uuid | sqlsafe}} AS 
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON li.report_period_id = rp.id
     LEFT JOIN public.api_provider as p
-        ON rp.provider_id = p.id
+        ON rp.provider_id = p.uuid
     LEFT JOIN volume_nodes_{{uuid | sqlsafe}} as uli
         ON li.id = uli.id
     WHERE date(ur.interval_start) >= {{start_date}}

@@ -64,7 +64,7 @@ class ProviderStatusAccessor(KokuDBAccess):
             provider = provider_accessor.get_provider()
             if not provider:
                 raise MasuProviderError(f'Unknown provider: {self._provider_uuid}')
-            self.provider_id = provider.id
+            self.provider_uuid = provider.uuid
 
         self._obj = self._get_db_obj_query().order_by('-id').first()
 
@@ -73,7 +73,7 @@ class ProviderStatusAccessor(KokuDBAccess):
             message = f'No status found for provider {provider_uuid} in ' + \
                 f'schema "{schema}". Setting status to READY.'
             LOG.debug(message)
-            ready_status = {'provider_id': self.provider_id,
+            ready_status = {'provider_id': self.provider_uuid,
                             'status': ProviderStatusCode.READY,
                             'last_message': 'none',
                             'timestamp': DateAccessor().today(),
@@ -92,7 +92,7 @@ class ProviderStatusAccessor(KokuDBAccess):
             (django.db.query.QuerySet): QuerySet of objects matching the given filters
 
         """
-        return super()._get_db_obj_query(provider_id=self.provider_id)
+        return super()._get_db_obj_query(provider_id=self.provider_uuid)
 
     def get_status(self):
         """

@@ -49,14 +49,14 @@ class ReportDownloader:
     """Interface for masu to use to get CUR accounts."""
 
     def __init__(self, customer_name, access_credential, report_source,
-                 provider_type, provider_id, report_name=None):
+                 provider_type, provider_uuid, report_name=None):
         """Set the downloader based on the backend cloud provider."""
         self.customer_name = customer_name
         self.credential = access_credential
         self.cur_source = report_source
         self.report_name = report_name
         self.provider_type = provider_type
-        self.provider_id = provider_id
+        self.provider_uuid = provider_uuid
         try:
             self._downloader = self._set_downloader()
         except Exception as err:
@@ -83,42 +83,42 @@ class ReportDownloader:
                                        auth_credential=self.credential,
                                        bucket=self.cur_source,
                                        report_name=self.report_name,
-                                       provider_id=self.provider_id)
+                                       provider_uuid=self.provider_uuid)
 
         if self.provider_type == AWS_LOCAL_SERVICE_PROVIDER:
             return AWSLocalReportDownloader(customer_name=self.customer_name,
                                             auth_credential=self.credential,
                                             bucket=self.cur_source,
                                             report_name=self.report_name,
-                                            provider_id=self.provider_id)
+                                            provider_uuid=self.provider_uuid)
 
         if self.provider_type == AZURE:
             return AzureReportDownloader(customer_name=self.customer_name,
                                          auth_credential=self.credential,
                                          billing_source=self.cur_source,
                                          report_name=self.report_name,
-                                         provider_id=self.provider_id)
+                                         provider_uuid=self.provider_uuid)
 
         if self.provider_type == AZURE_LOCAL_SERVICE_PROVIDER:
             return AzureLocalReportDownloader(customer_name=self.customer_name,
                                               auth_credential=self.credential,
                                               billing_source=self.cur_source,
                                               report_name=self.report_name,
-                                              provider_id=self.provider_id)
+                                              provider_uuid=self.provider_uuid)
 
         if self.provider_type == OPENSHIFT_CONTAINER_PLATFORM:
             return OCPReportDownloader(customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        bucket=self.cur_source,
                                        report_name=self.report_name,
-                                       provider_id=self.provider_id)
+                                       provider_uuid=self.provider_uuid)
 
         if self.provider_type == GCP:
             return GCPReportDownloader(customer_name=self.customer_name,
                                        auth_credential=self.credential,
                                        billing_source=self.cur_source,
                                        report_name=self.report_name,
-                                       provider_id=self.provider_id)
+                                       provider_uuid=self.provider_uuid)
         return None
 
     def get_reports(self, number_of_months=2):
@@ -171,7 +171,7 @@ class ReportDownloader:
             report_dictionary['start_date'] = date_time
             report_dictionary['assembly_id'] = report_context.get('assembly_id')
             report_dictionary['manifest_id'] = manifest_id
-            report_dictionary['provider_id'] = self.provider_id
+            report_dictionary['provider_uuid'] = self.provider_uuid
 
             cur_reports.append(report_dictionary)
         return cur_reports

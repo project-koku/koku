@@ -36,14 +36,13 @@ class AzureReportChargeUpdaterError(Exception):
 class AzureReportChargeUpdater:
     """Class to update Azure report summary data with charge information."""
 
-    def __init__(self, schema, provider_uuid, provider_id):
+    def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
         Args:
             schema (str): The customer schema to associate with
 
         """
-        self._provider_id = provider_id
         self._provider_uuid = provider_uuid
         self._schema = schema
         with ReportingCommonDBAccessor() as reporting_common:
@@ -87,7 +86,7 @@ class AzureReportChargeUpdater:
         with AzureReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.debug('Updating Azure derived cost summary for schema: %s and provider: %s',
                       self._schema, self._provider_uuid)
-            bills = accessor.bills_for_provider_id(self._provider_id, start_date)
+            bills = accessor.bills_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:
                     bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')

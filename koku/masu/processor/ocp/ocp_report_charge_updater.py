@@ -40,7 +40,7 @@ class OCPReportChargeUpdaterError(Exception):
 class OCPReportChargeUpdater:
     """Class to update OCP report summary data with charge information."""
 
-    def __init__(self, schema, provider_uuid, provider_id):
+    def __init__(self, schema, provider_uuid):
         """Establish the database connection.
 
         Args:
@@ -52,7 +52,6 @@ class OCPReportChargeUpdater:
             self._column_map = reporting_common.column_map
         self._provider_uuid = provider_uuid
         self._cluster_id = None
-        self._provider_id = provider_id
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -289,7 +288,7 @@ class OCPReportChargeUpdater:
         self._update_markup_cost()
 
         with OCPReportDBAccessor(self._schema, self._column_map) as accessor:
-            report_periods = accessor.report_periods_for_provider_id(self._provider_id, start_date)
+            report_periods = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             with schema_context(self._schema):
                 for period in report_periods:
                     period.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')

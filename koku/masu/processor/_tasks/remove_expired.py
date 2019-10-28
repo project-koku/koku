@@ -23,7 +23,7 @@ from masu.processor.expired_data_remover import ExpiredDataRemover
 LOG = get_task_logger(__name__)
 
 
-def _remove_expired_data(schema_name, provider, simulate, provider_id=None):
+def _remove_expired_data(schema_name, provider, simulate, provider_uuid=None):
     """
     Task to remove expired data.
 
@@ -43,7 +43,7 @@ def _remove_expired_data(schema_name, provider, simulate, provider_id=None):
     LOG.info(log_statement)
 
     remover = ExpiredDataRemover(schema_name, provider)
-    removed_data = remover.remove(simulate=simulate, provider_id=provider_id)
+    removed_data = remover.remove(simulate=simulate, provider_uuid=provider_uuid)
 
     status_msg = 'Expired Data' if simulate else 'Removed Data'
     result_msg = f'{status_msg}:\n {str(removed_data)}'

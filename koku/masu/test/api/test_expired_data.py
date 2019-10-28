@@ -29,7 +29,7 @@ from masu.test import MasuTestCase
 
 
 @override_settings(ROOT_URLCONF='masu.urls')
-class ExpiredDataTest(MasuTestCase, TestCase):
+class ExpiredDataTest(TestCase):
     """Test Cases for the expired_data endpoint."""
 
     @patch.object(Orchestrator, 'remove_expired_report_data')

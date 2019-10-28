@@ -18,9 +18,9 @@
 
 from django.db.models import CharField, DecimalField, F, Max, Sum, Value
 from django.db.models.functions import Coalesce
-from providers.provider_access import ProviderAccessor
 
 from api.report.provider_map import ProviderMap
+from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
 
 

@@ -45,14 +45,16 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
 
     AWS_SERVICE_CHOICES = ['ec2', 'ebs']
 
-    def __init__(self, tenant, current_month_only=False):
+    def __init__(self, tenant, provider, current_month_only=False):
         """Set up the class."""
         super().__init__(tenant, current_month_only)
 
+        self.provider = provider
         aws_usage_start = min(self.report_ranges[0])
         aws_usage_end = max(self.report_ranges[0])
 
-        self.aws_info = FakeAWSCostData(usage_start=aws_usage_start,
+        self.aws_info = FakeAWSCostData(self.provider,
+                                        usage_start=aws_usage_start,
                                         usage_end=aws_usage_end,
                                         resource_id=self.resource_id)
         self._tags = self._generate_tags()
@@ -91,11 +93,11 @@ class OCPAWSReportDataGenerator(OCPReportDataGenerator):
             'type': 'OCP',
             'setup_complete': False
         }
-        provider_id = Provider(**provider_data)
-        provider_id.save()
+        provider = Provider(**provider_data)
+        provider.save()
         self.cluster_alias = cluster_alias
         self.provider_uuid = provider_uuid
-        return provider_id
+        return provider
 
     def add_data_to_tenant(self, **kwargs):
         """Populate tenant with data."""

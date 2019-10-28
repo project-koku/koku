@@ -42,7 +42,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -54,7 +54,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AWS_LOCAL_SERVICE_PROVIDER,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -66,7 +66,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AZURE,
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -78,7 +78,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
             compression='PLAIN',
             provider=OPENSHIFT_CONTAINER_PLATFORM,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -90,7 +90,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='./koku/masu/test/data/ocp/e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv',
             compression='PLAIN',
             provider=AZURE_LOCAL_SERVICE_PROVIDER,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         self.assertIsNotNone(processor._processor)
@@ -107,7 +107,7 @@ class ReportProcessorTest(MasuTestCase):
                 report_path='/my/report/file',
                 compression='GZIP',
                 provider=AMAZON_WEB_SERVICES,
-                provider_id=self.aws_provider.id,
+                provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
             )
 
@@ -119,7 +119,7 @@ class ReportProcessorTest(MasuTestCase):
                 report_path='/my/report/file',
                 compression='GZIP',
                 provider='unknown',
-                provider_id=self.aws_provider.id,
+                provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
             )
 
@@ -134,7 +134,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         try:
@@ -154,7 +154,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         with self.assertRaises(ReportProcessorError):
@@ -171,7 +171,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         try:
@@ -191,7 +191,7 @@ class ReportProcessorTest(MasuTestCase):
             report_path='/my/report/file',
             compression='GZIP',
             provider=AMAZON_WEB_SERVICES,
-            provider_id=self.aws_provider.id,
+            provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
         )
         with self.assertRaises(ReportProcessorError):

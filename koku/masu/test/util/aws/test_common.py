@@ -252,13 +252,13 @@ class TestAWSUtils(MasuTestCase):
         for i in range(2):
             start_date = start_date - relativedelta(months=i)
             bill = creator.create_cost_entry_bill(
-                provider_id=self.aws_provider.id, bill_date=start_date
+                provider_uuid=self.aws_provider_uuid, bill_date=start_date
             )
             with schema_context(self.schema):
                 expected_bill_ids.append(str(bill.id))
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid, self.schema
+            self.aws_provider_uuid, self.schema
         )
 
         with schema_context(self.schema):
@@ -270,7 +270,7 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with start date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             report_schema = accessor.report_schema
@@ -283,17 +283,17 @@ class TestAWSUtils(MasuTestCase):
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(self.aws_provider_id, bill_date=start_date)
+                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__gte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
+            self.aws_provider_uuid,
             self.schema,
             start_date=end_date
         )
@@ -306,7 +306,7 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with end date."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             report_schema = accessor.report_schema
@@ -319,18 +319,18 @@ class TestAWSUtils(MasuTestCase):
             start_date = end_date
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
-                bill = creator.create_cost_entry_bill(self.aws_provider_id, bill_date=start_date)
+                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__lte=start_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
+            self.aws_provider_uuid,
             self.schema,
             end_date=start_date
         )
@@ -343,7 +343,7 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider with both dates."""
         date_accessor = DateAccessor()
 
-        with ProviderDBAccessor(provider_uuid=self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(provider_uuid=self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with AWSReportDBAccessor(schema=self.schema, column_map=self.column_map) as accessor:
             report_schema = accessor.report_schema
@@ -357,18 +357,18 @@ class TestAWSUtils(MasuTestCase):
             for i in range(2):
                 start_date = start_date - relativedelta(months=i)
                 print(start_date)
-                bill = creator.create_cost_entry_bill(self.aws_provider_id, bill_date=start_date)
+                bill = creator.create_cost_entry_bill(self.aws_provider_uuid, bill_date=start_date)
 
             bill_table_name = AWS_CUR_TABLE_MAP['bill']
             bill_obj = getattr(accessor.report_schema, bill_table_name)
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             with schema_context(self.schema):
                 bills = bills.filter(billing_period_start__gte=start_date.date())\
                     .filter(billing_period_start__lte=end_date.date()).all()
                 expected_bill_ids = [str(bill.id) for bill in bills]
 
         bills = utils.get_bills_from_provider(
-            self.aws_test_provider_uuid,
+            self.aws_provider_uuid,
             self.schema,
             start_date=start_date,
             end_date=end_date
