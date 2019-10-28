@@ -26,6 +26,7 @@ from api.views import (
     AzureInstanceTypeView,
     AzureStorageView,
     AzureTagView,
+    CloudAccountViewSet,
     CostModelMetricsMapViewSet,
     DataExportRequestViewSet,
     OCPAWSCostView,
@@ -40,6 +41,8 @@ from api.views import (
     ProviderViewSet,
     StatusView,
     UserPreferenceViewSet,
+    authentication,
+    billing_source,
     openapi
 )
 
@@ -49,9 +52,10 @@ ROUTER.register(r'dataexportrequests', DataExportRequestViewSet, base_name='data
 ROUTER.register(r'metrics', CostModelMetricsMapViewSet, base_name='metrics')
 ROUTER.register(r'providers', ProviderViewSet)
 ROUTER.register(r'preferences', UserPreferenceViewSet, base_name='preferences')
-
+ROUTER.register(r'cloud-accounts', CloudAccountViewSet, base_name='cloud_accounts')
 # pylint: disable=invalid-name
 urlpatterns = [
+
     url(r'^status/$', StatusView.as_view(), name='server-status'),
     url(r'^openapi.json', openapi, name='openapi'),
     url(r'^tags/aws/$', AWSTagView.as_view(), name='aws-tags'),
@@ -84,5 +88,7 @@ urlpatterns = [
     url(r'^reports/openshift/infrastructures/aws/instance-types/$',
         OCPAWSInstanceTypeView.as_view(),
         name='reports-openshift-aws-instance-type'),
+    url(r'^sources/authentication/$', authentication, name='authentication'),
+    url(r'^sources/billing_source/$', billing_source, name='billing-source'),
     url(r'^', include(ROUTER.urls)),
 ]

@@ -52,7 +52,7 @@ class OCPAWSReportQueryHandler(AWSReportQueryHandler):
                 'project' in self.parameters.get('filter', {}).keys():
             self._report_type = parameters.report_type + '_by_project'
             self._mapper = OCPAWSProviderMap(provider=self.provider,
-                                             report_type=parameters.report_type)
+                                             report_type=self._report_type)
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.

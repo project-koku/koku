@@ -28,6 +28,7 @@ RUN curl -LO https://github.com/rabbitmq/erlang-rpm/releases/download/v${ERLANG_
     mkdir -p /var/lib/rabbitmq/mnesia && \
     usermod -G root,wheel rabbitmq && \
     chown -R 999:0 /var/lib/rabbitmq /var/log/rabbitmq /etc/rabbitmq && \
+    chmod -R 2777 /var/lib/rabbitmq && \
     rabbitmq-plugins --offline enable rabbitmq_peer_discovery_k8s
 
 COPY docker-entrypoint.sh /usr/local/bin
