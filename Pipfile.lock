@@ -68,11 +68,10 @@
         },
         "azure-mgmt-storage": {
             "hashes": [
-                "sha256:c0a3d5ad87f618dc40e18e141f96695f30291d2f4ecd21592fbc11a395ae0db2",
-                "sha256:de16dc6441782752242f5f724cd533ed387d6a8ac42baf3215f97a7577714709"
+                "sha256:5cccfe6af0529a8a8a0557d130191a4a269fd2eac13ba6d6abd97ca851eef55d",
+                "sha256:95220e51eca421707b704e59f023d7fe367382b1ec0dd5f7e279f8d221417a4d"
             ],
-            "index": "pypi",
-            "version": "==4.2.0"
+            "version": "==6.0.0"
         },
         "azure-nspkg": {
             "hashes": [
