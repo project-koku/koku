@@ -1254,10 +1254,10 @@
         },
         "virtualenv": {
             "hashes": [
-                "sha256:680af46846662bb38c5504b78bad9ed9e4f3ba2d54f54ba42494fdf94337fe30",
-                "sha256:f78d81b62d3147396ac33fc9d77579ddc42cc2a98dd9ea38886f616b33bc7fb2"
+                "sha256:11cb4608930d5fd3afb545ecf8db83fa50e1f96fc4fca80c94b07d2c83146589",
+                "sha256:d257bb3773e48cac60e475a19b608996c73f4d333b3ba2e4e57d5ac6134e0136"
             ],
-            "version": "==16.7.5"
+            "version": "==16.7.7"
         },
         "wrapt": {
             "hashes": [
