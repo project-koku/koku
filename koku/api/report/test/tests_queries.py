@@ -1537,7 +1537,7 @@ class ReportQueryTest(IamTestCase):
         params = {'filter': {'resolution': 'monthly',
                              'time_scope_value': -1,
                              'time_scope_units': 'month',
-                             f'tag:{filter_key}': ['*']}}
+                             f'tag:{filter_key}': [filter_value]}}
         query_params = FakeQueryParameters(params, tenant=self.tenant, tag_keys=tag_keys)
         handler = AWSReportQueryHandler(query_params.mock_qp)
 
