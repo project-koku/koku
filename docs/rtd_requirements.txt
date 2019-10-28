@@ -22,7 +22,7 @@ djangorestframework==3.10.3
 docutils==0.15.2
 drf-nested-routers==0.91
 entrypoints==0.3
-flake8==3.7.8
+flake8==3.7.9
 gunicorn==19.9.0
 idna==2.8
 importlib-metadata==0.19
