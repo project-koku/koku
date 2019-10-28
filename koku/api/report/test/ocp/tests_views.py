@@ -916,7 +916,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.json()
         for entry in data.get('data', []):
             for node in entry.get('nodes', []):
-                self.assertEqual(node.get('node'), node_of_interest)
+                self.assertIn(node.get('node'), node_of_interest)
 
     def test_execute_query_group_by_node_duplicate_projects(self):
         """Test that same-named nodes across clusters are accounted for."""
