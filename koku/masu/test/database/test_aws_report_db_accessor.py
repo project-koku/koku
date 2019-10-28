@@ -401,6 +401,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         table_name = random.choice(self.foreign_key_tables)
         with schema_context(self.schema):
             data = self.creator.create_columns_for_table(table_name)
+            if table_name == AWS_CUR_TABLE_MAP['bill']:
+                data['provider_id'] = self.aws_provider_uuid
             obj = self.accessor.create_db_object(table_name, data)
             obj.save()
 

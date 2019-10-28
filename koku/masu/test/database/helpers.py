@@ -243,12 +243,9 @@ class ReportObjectCreator:
 
         for column in columns:
             col_type = column_types[column]
-
-            if column in ('provider_id', 'provider_uuid'):
-                data[column] = self.fake.uuid4()
             # This catches several different types of IntegerFields such as:
             # PositiveIntegerField, BigIntegerField,
-            elif 'IntegerField' in col_type:
+            if 'IntegerField' in col_type:
                 data[column] = self.fake.pyint()
             elif col_type == 'FloatField':
                 data[column] = self.fake.pyfloat()
