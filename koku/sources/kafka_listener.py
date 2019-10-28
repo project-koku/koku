@@ -190,7 +190,12 @@ def save_auth_info(auth_header, source_id):
     try:
         if source_type == 'OCP':
             source_details = sources_network.get_source_details()
-            authentication = {'resource_name': source_details.get('uid')}
+            # Check for imported to maintain temporary backwards compatibility
+            # until the Sources Front End creates 'imported' entry with OCP Cluster ID.
+            if source_details.get('imported'):
+                authentication = {'resource_name': source_details.get('imported')}
+            else:
+                authentication = {'resource_name': source_details.get('uid')}
         elif source_type == 'AWS':
             authentication = {'resource_name': sources_network.get_aws_role_arn()}
         elif source_type == 'AZURE':
