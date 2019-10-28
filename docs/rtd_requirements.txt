@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 aiokafka==0.5.2
-amqp==2.5.1
+amqp==2.5.2
 beautifulsoup4==4.8.0
 billiard==3.6.1.0
 boto3==1.9.200
