@@ -96,7 +96,7 @@ class OCPReportSummaryUpdater:
 
         report_periods = None
         with OCPReportDBAccessor(self._schema_name, self._column_map) as accessor:
-            report_periods = accessor.report_periods_for_provider_id(self._provider.id, start_date)
+            report_periods = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
             accessor.populate_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
             accessor.populate_pod_label_summary_table()
             accessor.populate_storage_line_item_daily_summary_table(start_date, end_date, self._cluster_id)
@@ -121,7 +121,7 @@ class OCPReportSummaryUpdater:
                 # Override the bill date to correspond with the manifest
                 bill_date = self._manifest.billing_period_start_datetime.date()
                 report_periods = accessor.get_usage_period_query_by_provider(
-                    self._provider.id
+                    self._provider.uuid
                 )
                 report_periods = report_periods.filter(
                     report_period_start=bill_date

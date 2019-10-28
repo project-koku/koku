@@ -30,13 +30,12 @@ class ReportManifestDBAccessorTest(IamTestCase):
         """Set up the test class."""
         super().setUp()
         self.schema = self.schema_name
-
         billing_start = DateAccessor().today_with_timezone('UTC').replace(day=1)
         self.manifest_dict = {
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': 1,
+            'provider_uuid': self.provider_uuid,
         }
         self.manifest_accessor = ReportManifestDBAccessor()
 
@@ -59,13 +58,13 @@ class ReportManifestDBAccessorTest(IamTestCase):
             added_manifest = self.manifest_accessor.add(**self.manifest_dict)
 
             assembly_id = self.manifest_dict.get('assembly_id')
-            provider_id = self.manifest_dict.get('provider_id')
-            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_id)
+            provider_uuid = self.manifest_dict.get('provider_uuid')
+            manifest = self.manifest_accessor.get_manifest(assembly_id, provider_uuid)
 
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
         self.assertEqual(manifest.assembly_id, assembly_id)
-        self.assertEqual(manifest.provider_id, provider_id)
+        self.assertEqual(manifest.provider_id, provider_uuid)
         self.assertEqual(
             manifest.num_total_files, self.manifest_dict.get('num_total_files')
         )

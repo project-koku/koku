@@ -31,6 +31,6 @@ class ProviderQueryTest(MasuTestCase):
         providers = collector.get_providers()
         test_provider_found = False
         for provider in providers:
-            if uuid.UUID(self.aws_test_provider_uuid) == provider.uuid:
+            if uuid.UUID(self.aws_provider_uuid) == provider.uuid:
                 test_provider_found = True
         self.assertTrue(test_provider_found)

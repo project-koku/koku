@@ -60,7 +60,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        self._provider_id = kwargs.get('provider_id')
+        self._provider_uuid = kwargs.get('provider_uuid')
         self.customer_name = customer_name.replace(' ', '_')
         if not kwargs.get('is_local'):
             self._azure_client = self._get_azure_client(auth_credential, billing_source)
@@ -175,7 +175,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stmt = (
                 f'This manifest has already been downloaded and processed:\n'
                 f' schema_name: {self.customer_name},\n'
-                f' provider_id: {self._provider_id},\n'
+                f' provider_uuid: {self._provider_uuid},\n'
                 f' manifest_id: {manifest_id}'
             )
             LOG.info(stmt)

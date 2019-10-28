@@ -22,12 +22,12 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider, Sources
 from cost_models.models import CostModelMap
+from providers.provider_access import ProviderAccessor, ProviderAccessorError
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -90,13 +90,13 @@ class ProviderManager:
         query = None
         with tenant_context(tenant):
             if provider.type == 'OCP':
-                query = OCPUsageReportPeriod.objects.filter(provider_id=provider.id,
+                query = OCPUsageReportPeriod.objects.filter(provider=provider,
                                                             report_period_start=period_start).first()
             elif provider.type == 'AWS' or provider.type == 'AWS-local':
-                query = AWSCostEntryBill.objects.filter(provider_id=provider.id,
+                query = AWSCostEntryBill.objects.filter(provider=provider,
                                                         billing_period_start=period_start).first()
             elif provider.type == 'AZURE' or provider.type == 'AZURE-local':
-                query = AzureCostEntryBill.objects.filter(provider_id=provider.id,
+                query = AzureCostEntryBill.objects.filter(provider=provider,
                                                           billing_period_start=period_start).first()
         if query and query.summary_data_creation_datetime:
             stats['summary_data_creation_datetime'] = query.summary_data_creation_datetime.strftime(DATE_TIME_FORMAT)
@@ -200,11 +200,11 @@ class ProviderManager:
     def _delete_report_data(self):
         """Call masu to delete report data for the provider."""
         LOG.info('Calling masu to delete report data for provider %s',
-                 self.model.id)
+                 self.model.uuid)
         params = {
             'schema': self.model.customer.schema_name,
             'provider': self.model.type,
-            'provider_id': self.model.id
+            'provider_uuid': self.model.uuid
         }
         # Delete the report data for this provider
         delete_url = settings.MASU_BASE_URL + settings.MASU_API_REPORT_DATA

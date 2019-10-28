@@ -27,8 +27,8 @@ from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
-from api.iam.serializers import UserSerializer
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.query_handler import TruncDayString
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
@@ -48,11 +48,9 @@ class OCPAWSReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        self.data_generator = OCPAWSReportDataGenerator(self.tenant)
+        _, self.provider = create_generic_provider('OCP', self.headers)
+        self.data_generator = OCPAWSReportDataGenerator(self.tenant, self.provider)
         self.data_generator.add_data_to_tenant()
-        serializer = UserSerializer(data=self.user_data, context=self.request_context)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""

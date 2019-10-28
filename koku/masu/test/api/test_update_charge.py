@@ -26,7 +26,7 @@ from django.test.utils import override_settings
 from masu.test import MasuTestCase
 
 @override_settings(ROOT_URLCONF='masu.urls')
-class UpdateChargeTest(TestCase, MasuTestCase):
+class UpdateChargeTest(TestCase):
     """Test Cases for the update_charge endpoint."""
 
     @patch('masu.api.update_charge.update_charge_info')

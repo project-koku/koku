@@ -19,6 +19,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.test import create_generic_provider
 from api.report.test import FakeQueryParameters
 from api.report.test.azure.helpers import AzureReportDataGenerator
 from api.tags.azure.queries import AzureTagQueryHandler
@@ -31,13 +32,14 @@ class AzureTagQueryHandlerTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        AzureReportDataGenerator(self.tenant).add_data_to_tenant()
+        _, self.provider = create_generic_provider('AZURE', self.headers)
+        AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-    def tearDown(self):
-        """Test case tear-down."""
-        gen = AzureReportDataGenerator(self.tenant)
-        gen.remove_data_from_tenant()
-        gen.remove_data_from_reporting_common()
+    # def tearDown(self):
+    #     """Test case tear-down."""
+    #     gen = AzureReportDataGenerator(self.tenant)
+    #     gen.remove_data_from_tenant()
+    #     gen.remove_data_from_reporting_common()
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""

@@ -41,7 +41,7 @@ class ReportProcessorBase():
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id, processed_report):
+    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id, processed_report):
         """Initialize the report processor base class.
 
         Args:
@@ -58,7 +58,7 @@ class ReportProcessorBase():
         self._schema_name = schema_name
         self._report_path = report_path
         self._compression = compression.upper()
-        self._provider_id = provider_id
+        self._provider_uuid = provider_uuid
         self._manifest_id = manifest_id
         self.processed_report = processed_report
 
@@ -135,18 +135,18 @@ class ReportProcessorBase():
                 return False
             # Override the bill date to correspond with the manifest
             bill_date = manifest.billing_period_start_datetime.date()
-            provider_id = manifest.provider_id
+            provider_uuid = manifest.provider_id
 
         stmt = (
             f'Deleting data for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' bill date: {str(bill_date)}'
         )
         LOG.info(stmt)
 
         with db_accessor(self._schema_name, column_map) as accessor:
-            bills = accessor.get_cost_entry_bills_query_by_provider(provider_id)
+            bills = accessor.get_cost_entry_bills_query_by_provider(provider_uuid)
             bills = bills.filter(billing_period_start=bill_date).all()
             with schema_context(self._schema_name):
                 for bill in bills:

@@ -33,7 +33,7 @@ class AWSCostEntryBill(models.Model):
         """Meta for AWSCostEntryBill."""
 
         unique_together = ('bill_type', 'payer_account_id',
-                           'billing_period_start', 'provider_id')
+                           'billing_period_start', 'provider')
 
     billing_resource = models.CharField(max_length=50, default='aws',
                                         null=False)
@@ -46,9 +46,7 @@ class AWSCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    # provider_id is intentionally not a foreign key
-    # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class AWSCostEntry(models.Model):
@@ -71,7 +69,7 @@ class AWSCostEntry(models.Model):
     interval_start = models.DateTimeField(null=False)
     interval_end = models.DateTimeField(null=False)
 
-    bill = models.ForeignKey('AWSCostEntryBill', on_delete=models.PROTECT)
+    bill = models.ForeignKey('AWSCostEntryBill', on_delete=models.CASCADE)
 
 
 class AWSCostEntryLineItem(models.Model):
@@ -84,15 +82,15 @@ class AWSCostEntryLineItem(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry = models.ForeignKey('AWSCostEntry',
-                                   on_delete=models.PROTECT)
+                                   on_delete=models.CASCADE)
     cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT)
+                                        on_delete=models.CASCADE)
     cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
     cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
     cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
-                                               on_delete=models.PROTECT,
+                                               on_delete=models.SET_NULL,
                                                null=True)
 
     tags = JSONField(null=True)
@@ -188,14 +186,14 @@ class AWSCostEntryLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
+                                        on_delete=models.CASCADE,
                                         null=True)
     cost_entry_product = models.ForeignKey('AWSCostEntryProduct',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
     cost_entry_pricing = models.ForeignKey('AWSCostEntryPricing',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
     cost_entry_reservation = models.ForeignKey('AWSCostEntryReservation',
-                                               on_delete=models.PROTECT,
+                                               on_delete=models.SET_NULL,
                                                null=True)
 
     line_item_type = models.CharField(max_length=50, null=False)
@@ -277,7 +275,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
+                                        on_delete=models.CASCADE,
                                         null=True)
 
     # The following fields are used for grouping

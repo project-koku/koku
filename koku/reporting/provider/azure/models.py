@@ -31,7 +31,7 @@ class AzureCostEntryBill(models.Model):
     class Meta:
         """Meta for AzureCostEntryBill."""
 
-        unique_together = ('billing_period_start', 'provider_id')
+        unique_together = ('billing_period_start', 'provider')
 
     billing_period_start = models.DateTimeField(null=False)
     billing_period_end = models.DateTimeField(null=False)
@@ -40,9 +40,7 @@ class AzureCostEntryBill(models.Model):
     finalized_datetime = models.DateTimeField(null=True)
     derived_cost_datetime = models.DateTimeField(null=True)
 
-    # provider_id is intentionally not a foreign key
-    # to prevent masu complication
-    provider_id = models.IntegerField(null=True)
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE)
 
 
 class AzureCostEntryProductService(models.Model):
@@ -97,13 +95,13 @@ class AzureCostEntryLineItemDaily(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.PROTECT)
+                                        on_delete=models.CASCADE)
 
     cost_entry_product = models.ForeignKey('AzureCostEntryProductService',
-                                           on_delete=models.PROTECT, null=True)
+                                           on_delete=models.SET_NULL, null=True)
 
     meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.PROTECT, null=True)
+                              on_delete=models.SET_NULL, null=True)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 
@@ -135,10 +133,10 @@ class AzureCostEntryLineItemDailySummary(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.PROTECT)
+                                        on_delete=models.CASCADE)
 
     meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.PROTECT, null=True)
+                              on_delete=models.SET_NULL, null=True)
 
     subscription_guid = models.CharField(max_length=50, null=False)
 

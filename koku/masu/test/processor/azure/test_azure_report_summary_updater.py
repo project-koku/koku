@@ -58,11 +58,11 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.azure_provider.id,
+            'provider_uuid': self.azure_provider_uuid,
         }
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider_id, bill_date=today)
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid, bill_date=today)
         product = self.creator.create_azure_cost_entry_product()
         meter = self.creator.create_azure_meter()
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)

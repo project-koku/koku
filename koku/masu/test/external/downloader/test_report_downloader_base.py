@@ -48,13 +48,13 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def setUp(self):
         """Setup each test case."""
         super().setUp()
-        self.downloader = ReportDownloaderBase(provider_id=self.aws_provider_id)
+        self.downloader = ReportDownloaderBase(provider_uuid=self.aws_provider_uuid)
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(day=1)
         self.manifest_dict = {
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.aws_provider_id
+            'provider_uuid': self.aws_provider_uuid
         }
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.add(**self.manifest_dict)

@@ -3,7 +3,7 @@ import os
 import json
 import pkgutil
 
-from django.db import connection
+from django.db import connection, connections
 from django.core.management import call_command
 from django.test import TransactionTestCase
 
@@ -54,11 +54,11 @@ class MasuTestCase(TransactionTestCase):
         if not result:
             cls.tenant = Tenant(schema_name=cls.schema)
             cls.tenant.save()
-        
+
         # Load static data into the DB
         # E.g. report column maps
         load_db_map_data()
-        
+
         cls.ocp_test_provider_uuid = '3c6e687e-1a09-4a05-970c-2ccf44b0952e'
         cls.aws_test_provider_uuid = '6e212746-484a-40cd-bba0-09a19d132d64'
         cls.azure_test_provider_uuid = 'b16c111a-d05f-488c-a6d9-c2a6f3ee02bb'
@@ -137,8 +137,8 @@ class MasuTestCase(TransactionTestCase):
         )
         self.azure_billing_source.save()
 
-        self.aws_provider_id = self.aws_provider.id
-        self.ocp_provider_id = self.ocp_provider.id
+        self.aws_provider_uuid = self.aws_provider.uuid
+        self.ocp_provider_uuid = self.ocp_provider.uuid
 
         self.azure_provider = Provider.objects.create(
             uuid=self.azure_test_provider_uuid,
@@ -150,7 +150,7 @@ class MasuTestCase(TransactionTestCase):
             setup_complete=False,
         )
         self.azure_provider.save()
-        self.azure_provider_id = self.azure_provider.id
+        self.azure_provider_uuid = self.azure_provider.uuid
 
         # Load static data into the DB
         # E.g. report column maps
@@ -163,6 +163,26 @@ class MasuTestCase(TransactionTestCase):
             # Flush the tenant schema's data
             call_command('flush', verbosity=0, interactive=False,
                          database=db_name, reset_sequences=False,
-                         allow_cascade=self.available_apps is not None,
+                         allow_cascade=True,
                          inhibit_post_migrate=False)
         connection.set_schema_to_public()
+
+    def _fixture_teardown(self):
+        """Force CASCADE on TRUNCATE for cross-schema foreign key relationships."""
+        # Allow TRUNCATE ... CASCADE and don't emit the post_migrate signal
+        # when flushing only a subset of the apps
+        for db_name in self._databases_names(include_mirrors=False):
+            # Flush the database
+            inhibit_post_migrate = (
+                self.available_apps is not None or
+                (   # Inhibit the post_migrate signal when using serialized
+                    # rollback to avoid trying to recreate the serialized data.
+                    self.serialized_rollback and
+                    hasattr(connections[db_name], '_test_serialized_contents')
+                )
+            )
+
+            call_command('flush', verbosity=0, interactive=False,
+                         database=db_name, reset_sequences=False,
+                         allow_cascade=True,
+                         inhibit_post_migrate=inhibit_post_migrate)

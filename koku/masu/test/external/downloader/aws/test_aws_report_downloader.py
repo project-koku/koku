@@ -182,7 +182,7 @@ class AWSReportDownloaderTest(MasuTestCase):
             self.auth_credential,
             self.fake_bucket_name,
             'AWS',
-            self.aws_provider_id,
+            self.aws_provider_uuid,
         )
         self.aws_report_downloader = AWSReportDownloader(
             **{
@@ -190,7 +190,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                 'auth_credential': self.auth_credential,
                 'bucket': self.fake_bucket_name,
                 'report_name': self.fake_report_name,
-                'provider_id': self.aws_provider_id,
+                'provider_uuid': self.aws_provider_uuid,
             }
         )
 
@@ -253,7 +253,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                     self.auth_credential,
                     self.fake_bucket_name,
                     'AWS',
-                    self.aws_provider_id,
+                    self.aws_provider_uuid,
                 )
                 AWSReportDownloader(
                     **{
@@ -261,7 +261,7 @@ class AWSReportDownloaderTest(MasuTestCase):
                         'auth_credential': self.auth_credential,
                         'bucket': self.fake_bucket_name,
                         'report_name': self.fake_report_name,
-                        'provider_id': self.aws_provider_id,
+                        'provider_uuid': self.aws_provider_uuid,
                     }
                 )
                 report_downloader.download_report(fake_report_date)
@@ -454,7 +454,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         downloader = AWSReportDownloader(self.fake_customer_name,
                                          auth_credential,
                                          self.fake_bucket_name,
-                                         provider_id=self.aws_provider_id)
+                                         provider_uuid=self.aws_provider_uuid)
 
         start_str = current_month.strftime(downloader.manifest_date_format)
         assembly_id = '1234'
@@ -479,7 +479,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_entry = manifest_accessor.get_manifest(
                 assembly_id,
-                self.aws_provider_id
+                self.aws_provider_uuid
             )
             expected['manifest_id'] = manifest_entry.id
 

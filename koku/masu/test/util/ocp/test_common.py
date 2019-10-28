@@ -54,9 +54,9 @@ class OCPUtilTests(MasuTestCase):
         self.creator = ReportObjectCreator(self.schema, self.column_map)
         self.all_tables = list(OCP_REPORT_TABLE_MAP.values())
 
-        self.provider_id = self.provider_accessor.get_provider().id
+        self.provider_uuid = self.provider_accessor.get_provider().uuid
         reporting_period = self.creator.create_ocp_report_period(
-            provider_id=self.provider_id
+            provider_uuid=self.provider_uuid
         )
         report = self.creator.create_ocp_report(
             reporting_period, reporting_period.report_period_start
@@ -71,7 +71,7 @@ class OCPUtilTests(MasuTestCase):
 
     def test_get_cluster_id_from_non_ocp_provider(self):
         """Test that None is returned when getting cluster ID on non-OCP provider."""
-        cluster_id = utils.get_cluster_id_from_provider(self.aws_test_provider_uuid)
+        cluster_id = utils.get_cluster_id_from_provider(self.aws_provider_uuid)
         self.assertIsNone(cluster_id)
 
     def test_get_provider_uuid_from_cluster_id(self):

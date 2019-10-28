@@ -57,7 +57,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        bill_id = self.creator.create_cost_entry_bill(provider_id=self.aws_provider.id)
+        bill_id = self.creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid)
         cost_entry_id = self.creator.create_cost_entry(bill_id)
         product_id = self.creator.create_cost_entry_product()
         pricing_id = self.creator.create_cost_entry_pricing()
@@ -227,7 +227,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
             )
 
     def test_purge_expired_report_data_for_provider(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         bill_table_name = AWS_CUR_TABLE_MAP['bill']
         line_item_table_name = AWS_CUR_TABLE_MAP['line_item']
         cost_entry_table_name = AWS_CUR_TABLE_MAP['cost_entry']
@@ -247,7 +247,7 @@ class AWSReportDBCleanerTest(MasuTestCase):
                 self.accessor._get_db_obj_query(cost_entry_table_name).first()
             )
 
-        removed_data = cleaner.purge_expired_report_data(provider_id=self.aws_provider.id)
+        removed_data = cleaner.purge_expired_report_data(provider_uuid=self.aws_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(
@@ -266,17 +266,17 @@ class AWSReportDBCleanerTest(MasuTestCase):
             )
 
     def test_purge_expired_report_data_no_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
 
         cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
             removed_data = cleaner.purge_expired_report_data()
 
     def test_purge_expired_report_data_both_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         now = datetime.datetime.utcnow()
         cleaner = AWSReportDBCleaner(self.schema)
         with self.assertRaises(AWSReportDBCleanerError):
             removed_data = cleaner.purge_expired_report_data(
-                expired_date=now, provider_id=self.aws_provider.id
+                expired_date=now, provider_uuid=self.aws_provider_uuid
             )
