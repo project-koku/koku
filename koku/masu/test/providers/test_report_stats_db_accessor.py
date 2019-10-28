@@ -36,7 +36,7 @@ class ReportStatsDBAccessorTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.aws_provider_id,
+            'provider_uuid': self.aws_provider_uuid,
         }
         self.manifest_accessor = ReportManifestDBAccessor()
 

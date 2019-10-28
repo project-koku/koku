@@ -44,13 +44,13 @@ class OCPReportDBCleaner():
         self._schema = schema
 
     # pylint: disable=too-many-locals
-    def purge_expired_report_data(self, expired_date=None, provider_id=None,
+    def purge_expired_report_data(self, expired_date=None, provider_uuid=None,
                                   simulate=False):
         """Remove usage data with a report period before specified date.
 
         Args:
             expired_date (datetime.datetime): The cutoff date for removing data.
-            provider_id (str): The DB id of the provider to purge data for.
+            provider_uuid (uuid): The DB id of the provider to purge data for.
             simulate (bool): Whether to simluate the removal.
 
         Returns:
@@ -61,16 +61,16 @@ class OCPReportDBCleaner():
             column_map = reporting_common.column_map
 
         with OCPReportDBAccessor(self._schema, column_map) as accessor:
-            if ((expired_date is not None and provider_id is not None) or  # noqa: W504
-                    (expired_date is None and provider_id is None)):
-                err = 'This method must be called with expired_date or provider_id'
+            if ((expired_date is not None and provider_uuid is not None) or  # noqa: W504
+                    (expired_date is None and provider_uuid is None)):
+                err = 'This method must be called with expired_date or provider_uuid'
                 raise OCPReportDBCleanerError(err)
             removed_items = []
 
             if expired_date is not None:
                 usage_period_objs = accessor.get_usage_period_before_date(expired_date)
             else:
-                usage_period_objs = accessor.get_usage_period_query_by_provider(provider_id)
+                usage_period_objs = accessor.get_usage_period_query_by_provider(provider_uuid)
             with schema_context(self._schema):
                 for usage_period in usage_period_objs.all():
                     report_period_id = usage_period.id

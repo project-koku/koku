@@ -50,7 +50,7 @@ class AzureLocalReportDownloader(AzureReportDownloader):
         kwargs['is_local'] = True
         super().__init__(customer_name, auth_credential, billing_source, report_name, **kwargs)
 
-        self._provider_id = kwargs.get('provider_id')
+        self._provider_uuid = kwargs.get('provider_uuid')
         self.customer_name = customer_name.replace(' ', '_')
         self.export_name = billing_source.get('resource_group').get('export_name')
         self.directory = billing_source.get('resource_group').get('directory')

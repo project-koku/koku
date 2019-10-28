@@ -64,7 +64,7 @@ class AccountsAccessorTest(MasuTestCase):
 
     def test_get_aws_account_is_poll(self):
         """Test that the AWS account is returned given a provider uuid and it's a poll account."""
-        account_objects = AccountsAccessor().get_accounts(self.aws_test_provider_uuid)
+        account_objects = AccountsAccessor().get_accounts(self.aws_provider_uuid)
         self.assertEqual(len(account_objects), 1)
 
         aws_account = account_objects.pop()

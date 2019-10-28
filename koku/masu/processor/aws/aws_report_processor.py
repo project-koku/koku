@@ -68,7 +68,7 @@ class AWSReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     # pylint:disable=too-many-arguments
-    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id=None):
+    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -82,7 +82,7 @@ class AWSReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             processed_report=ProcessedReport()
         )
@@ -109,7 +109,7 @@ class AWSReportProcessor(ReportProcessorBase):
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_name}'
         )
         LOG.info(stmt)
@@ -262,7 +262,7 @@ class AWSReportProcessor(ReportProcessorBase):
         bill_type = row.get('bill/BillType')
         payer_account_id = row.get('bill/PayerAccountId')
 
-        key = (bill_type, payer_account_id, start_date, self._provider_id)
+        key = (bill_type, payer_account_id, start_date, self._provider_uuid)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -271,7 +271,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
 
-        data['provider_id'] = self._provider_id
+        data['provider_id'] = self._provider_uuid
 
         bill_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,

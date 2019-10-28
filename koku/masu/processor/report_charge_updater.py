@@ -54,7 +54,7 @@ class ReportChargeUpdater:
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
             provider_type = provider_accessor.get_type()
         self._provider = provider_type
-        self._provider_id = provider_accessor.get_provider().id
+        self._provider_uuid = provider_accessor.get_provider().uuid
 
         try:
             self._updater = self._set_updater()
@@ -75,11 +75,11 @@ class ReportChargeUpdater:
 
         """
         if self._provider in (AMAZON_WEB_SERVICES, AWS_LOCAL_SERVICE_PROVIDER):
-            return AWSReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
+            return AWSReportChargeUpdater(self._schema, self._provider_uuid)
         if self._provider in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
-            return AzureReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
+            return AzureReportChargeUpdater(self._schema, self._provider_uuid)
         if self._provider in (OPENSHIFT_CONTAINER_PLATFORM, ):
-            return OCPReportChargeUpdater(self._schema, self._provider_uuid, self._provider_id)
+            return OCPReportChargeUpdater(self._schema, self._provider_uuid)
 
         return None
 

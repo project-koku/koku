@@ -183,7 +183,7 @@
           "description": "Delete report summary tables in the database.",
           "parameters": [
             {
-              "name": "provider_id",
+              "name": "provider_uuid",
               "in": "query",
               "description": "The provider database ID",
               "required": true,

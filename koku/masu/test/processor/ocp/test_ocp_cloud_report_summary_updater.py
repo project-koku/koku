@@ -65,7 +65,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         resource_id = 'i-12345'
 
         for cost_entry_date in (today, last_month):
-            bill = creator.create_cost_entry_bill(provider_id=self.aws_provider.id, bill_date=cost_entry_date)
+            bill = creator.create_cost_entry_bill(provider_uuid=self.aws_provider_uuid, bill_date=cost_entry_date)
             bill_ids.append(str(bill.id))
             cost_entry = creator.create_cost_entry(bill, cost_entry_date)
             product = creator.create_cost_entry_product('Compute Instance')
@@ -84,10 +84,14 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             aws_accessor.populate_line_item_daily_table(last_month.date(), today.date(), bill_ids)
 
         cluster_id = self.ocp_provider_resource_name
-        provider_id = self.ocp_provider.id
+        provider_uuid = self.ocp_provider_uuid
 
         for cost_entry_date in (today, last_month):
-            period = creator.create_ocp_report_period(cost_entry_date, provider_id=provider_id, cluster_id=cluster_id)
+            period = creator.create_ocp_report_period(
+                provider_uuid=provider_uuid,
+                period_date=cost_entry_date,
+                cluster_id=cluster_id
+            )
             report = creator.create_ocp_report(period, cost_entry_date)
             creator.create_ocp_usage_line_item(
                 period,
@@ -155,7 +159,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date + datetime.timedelta(days=1)
         start_date_str = start_date.strftime('%Y-%m-%d')
         end_date_str = end_date.strftime('%Y-%m-%d')
-        with ProviderDBAccessor(self.aws_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         updater = OCPCloudReportSummaryUpdater(
             schema='acct10001',
@@ -170,7 +174,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     @patch('masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_cost_summary_table')
     def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp, mock_ocp_on_aws):
         """Test that summary tables do not run when OCP-on-AWS does not exist."""
-        test_provider_list = [self.aws_test_provider_uuid, self.ocp_test_provider_uuid]
+        test_provider_list = [self.aws_provider_uuid, self.ocp_test_provider_uuid]
 
         for provider_uuid in test_provider_list:
             start_date = self.date_accessor.today_with_timezone('UTC')

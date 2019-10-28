@@ -18,6 +18,7 @@
 """Test the ReportDownloader object."""
 
 from unittest.mock import patch
+from uuid import uuid4
 
 from faker import Faker
 
@@ -75,7 +76,7 @@ class ReportDownloaderTest(MasuTestCase):
             report_source=FAKE.slug(),
             report_name=FAKE.slug(),
             provider_type=provider_type,
-            provider_id=FAKE.pyint(),
+            provider_uuid=uuid4(),
         )
         return downloader
 

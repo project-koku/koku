@@ -48,7 +48,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
     report_path = report_dict.get('file')
     compression = report_dict.get('compression')
     manifest_id = report_dict.get('manifest_id')
-    provider_id = report_dict.get('provider_id')
+    provider_uuid = report_dict.get('provider_uuid')
     log_statement = (f'Processing Report:\n'
                      f' schema_name: {schema_name}\n'
                      f' provider: {provider}\n'
@@ -68,7 +68,7 @@ def _process_report_file(schema_name, provider, provider_uuid, report_dict):
                                 report_path=report_path,
                                 compression=compression,
                                 provider=provider,
-                                provider_id=provider_id,
+                                provider_uuid=provider_uuid,
                                 manifest_id=manifest_id)
     processor.process()
     with ReportStatsDBAccessor(file_name, manifest_id) as stats_recorder:

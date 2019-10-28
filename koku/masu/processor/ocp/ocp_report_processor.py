@@ -93,7 +93,7 @@ class OCPReportProcessor():
                              'node_capacity_memory_bytes', 'node_capacity_memory_byte_seconds',
                              'pod_labels']
 
-    def __init__(self, schema_name, report_path, compression, provider_id):
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
         Args:
@@ -107,10 +107,10 @@ class OCPReportProcessor():
         self.report_type = self._detect_report_type(report_path)
         if self.report_type == OCPReportTypes.CPU_MEM_USAGE:
             self._processor = OCPCpuMemReportProcessor(schema_name, report_path,
-                                                       compression, provider_id)
+                                                       compression, provider_uuid)
         elif self.report_type == OCPReportTypes.STORAGE:
             self._processor = OCPStorageProcessor(schema_name, report_path,
-                                                  compression, provider_id)
+                                                  compression, provider_uuid)
         elif self.report_type == OCPReportTypes.UNKNOWN:
             raise OCPReportProcessorError('Unknown OCP report type.')
 
@@ -162,13 +162,13 @@ class OCPReportProcessor():
 class OCPReportProcessorBase(ReportProcessorBase):
     """Base class for OCP report processing."""
 
-    def __init__(self, schema_name, report_path, compression, provider_id):
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize base class."""
         super().__init__(
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=None,
             processed_report=ProcessedOCPReport()
         )
@@ -240,7 +240,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
         start = datetime.strptime(row.get('report_period_start'), Config.OCP_DATETIME_STR_FORMAT)
         end = datetime.strptime(row.get('report_period_end'), Config.OCP_DATETIME_STR_FORMAT)
 
-        key = (cluster_id, start, self._provider_id)
+        key = (cluster_id, start, self._provider_uuid)
         if key in self.processed_report.report_periods:
             return self.processed_report.report_periods[key]
 
@@ -251,7 +251,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
             'cluster_id': cluster_id,
             'report_period_start': start,
             'report_period_end': end,
-            'provider_id': self._provider_id
+            'provider_id': self._provider_uuid
         }
 
         report_period_id = report_db_accessor.insert_on_conflict_do_nothing(
@@ -354,7 +354,7 @@ class OCPReportProcessorBase(ReportProcessorBase):
 class OCPCpuMemReportProcessor(OCPReportProcessorBase):
     """OCP Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression, provider_id):
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
         Args:
@@ -368,13 +368,13 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id
+            provider_uuid=provider_uuid
         )
         self.table_name = OCPUsageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )
         LOG.info(stmt)
@@ -429,7 +429,7 @@ class OCPCpuMemReportProcessor(OCPReportProcessorBase):
 class OCPStorageProcessor(OCPReportProcessorBase):
     """OCP Usage Report processor."""
 
-    def __init__(self, schema_name, report_path, compression, provider_id):
+    def __init__(self, schema_name, report_path, compression, provider_uuid):
         """Initialize the report processor.
 
         Args:
@@ -443,13 +443,13 @@ class OCPStorageProcessor(OCPReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id
+            provider_uuid=provider_uuid
         )
         self.table_name = OCPStorageLineItem()
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {self._report_path}'
         )
         LOG.info(stmt)

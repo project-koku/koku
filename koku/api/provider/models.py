@@ -120,8 +120,7 @@ class Provider(models.Model):
                             (PROVIDER_AZURE, PROVIDER_AZURE),
                             (PROVIDER_GCP, PROVIDER_GCP))
 
-    uuid = models.UUIDField(default=uuid4, editable=False,
-                            unique=True, null=False)
+    uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
     type = models.CharField(max_length=50, null=False,
                             choices=PROVIDER_CHOICES, default=PROVIDER_AWS)
@@ -206,8 +205,7 @@ class ProviderStatus(models.Model):
               (98, 'Disabled: Error'),
               (99, 'Disabled: Admin'),)
 
-    provider = models.ForeignKey('Provider', null=False,
-                                 on_delete=models.CASCADE, blank=False)
+    provider = models.ForeignKey('Provider', on_delete=models.CASCADE)
     status = models.IntegerField(null=False,
                                  choices=STATES,
                                  default=0)

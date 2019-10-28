@@ -34,7 +34,7 @@ CREATE TEMPORARY TABLE aws_infrastructure_uuid_temp AS (
     JOIN ocp_infrastructure_temp as ocp_infra_temp
         ON awsbill.id = ocp_infra_temp.cost_entry_bill_id
     JOIN public.api_provider as provider
-        ON provider.id = awsbill.provider_id
+        ON provider.uuid = awsbill.provider_id
 )
 ;
 

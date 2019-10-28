@@ -18,8 +18,9 @@
 
 from django.test import TestCase
 from faker import Faker
-from providers.azure_local.provider import AzureLocalProvider
 from rest_framework.exceptions import ValidationError
+
+from providers.azure_local.provider import AzureLocalProvider
 
 FAKE = Faker()
 

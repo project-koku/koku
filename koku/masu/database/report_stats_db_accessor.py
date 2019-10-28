@@ -30,7 +30,7 @@ class ReportStatsDBAccessor(KokuDBAccess):
 
         Args:
             report_name    (String) CUR report file name
-            provider_id    (String) the database id of the provider
+            provider_uuid    (String) the database id of the provider
             schema         (String) database schema (i.e. public or customer tenant value)
 
         """
