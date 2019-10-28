@@ -6,13 +6,13 @@ import os
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import DAILY, rrule
 from google.cloud import storage
-from providers.gcp.provider import GCPProvider
 from rest_framework.exceptions import ValidationError
 
 from masu.config import Config
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from providers.gcp.provider import GCPProvider
 
 
 DATA_DIR = Config.TMP_DIR
@@ -49,7 +49,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.bucket_name = billing_source['bucket']
         self.report_prefix = billing_source.get('report_prefix', '')
         self.customer_name = customer_name.replace(' ', '_')
-        self._provider_id = kwargs.get('provider_id')
+        self._provider_uuid = kwargs.get('provider_uuid')
 
         try:
             GCPProvider().cost_usage_source_is_reachable(None, billing_source)
@@ -93,7 +93,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stmt = (
                 f'This manifest has already been downloaded and processed:\n'
                 f' schema_name: {self.customer_name}\n'
-                f' provider_id: {self._provider_id}\n'
+                f' provider_uuid: {self._provider_uuid}\n'
                 f' manifest_id: {manifest_id}'
             )
             LOG.info(stmt)
@@ -104,7 +104,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             stmt = (
                 f'No relevant files found for month starting {manifest_data["start_date"]}'
                 f' for customer "{self.customer_name}",'
-                f' provider_id {self._provider_id},'
+                f' provider_uuid {self._provider_uuid},'
                 f' and bucket_name: {self.bucket_name}'
             )
             LOG.info(stmt)
@@ -171,7 +171,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         fake_assembly_id = ':'.join(
             [
-                str(self._provider_id),
+                str(self._provider_uuid),
                 start_date.strftime('%Y-%m-%d'),
                 end_date.strftime('%Y-%m-%d'),
                 str(file_count),

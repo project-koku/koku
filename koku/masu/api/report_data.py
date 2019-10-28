@@ -97,7 +97,7 @@ def report_data(request):
 
         schema_name = params.get("schema")
         provider = params.get("provider")
-        provider_id = params.get("provider_id")
+        provider_uuid = params.get("provider_uuid")
         simulate = params.get("simulate")
 
         if schema_name is None:
@@ -108,8 +108,8 @@ def report_data(request):
             errmsg = "provider is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        if provider_id is None:
-            errmsg = "provider_id is a required parameter."
+        if provider_uuid is None:
+            errmsg = "provider_uuid is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if simulate is not None and simulate.lower() not in ("true", "false"):
@@ -125,7 +125,7 @@ def report_data(request):
         LOG.info("Calling remove_expired_data async task.")
 
         async_result = remove_expired_data.delay(
-            schema_name, provider, simulate, provider_id
+            schema_name, provider, simulate, provider_uuid
         )
 
         return Response({"Report Data Task ID": str(async_result)})

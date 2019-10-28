@@ -41,13 +41,13 @@ class ReportProcessor:
     """Interface for masu to use to processor CUR."""
 
     def __init__(self, schema_name, report_path, compression, provider,
-                 provider_id, manifest_id):
+                 provider_uuid, manifest_id):
         """Set the processor based on the data provider."""
         self.schema_name = schema_name
         self.report_path = report_path
         self.compression = compression
         self.provider_type = provider
-        self.provider_id = provider_id
+        self.provider_uuid = provider_uuid
         self.manifest_id = manifest_id
         try:
             self._processor = self._set_processor()
@@ -74,21 +74,21 @@ class ReportProcessor:
             return AWSReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
-                                      provider_id=self.provider_id,
+                                      provider_uuid=self.provider_uuid,
                                       manifest_id=self.manifest_id)
 
         if self.provider_type in (AZURE, AZURE_LOCAL_SERVICE_PROVIDER):
             return AzureReportProcessor(schema_name=self.schema_name,
                                         report_path=self.report_path,
                                         compression=self.compression,
-                                        provider_id=self.provider_id,
+                                        provider_uuid=self.provider_uuid,
                                         manifest_id=self.manifest_id)
 
         if self.provider_type in (OPENSHIFT_CONTAINER_PLATFORM, ):
             return OCPReportProcessor(schema_name=self.schema_name,
                                       report_path=self.report_path,
                                       compression=self.compression,
-                                      provider_id=self.provider_id)
+                                      provider_uuid=self.provider_uuid)
 
         return None
 

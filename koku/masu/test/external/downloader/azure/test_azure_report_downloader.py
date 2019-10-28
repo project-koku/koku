@@ -112,7 +112,7 @@ class AzureReportDownloaderTest(MasuTestCase):
             customer_name=self.customer_name,
             auth_credential=self.auth_credential,
             billing_source=self.billing_source,
-            provider_id=self.azure_provider_id)
+            provider_uuid=self.azure_provider_uuid)
         self.mock_data = MockAzureService()
 
 

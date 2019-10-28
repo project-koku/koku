@@ -18,6 +18,7 @@
 
 import logging
 
+from api.provider.models import Provider
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider
@@ -25,8 +26,6 @@ from providers.azure_local.provider import AzureLocalProvider
 from providers.gcp.provider import GCPProvider
 from providers.gcp_local.provider import GCPLocalProvider
 from providers.ocp.provider import OCPProvider
-
-from api.provider.models import Provider
 
 
 LOG = logging.getLogger(__name__)

@@ -51,7 +51,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
     def setUp(self):
         """"Set up a test with database objects."""
         super().setUp()
-        reporting_period = self.creator.create_ocp_report_period()
+        reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_storage_line_item(reporting_period, report)
@@ -237,7 +237,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
             )
 
     def test_purge_expired_report_data_for_provider(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         report_period_table_name = OCP_REPORT_TABLE_MAP['report_period']
         report_table_name = OCP_REPORT_TABLE_MAP['report']
         line_item_table_name = OCP_REPORT_TABLE_MAP['line_item']
@@ -260,7 +260,7 @@ class OCPReportDBCleanerTest(MasuTestCase):
                 self.accessor._get_db_obj_query(storage_line_item_table_name).first()
             )
 
-        removed_data = cleaner.purge_expired_report_data(provider_id=1)
+        removed_data = cleaner.purge_expired_report_data(provider_uuid=self.ocp_provider_uuid)
 
         self.assertEqual(len(removed_data), 1)
         self.assertEqual(removed_data[0].get('usage_period_id'), first_period.id)
@@ -279,15 +279,18 @@ class OCPReportDBCleanerTest(MasuTestCase):
             )
 
     def test_purge_expired_report_data_no_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
 
         cleaner = OCPReportDBCleaner('acct10001')
         with self.assertRaises(OCPReportDBCleanerError):
             cleaner.purge_expired_report_data()
 
     def test_purge_expired_report_data_both_args(self):
-        """Test that the provider_id deletes all data for the provider."""
+        """Test that the provider_uuid deletes all data for the provider."""
         now = datetime.datetime.utcnow()
         cleaner = OCPReportDBCleaner('acct10001')
         with self.assertRaises(OCPReportDBCleanerError):
-            cleaner.purge_expired_report_data(expired_date=now, provider_id=1)
+            cleaner.purge_expired_report_data(
+                expired_date=now,
+                provider_uuid=self.ocp_provider_uuid
+            )

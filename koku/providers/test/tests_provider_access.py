@@ -19,6 +19,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+
 from providers.aws.provider import AWSProvider
 from providers.aws_local.provider import AWSLocalProvider
 from providers.azure.provider import AzureProvider

@@ -260,7 +260,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
     with AWSReportDBAccessor(schema, column_map) as report_accessor:
         with schema_context(schema):
-            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.id)
+            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
             if start_date:
                 bills = bills.filter(billing_period_start__gte=start_date)
             if end_date:

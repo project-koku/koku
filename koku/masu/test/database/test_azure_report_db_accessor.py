@@ -68,11 +68,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
             'assembly_id': '1234',
             'billing_period_start_datetime': billing_start,
             'num_total_files': 2,
-            'provider_id': self.azure_provider_id,
+            'provider_uuid': self.azure_provider_uuid,
         }
 
         bill = self.creator.create_azure_cost_entry_bill(
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
             bill_date=today,
         )
         product = self.creator.create_azure_cost_entry_product()
@@ -128,20 +128,20 @@ class AzureReportDBAccessorTest(MasuTestCase):
             expected_key = first_entry.meter_id
             self.assertIn(expected_key, meters)
 
-    def test_bills_for_provider_id(self):
-        """Test that bills_for_provider_id returns the right bills."""
+    def test_bills_for_provider_uuid(self):
+        """Test that bills_for_provider_uuid returns the right bills."""
         bill1_date = datetime.datetime(2018, 1, 6, 0, 0, 0)
         bill2_date = datetime.datetime(2018, 2, 3, 0, 0, 0)
 
         self.creator.create_azure_cost_entry_bill(
-            bill_date=bill1_date, provider_id=self.azure_provider.id
+            bill_date=bill1_date, provider_uuid=self.azure_provider_uuid
         )
         bill2 = self.creator.create_azure_cost_entry_bill(
-            provider_id=self.azure_provider.id, bill_date=bill2_date
+            provider_uuid=self.azure_provider_uuid, bill_date=bill2_date
         )
 
-        bills = self.accessor.bills_for_provider_id(
-            self.azure_provider.id, start_date=bill2_date.strftime('%Y-%m-%d')
+        bills = self.accessor.bills_for_provider_uuid(
+            self.azure_provider_uuid, start_date=bill2_date.strftime('%Y-%m-%d')
         )
         with schema_context(self.schema):
             self.assertEquals(len(bills), 1)
@@ -154,7 +154,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
         for _ in range(10):
-            bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
+            bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
             product = self.creator.create_azure_cost_entry_product()
             meter = self.creator.create_azure_meter()
             self.creator.create_azure_cost_entry_line_item(
@@ -162,7 +162,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider.id
+            self.azure_provider_uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -244,7 +244,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
         product = self.creator.create_azure_cost_entry_product()
         meter = self.creator.create_azure_meter()
         self.creator.create_azure_cost_entry_line_item(
@@ -252,7 +252,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider.id
+            self.azure_provider_uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]
@@ -291,7 +291,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that the daily summary table is populated."""
         summary_table_name = AZURE_REPORT_TABLE_MAP['line_item_daily_summary']
 
-        bill = self.creator.create_azure_cost_entry_bill(provider_id=self.azure_provider.id)
+        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
         product = self.creator.create_azure_cost_entry_product()
         meter = self.creator.create_azure_meter()
         self.creator.create_azure_cost_entry_line_item(
@@ -299,7 +299,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(
-            self.azure_provider.id
+            self.azure_provider_uuid
         )
         with schema_context(self.schema):
             bill_ids = [str(bill.id) for bill in bills.all()]

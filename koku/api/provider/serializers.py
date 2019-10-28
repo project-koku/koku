@@ -18,7 +18,6 @@
 
 from django.db import IntegrityError, transaction
 from django.utils.translation import ugettext as _
-from providers.provider_access import ProviderAccessor
 from rest_framework import serializers
 from rest_framework.fields import empty
 
@@ -29,6 +28,7 @@ from api.provider.models import (Provider,
                                  ProviderAuthentication,
                                  ProviderBillingSource,
                                  Sources)
+from providers.provider_access import ProviderAccessor
 
 PROVIDER_CHOICE_LIST = [provider[0].lower() for provider in Provider.PROVIDER_CHOICES]
 

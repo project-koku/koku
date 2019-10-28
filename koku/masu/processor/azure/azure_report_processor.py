@@ -63,7 +63,7 @@ class AzureReportProcessor(ReportProcessorBase):
     """Cost Usage Report processor."""
 
     # pylint:disable=too-many-arguments
-    def __init__(self, schema_name, report_path, compression, provider_id, manifest_id=None):
+    def __init__(self, schema_name, report_path, compression, provider_uuid, manifest_id=None):
         """Initialize the report processor.
 
         Args:
@@ -77,7 +77,7 @@ class AzureReportProcessor(ReportProcessorBase):
             schema_name=schema_name,
             report_path=report_path,
             compression=compression,
-            provider_id=provider_id,
+            provider_uuid=provider_uuid,
             manifest_id=manifest_id,
             processed_report=ProcessedAzureReport()
         )
@@ -105,7 +105,7 @@ class AzureReportProcessor(ReportProcessorBase):
         stmt = (
             f'Initialized report processor for:\n'
             f' schema_name: {self._schema_name}\n'
-            f' provider_id: {provider_id}\n'
+            f' provider_uuid: {provider_uuid}\n'
             f' file: {report_path}'
         )
         LOG.info(stmt)
@@ -129,7 +129,7 @@ class AzureReportProcessor(ReportProcessorBase):
         start_date_utc = parser.parse(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         end_date_utc = parser.parse(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
 
-        key = (start_date_utc, self._provider_id)
+        key = (start_date_utc, self._provider_uuid)
         if key in self.processed_report.bills:
             return self.processed_report.bills[key]
 
@@ -138,7 +138,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         data = self._get_data_for_table(row, table_name._meta.db_table)
 
-        data['provider_id'] = self._provider_id
+        data['provider_id'] = self._provider_uuid
         data['billing_period_start'] = datetime.strftime(start_date_utc, '%Y-%m-%d %H:%M%z')
         data['billing_period_end'] = datetime.strftime(end_date_utc, '%Y-%m-%d %H:%M%z')
 

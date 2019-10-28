@@ -71,7 +71,7 @@ class OCPReportDownloaderTest(MasuTestCase):
         )
 
         self.report_downloader = ReportDownloader(
-            self.fake_customer_name, self.cluster_id, None, 'OCP', self.ocp_provider_id
+            self.fake_customer_name, self.cluster_id, None, 'OCP', self.ocp_provider_uuid
         )
 
         self.ocp_report_downloader = OCPReportDownloader(
@@ -79,7 +79,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                 'customer_name': self.fake_customer_name,
                 'auth_credential': self.cluster_id,
                 'bucket': None,
-                'provider_id': 1,
+                'provider_uuid': self.ocp_provider_uuid,
             }
         )
 

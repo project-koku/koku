@@ -83,11 +83,11 @@ class ReportObjectCreator:
         with AWSReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_cost_entry_bill(self, provider_id, bill_date=None):
+    def create_cost_entry_bill(self, provider_uuid, bill_date=None):
         """Create a cost entry bill database object for test."""
         table_name = AWS_CUR_TABLE_MAP['bill']
         data = self.create_columns_for_table(table_name)
-        data['provider_id'] = provider_id
+        data['provider_id'] = provider_uuid
         if bill_date:
             bill_start = self.make_datetime_aware(bill_date).replace(day=1).date()
             bill_end = bill_start + relativedelta.relativedelta(months=1)
@@ -149,7 +149,7 @@ class ReportObjectCreator:
             return accessor.create_db_object(table_name, data)
 
     def create_ocp_report_period(
-        self, period_date=None, provider_id=None, cluster_id=None
+        self, provider_uuid, period_date=None, cluster_id=None
     ):
         """Create an OCP report database object for test."""
         table_name = OCP_REPORT_TABLE_MAP['report_period']
@@ -160,7 +160,7 @@ class ReportObjectCreator:
         )
         data = {
             'cluster_id': cluster_id if cluster_id else self.fake.pystr()[:8],
-            'provider_id': provider_id if provider_id else 1,
+            'provider_id': provider_uuid,
             'report_period_start': period_start,
             'report_period_end': period_end,
         }
@@ -243,7 +243,6 @@ class ReportObjectCreator:
 
         for column in columns:
             col_type = column_types[column]
-
             # This catches several different types of IntegerFields such as:
             # PositiveIntegerField, BigIntegerField,
             if 'IntegerField' in col_type:
@@ -361,11 +360,11 @@ class ReportObjectCreator:
             obj = accessor.create_db_object(table_name, data)
         return obj
 
-    def create_azure_cost_entry_bill(self, provider_id, bill_date=None):
+    def create_azure_cost_entry_bill(self, provider_uuid, bill_date=None):
         """Create an Azure cost entry bill database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['bill']
         data = self.create_columns_for_table(table_name)
-        data['provider_id'] = provider_id
+        data['provider_id'] = provider_uuid
         fake_bill_date = self.make_datetime_aware(self.fake.past_datetime())
         data['billing_period_start'] = fake_bill_date
         data['billing_period_end'] = fake_bill_date

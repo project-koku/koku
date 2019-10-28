@@ -27,12 +27,15 @@ from django.urls import reverse
 from django.test.utils import override_settings
 
 @override_settings(ROOT_URLCONF='masu.urls')
-class ReportDataTests(MasuTestCase, TestCase):
+class ReportDataTests(TestCase):
     """Test Cases for the report_data endpoint."""
 
+    @patch('masu.api.report_data.ProviderDBAccessor')
     @patch('masu.api.report_data.update_summary_tables')
-    def test_get_report_data(self, mock_update):
+    def test_get_report_data(self, mock_update, mock_accessor):
         """Test the GET report_data endpoint."""
+        provider_type = 'AWS'
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         start_date = datetime.date.today()
         params = {
             'schema': 'acct10001',
@@ -126,10 +129,13 @@ class ReportDataTests(MasuTestCase, TestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
+    @patch('masu.api.report_data.ProviderDBAccessor')
     @patch('masu.api.report_data.update_summary_tables')
-    def test_get_report_data_mismatch_types_uuid(self, mock_update):
+    def test_get_report_data_mismatch_types_uuid(self, mock_update, mock_accessor):
         """Test GET report_data endpoint returns a 400 for mismatched type and uuid."""
         start_date = datetime.date.today()
+        provider_type = 'AWS'
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
@@ -148,11 +154,14 @@ class ReportDataTests(MasuTestCase, TestCase):
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
 
+    @patch('masu.api.report_data.ProviderDBAccessor')
     @patch('masu.api.report_data.update_summary_tables')
-    def test_get_report_data_with_end_date(self, mock_update):
+    def test_get_report_data_with_end_date(self, mock_update, mock_accessor):
         """Test GET report_data endpoint with end date."""
         start_date = datetime.date.today()
         end_date = start_date + datetime.timedelta(days=1)
+        provider_type = 'AWS'
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
             'schema': 'acct10001',
             'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
@@ -163,12 +172,11 @@ class ReportDataTests(MasuTestCase, TestCase):
 
         response = self.client.get(reverse('report_data'), params)
         body = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_update.delay.assert_called_with(
             params['schema'],
-            'AWS',
+            provider_type,
             params['provider_uuid'],
             str(params['start_date']),
             str(params['end_date']),
@@ -220,7 +228,7 @@ class ReportDataTests(MasuTestCase, TestCase):
         params = {
             'schema': 'acct10001',
             'provider': 'AWS',
-            'provider_id': 1,
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
             'simulate': False,
         }
         query_string = urlencode(params)
@@ -236,7 +244,7 @@ class ReportDataTests(MasuTestCase, TestCase):
             params['schema'],
             params['provider'],
             params['simulate'],
-            str(params['provider_id']),
+            str(params['provider_uuid']),
         )
 
     @patch('masu.api.report_data.remove_expired_data')
@@ -245,7 +253,7 @@ class ReportDataTests(MasuTestCase, TestCase):
         params = {
             'schema': 'acct10001',
             'provider': 'AWS',
-            'provider_id': 1,
+            'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64',
             'simulate': True,
         }
         query_string = urlencode(params)
@@ -261,13 +269,13 @@ class ReportDataTests(MasuTestCase, TestCase):
             params['schema'],
             params['provider'],
             params['simulate'],
-            str(params['provider_id']),
+            str(params['provider_uuid']),
         )
 
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_simulate_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {'schema': 'acct10001', 'provider': 'AWS', 'provider_id': 1}
+        params = {'schema': 'acct10001', 'provider': 'AWS', 'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64'}
         query_string = urlencode(params)
         expected_key = 'Report Data Task ID'
 
@@ -278,13 +286,13 @@ class ReportDataTests(MasuTestCase, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_remove.delay.assert_called_with(
-            params['schema'], params['provider'], False, str(params['provider_id'])
+            params['schema'], params['provider'], False, str(params['provider_uuid'])
         )
 
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_schema_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {'provider': 'AWS', 'provider_id': 1, 'simulate': True}
+        params = {'provider': 'AWS', 'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64', 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'schema is a required parameter.'
@@ -300,7 +308,7 @@ class ReportDataTests(MasuTestCase, TestCase):
     @patch('masu.api.report_data.remove_expired_data')
     def test_remove_report_data_provider_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
-        params = {'schema': 'acct10001', 'provider_id': 1, 'simulate': True}
+        params = {'schema': 'acct10001', 'provider_uuid': '6e212746-484a-40cd-bba0-09a19d132d64', 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
         expected_message = 'provider is a required parameter.'
@@ -314,12 +322,12 @@ class ReportDataTests(MasuTestCase, TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch('masu.api.report_data.remove_expired_data')
-    def test_remove_report_data_provider_id_missing(self, mock_remove):
+    def test_remove_report_data_provider_uuid_missing(self, mock_remove):
         """Test that the DELETE call to report_data works."""
         params = {'schema': 'acct10001', 'provider': 'AWS', 'simulate': True}
         query_string = urlencode(params)
         expected_key = 'Error'
-        expected_message = 'provider_id is a required parameter.'
+        expected_message = 'provider_uuid is a required parameter.'
 
         url = reverse('report_data') + '?' + query_string
         response = self.client.delete(url)

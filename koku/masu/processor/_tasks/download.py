@@ -61,7 +61,7 @@ def _get_report_files(customer_name,
     """
     with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
         reports_processed = provider_accessor.get_setup_complete()
-        provider_id = provider_accessor.get_provider().id
+        provider_uuid = provider_accessor.get_provider().uuid
 
     if Config.INGEST_OVERRIDE or not reports_processed:
         number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
@@ -87,7 +87,7 @@ def _get_report_files(customer_name,
                                       access_credential=authentication,
                                       report_source=billing_source,
                                       provider_type=provider_type,
-                                      provider_id=provider_id,
+                                      provider_uuid=provider_uuid,
                                       report_name=report_name)
         reports = downloader.get_reports(number_of_months)
     except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:

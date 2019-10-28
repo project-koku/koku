@@ -28,7 +28,7 @@ from api.iam.test.iam_test_case import IamTestCase
 class CloudAccountViewTest(IamTestCase):
     """Test Cases for CloudAccountViewSet."""
 
-    def testCloudAccountEmptyViewSet(self):
+    def testCloudAccountViewSet(self):
         """Test that /cloud_accounts endpoint returns 200 HTTP_OK."""
         url = reverse('cloud_accounts-list')
         client = APIClient()
@@ -36,7 +36,7 @@ class CloudAccountViewTest(IamTestCase):
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def testCloudAccountOneItemViewSet(self):
+    def testCloudAccounViewSetWithSecondCloudAccount(self):
         """
         Test that /cloud_account endpoint returns HTTP 200 OK.
 
@@ -52,10 +52,9 @@ class CloudAccountViewTest(IamTestCase):
 
     def testCloudAccountName(self):
         """
-        Test that an expected cloud account is an actual cloud account.
+        Test contents of cloud account.
 
-        Tests that the contents match expected values.
-        There should only be one CloudAccount object returned in the response array.
+        This test creates a cloud account with test values.
         """
         CloudAccountCommonTestUtilities.create_cloud_account(self)
 

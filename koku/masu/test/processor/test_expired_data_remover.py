@@ -128,8 +128,8 @@ class ExpiredDataRemoverTest(MasuTestCase):
         'masu.processor.expired_data_remover.AWSReportDBCleaner.purge_expired_report_data'
     )
     def test_remove_provider(self, mock_purge):
-        """Test that remove is called with provider_id."""
-        provider_id = 1
+        """Test that remove is called with provider_uuid."""
+        provider_uuid = self.aws_provider_uuid
         remover = ExpiredDataRemover(self.schema, AMAZON_WEB_SERVICES)
-        remover.remove(provider_id=provider_id)
-        mock_purge.assert_called_with(simulate=False, provider_id=provider_id)
+        remover.remove(provider_uuid=provider_uuid)
+        mock_purge.assert_called_with(simulate=False, provider_uuid=provider_uuid)

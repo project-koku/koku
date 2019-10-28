@@ -81,7 +81,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
 
     # AWS Fields
     cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
+                                        on_delete=models.CASCADE,
                                         null=True)
 
     product_code = models.CharField(max_length=50, null=False)
@@ -93,7 +93,7 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     usage_account_id = models.CharField(max_length=50, null=False)
 
     account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.PROTECT,
+                                      on_delete=models.SET_NULL,
                                       null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)
@@ -195,7 +195,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
 
     # AWS Fields
     cost_entry_bill = models.ForeignKey('AWSCostEntryBill',
-                                        on_delete=models.PROTECT,
+                                        on_delete=models.CASCADE,
                                         null=True)
 
     product_code = models.CharField(max_length=50, null=False)
@@ -207,7 +207,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     usage_account_id = models.CharField(max_length=50, null=False)
 
     account_alias = models.ForeignKey('AWSAccountAlias',
-                                      on_delete=models.PROTECT,
+                                      on_delete=models.SET_NULL,
                                       null=True)
 
     availability_zone = models.CharField(max_length=50, null=True)

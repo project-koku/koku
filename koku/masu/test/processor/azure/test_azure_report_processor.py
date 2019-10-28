@@ -74,7 +74,7 @@ class AzureReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider_id,
+            provider_uuid=self.azure_provider_uuid,
         )
 
         billing_start = self.date_accessor.today_with_timezone('UTC').replace(
@@ -85,7 +85,7 @@ class AzureReportProcessorTest(MasuTestCase):
             'assembly_id': self.assembly_id,
             'billing_period_start_datetime': billing_start,
             'num_total_files': 1,
-            'provider_id': self.azure_provider.id,
+            'provider_uuid': self.azure_provider_uuid,
         }
 
         self.accessor = AzureReportDBAccessor(self.schema, self.column_map)
@@ -141,7 +141,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=self.azure_provider_id,
+                provider_uuid=self.azure_provider_uuid,
             )
 
             # Re-run test with new configuration and verify it's still successful.
@@ -156,7 +156,7 @@ class AzureReportProcessorTest(MasuTestCase):
                 schema_name=self.schema,
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
-                provider_id=self.azure_provider_id,
+                provider_uuid=self.azure_provider_uuid,
             )
             report_db = self.accessor
             report_schema = report_db.report_schema
@@ -188,7 +188,7 @@ class AzureReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
         )
 
         # Process for the first time
@@ -210,7 +210,7 @@ class AzureReportProcessorTest(MasuTestCase):
             schema_name=self.schema,
             report_path=self.test_report,
             compression=UNCOMPRESSED,
-            provider_id=self.azure_provider.id,
+            provider_uuid=self.azure_provider_uuid,
         )
         # Process for the second time
         processor.process()
@@ -231,10 +231,10 @@ class AzureReportProcessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(table_name)
         id_in_db = query.order_by('-id').first().id
-        provider_id = query.order_by('-id').first().provider_id
+        provider_uuid = query.order_by('-id').first().provider_id
 
         self.assertEqual(bill_id, id_in_db)
-        self.assertIsNotNone(provider_id)
+        self.assertIsNotNone(provider_uuid)
 
     def test_azure_create_product(self):
         """Test that a product id is returned."""
@@ -326,7 +326,7 @@ class AzureReportProcessorTest(MasuTestCase):
             path = '{}/{}'.format(cur_dir, item['file'])
             f = open(path, 'w')
             obj = self.manifest_accessor.get_manifest(self.assembly_id,
-                                                      self.azure_provider.id)
+                                                      self.azure_provider_uuid)
             with ReportStatsDBAccessor(item['file'], obj.id) as stats:
                 stats.update(last_completed_datetime=item['processed_date'])
             f.close()
