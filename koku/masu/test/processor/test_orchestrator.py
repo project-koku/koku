@@ -299,7 +299,8 @@ class OrchestratorTest(MasuTestCase):
         mock_status = Mock(is_valid=Mock(return_value=False),
                            is_backing_off=Mock(return_value=False),
                            get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
-                           get_last_message=task_id)
+                           get_last_message=Mock(return_value=task_id),
+                           )
         mock_accessor.return_value = mock_status
 
         mock_labeler.return_value = Mock(get_label_details=Mock(return_value=(True, True)))
@@ -334,7 +335,7 @@ class OrchestratorTest(MasuTestCase):
         mock_status = Mock(is_valid=Mock(return_value=False),
                            is_backing_off=Mock(return_value=False),
                            get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
-                           get_last_message=other_task_id,
+                           get_last_message=Mock(return_value=other_task_id),
                            get_timestamp=Mock(return_value=timestamp)
                            )
         mock_accessor.return_value = mock_status
@@ -365,7 +366,7 @@ class OrchestratorTest(MasuTestCase):
         mock_status = Mock(is_valid=Mock(return_value=False),
                            is_backing_off=Mock(return_value=False),
                            get_status=Mock(return_value=ProviderStatusCode.IN_PROGRESS),
-                           get_last_message=other_task_id,
+                           get_last_message=Mock(return_value=other_task_id),
                            get_timestamp=Mock(return_value=timestamp)
                            )
         mock_accessor.return_value = mock_status
