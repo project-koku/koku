@@ -22,11 +22,13 @@ import json
 import logging
 from os import listdir
 
+from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.exceptions import MasuProcessingError
 from masu.external import GZIP_COMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.processor import ALLOWED_COMPRESSIONS
 from masu.util.common import clear_temp_directory
 
@@ -61,6 +63,9 @@ class ReportProcessorBase():
         self._provider_uuid = provider_uuid
         self._manifest_id = manifest_id
         self.processed_report = processed_report
+        self.date_accessor = DateAccessor()
+        self.data_cutoff_date = (self.date_accessor.today_with_timezone('UTC') -
+                                relativedelta(days=2)).date()
 
     def _get_data_for_table(self, row, table_name):
         """Extract the data from a row for a specific table.
@@ -124,13 +129,74 @@ class ReportProcessorBase():
             temp_table,
             columns)
 
-    def _delete_line_items(self, db_accessor, column_map):
-        """Delete stale data for the report being processed, if necessary."""
-        if not self.manifest_id:
-            return False
+    def _should_process_full_month(self):
+        """Determine if we should process the full month of data."""
+        if not self._manifest_id:
+            log_statement = (
+                f'No manifest provided, processing as a new billing period.\n'
+                f' Processing entire month.\n'
+                f' schema_name: {self._schema_name},\n'
+                f'provider_uuid: {self._provider_uuid},\n'
+                f' manifest_id: {self._manifest_id}'
+            )
+            LOG.info(log_statement)
+            return True
 
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
+            bill_date = manifest.billing_period_start_datetime.date()
+            provider_uuid = manifest.provider_id
+
+        log_statement = (
+            f'Processing bill starting on {bill_date}.\n'
+            f' Processing entire month.\n'
+            f' schema_name: {self._schema_name},\n'
+            f'provider_uuid: {self._provider_uuid},\n'
+            f' manifest_id: {self._manifest_id}'
+        )
+
+        if ((bill_date.month != self.data_cutoff_date.month) or
+            (bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month)):
+            LOG.info(log_statement)
+            return True
+
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            provider_uuid,
+            bill_date
+        )
+
+        if len(manifest_list) == 1:
+            # This is the first manifest for this bill and we are currently
+            # processing it
+            LOG.info(log_statement)
+            return True
+
+        for manifest in manifest_list:
+            if manifest.num_processed_files >= manifest.num_total_files:
+                log_statement = (
+                    f'Processing bill starting on {bill_date}.\n'
+                    f' Processing data on or after {self.data_cutoff_date}.\n'
+                    f' schema_name: {self._schema_name},\n'
+                    f'provider_uuid: {self._provider_uuid},\n'
+                    f' manifest_id: {self._manifest_id}'
+                )
+                LOG.info(log_statement)
+                # We have fully processed a manifest for this provider
+                return False
+
+        return True
+
+    def _delete_line_items(self, db_accessor, column_map, is_finalized=None):
+        """Delete stale data for the report being processed, if necessary."""
+        if not self._manifest_id:
+            return False
+
+        if is_finalized is None:
+            is_finalized = False
+        is_full_month = self._should_process_full_month()
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
             if manifest.num_processed_files != 0:
                 return False
             # Override the bill date to correspond with the manifest
@@ -151,6 +217,23 @@ class ReportProcessorBase():
             with schema_context(self._schema_name):
                 for bill in bills:
                     line_item_query = accessor.get_lineitem_query_for_billid(bill.id)
+                    delete_date = bill_date
+                    if not is_finalized and not is_full_month:
+                        delete_date = self.data_cutoff_date
+                        # This means we are processing a mid-month update
+                        # and only need to delete a small window of data
+                        line_item_query = line_item_query.filter(
+                            usage_start__gte=self.data_cutoff_date
+                        )
+                    log_statement = (
+                        f'Deleting data for:\n'
+                        f' schema_name: {self._schema_name}\n'
+                        f' provider_uuid: {provider_uuid}\n'
+                        f' bill date: {str(bill_date)}\n'
+                        f' bill ID: {bill.id}\n'
+                        f' on or after {delete_date}.'
+                    )
+                    LOG.info(log_statement)
                     line_item_query.delete()
 
         return True
