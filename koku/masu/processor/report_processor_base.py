@@ -64,8 +64,8 @@ class ReportProcessorBase():
         self._manifest_id = manifest_id
         self.processed_report = processed_report
         self.date_accessor = DateAccessor()
-        self.data_cutoff_date = (self.date_accessor.today_with_timezone('UTC') -
-                                relativedelta(days=2)).date()
+        self.data_cutoff_date = (self.date_accessor.today_with_timezone('UTC')
+                                 - relativedelta(days=2)).date()
 
     def _get_data_for_table(self, row, table_name):
         """Extract the data from a row for a specific table.
@@ -155,8 +155,8 @@ class ReportProcessorBase():
             f' manifest_id: {self._manifest_id}'
         )
 
-        if ((bill_date.month != self.data_cutoff_date.month) or
-            (bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month)):
+        if ((bill_date.month != self.data_cutoff_date.month)
+                or (bill_date.year != self.data_cutoff_date.year and bill_date.month == self.data_cutoff_date.month)):
             LOG.info(log_statement)
             return True
 

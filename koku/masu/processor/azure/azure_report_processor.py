@@ -292,6 +292,7 @@ class AzureReportProcessor(ReportProcessorBase):
 
         Returns:
             (bool): Whether this row should be processed
+
         """
         if is_full_month:
             return True

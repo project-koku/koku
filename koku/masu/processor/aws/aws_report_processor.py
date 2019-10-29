@@ -126,6 +126,7 @@ class AWSReportProcessor(ReportProcessorBase):
 
         Returns:
             (bool): Whether this row should be processed
+
         """
         if is_finalized or is_full_month:
             return True
