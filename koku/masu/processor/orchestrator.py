@@ -153,8 +153,6 @@ class Orchestrator():
                     LOG.info(msg)
                     provider_status.set_status(INPROGRESS_TIMEOUT_ACTION,
                                                'In-progress timeout exceeded.')
-            else:
-                LOG.critical('ZZZ: %s', provider_status)
         return async_result
 
     def remove_expired_report_data(self, simulate=False):
