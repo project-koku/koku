@@ -17,6 +17,7 @@
 """Test the Report views."""
 import datetime
 import random
+from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlencode
 
@@ -40,7 +41,7 @@ from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -554,7 +555,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.data
 
         with tenant_context(self.tenant):
-            cost = OCPUsageLineItemDailySummary.objects\
+            cost = CostSummary.objects\
                 .filter(usage_start__date__gte=self.dh.this_month_start)\
                 .aggregate(
                     total=Sum(
@@ -568,6 +569,7 @@ class OCPReportViewTest(IamTestCase):
                 ).get('total')
             expected_total = cost if cost is not None else 0
         total = data.get('meta', {}).get('total', {}).get('cost', {}).get('value', 0)
+        self.assertNotEqual(total, Decimal(0))
         self.assertEqual(total, expected_total)
 
     def test_execute_query_ocp_costs_with_delta(self):
@@ -596,7 +598,7 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = OCPUsageLineItemDailySummary.objects\
+            current_total = CostSummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
@@ -610,7 +612,7 @@ class OCPReportViewTest(IamTestCase):
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = OCPUsageLineItemDailySummary.objects\
+            current_totals = CostSummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
@@ -625,7 +627,7 @@ class OCPReportViewTest(IamTestCase):
                     )
                 )
 
-            prev_totals = OCPUsageLineItemDailySummary.objects\
+            prev_totals = CostSummary.objects\
                 .filter(usage_start__date__gte=last_month_start)\
                 .filter(usage_start__date__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
@@ -652,6 +654,7 @@ class OCPReportViewTest(IamTestCase):
 
         expected_delta = current_total - prev_total
         delta = data.get('meta', {}).get('delta', {}).get('value')
+        self.assertNotEqual(delta, Decimal(0))
         self.assertEqual(delta, expected_delta)
         for item in data.get('data'):
             date = item.get('date')
@@ -1029,7 +1032,7 @@ class OCPReportViewTest(IamTestCase):
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
 
-            totals = OCPUsageLineItemDailySummary.objects\
+            totals = CostSummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
                 .aggregate(
@@ -1056,6 +1059,7 @@ class OCPReportViewTest(IamTestCase):
         for key in totals:
             expected = totals[key]
             result = data_totals.get(key, {}).get('value')
+            self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
     def test_execute_query_with_wildcard_tag_filter(self):
