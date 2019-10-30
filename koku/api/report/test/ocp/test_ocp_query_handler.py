@@ -32,7 +32,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import OCPUsageLineItemDailySummary
+from reporting.models import CostSummary, OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -72,7 +72,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.this_month_filter
         with tenant_context(self.tenant):
-            return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(
+            return CostSummary.objects.filter(**filters).aggregate(
                 **aggregates
             )
 
@@ -140,7 +140,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         # Add data for a second cluster
         OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1
+        # &filter[resolution]=monthly&group_by[cluster]=*'
         params = {
             'filter': {
                 'resolution': 'monthly',
@@ -233,7 +234,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
         """Test that cluster capacity returns daily capacity by cluster."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*'
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1
+        # &filter[resolution]=daily&group_by[cluster]=*'
         params = {
             'filter': {
                 'resolution': 'daily',
@@ -368,7 +370,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.tenant, self.provider, current_month_only=True
         ).add_data_to_tenant()
 
-        # '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
+        # '?filter[time_scope_value]=-2&filter[resolution]=monthly
+        # &filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
         params = {
             'filter': {
                 'resolution': 'monthly',
@@ -477,7 +480,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params.mock_qp)
         tag_keys = handler.get_tag_keys(filters=False)
 
-        # '?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[time_scope_units]=month&filter[tag:some_tag]=*'
+        # '?filter[time_scope_value]=-1&filter[resolution]=monthly
+        # &filter[time_scope_units]=month&filter[tag:some_tag]=*'
         params = {
             'filter': {
                 'resolution': 'monthly',
@@ -601,7 +605,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        # '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        # '?filter[resolution]=monthly&filter[time_scope_value]=-1
+        # &filter[time_scope_units]=month&filter[infrastructures]=aws'
         params = {
             'filter': {
                 'resolution': 'monthly',
@@ -627,7 +632,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        # '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        # '?filter[resolution]=monthly&filter[time_scope_value]=-1
+        # &filter[time_scope_units]=month&filter[infrastructures]=aws'
         params = {
             'filter': {
                 'resolution': 'monthly',
@@ -681,7 +687,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for _ in range(1, 5):
             OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
+        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1
+        # &filter[resolution]=monthly&group_by[cluster]=*'
         params = {
             'filter': {
                 'resolution': 'monthly',
