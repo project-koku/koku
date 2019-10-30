@@ -1,5 +1,6 @@
 """Upload utility functions."""
 import csv
+import logging
 
 from dateutil.rrule import DAILY, rrule
 from django.conf import settings
@@ -7,6 +8,8 @@ from django.db import connection
 
 from api.dataexport.uploader import AwsS3Uploader
 from masu.util.common import NamedTemporaryGZip
+
+LOG = logging.getLogger(__name__)
 
 
 def get_upload_path(account_name, provider_type, date, table_name, daily=False):
@@ -55,6 +58,12 @@ def query_and_upload_to_s3(schema, table_export_setting, date_range):
         date_range (tuple): Pair of date objects of inclusive start and end dates.
 
     """
+    LOG.info(
+        'query_and_upload_to_s3: schema %s table.output_name %s for %s',
+        schema,
+        table_export_setting.output_name,
+        date_range,
+    )
     uploader = AwsS3Uploader(settings.S3_BUCKET_NAME)
     start_date, end_date = date_range
     iterate_daily = table_export_setting.iterate_daily
