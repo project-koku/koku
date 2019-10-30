@@ -62,6 +62,8 @@ class AzureCostEntryProductService(models.Model):
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
 
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
+
 
 class AzureMeter(models.Model):
     """The Azure meter."""
@@ -74,6 +76,8 @@ class AzureMeter(models.Model):
     resource_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False)
     unit_of_measure = models.CharField(max_length=63, null=True)
+
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
 
 
 class AzureCostEntryLineItemDaily(models.Model):
