@@ -22,8 +22,6 @@ import json
 import logging
 from os import path
 
-import ciso8601
-
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -116,25 +114,6 @@ class AWSReportProcessor(ReportProcessorBase):
         )
         LOG.info(stmt)
 
-    def _should_process_row(self, row, is_finalized, is_full_month):
-        """Determine if we want to process this row.
-
-        Args:
-            row (dict): The line item entry from the AWS report file
-            is_finalized (boolean): If this is a finalized bill
-            is_new (boolean): If this is the first time we've processed this bill
-
-        Returns:
-            (bool): Whether this row should be processed
-
-        """
-        if is_finalized or is_full_month:
-            return True
-        row_date = ciso8601.parse_datetime(row['lineItem/UsageStartDate']).date()
-        if row_date < self.data_cutoff_date:
-            return False
-        return True
-
     def process(self):
         """Process CUR file.
 
@@ -160,7 +139,9 @@ class AWSReportProcessor(ReportProcessorBase):
                 for row in reader:
                     # If this isn't an initial load and it isn't finalized data
                     # we should only process recent data.
-                    if not self._should_process_row(row, is_finalized_data, is_full_month):
+                    if not self._should_process_row(row, 'lineItem/UsageStartDate',
+                                                    is_full_month,
+                                                    is_finalized=is_finalized_data):
                         continue
                     bill_id = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:

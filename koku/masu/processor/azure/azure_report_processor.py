@@ -20,7 +20,6 @@ import csv
 import logging
 from datetime import datetime
 
-import ciso8601
 import pytz
 from dateutil import parser
 
@@ -282,25 +281,6 @@ class AzureReportProcessor(ReportProcessorBase):
 
         return bill_id
 
-    def _should_process_row(self, row, is_full_month):
-        """Determine if we want to process this row.
-
-        Args:
-            row (dict): The line item entry from the AWS report file
-            is_finalized (boolean): If this is a finalized bill
-            is_new (boolean): If this is the first time we've processed this bill
-
-        Returns:
-            (bool): Whether this row should be processed
-
-        """
-        if is_full_month:
-            return True
-        row_date = ciso8601.parse_datetime(row['UsageDateTime']).date()
-        if row_date < self.data_cutoff_date:
-            return False
-        return True
-
     def process(self):
         """Process cost/usage file.
 
@@ -318,7 +298,7 @@ class AzureReportProcessor(ReportProcessorBase):
                 LOG.info('File %s opened for processing', str(f))
                 reader = csv.DictReader(f)
                 for row in reader:
-                    if not self._should_process_row(row, is_full_month):
+                    if not self._should_process_row(row, 'UsageDateTime', is_full_month):
                         continue
                     _ = self.create_cost_entry_objects(row, report_db)
                     if len(self.processed_report.line_items) >= self._batch_size:
