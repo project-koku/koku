@@ -22,6 +22,7 @@ import json
 import logging
 from os import listdir
 
+import ciso8601
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
@@ -64,8 +65,15 @@ class ReportProcessorBase():
         self._manifest_id = manifest_id
         self.processed_report = processed_report
         self.date_accessor = DateAccessor()
-        self.data_cutoff_date = (self.date_accessor.today_with_timezone('UTC')
-                                 - relativedelta(days=2)).date()
+
+    @property
+    def data_cutoff_date(self):
+        """Determine the date we should use to process and delete data."""
+        today = self.date_accessor.today_with_timezone('UTC').date()
+        data_cutoff_date = today - relativedelta(days=2)
+        if today.month != data_cutoff_date.month:
+            data_cutoff_date = today.replace(day=1)
+        return data_cutoff_date
 
     def _get_data_for_table(self, row, table_name):
         """Extract the data from a row for a specific table.
@@ -128,6 +136,28 @@ class ReportProcessorBase():
             csv_file,
             temp_table,
             columns)
+
+    def _should_process_row(self, row, date_column, is_full_month, is_finalized=None):
+        """Determine if we want to process this row.
+
+        Args:
+            row (dict): The line item entry from the AWS report file
+            date_column (str): The name of date column to check
+            is_full_month (boolean): If this is the first time we've processed this bill
+
+        Kwargs:
+            is_finalized (boolean): If this is a finalized bill
+
+        Returns:
+            (bool): Whether this row should be processed
+
+        """
+        if is_finalized or is_full_month:
+            return True
+        row_date = ciso8601.parse_datetime(row[date_column]).date()
+        if row_date < self.data_cutoff_date:
+            return False
+        return True
 
     def _should_process_full_month(self):
         """Determine if we should process the full month of data."""
