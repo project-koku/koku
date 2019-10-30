@@ -15,6 +15,8 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.conf.urls import url
+from rest_framework.routers import DefaultRouter
+from masu.api.sourcesstatus.views import SourceStatusView
 
 from masu.api.views import (
     download_report,
@@ -24,7 +26,8 @@ from masu.api.views import (
     update_charge,
     upload_normalized_data,
 )
-
+#ROUTER = DefaultRouter()
+#ROUTER.register(r'sources-status', SourceStatusViewSet, base_name='sources_status')
 urlpatterns = [
     url(r'^status/$', get_status, name='server-status'),
     url(r'^download/$', download_report, name='report_download'),
@@ -32,4 +35,5 @@ urlpatterns = [
     url(r'^report_data/$', report_data, name='report_data'),
     url(r'^update_charge/$', update_charge, name='update_charge'),
     url(r'^upload_normalized_data/$', upload_normalized_data, name='upload_normalized_data'),
+    url(r'sources-status/$', SourceStatusView.as_view(), name='sources_status_view')
 ]

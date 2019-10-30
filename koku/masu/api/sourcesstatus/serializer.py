@@ -1,6 +1,6 @@
 """Serialize SourceStatus."""
 from rest_framework import serializers
-import sources_status
+from masu.api.sourcesstatus import sources_status
 
 
 class SourcesStatusSerializer(serializers.Serializer):
