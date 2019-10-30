@@ -34,7 +34,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
+from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
 from masu.test import MasuTestCase
