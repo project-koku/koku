@@ -71,11 +71,8 @@ class AzureMeter(models.Model):
     meter_category = models.CharField(max_length=50, null=True)
     meter_subcategory = models.CharField(max_length=50, null=True)
     meter_region = models.CharField(max_length=50, null=True)
-
     resource_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
-
     currency = models.CharField(max_length=10, null=False)
-
     unit_of_measure = models.CharField(max_length=63, null=True)
 
 
