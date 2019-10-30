@@ -164,12 +164,12 @@ class OCPReportDataGenerator:
             self._populate_daily_summary_table()
             self._populate_storage_daily_table()
             self._populate_storage_daily_summary_table()
-            self._populate_cost_summary_table()
             self._populate_charge_info()
             self._populate_storage_charge_info()
             self._populate_pod_label_summary_table()
             self._populate_volume_claim_label_summary_table()
             self._populate_volume_label_summary_table()
+            self._populate_cost_summary_table()
 
     def remove_data_from_tenant(self):
         """Remove the added data."""
