@@ -45,7 +45,6 @@ koku:
 
 import argparse
 import os
-import pkgutil
 import sys
 from base64 import b64encode
 from json import dumps as json_dumps
