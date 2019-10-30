@@ -1022,7 +1022,7 @@ class AWSReportProcessorTest(MasuTestCase):
                 self.assertNotEqual(line_item_query.count(), 0)
 
     @patch('masu.processor.report_processor_base.ReportProcessorBase._should_process_full_month')
-    def _delete_line_items_use_data_cutoff_date(self, mock_should_process):
+    def test_delete_line_items_use_data_cutoff_date(self, mock_should_process):
         """Test that only three days of data are deleted."""
         mock_should_process.return_value = True
 
