@@ -12,6 +12,7 @@ from api.provider.models import Provider, ProviderAuthentication, ProviderBillin
 from reporting_common import package_directory
 from reporting_common.models import ReportColumnMap
 
+
 def load_db_map_data():
     if ReportColumnMap.objects.count() == 0:
         json_dir = '{}/{}'.format(package_directory, 'data')
@@ -158,6 +159,7 @@ class MasuTestCase(TransactionTestCase):
 
     def tearDown(self):
         """Tear down and restore database on the tenant schema."""
+
         connection.set_schema(self.schema)
         for db_name in self._databases_names(include_mirrors=False):
             # Flush the tenant schema's data

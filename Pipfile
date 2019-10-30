@@ -38,6 +38,7 @@ azure-storage = "==0.36.0"
 google-cloud-storage = "~=1.19.1"
 jinjasql = "*"
 ciso8601 = "==2.1.2"
+pandas = "~=0.25.1"
 
 [dev-packages]
 astroid = "==2.2.5"

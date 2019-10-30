@@ -50,6 +50,12 @@ class AwsS3Uploader(UploaderInterface):
 
         """
         if settings.ENABLE_S3_ARCHIVING:
+            logger.info(
+                'uploading %s to s3://%s/%s',
+                local_path,
+                self.s3_bucket_name,
+                remote_path,
+            )
             self.s3_client.upload_file(local_path, self.s3_bucket_name, remote_path)
         else:
             logger.info(

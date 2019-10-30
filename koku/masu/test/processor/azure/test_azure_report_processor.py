@@ -23,21 +23,21 @@ import copy
 import csv
 import tempfile
 import shutil
+from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
+from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.database.reporting_common_db_accessor import ReportingCommonDBAccessor
+from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
-from masu.external import GZIP_COMPRESSED, UNCOMPRESSED
-from masu.config import Config
 from masu.test import MasuTestCase
-from unittest.mock import patch
 
 
 class AzureReportProcessorTest(MasuTestCase):
@@ -48,8 +48,6 @@ class AzureReportProcessorTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
         cls.test_report = './koku/masu/test/data/azure/costreport_a243c6f2-199f-4074-9a2c-40e671cf1584.csv'
-
-
         cls.date_accessor = DateAccessor()
         cls.manifest_accessor = ReportManifestDBAccessor()
 
