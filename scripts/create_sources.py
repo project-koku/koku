@@ -155,7 +155,7 @@ class SourcesDataGenerator:
         type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
         if cluster_id:
-            json_data['imported'] = cluster_id
+            json_data['source_uid'] = cluster_id
 
         url = '{}/{}'.format(self._base_url, 'sources')
         r = requests.post(url, headers=self._identity_header, json=json_data)

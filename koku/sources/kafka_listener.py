@@ -192,13 +192,13 @@ def save_auth_info(auth_header, source_id):
             source_details = sources_network.get_source_details()
             # Check for imported to maintain temporary backwards compatibility
             # until the Sources Front End creates 'imported' entry with OCP Cluster ID.
-            if source_details.get('imported'):
-                authentication = {'resource_name': source_details.get('imported')}
+            if source_details.get('source_uid'):
+                authentication = {'resource_name': source_details.get('source_uid')}
             else:
-                source_uid = source_details.get('uid')
-                LOG.info(f'OCP is using fallback Source UID ({str(source_uid)} for authentication.'
-                         ' Update frontend to add Cluster ID to the imported field on the Source.')
-                authentication = {'resource_name': source_uid}
+                uid = source_details.get('uid')
+                LOG.info(f'OCP is using fallback Source UID ({str(uid)} for authentication.'
+                         ' Update frontend to add Cluster ID to the source_uid field on the Source.')
+                authentication = {'resource_name': uid}
         elif source_type == 'AWS':
             authentication = {'resource_name': sources_network.get_aws_role_arn()}
         elif source_type == 'AZURE':
