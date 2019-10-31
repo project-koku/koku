@@ -47,12 +47,14 @@ class CostModelSerializerTest(IamTestCase):
             user = serializer.save()
             request.user = user
 
-        provider_data = {'name': 'test_provider',
-                         'type': Provider.PROVIDER_OCP,
-                         'authentication': {
-                             'provider_resource_name': self.fake.word()
-                         }}
-        serializer = ProviderSerializer(data=provider_data, context=self.request_context)
+        provider_data = {
+            'name': 'test_provider',
+            'type': Provider.PROVIDER_OCP,
+            'authentication': {'provider_resource_name': self.fake.word()},
+        }
+        serializer = ProviderSerializer(
+            data=provider_data, context=self.request_context
+        )
         if serializer.is_valid(raise_exception=True):
             self.provider = serializer.save()
 
@@ -65,12 +67,7 @@ class CostModelSerializerTest(IamTestCase):
             'source_type': ocp_source_type,
             'providers': [{'uuid': self.provider.uuid, 'name': self.provider.name}],
             'markup': {'value': 10, 'unit': 'percent'},
-            'rates': [
-                {
-                    'metric': {'name': ocp_metric},
-                    'tiered_rates': tiered_rates
-                }
-            ]
+            'rates': [{'metric': {'name': ocp_metric}, 'tiered_rates': tiered_rates}],
         }
 
     def tearDown(self):
@@ -92,18 +89,23 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_uuid_key_related_field(self):
         """Test the uuid key related field."""
-        uuid_field = UUIDKeyRelatedField(queryset=Provider.objects.all(), pk_field='uuid')
+        uuid_field = UUIDKeyRelatedField(
+            queryset=Provider.objects.all(), pk_field='uuid'
+        )
         self.assertFalse(uuid_field.use_pk_only_optimization())
-        self.assertEqual(self.provider.uuid,
-                         uuid_field.to_internal_value(self.provider.uuid))
-        self.assertEqual(self.provider.uuid,
-                         uuid_field.to_representation(self.provider))
-        self.assertEqual(self.provider.uuid,
-                         uuid_field.display_value(self.provider))
+        self.assertEqual(
+            self.provider.uuid, uuid_field.to_internal_value(self.provider.uuid)
+        )
+        self.assertEqual(
+            self.provider.uuid, uuid_field.to_representation(self.provider)
+        )
+        self.assertEqual(self.provider.uuid, uuid_field.display_value(self.provider))
 
     def test_error_on_invalid_provider(self):
         """Test error with an invalid provider id."""
-        self.ocp_data.update({'provider_uuids': ['1dd7204c-72c4-4ec4-95bc-d5c447688b27']})
+        self.ocp_data.update(
+            {'provider_uuids': ['1dd7204c-72c4-4ec4-95bc-d5c447688b27']}
+        )
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
             with self.assertRaises(serializers.ValidationError):
@@ -166,7 +168,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error on a usage_start that does not cover lower bound."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
             'usage_start': 5,
-            'usage_end': None
+            'usage_end': None,
         }
 
         with tenant_context(self.tenant):
@@ -179,7 +181,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error on a usage_end that does not cover lower bound."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
             'usage_start': None,
-            'usage_end': 5
+            'usage_end': 5,
         }
 
         with tenant_context(self.tenant):
@@ -200,7 +202,9 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_error_on_negative_rate(self):
         """Test error when trying to create an negative rate input."""
-        self.ocp_data['rates'][0]['tiered_rates'][0]['value'] = float(round(Decimal(random.random()), 6) * -1)
+        self.ocp_data['rates'][0]['tiered_rates'][0]['value'] = float(
+            round(Decimal(random.random()), 6) * -1
+        )
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
@@ -222,7 +226,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error when trying to create a negative tiered usage_start."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
             'usage_start': float(round(Decimal(random.random()), 6) * -1),
-            'usage_end': 20.0
+            'usage_end': 20.0,
         }
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data)
@@ -234,7 +238,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error when trying to create a negative tiered usage_end."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
             'usage_start': 10.0,
-            'usage_end': float(round(Decimal(random.random()), 6) * -1)
+            'usage_end': float(round(Decimal(random.random()), 6) * -1),
         }
 
         with tenant_context(self.tenant):
@@ -247,7 +251,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error when trying to create a tiered usage_end less than usage_start."""
         self.ocp_data['rates'][0]['tiered_rates'][0]['usage'] = {
             'usage_start': 10.0,
-            'usage_end': 3.0
+            'usage_end': 3.0,
         }
 
         with tenant_context(self.tenant):
@@ -262,19 +266,13 @@ class CostModelSerializerTest(IamTestCase):
             {
                 'unit': 'USD',
                 'value': 0.22,
-                'usage': {
-                    'usage_start': None,
-                    'usage_end': 10.0
-                }
+                'usage': {'usage_start': None, 'usage_end': 10.0},
             },
             {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 10.0,
-                    'usage_end': None
-                }
-            }
+                'usage': {'usage_start': 10.0, 'usage_end': None},
+            },
         ]
 
         with tenant_context(self.tenant):
@@ -292,19 +290,13 @@ class CostModelSerializerTest(IamTestCase):
             {
                 'unit': 'USD',
                 'value': 0.22,
-                'usage': {
-                    'usage_start': 0.0,
-                    'usage_end': 7.0
-                }
+                'usage': {'usage_start': 0.0, 'usage_end': 7.0},
             },
             {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
-                }
-            }
+                'usage': {'usage_start': 10.0, 'usage_end': 20.0},
+            },
         ]
 
         with tenant_context(self.tenant):
@@ -319,17 +311,9 @@ class CostModelSerializerTest(IamTestCase):
             {
                 'unit': 'USD',
                 'value': 0.22,
-                'usage': {
-                    'usage_start': None,
-                    'usage_end': 7.0
-                }
+                'usage': {'usage_start': None, 'usage_end': 7.0},
             },
-            {
-                'unit': 'USD',
-                'value': 0.26,
-                'usage_start': 10.0,
-                'usage_end': None
-            }
+            {'unit': 'USD', 'value': 0.26, 'usage_start': 10.0, 'usage_end': None},
         ]
 
         with tenant_context(self.tenant):
@@ -340,8 +324,10 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_create_storage_tiered_rate(self):
         """Test creating a storage tiered rate."""
-        storage_rates = (CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
-                         CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH)
+        storage_rates = (
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+        )
         for storage_rate in storage_rates:
             ocp_data = {
                 'name': 'Test Cost Model',
@@ -355,22 +341,16 @@ class CostModelSerializerTest(IamTestCase):
                             {
                                 'unit': 'USD',
                                 'value': 0.22,
-                                'usage': {
-                                    'usage_start': None,
-                                    'usage_end': 10.0
-                                }
+                                'usage': {'usage_start': None, 'usage_end': 10.0},
                             },
                             {
                                 'unit': 'USD',
                                 'value': 0.26,
-                                'usage': {
-                                    'usage_start': 10.0,
-                                    'usage_end': None
-                                }
-                            }
-                        ]
+                                'usage': {'usage_start': 10.0, 'usage_end': None},
+                            },
+                        ],
                     }
-                ]
+                ],
             }
 
             with tenant_context(self.tenant):
@@ -383,8 +363,10 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_create_storage_no_tiers_rate(self):
         """Test creating a non tiered storage rate."""
-        storage_rates = (CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
-                         CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH)
+        storage_rates = (
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_REQUEST_MONTH,
+            CostModelMetricsMap.OCP_METRIC_STORAGE_GB_USAGE_MONTH,
+        )
         for storage_rate in storage_rates:
             ocp_data = {
                 'name': 'Test Cost Model',
@@ -394,12 +376,9 @@ class CostModelSerializerTest(IamTestCase):
                 'rates': [
                     {
                         'metric': {'name': storage_rate},
-                        'tiered_rates': [{
-                            'unit': 'USD',
-                            'value': 0.22
-                        }]
+                        'tiered_rates': [{'unit': 'USD', 'value': 0.22}],
                     }
-                ]
+                ],
             }
 
             with tenant_context(self.tenant):
@@ -416,25 +395,18 @@ class CostModelSerializerTest(IamTestCase):
             {
                 'unit': 'USD',
                 'value': 0.22,
-                'usage': {
-                    'usage_start': None,
-                    'usage_end': 10.0
-                }
-            }, {
+                'usage': {'usage_start': None, 'usage_end': 10.0},
+            },
+            {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 5.0,
-                    'usage_end': 20.0
-                }
-            }, {
+                'usage': {'usage_start': 5.0, 'usage_end': 20.0},
+            },
+            {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 20.0,
-                    'usage_end': None
-                }
-            }
+                'usage': {'usage_start': 20.0, 'usage_end': None},
+            },
         ]
 
         with tenant_context(self.tenant):
@@ -449,32 +421,23 @@ class CostModelSerializerTest(IamTestCase):
             {
                 'unit': 'USD',
                 'value': 0.22,
-                'usage': {
-                    'usage_start': None,
-                    'usage_end': 10.0
-                }
-            }, {
+                'usage': {'usage_start': None, 'usage_end': 10.0},
+            },
+            {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
-                }
-            }, {
+                'usage': {'usage_start': 10.0, 'usage_end': 20.0},
+            },
+            {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 10.0,
-                    'usage_end': 20.0
-                }
-            }, {
+                'usage': {'usage_start': 10.0, 'usage_end': 20.0},
+            },
+            {
                 'unit': 'USD',
                 'value': 0.26,
-                'usage': {
-                    'usage_start': 20.0,
-                    'usage_end': None
-                }
-            }
+                'usage': {'usage_start': 20.0, 'usage_end': None},
+            },
         ]
 
         with tenant_context(self.tenant):

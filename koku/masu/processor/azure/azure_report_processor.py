@@ -220,7 +220,8 @@ class AzureReportProcessor(ReportProcessorBase):
             return
         meter_id = report_db_accessor.insert_on_conflict_do_nothing(
             table_name,
-            data
+            data,
+            conflict_columns=['meter_id']
         )
         self.processed_report.meters[key] = meter_id
         return meter_id
