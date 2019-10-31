@@ -1774,9 +1774,6 @@ class ReportQueryTest(IamTestCase):
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        import pdb
-
-        pdb.set_trace()
         params = {
             'filter': {
                 'resolution': 'monthly',
