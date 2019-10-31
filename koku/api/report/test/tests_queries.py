@@ -1772,61 +1772,6 @@ class ReportQueryTest(IamTestCase):
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
 
-    def test_execute_query_return_others_with_tag_group_by(self):
-        """Test that data is grouped by tag key."""
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
-        tag_keys = handler.get_tag_keys()
-        group_by_key = tag_keys[0]
-        tag_keys = ['tag:' + tag for tag in tag_keys]
-
-        with tenant_context(self.tenant):
-            totals = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.this_month_start
-                )
-                .filter(**{'tags__has_key': group_by_key})
-                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
-            )
-            others_totals = (
-                AWSCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=self.dh.this_month_start
-                )
-                .exclude(**{'tags__has_key': group_by_key})
-                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
-            )
-
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_key]=some_value'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {f'or:tag:{group_by_key}': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, tenant=self.tenant, tag_keys=tag_keys
-        )
-        handler = AWSReportQueryHandler(query_params.mock_qp)
-
-        data = handler.execute_query()
-        data_totals = data.get('total', {})
-        data = data.get('data', [])
-        expected_keys = ['date', group_by_key + 's']
-        for entry in data:
-            self.assertEqual(list(entry.keys()), expected_keys)
-        for key in totals:
-            result = data_totals.get(key, {}).get('value')
-            self.assertAlmostEqual(result, (totals[key] + others_totals[key]), 6)
-
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
         params = {
