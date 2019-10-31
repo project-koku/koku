@@ -17,6 +17,7 @@
 """Test the Azure Provider query handler."""
 
 import random
+from dateutil.relativedelta import relativedelta
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
@@ -759,7 +760,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
                 prev = AzureCostEntryLineItemDailySummary.objects.filter(
                     usage_start__date__gte=self.dh.last_month_start,
-                    usage_start__date__lte=self.dh.today.replace(month=self.dh.today.month - 1),
+                    usage_start__date__lte=self.dh.today - relativedelta(months=1),
                     subscription_guid=sub.get('subscription_guid')).aggregate(
                         value=Sum(F('pretax_cost') + F('markup_cost')))
                 prev_total = Decimal(prev.get('value', Decimal(0)))
