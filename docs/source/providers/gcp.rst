@@ -37,9 +37,20 @@ Grant Access to Storage Bucket
 
 #. Navigate to the storage bucket you've created previously.
 #. Open the Info Panel
-#. Add the koku service account `koku-test-service-acct@fine-way-252818.iam.gserviceaccount.com` as a new member of the storage account with the role previously created.
+#. Add the koku service account for the correct environment as a new member of the storage account with the role previously created.
 
-TODO: Set up production GCP account and update service account to prod account. This is a koku test account for now.
+
++-------------+----------------------------------------------------------+
+| Environment | Service Account                                          |
++-------------+----------------------------------------------------------+
+| prod        | koku-prod@cost-management-prod.iam.gserviceaccount.com   |
++-------------+----------------------------------------------------------+
+| stage       | koku-stage@cost-management-stage.iam.gserviceaccount.com |
++-------------+----------------------------------------------------------+
+| qa          | koku-qa@cost-management-qa.iam.gserviceaccount.com       |
++-------------+----------------------------------------------------------+
+| ci          | koku-ci@cost-management-ci.iam.gserviceaccount.com       |
++-------------+----------------------------------------------------------+
 
 
 Create an GCP Account Provider
@@ -47,7 +58,24 @@ Create an GCP Account Provider
 
 Create a GCP account provider with the *Storage Bucket Name* above. You can optionally include a report_prefix if you used one during GCP data export setup.
 
-```
-http POST 0.0.0.0:8000/api/v1/providers/ name="GCP Provider" type=GCP billing_source:='{"data_source": {"bucket": "koku-billing-bucket", "report_prefix": "my-prefix"}}' authentication:='{"credentials": {"project_id": "gcp_project_id"}}'
+.. code-block::
 
-```
+    http POST 0.0.0.0:8000/api/v1/providers/ name="GCP Provider" type=GCP billing_source:='{"data_source": {"bucket": "koku-billing-bucket", "report_prefix": "my-prefix"}}' authentication:='{"credentials": {"project_id": "gcp_project_id"}}'
+
+
+Creating a GCP Service Account for Local Testing
+************************************************
+
+Login to your GCP account. Navigate to `IAM > Service Accounts` and create an account.
+Take note of the generated email which will look something like `service-accnt@project-id.iam.gserviceaccount.com`.
+Create and download the key for this service account, and save it onto your local file system.
+
+
+Tell google where this file is by setting an environment variable:
+
+.. code-block::
+
+    SET GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials/file
+
+
+Now when you granting access to storage bucket, make sure you use the email of your service account.
