@@ -30,7 +30,7 @@ from masu.external.downloader.azure.azure_service import AzureCostReportNotFound
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.util.azure import common as utils
-from masu.util.common import extract_uuids_from_string
+from masu.util.common import extract_uuids_from_string, month_date_range
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     example: "/cost/costreport/20190801-20190831"
 
         """
-        report_date_range = utils.month_date_range(date_time)
+        report_date_range = month_date_range(date_time)
         return '{}/{}/{}'.format(self.directory, self.export_name,
                                  report_date_range)
 

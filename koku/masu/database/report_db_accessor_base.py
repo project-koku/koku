@@ -364,7 +364,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             if value is None or value == '':
                 data[key] = None
                 continue
-            if column_types.get(key) == int:
+            if column_types.get(key) == int or column_types.get(key) == 'BigIntegerField':
                 data[key] = self._convert_value(value, int)
             elif column_types.get(key) == float:
                 data[key] = self._convert_value(value, float)

@@ -22,9 +22,11 @@ from masu.external import (AMAZON_WEB_SERVICES,
                            AWS_LOCAL_SERVICE_PROVIDER,
                            AZURE,
                            AZURE_LOCAL_SERVICE_PROVIDER,
+                           GCP, GCP_LOCAL,
                            OPENSHIFT_CONTAINER_PLATFORM)
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
+from masu.processor.gcp.gcp_report_processor import GCPReportProcessor
 from masu.processor.ocp.ocp_report_processor import OCPReportProcessor
 
 
@@ -89,7 +91,11 @@ class ReportProcessor:
                                       report_path=self.report_path,
                                       compression=self.compression,
                                       provider_uuid=self.provider_uuid)
-
+        if self.provider_type in (GCP, GCP_LOCAL):
+            return GCPReportProcessor(schema_name=self.schema_name,
+                                      report_path=self.report_path,
+                                      compression=self.compression,
+                                      provider_uuid=self.provider_uuid)
         return None
 
     def process(self):

@@ -20,9 +20,8 @@ import logging
 
 from django.db import IntegrityError
 from django.db import transaction
-from django.db.transaction import get_connection, savepoint_commit, savepoint_rollback
-from django.db.transaction import savepoint as django_savepoint
 from tenant_schemas.utils import schema_context
+
 
 LOG = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ class KokuDBAccess:
 
     def __enter__(self):
         """Enter context manager."""
-        connection = get_connection()
+        connection = transaction.get_connection()
         if connection.get_autocommit():
             connection.set_autocommit(False)
         KokuDBAccess._savepoints.append(transaction.savepoint())
@@ -58,7 +57,7 @@ class KokuDBAccess:
 
     def __exit__(self, exception_type, exception_value, traceback):
         """Context manager close session."""
-        connection = get_connection()
+        connection = transaction.get_connection()
         with schema_context(self.schema):
             if KokuDBAccess._savepoints:
                 if exception_type:
@@ -184,10 +183,10 @@ class KokuDBAccess:
         """
         with schema_context(self.schema):
             try:
-                sid = django_savepoint()
+                sid = transaction.savepoint()
                 func(*args, **kwargs)
-                savepoint_commit(sid)
+                transaction.savepoint_commit(sid)
 
             except IntegrityError as exc:
                 LOG.warning('query transaction failed: %s', exc)
-                savepoint_rollback(sid)
+                transaction.savepoint_rollback(sid)

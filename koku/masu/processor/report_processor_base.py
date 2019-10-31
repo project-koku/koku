@@ -126,11 +126,11 @@ class ReportProcessorBase():
 
     def _delete_line_items(self, db_accessor, column_map):
         """Delete stale data for the report being processed, if necessary."""
-        if not self.manifest_id:
+        if not self._manifest_id:
             return False
 
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            manifest = manifest_accessor.get_manifest_by_id(self._manifest_id)
             if manifest.num_processed_files != 0:
                 return False
             # Override the bill date to correspond with the manifest
