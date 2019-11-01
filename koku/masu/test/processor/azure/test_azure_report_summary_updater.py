@@ -35,6 +35,7 @@ from masu.test.database.helpers import ReportObjectCreator
 
 class AzureReportSummaryUpdaterTest(MasuTestCase):
     """Test Cases for the AzureReportSummaryUpdater object."""
+
     @classmethod
     def setUpClass(cls):
         """Set up the test class with required objects."""
@@ -62,9 +63,13 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         }
 
         today = DateAccessor().today_with_timezone('UTC')
-        bill = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid, bill_date=today)
-        product = self.creator.create_azure_cost_entry_product()
-        meter = self.creator.create_azure_meter()
+        bill = self.creator.create_azure_cost_entry_bill(
+            provider_uuid=self.azure_provider_uuid, bill_date=today
+        )
+        product = self.creator.create_azure_cost_entry_product(
+            provider_uuid=self.azure_provider_uuid
+        )
+        meter = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
         self.creator.create_azure_cost_entry_line_item(bill, product, meter)
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
@@ -74,11 +79,12 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             self.provider = provider_accessor.get_provider()
 
         self.updater = AzureReportSummaryUpdater(
-           self.schema, self.azure_provider, self.manifest
+            self.schema, self.azure_provider, self.manifest
         )
 
-
-    @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
+    @patch(
+        'masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table'
+    )
     def test_azure_update_summary_tables_with_manifest(self, mock_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
@@ -114,7 +120,9 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(bill.summary_data_creation_datetime)
             self.assertIsNotNone(bill.summary_data_updated_datetime)
 
-    @patch('masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table')
+    @patch(
+        'masu.processor.azure.azure_report_summary_updater.AzureReportDBAccessor.populate_line_item_daily_summary_table'
+    )
     def test_azure_update_summary_tables_new_bill(self, mock_summary):
         """Test that summary tables are run for a full month."""
 
