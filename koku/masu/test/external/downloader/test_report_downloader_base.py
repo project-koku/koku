@@ -18,7 +18,6 @@
 
 import datetime
 import os.path
-from unittest.mock import patch
 
 from faker import Faker
 
@@ -139,3 +138,17 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
         result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
         self.assertFalse(result)
+
+    def test_check_if_manifest_should_be_downloaded_error_no_complete_date(self):
+        """Test that a manifest that did not succeessfully process should be reprocessed."""
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
+            manifest.num_processed_files = 1
+            manifest.num_total_files = 2
+            manifest.save()
+
+        with ReportStatsDBAccessor(self.report_name, self.manifest_id) as file_accessor:
+            file_accessor.log_last_started_datetime()
+        result = self.downloader.check_if_manifest_should_be_downloaded(self.assembly_id)
+        self.assertTrue(result)
+
