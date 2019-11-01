@@ -52,17 +52,6 @@ from reporting.models import (
     AWSCostEntryProduct,
 )
 
-def mocked_query_params(url, view, tenant):
-    factory = RequestFactory()
-    m_request = factory.get(url)
-    user = MagicMock()
-    user.customer.schema_name = tenant
-    m_request.user = user
-    query_params = QueryParameters(
-        m_request, view
-    )
-    return query_params
-
 class ReportQueryUtilsTest(TestCase):
     """Test the report query class functions."""
 
@@ -168,11 +157,20 @@ class ReportQueryTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         self.dh = DateHelper()
+        self.factory = RequestFactory()
         super().setUp()
         self.current_month_total = Decimal(0)
         _, self.provider = create_generic_provider('AWS', self.headers)
         self.fake_aws = FakeAWSCostData(self.provider)
         self.add_data_to_tenant(self.fake_aws)
+
+    def _mocked_query_params(self, url, view):
+        m_request = self.factory.get(url)
+        user = MagicMock()
+        user.customer.schema_name = self.tenant.schema_name
+        m_request.user = user
+        query_params = QueryParameters(m_request, view)
+        return query_params
 
     def _populate_daily_table(self):
         included_fields = [
@@ -1792,7 +1790,7 @@ class ReportQueryTest(IamTestCase):
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        query_params = mocked_query_params(url, AWSTagView, self.tenant.schema_name)
+        query_params = self._mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
@@ -1815,7 +1813,7 @@ class ReportQueryTest(IamTestCase):
             )
 
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*'
-        query_params = mocked_query_params(url, AWSCostView, self.tenant.schema_name)
+        query_params = self._mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
 
         data = handler.execute_query()
