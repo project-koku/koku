@@ -40,15 +40,15 @@ LOG = get_task_logger(__name__)
 
 
 # pylint: disable=too-many-locals
-@app.task(name='masu.processor.tasks.get_report_files', queue_name='download')
-def get_report_files(
-    customer_name,
-    authentication,
-    billing_source,
-    provider_type,
-    schema_name,
-    provider_uuid,
-):
+@app.task(name='masu.processor.tasks.get_report_files', queue_name='download',
+          bind=True)
+def get_report_files(self,
+                     customer_name,
+                     authentication,
+                     billing_source,
+                     provider_type,
+                     schema_name,
+                     provider_uuid):
     """
     Task to download a Report and process the report.
 
@@ -69,9 +69,12 @@ def get_report_files(
 
     """
     worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-    reports = _get_report_files(
-        customer_name, authentication, billing_source, provider_type, provider_uuid
-    )
+    reports = _get_report_files(self,
+                                customer_name,
+                                authentication,
+                                billing_source,
+                                provider_type,
+                                provider_uuid)
 
     try:
         stmt = (

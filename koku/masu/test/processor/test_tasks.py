@@ -77,6 +77,7 @@ class GetReportFileTests(MasuTestCase):
         """Test task"""
         account = fake_arn(service='iam', generate_account_id=True)
         report = _get_report_files(
+            Mock(),
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',
@@ -100,6 +101,7 @@ class GetReportFileTests(MasuTestCase):
         expected = 'INFO:masu.processor._tasks.download:Available disk space'
         with self.assertLogs('masu.processor._tasks.download', level='INFO') as logger:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -131,6 +133,7 @@ class GetReportFileTests(MasuTestCase):
         )
         with self.assertLogs('masu.processor._tasks.download', level='INFO') as logger:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -150,6 +153,7 @@ class GetReportFileTests(MasuTestCase):
 
         with self.assertRaises(Exception):
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -175,6 +179,7 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
         with patch.object(ReportDownloader, 'get_reports') as download_call:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -203,6 +208,7 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
         with patch.object(ReportDownloader, 'get_reports') as download_call:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -225,6 +231,7 @@ class GetReportFileTests(MasuTestCase):
 
         try:
             _get_report_files(
+                Mock(),
                 customer_name=self.fake.word(),
                 authentication=account,
                 provider_type='AWS',
@@ -243,6 +250,7 @@ class GetReportFileTests(MasuTestCase):
         account = fake_arn(service='iam', generate_account_id=True)
 
         _get_report_files(
+            Mock(),
             customer_name=self.fake.word(),
             authentication=account,
             provider_type='AWS',

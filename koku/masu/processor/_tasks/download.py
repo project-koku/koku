@@ -32,7 +32,8 @@ LOG = get_task_logger(__name__)
 
 # disabled until the program flow stabilizes a bit more
 # pylint: disable=too-many-arguments,too-many-locals
-def _get_report_files(customer_name,
+def _get_report_files(task,
+                      customer_name,
                       authentication,
                       billing_source,
                       provider_type,
@@ -45,6 +46,7 @@ def _get_report_files(customer_name,
     what report we should download.
 
     Args:
+        task              (Object): Bound celery task.
         customer_name     (String): Name of the customer owning the cost usage report.
         access_credential (String): Credential needed to access cost usage report
                                     in the backend provider.
@@ -83,7 +85,8 @@ def _get_report_files(customer_name,
 
     reports = None
     try:
-        downloader = ReportDownloader(customer_name=customer_name,
+        downloader = ReportDownloader(task=task,
+                                      customer_name=customer_name,
                                       access_credential=authentication,
                                       report_source=billing_source,
                                       provider_type=provider_type,
