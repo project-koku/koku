@@ -19,23 +19,20 @@ import copy
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, Mock, PropertyMock
-from urllib.parse import urlencode
+from unittest.mock import MagicMock
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
-from django.http import QueryDict
 from django.test import RequestFactory, TestCase
-from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.query_params import QueryParameters
 from api.provider.test import create_generic_provider
+from api.query_params import QueryParameters
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.aws.view import AWSView, AWSCostView, AWSInstanceTypeView, AWSStorageView
+from api.report.aws.view import AWSCostView  # AWSView, AWSCostView, AWSInstanceTypeView, AWSStorageView
 from api.report.queries import strip_tag_prefix
 from api.report.test import FakeAWSCostData, FakeQueryParameters
 from api.tags.aws.queries import AWSTagQueryHandler
@@ -51,6 +48,7 @@ from reporting.models import (
     AWSCostEntryPricing,
     AWSCostEntryProduct,
 )
+
 
 class ReportQueryUtilsTest(TestCase):
     """Test the report query class functions."""
@@ -1812,7 +1810,7 @@ class ReportQueryTest(IamTestCase):
                 .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
             )
 
-        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*'
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*'  # noqa: E501
         query_params = self._mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
 
