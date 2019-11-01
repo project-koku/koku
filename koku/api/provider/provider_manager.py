@@ -18,11 +18,8 @@
 
 import logging
 
-import requests
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
-from requests.exceptions import ConnectionError
 from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider, Sources

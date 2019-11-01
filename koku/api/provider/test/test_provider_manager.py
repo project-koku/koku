@@ -16,7 +16,6 @@
 #
 """Test the Provider views."""
 import json
-import logging
 from unittest.mock import patch
 
 from dateutil import parser
