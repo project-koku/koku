@@ -453,7 +453,7 @@ class SourcesKafkaMsgHandlerTest(TestCase):
 
         with requests_mock.mock() as m:
             m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
-                  status_code=200, json={'imported': cluster_id})
+                  status_code=200, json={'source_ref': cluster_id})
             source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
 
         source_obj = Sources.objects.get(source_id=test_source_id)
