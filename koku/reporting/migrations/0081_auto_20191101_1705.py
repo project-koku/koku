@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting', '0078_gcpcostentrybill_gcpcostentrylineitemdaily_gcpproject'),
+        ('reporting', '0080_azurecostentryproductservice_provider'),
     ]
 
     operations = [
