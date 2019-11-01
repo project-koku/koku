@@ -10,6 +10,7 @@ from api.dataexport.uploader import AwsS3Uploader
 from masu.util.common import NamedTemporaryGZip
 
 LOG = logging.getLogger(__name__)
+_DB_FETCH_BATCH_SIZE = 2000
 
 
 def get_upload_path(account_name, provider_type, date, table_name, daily=False):
@@ -94,7 +95,11 @@ def query_and_upload_to_s3(schema, table_export_setting, date_range):
             with NamedTemporaryGZip() as temp_file:
                 writer = csv.writer(temp_file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 writer.writerow([field.name for field in cursor.description])
-                for row in cursor.fetchall():
-                    writer.writerow(row)
+                while True:
+                    records = cursor.fetchmany(size=_DB_FETCH_BATCH_SIZE)
+                    if not records:
+                        break
+                    for row in records:
+                        writer.writerow(row)
                 temp_file.close()
                 uploader.upload_file(temp_file.name, upload_path)
