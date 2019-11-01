@@ -256,7 +256,13 @@ def update_all_summary_tables(start_date, end_date=None):
     try:
         all_accounts = AccountsAccessor().get_accounts()
         for account in all_accounts:
-            LOG.info('Gathering data for account=%s.', account)
+            log_statement = (
+                f'Gathering data for for\n'
+                f' schema_name: {account.get("schema_name")}\n'
+                f' provider: {account.get("provider_type")}\n'
+                f' account (provider uuid): {account.get("provider_uuid")}'
+            )
+            LOG.info(log_statement)
             schema_name = account.get('schema_name')
             provider = account.get('provider_type')
             provider_uuid = account.get('provider_uuid')
