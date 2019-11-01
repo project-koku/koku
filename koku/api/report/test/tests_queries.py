@@ -19,20 +19,27 @@ import copy
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import MagicMock, Mock, PropertyMock
+from urllib.parse import urlencode
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
-from django.test import TestCase
+from django.http import QueryDict
+from django.test import RequestFactory, TestCase
+from rest_framework.request import Request
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.query_params import QueryParameters
 from api.provider.test import create_generic_provider
 from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.aws.view import AWSView, AWSCostView, AWSInstanceTypeView, AWSStorageView
 from api.report.queries import strip_tag_prefix
 from api.report.test import FakeAWSCostData, FakeQueryParameters
 from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 from reporting.models import (
     AWSAccountAlias,
@@ -45,6 +52,16 @@ from reporting.models import (
     AWSCostEntryProduct,
 )
 
+def mocked_query_params(url, view, tenant):
+    factory = RequestFactory()
+    m_request = factory.get(url)
+    user = MagicMock()
+    user.customer.schema_name = tenant
+    m_request.user = user
+    query_params = QueryParameters(
+        m_request, view
+    )
+    return query_params
 
 class ReportQueryUtilsTest(TestCase):
     """Test the report query class functions."""
@@ -1771,6 +1788,45 @@ class ReportQueryTest(IamTestCase):
         for key in totals:
             result = data_totals.get(key, {}).get('value')
             self.assertEqual(result, totals[key])
+
+    def test_execute_query_return_others_with_tag_group_by(self):
+        """Test that data is grouped by tag key."""
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = mocked_query_params(url, AWSTagView, self.tenant.schema_name)
+        handler = AWSTagQueryHandler(query_params)
+        tag_keys = handler.get_tag_keys()
+        group_by_key = tag_keys[0]
+        tag_keys = ['tag:' + tag for tag in tag_keys]
+
+        with tenant_context(self.tenant):
+            totals = (
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    usage_start__gte=self.dh.this_month_start
+                )
+                .filter(**{'tags__has_key': group_by_key})
+                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+            )
+            others_totals = (
+                AWSCostEntryLineItemDailySummary.objects.filter(
+                    usage_start__gte=self.dh.this_month_start
+                )
+                .exclude(**{'tags__has_key': group_by_key})
+                .aggregate(**{'cost': Sum(F('unblended_cost') + F('markup_cost'))})
+            )
+
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:tag:{group_by_key}]=*'
+        query_params = mocked_query_params(url, AWSCostView, self.tenant.schema_name)
+        handler = AWSReportQueryHandler(query_params)
+
+        data = handler.execute_query()
+        data_totals = data.get('total', {})
+        data = data.get('data', [])
+        expected_keys = ['date', group_by_key + 's']
+        for entry in data:
+            self.assertEqual(list(entry.keys()), expected_keys)
+        for key in totals:
+            result = data_totals.get(key, {}).get('value')
+            self.assertAlmostEqual(result, (totals[key] + others_totals[key]), 6)
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
