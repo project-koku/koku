@@ -62,6 +62,8 @@ class AzureCostEntryProductService(models.Model):
     service_info1 = models.TextField(null=True)
     service_info2 = models.TextField(null=True)
 
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
+
 
 class AzureMeter(models.Model):
     """The Azure meter."""
@@ -71,13 +73,11 @@ class AzureMeter(models.Model):
     meter_category = models.CharField(max_length=50, null=True)
     meter_subcategory = models.CharField(max_length=50, null=True)
     meter_region = models.CharField(max_length=50, null=True)
-
-    resource_rate = models.DecimalField(max_digits=17, decimal_places=9,
-                                        null=True)
-
+    resource_rate = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.CharField(max_length=10, null=False)
-
     unit_of_measure = models.CharField(max_length=63, null=True)
+
+    provider = models.ForeignKey('api.Provider', on_delete=models.CASCADE, null=True)
 
 
 class AzureCostEntryLineItemDaily(models.Model):
@@ -93,28 +93,16 @@ class AzureCostEntryLineItemDaily(models.Model):
         db_table = 'reporting_azurecostentrylineitem_daily'
 
     id = models.BigAutoField(primary_key=True)
-
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.CASCADE)
-
-    cost_entry_product = models.ForeignKey('AzureCostEntryProductService',
-                                           on_delete=models.SET_NULL, null=True)
-
-    meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.SET_NULL, null=True)
-
+    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
+    cost_entry_product = models.ForeignKey(
+        'AzureCostEntryProductService', on_delete=models.SET_NULL, null=True
+    )
+    meter = models.ForeignKey('AzureMeter', on_delete=models.SET_NULL, null=True)
     subscription_guid = models.CharField(max_length=50, null=False)
-
     tags = JSONField(null=True)
-
     usage_date_time = models.DateTimeField(null=False)
-
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9,
-                                         null=True)
-
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                      null=True)
-
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
 
 
@@ -131,44 +119,22 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         db_table = 'reporting_azurecostentrylineitem_daily_summary'
 
     id = models.BigAutoField(primary_key=True)
-
-    cost_entry_bill = models.ForeignKey('AzureCostEntryBill',
-                                        on_delete=models.CASCADE)
-
-    meter = models.ForeignKey('AzureMeter',
-                              on_delete=models.SET_NULL, null=True)
-
+    cost_entry_bill = models.ForeignKey('AzureCostEntryBill', on_delete=models.CASCADE)
+    meter = models.ForeignKey('AzureMeter', on_delete=models.SET_NULL, null=True)
     subscription_guid = models.CharField(max_length=50, null=False)
-
     instance_type = models.CharField(max_length=50, null=True)
-
     service_name = models.CharField(max_length=50, null=False)
-
     resource_location = models.CharField(max_length=50, null=False)
-
     tags = JSONField(null=True)
-
     usage_start = models.DateTimeField(null=False)
-
     usage_end = models.DateTimeField(null=True)
-
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9,
-                                         null=True)
-
-    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                      null=True)
-
-    markup_cost = models.DecimalField(max_digits=17, decimal_places=9,
-                                      null=True)
-
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     offer_id = models.PositiveIntegerField(null=True)
-
     currency = models.CharField(max_length=10, null=False, default='USD')
-
     instance_ids = ArrayField(models.CharField(max_length=256), null=True)
-
     instance_count = models.IntegerField(null=True)
-
     unit_of_measure = models.CharField(max_length=63, null=True)
 
 
