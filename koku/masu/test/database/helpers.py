@@ -379,18 +379,20 @@ class ReportObjectCreator:
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_cost_entry_product(self):
+    def create_azure_cost_entry_product(self, provider_uuid):
         """Create an Azure cost entry product database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['product']
         data = self.create_columns_for_table(table_name)
+        data['provider_id'] = provider_uuid
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
 
-    def create_azure_meter(self):
+    def create_azure_meter(self, provider_uuid):
         """Create an Azure meter database object for test."""
         table_name = AZURE_REPORT_TABLE_MAP['meter']
         data = self.create_columns_for_table(table_name)
+        data['provider_id'] = provider_uuid
 
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
@@ -417,6 +419,7 @@ class ReportObjectCreator:
         data.update(extra_data)
         with AzureReportDBAccessor(self.schema, self.column_map) as accessor:
             return accessor.create_db_object(table_name, data)
+
 
 def map_django_field_type_to_python_type(field):
     """Map a Django field to its corresponding python type."""

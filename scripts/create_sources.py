@@ -3,10 +3,10 @@ import argparse
 import sys
 import requests
 
-KOKU_SOURCES_CLIENT_HOST = os.getenv('KOKU_SOURCES_CLIENT_HOST', 'localhost')
-KOKU_SOURCES_CLIENT_PORT = os.getenv('KOKU_SOURCES_CLIENT_PORT', '8080')
+KOKU_API_HOST = os.getenv('KOKU_API_HOST', 'localhost')
+KOKU_API_PORT = os.getenv('KOKU_API_PORT', '8000')
 KOKU_API_PATH_PREFIX = os.getenv('KOKU_API_PATH_PREFIX', '/api/cost-management')
-KOKU_SOURCES_URL = f'http://{KOKU_SOURCES_CLIENT_HOST}:{KOKU_SOURCES_CLIENT_PORT}{KOKU_API_PATH_PREFIX}/v1'
+KOKU_SOURCES_URL = f'http://{KOKU_API_HOST}:{KOKU_API_PORT}{KOKU_API_PATH_PREFIX}/v1/sources'
 
 SOURCES_API_HOST = os.getenv('SOURCES_API_HOST', 'localhost')
 SOURCES_API_PORT = os.getenv('SOURCES_API_PORT', '3000')
@@ -39,6 +39,10 @@ def create_parser():
                                       dest='source_name',
                                       required=False,
                                       help='Platform Sources Identifier')
+    parser.add_argument('--cluster_id',
+                        dest='cluster_id',
+                        required=False,
+                        help='OCP cluster ID')
     parser.add_argument('--s3_bucket',
                         dest='s3_bucket',
                         required=False,
@@ -147,9 +151,11 @@ class SourcesDataGenerator:
         header = {'x-rh-identity': auth_header}
         self._identity_header = header
 
-    def create_source(self, source_name, source_type):
+    def create_source(self, source_name, source_type, cluster_id=None):
         type_map = {'azure': '3', 'aws': '2', 'ocp': '1'}
         json_data = {'source_type_id': type_map.get(source_type), 'name': source_name}
+        if cluster_id:
+            json_data['source_ref'] = cluster_id
 
         url = '{}/{}'.format(self._base_url, 'sources')
         r = requests.post(url, headers=self._identity_header, json=json_data)
@@ -247,7 +253,8 @@ def main(args):
             print(f'Attached Cost Management Application ID {application_id} to Source ID {source_id}')
 
     elif parameters.get('ocp'):
-        source_id = generator.create_source(name, 'ocp')
+        cluster_id = parameters.get('cluster_id')
+        source_id = generator.create_source(name, 'ocp', cluster_id)
         print(f'Creating OCP Source. Source ID: {source_id}')
 
         endpoint_id = generator.create_endpoint(source_id)

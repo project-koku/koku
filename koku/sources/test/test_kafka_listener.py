@@ -438,6 +438,28 @@ class SourcesKafkaMsgHandlerTest(TestCase):
         self.assertEquals(source_obj.authentication, {'resource_name': source_uid})
 
     @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
+    def test_sources_network_auth_info_ocp_with_cluster_id(self):
+        """Test to get authentication information from Sources backend for OCP with cluster_id."""
+        test_source_id = 2
+        test_resource_id = 1
+        cluster_id = faker.uuid4()
+        test_auth_header = Config.SOURCES_FAKE_HEADER
+        ocp_source = Sources(source_id=test_source_id,
+                             auth_header=test_auth_header,
+                             endpoint_id=test_resource_id,
+                             source_type='OCP',
+                             offset=1)
+        ocp_source.save()
+
+        with requests_mock.mock() as m:
+            m.get(f'http://www.sources.com/api/v1.0/sources/{test_source_id}',
+                  status_code=200, json={'source_ref': cluster_id})
+            source_integration.sources_network_auth_info(test_resource_id, test_auth_header)
+
+        source_obj = Sources.objects.get(source_id=test_source_id)
+        self.assertEquals(source_obj.authentication, {'resource_name': cluster_id})
+
+    @patch.object(Config, 'SOURCES_API_URL', 'http://www.sources.com')
     def test_sources_network_auth_info_error(self):
         """Test to get authentication information from Sources backend with error."""
         test_source_id = 2
