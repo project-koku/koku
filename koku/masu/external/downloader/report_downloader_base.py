@@ -89,10 +89,12 @@ class ReportDownloaderBase():
                     completed_datetime = manifest_accessor.get_last_report_completed_datetime(
                         manifest_id
                     )
-                    if completed_datetime and completed_datetime < last_completed_cutoff:
+                    if (completed_datetime and completed_datetime < last_completed_cutoff) or \
+                            not completed_datetime:
                         # It has been more than an hour since we processed a file
-                        # and we didn't finish processing. We should download
-                        # and reprocess.
+                        # and we didn't finish processing. Or, if there is a
+                        # start time but no completion time recorded.
+                        # We should download and reprocess.
                         manifest_accessor.reset_manifest(manifest_id)
                         return True
                 # The manifest exists and we have processed all the files.
