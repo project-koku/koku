@@ -1034,7 +1034,7 @@ class AWSReportProcessorTest(MasuTestCase):
         )
         first_of_month = today.replace(day=1)
         first_of_next_month =first_of_month + relativedelta(months=1)
-        days_in_month = [today - relativedelta(days=i) for i in range(1,today.day)]
+        days_in_month = [today - relativedelta(days=i) for i in range(today.day)]
 
         self.manifest.billing_period_start_datetime = first_of_month
         self.manifest.save()
@@ -1097,9 +1097,9 @@ class AWSReportProcessorTest(MasuTestCase):
                     self.assertNotEqual(line_item_query.count(), 0)
 
     @patch('masu.processor.report_processor_base.DateAccessor')
-    def test_data_cutoff_date(self, mock_date):
+    def test_data_cutoff_date_not_start_of_month(self, mock_date):
         """Test that the data_cuttof_date respects month boundaries."""
-        today = self.date_accessor.today_with_timezone('UTC')
+        today = self.date_accessor.today_with_timezone('UTC').replace(day=10)
         expected = today.date() - relativedelta(days=2)
 
         mock_date.return_value.today_with_timezone.return_value = today
