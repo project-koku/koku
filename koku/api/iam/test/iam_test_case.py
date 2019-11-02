@@ -139,6 +139,7 @@ class IamTestCase(TestCase):
         return customer
 
     def mocked_query_params(self, url, view):
+        """Create QueryParameters using a mocked Request."""
         m_request = self.factory.get(url)
         user = MagicMock()
         user.customer.schema_name = self.tenant.schema_name
