@@ -122,9 +122,9 @@ class OCPTagQueryHandlerTest(IamTestCase):
         """Test that the execute query runs properly with project query."""
         namespace = None
         with tenant_context(self.tenant):
-            namespace_obj = OCPUsageLineItemDailySummary.objects\
-                .values('namespace')\
-                .first()
+            namespace_obj = OCPUsageLineItemDailySummary.objects.values(
+                'namespace'
+            ).first()
             namespace = namespace_obj.get('namespace')
 
         url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[project]={namespace}'  # noqa: E501
@@ -149,19 +149,25 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            usage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('pod_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
 
-            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            storage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('volume_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
@@ -178,19 +184,25 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            usage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('pod_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
 
-            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            storage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('volume_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = list(set(usage_tag_keys + storage_tag_keys))
 
@@ -208,11 +220,14 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            usage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('pod_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            usage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('pod_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
 
             usage_tag_keys = [tag.get('tag_keys') for tag in usage_tag_keys]
             tag_keys = usage_tag_keys
@@ -231,11 +246,14 @@ class OCPTagQueryHandlerTest(IamTestCase):
         handler = OCPTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            storage_tag_keys = OCPUsageLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('volume_labels'))\
-                .values('tag_keys')\
-                .distinct()\
+            storage_tag_keys = (
+                OCPUsageLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('volume_labels')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
             storage_tag_keys = [tag.get('tag_keys') for tag in storage_tag_keys]
             tag_keys = storage_tag_keys
 
