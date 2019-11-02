@@ -21,7 +21,7 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.report.ocp_aws.query_handler import OCPAWSReportQueryHandler
-from api.report.test import FakeQueryParameters
+from api.report.ocp_aws.view import OCPAWSCostView, OCPAWSInstanceTypeView, OCPAWSStorageView
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummary
@@ -43,9 +43,9 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
 
     def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly for instance-types."""
-        # '?'
-        query_params = FakeQueryParameters({}, report_type='instance_type', tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -91,9 +91,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""
-        # '?'
-        query_params = FakeQueryParameters({}, report_type='storage', tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, OCPAWSStorageView)
+        handler = OCPAWSReportQueryHandler(query_params)
         filt = {'product_family__contains': 'Storage'}
         filt.update(self.ten_day_filter)
         aggregates = handler._mapper.report_type_map.get('aggregates')
@@ -106,12 +106,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        # params = {'filter': {'resolution': 'daily',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -125,12 +125,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        # params = {'filter': {'resolution': 'daily',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -144,13 +144,13 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'},
-                  'group_by': {'service': ['*']}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*'  # noqa: E501
+        # params = {'filter': {'resolution': 'monthly',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'},
+        #           'group_by': {'service': ['*']}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -176,13 +176,13 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'},
-                  'group_by': {'service': ['AmazonEC2']}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2'  # noqa: E501
+        # params = {'filter': {'resolution': 'monthly',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'},
+        #           'group_by': {'service': ['AmazonEC2']}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -208,13 +208,13 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_query_by_partial_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'},
-                  'group_by': {'service': ['eC2']}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2'  # noqa: E501
+        # params = {'filter': {'resolution': 'monthly',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'},
+        #           'group_by': {'service': ['eC2']}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -240,13 +240,13 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'},
-                  'group_by': {'account': ['*']}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*'  # noqa: E501
+        # params = {'filter': {'resolution': 'monthly',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'},
+        #           'group_by': {'account': ['*']}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -270,14 +270,14 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_account_by_service(self):
         """Test execute_query for current month breakdown by account by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'},
-                  'group_by': {'account': ['*'],
-                               'service': ['*']}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPAWSReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*'  # noqa: E501
+        # params = {'filter': {'resolution': 'monthly',
+        #                      'time_scope_value': -1,
+        #                      'time_scope_units': 'month'},
+        #           'group_by': {'account': ['*'],
+        #                        'service': ['*']}}
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
