@@ -121,12 +121,12 @@ class AzureTagQueryHandlerTest(IamTestCase):
         """Test that the execute query runs properly with project query."""
         subscription_guid = None
         with tenant_context(self.tenant):
-            obj = AzureCostEntryLineItemDailySummary.objects\
-                .values('subscription_guid')\
-                .first()
+            obj = AzureCostEntryLineItemDailySummary.objects.values(
+                'subscription_guid'
+            ).first()
             subscription_guid = obj.get('subscription_guid')
 
-        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[subscription_guid]={subscription_guid}'
+        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[subscription_guid]={subscription_guid}'  # noqa: E501
         # params = {'filter': {'resolution': 'daily',
         #                      'time_scope_value': -10,
         #                      'time_scope_units': 'day',
@@ -149,11 +149,14 @@ class AzureTagQueryHandlerTest(IamTestCase):
 
         tag_keys = set()
         with tenant_context(self.tenant):
-            tags = AzureCostEntryLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('tags'))\
-                .values('tags')\
-                .distinct()\
+            tags = (
+                AzureCostEntryLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('tags')
+                )
+                .values('tags')
+                .distinct()
                 .all()
+            )
 
             for tag in tags:
                 for key in tag.get('tags').keys():
@@ -173,11 +176,14 @@ class AzureTagQueryHandlerTest(IamTestCase):
 
         tag_keys = set()
         with tenant_context(self.tenant):
-            tags = AzureCostEntryLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('tags'))\
-                .values('tags')\
-                .distinct()\
+            tags = (
+                AzureCostEntryLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('tags')
+                )
+                .values('tags')
+                .distinct()
                 .all()
+            )
 
             for tag in tags:
                 for key in tag.get('tags').keys():
