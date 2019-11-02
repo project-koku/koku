@@ -17,7 +17,7 @@
 """Test Case extension to collect common test data."""
 from base64 import b64encode
 from json import dumps as json_dumps
-from unittest.mock import MagicMock, Mock
+from unittest.mock import Mock
 from uuid import UUID
 
 from django.db import connection
@@ -141,7 +141,8 @@ class IamTestCase(TestCase):
     def mocked_query_params(self, url, view):
         """Create QueryParameters using a mocked Request."""
         m_request = self.factory.get(url)
-        user = MagicMock()
+        user = Mock()
+        user.access = None
         user.customer.schema_name = self.tenant.schema_name
         m_request.user = user
         query_params = QueryParameters(m_request, view)
