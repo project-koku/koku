@@ -636,7 +636,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
-    @skip('permission error')
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={self.generator.config.subscription_guid}'  # noqa: E501
