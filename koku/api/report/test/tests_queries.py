@@ -864,7 +864,6 @@ class ReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get('values'), list)
                 self.assertIsNotNone(month_item.get('values')[0].get('cost'))
 
-    @skip('Permission error??')
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
         url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={self.fake_aws.account_alias}'  # noqa: E501
@@ -1002,7 +1001,7 @@ class ReportQueryTest(IamTestCase):
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
 
-    @skip('need to figure this one out')
+    @skip('cost is invalid param?')
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         dh = DateHelper()
@@ -1077,7 +1076,7 @@ class ReportQueryTest(IamTestCase):
         self.assertAlmostEqual(delta.get('value'), expected_delta_value, 6)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
-    @skip(':eye-roll')
+    @skip('cost is invalid param?')
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
         dh = DateHelper()
