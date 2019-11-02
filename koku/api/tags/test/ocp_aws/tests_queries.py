@@ -118,7 +118,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_specific_account(self):
         """Test that execute_query() succeeds with account parameter."""
-        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={str(self.fake.ean8())}'   # noqa: E501
+        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={str(self.fake.ean8())}'  # noqa: E501
         # params = {'filter': {'resolution': 'daily',
         #                      'time_scope_value': -10,
         #                      'time_scope_units': 'day',
@@ -140,11 +140,14 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         handler = OCPAWSTagQueryHandler(query_params)
 
         with tenant_context(self.tenant):
-            tag_keys = OCPAWSCostLineItemDailySummary.objects\
-                .annotate(tag_keys=JSONBObjectKeys('tags'))\
-                .values('tag_keys')\
-                .distinct()\
+            tag_keys = (
+                OCPAWSCostLineItemDailySummary.objects.annotate(
+                    tag_keys=JSONBObjectKeys('tags')
+                )
+                .values('tag_keys')
+                .distinct()
                 .all()
+            )
             tag_keys = [tag.get('tag_keys') for tag in tag_keys]
 
         result = handler.get_tag_keys()
