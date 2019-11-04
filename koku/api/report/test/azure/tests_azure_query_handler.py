@@ -18,19 +18,22 @@
 
 import random
 from decimal import Decimal, ROUND_HALF_UP
+from unittest.mock import PropertyMock, patch
 from uuid import UUID
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import F, Sum
+from django.urls import reverse
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
-from api.report.test import FakeQueryParameters
+from api.report.azure.view import AzureCostView, AzureInstanceTypeView, AzureStorageView
 from api.report.test.azure.helpers import AZURE_SERVICES, AzureReportDataGenerator
 from api.tags.azure.queries import AzureTagQueryHandler
+from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
 from reporting.models import (
     AzureCostEntryLineItemDailySummary,
@@ -82,11 +85,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.tenant, self.provider, config=self.generator.config
         ).add_data_to_tenant()
 
-        # '?'
-        query_params = FakeQueryParameters(
-            {}, report_type='instance_type', tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
+        handler = AzureReportQueryHandler(query_params)
 
         aggregates = handler._mapper.report_type_map.get('aggregates')
         filters = self.ten_day_filter
@@ -113,9 +114,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
-        # '?
-        query_params = FakeQueryParameters({}, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         aggregates = handler._mapper.report_type_map.get('aggregates')
         current_totals = self.get_totals_costs_by_time_scope(
             aggregates, self.ten_day_filter
@@ -128,9 +129,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_take_defaults(self):
         """Test execute_query for current month on daily breakdown."""
-        # '?
-        query_params = FakeQueryParameters({}, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -139,16 +140,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        params = {
-            'filter': {
-                'resolution': 'daily',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -162,16 +156,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_monthly(self):
         """Test execute_query for current month on monthly breakdown."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        params = {
-            'filter': {
-                'resolution': 'daily',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertIsNotNone(query_output.get('total'))
@@ -188,17 +175,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         valid_services = list(AZURE_SERVICES.keys())
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'service_name': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -239,17 +218,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         valid_services = list(AZURE_SERVICES.keys())
         service = self.generator.config.service_name
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=some_service'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'service_name': [service]},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -294,17 +265,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         valid_services = list(AZURE_SERVICES.keys())
         selected_range = random.randrange(2, len(self.generator.config.service_name))
         service = self.generator.config.service_name[0:selected_range]
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=some_service'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'service_name': [service]},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -333,17 +296,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_subscription_guid(self):
         """Test execute_query for current month on monthly breakdown by subscription_guid."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -371,17 +326,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_subscription_guid_by_service(self):
         """Test execute_query for current month breakdown by subscription_guid by service."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&group_by[service_name]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'subscription_guid': ['*'], 'service_name': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&group_by[service_name]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -413,19 +360,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
             instance_type = AzureCostEntryProductService.objects.filter(
                 service_name='Virtual Machines'
             ).first()
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'
-        params = {
-            'filter': {
-                'resolution': 'daily',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'instance_type': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, report_type='instance_type', tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -450,18 +387,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 2,
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -489,19 +417,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 3,
-            },
-            'group_by': {'subscription_guid': ['*']},
-            'order_by': {'cost': 'asc'},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -540,19 +458,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 3,
-            },
-            'group_by': {'subscription_guid': ['*']},
-            'order_by': {'subscription_guid': 'asc'},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -587,17 +495,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_resource_location(self):
         """Test execute_query for current month on monthly breakdown by resource_location."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'resource_location': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -625,17 +525,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_curr_month_by_filtered_resource_location(self):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         location = self.generator.config.resource_location
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=some_location'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'resource_location': [location]},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]={location}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -661,17 +553,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]=11111111-2222-3333-4444-555555555555'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'subscription_guid': [self.generator.config.subscription_guid],
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={self.generator.config.subscription_guid}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -707,17 +591,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         )
 
         service = self.generator.config.service_name
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=some_service'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'service_name': [self.generator.config.service_name],
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service_name]={self.generator.config.service_name}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
 
         data = query_output.get('data')
@@ -744,17 +620,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_resource_location(self):
         """Test execute_query for current month on monthly filtered by resource_location."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]=some_location'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'resource_location': [self.generator.config.resource_location],
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={self.generator.config.resource_location}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -774,21 +642,15 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_resource_location_csv(self):
+    @patch('api.query_params.QueryParameters.accept_type', new_callable=PropertyMock)
+    def test_execute_query_current_month_filter_resource_location_csv(
+        self, mock_accept
+    ):
         """Test execute_query on monthly filtered by resource_location for csv."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]=some_location'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'resource_location': [self.generator.config.resource_location],
-            }
-        }
-        query_params = FakeQueryParameters(
-            params, accept_type='text/csv', tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        mock_accept.return_value = 'text/csv'
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={self.generator.config.resource_location}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -807,24 +669,17 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get('date')
             self.assertEqual(month_val, cmonth_str)
 
-    def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self):
+    @patch('api.query_params.QueryParameters.accept_type', new_callable=PropertyMock)
+    def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(
+        self, mock_accept
+    ):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
+        mock_accept.return_value = 'text/csv'
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[resource_location]=some_location'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 2,
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, accept_type=['text/csv'], tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
 
@@ -848,27 +703,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test grouped by deltas."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'subscription_guid': ['*']},
-            'delta': 'cost',
-        }
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'subscription_guid': ['*']},
-            'delta': 'cost',
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        path = reverse('reports-azure-costs')
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
         # test the calculations
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -942,10 +780,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         )
         generator.add_data_to_tenant()
 
-        # ?filter[time_scope_value=-1&delta=cost]
-        params = {'filter': {'time_scope_value': -1}, 'delta': 'cost'}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_value]=-1&delta=cost'
+        path = reverse('reports-azure-costs')
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -960,19 +798,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query with ordering by delta ascending."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'order_by': {'delta': 'asc'},
-            'group_by': {'subscription_guid': ['*']},
-            'delta': 'cost',
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost'  # noqa: E501
+        path = reverse('reports-azure-costs')
+        query_params = self.mocked_query_params(url, AzureCostView, path)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -991,16 +820,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         expected_units = 'USD'
         with tenant_context(self.tenant):
             result = handler.calculate_total(**{'cost_units': expected_units})
@@ -1016,34 +838,16 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_percent_delta(self):
         """Test _percent_delta() utility method."""
-        # '?'
-        query_params = FakeQueryParameters({})
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         self.assertEqual(handler._percent_delta(10, 5), 100)
 
     def test_rank_list_by_subscription_guid(self):
         """Test rank list limit with subscription_guid alias."""
-        query_params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 2,
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 2,
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         data_list = [
             {'subscription_guid': '1', 'total': 5, 'rank': 1},
             {'subscription_guid': '2', 'total': 4, 'rank': 2},
@@ -1068,18 +872,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_rank_list_by_service_name(self):
         """Test rank list limit with service_name grouping."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service_name]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 2,
-            },
-            'group_by': {'service_name': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service_name]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         data_list = [
             {'service_name': '1', 'total': 5, 'rank': 1},
             {'service_name': '2', 'total': 4, 'rank': 2},
@@ -1103,20 +898,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(ranked_list, expected)
 
     def test_rank_list_with_offset(self):
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&filter[offset]=2&group_by[service_name]=*'
         """Test rank list limit and offset with subscription_guid alias."""
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 1,
-                'offset': 1,
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         data_list = [
             {'subscription_guid': '1', 'total': 5, 'rank': 1},
             {'subscription_guid': '2', 'total': 4, 'rank': 2},
@@ -1135,17 +920,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'subscription_guid': ['*']},
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1167,19 +944,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'instance_type': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, report_type='instance_type', tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[instance_type]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureInstanceTypeView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1216,19 +983,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {'service_name': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, report_type='storage', tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureStorageView)
+        handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
         self.assertIsNotNone(data)
@@ -1252,16 +1009,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_order_by(self):
         """Test that order_by returns properly sorted data."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
 
         unordered_data = [
             {'date': self.dh.today, 'delta_percent': 8, 'total': 6.2, 'rank': 2},
@@ -1294,16 +1044,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_order_by_null_values(self):
         """Test that order_by returns properly sorted data with null data."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
 
         unordered_data = [
             {'node': None, 'cluster': 'cluster-1'},
@@ -1324,16 +1067,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
@@ -1358,19 +1094,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .aggregate(**{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
             )
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:some_tag]=some_key'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                f'tag:{filter_key}': [filter_value],
-            }
-        }
-        query_params = FakeQueryParameters(
-            params, tag_keys=tag_keys, tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]={filter_value}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
 
         data = handler.execute_query()
         data_totals = data.get('total', {})
@@ -1381,16 +1107,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         # Pick tags for the same month we query on later
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         filter_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
@@ -1404,19 +1123,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .aggregate(**{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
             )
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:some_tag]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                f'tag:{filter_key}': ['*'],
-            }
-        }
-        query_params = FakeQueryParameters(
-            params, tag_keys=tag_keys, tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
 
         data = handler.execute_query()
         data_totals = data.get('total', {})
@@ -1427,15 +1136,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
         # Pick tags for the same month we query on later
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AzureTagQueryHandler(query_params.mock_qp)
+        url = 'filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month'
+        query_params = self.mocked_query_params(url, AzureTagView)
+        handler = AzureTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
         tag_keys = ['tag:' + tag for tag in tag_keys]
@@ -1449,19 +1152,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .aggregate(**{'cost': Sum(F('pretax_cost') + F('markup_cost'))})
             )
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:some_tag]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            },
-            'group_by': {f'tag:{group_by_key}': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, tag_keys=tag_keys, tenant=self.tenant
-        )
-        handler = AzureReportQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*'  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
 
         data = handler.execute_query()
         data_totals = data.get('total', {})

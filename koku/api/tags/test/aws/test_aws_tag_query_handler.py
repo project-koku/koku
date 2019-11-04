@@ -16,8 +16,8 @@
 #
 """Test the AWS Report Queries."""
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.test import FakeQueryParameters
 from api.tags.aws.queries import AWSTagQueryHandler
+from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 
 
@@ -32,8 +32,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_no_query_parameters(self):
         """Test that the execute query runs properly with no query."""
-        # '?'
-        handler = AWSTagQueryHandler(FakeQueryParameters({}, tenant=self.tenant).mock_qp)
+        url = '?'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -41,12 +42,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -54,12 +52,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_30_day_parameters(self):
         """Test that the execute query runs properly with 30 day query."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -30,
-                             'time_scope_units': 'day'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -67,13 +62,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_10_day_parameters_only_keys(self):
         """Test that the execute query runs properly with 10 day query."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day'},
-                  'key_only': True}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
@@ -81,12 +72,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_month_parameters(self):
         """Test that the execute query runs properly with single month query."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -1,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -94,12 +82,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_two_month_parameters(self):
         """Test that the execute query runs properly with two month query."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
-        params = {'filter': {'resolution': 'monthly',
-                             'time_scope_value': -2,
-                             'time_scope_units': 'month'}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'month')
@@ -107,13 +92,9 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_for_account(self):
         """Test that the execute query runs properly with account query."""
-        # '?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]=some_account'
-        params = {'filter': {'resolution': 'daily',
-                             'time_scope_value': -10,
-                             'time_scope_units': 'day',
-                             'account': self.fake.ean8()}}
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = AWSTagQueryHandler(query_params.mock_qp)
+        url = f'?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&filter[account]={self.fake.ean8()}'  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get('data'))
         self.assertEqual(handler.time_scope_units, 'day')
