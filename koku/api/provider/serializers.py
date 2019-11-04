@@ -318,10 +318,11 @@ class ProviderSerializer(serializers.ModelSerializer):
         provider.created_by = user
         provider.authentication = auth
         provider.billing_source = bill
+        provider.active = True
+
         provider.save()
         return provider
 
-    @transaction.atomic
     def update(self, instance, validated_data):
         """Update a Provider instance from validated data."""
         provider_type = validated_data['type']
@@ -335,25 +336,33 @@ class ProviderSerializer(serializers.ModelSerializer):
         data_source = billing_source.get('data_source')
         bucket = billing_source.get('bucket')
 
-        if credentials and data_source and provider_type not in ['AWS', 'OCP']:
-            interface.cost_usage_source_ready(credentials, data_source)
-        else:
-            interface.cost_usage_source_ready(provider_resource_name, bucket)
-
-        bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
-        auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
-
-        for key in validated_data.keys():
-            setattr(instance, key, validated_data[key])
-
-        instance.authentication = auth
-        instance.billing_source = bill
         try:
+            if credentials and data_source and provider_type not in ['AWS', 'OCP']:
+                interface.cost_usage_source_ready(credentials, data_source)
+            else:
+                interface.cost_usage_source_ready(provider_resource_name, bucket)
+        except serializers.ValidationError as validation_error:
+            instance.active = False
             instance.save()
-        except IntegrityError:
-            error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
-            raise serializers.ValidationError(error)
-        return instance
+            raise validation_error
+
+        with transaction.atomic():
+            bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
+            auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
+
+            for key in validated_data.keys():
+                setattr(instance, key, validated_data[key])
+
+            instance.authentication = auth
+            instance.billing_source = bill
+            instance.active = True
+
+            try:
+                instance.save()
+            except IntegrityError:
+                error = {'Error': 'A Provider already exists with that Authentication and Billing Source'}
+                raise serializers.ValidationError(error)
+            return instance
 
 
 class AdminProviderSerializer(ProviderSerializer):
