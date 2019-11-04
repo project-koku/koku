@@ -10,8 +10,9 @@ from dateutil.rrule import DAILY, MONTHLY, rrule
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from api.provider.models import Provider
+
 LOG = get_task_logger(__name__)
-_PROVIDER_TYPES = ['aws', 'ocp', 'azure']
 
 
 class SyncedFileInColdStorageError(Exception):
@@ -31,12 +32,12 @@ class SyncerInterface(ABC):
     """Data syncer interface."""
 
     @abstractmethod
-    def sync_bucket(self, account, destination_bucket_name, date_range):
+    def sync_bucket(self, schema_name, destination_bucket_name, date_range):
         """
         Sync all files in our bucket for one account to customer account.
 
         Args:
-            account (str): account to sync
+            schema_name (str): account schema name to sync
             destination_bucket_name (str): name of the customer bucket
             date_range (tuple): Pair of date objects of inclusive start and exclusive end dates for which to sync data.
 
@@ -69,6 +70,7 @@ class AwsS3Syncer(SyncerInterface):
             source_object (boto3.s3.Object): our source object
 
         """
+        LOG.debug('copying S3 object %s to %s', source_object.key, s3_destination_bucket)
         try:
             destination_object = s3_destination_bucket.Object(source_object.key)
             destination_object.copy_from(
@@ -94,12 +96,12 @@ class AwsS3Syncer(SyncerInterface):
                 )
             raise e
 
-    def sync_bucket(self, account, s3_destination_bucket_name, date_range):
+    def sync_bucket(self, schema_name, s3_destination_bucket_name, date_range):
         """
         Sync buckets if the ENABLE_S3_ARCHIVING flag is set.
 
         Args:
-            account (str): account to sync
+            schema_name (str): account schema name to sync
             s3_destination_bucket_name (str): name of the customer bucket
             date_range (tuple): Pair of date objects of inclusive start and exclusive end dates for which to sync data.
 
@@ -111,23 +113,34 @@ class AwsS3Syncer(SyncerInterface):
             days = rrule(DAILY, dtstart=start_date, until=end_date)
             months = rrule(MONTHLY, dtstart=start_date, until=end_date)
             s3_destination_bucket = self.s3_resource.Bucket(s3_destination_bucket_name)
+            providers = Provider.objects.filter(customer__schema_name=schema_name).all()
 
             # Copy the specific month level files
-            for month, provider_type in product(months, _PROVIDER_TYPES):
+            for month, provider in product(months, providers):
+                # We need to normalize capitalization and "-local" dev providers.
+                provider_slug = provider.type.lower().split('-')[0]
+                prefix = (
+                    f'{settings.S3_BUCKET_PATH}/{schema_name}/'
+                    f'{provider_slug}/{provider.uuid}/'
+                    f'{month.year:04d}/{month.month:02d}/00/'
+                )
+                LOG.debug('sync_bucket checking prefix %s', prefix)
                 for source_object in self.s3_source_bucket.objects.filter(
-                    Prefix=(
-                        f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
-                        f'{month.year:04d}/{month.month:02d}/00/'
-                    )
+                    Prefix=prefix
                 ):
                     self._copy_object(s3_destination_bucket, source_object)
 
             # Copy all the day files
-            for day, provider_type in product(days, _PROVIDER_TYPES):
+            for day, provider in product(days, providers):
+                # We need to normalize capitalization and "-local" dev providers.
+                provider_slug = provider.type.lower().split('-')[0]
+                prefix = (
+                    f'{settings.S3_BUCKET_PATH}/{schema_name}/'
+                    f'{provider_slug}/{provider.uuid}/'
+                    f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
+                )
+                LOG.debug('sync_bucket checking prefix %s', prefix)
                 for source_object in self.s3_source_bucket.objects.filter(
-                    Prefix=(
-                        f'{settings.S3_BUCKET_PATH}/{account}/{provider_type}/'
-                        f'{day.year:04d}/{day.month:02d}/{day.day:02d}/'
-                    )
+                    Prefix=prefix
                 ):
                     self._copy_object(s3_destination_bucket, source_object)
