@@ -16,6 +16,7 @@
 #
 
 """Test the CURAccountsDB utility object."""
+from unittest.mock import patch
 
 from masu.external import AMAZON_WEB_SERVICES, AZURE, OPENSHIFT_CONTAINER_PLATFORM
 from masu.external.accounts.db.cur_accounts_db import CURAccountsDB
@@ -46,3 +47,9 @@ class CURAccountsDBTest(MasuTestCase):
                 self.assertEqual(account.get('customer_name'), self.schema)
             else:
                 self.fail('Unexpected provider')
+
+    def test_get_accounts_from_source_with_inactive(self):
+        """Test to get all active accounts."""
+        import pdb; pdb.set_trace()
+        self.aws_provider.active = False
+
