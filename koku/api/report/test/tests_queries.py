@@ -19,13 +19,13 @@ import copy
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import PropertyMock, patch
 
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import connection
 from django.db.models import Count, DateTimeField, F, Max, Sum, Value
 from django.db.models.functions import Cast, Concat
+from django.urls import reverse
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -1001,7 +1001,6 @@ class ReportQueryTest(IamTestCase):
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
 
-    @skip('cost is invalid param?')
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         dh = DateHelper()
@@ -1036,8 +1035,9 @@ class ReportQueryTest(IamTestCase):
             (current_total - prev_total) / prev_total * 100
         )
 
-        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&group_by[account]=*&delta=cost'  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&delta=cost'  # noqa: E501
+        path = reverse('reports-aws-costs')
+        query_params = self.mocked_query_params(url, AWSCostView, path)
         handler = AWSReportQueryHandler(query_params)
 
         # test the calculations
@@ -1057,14 +1057,14 @@ class ReportQueryTest(IamTestCase):
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
-    @skip('why: rest_framework.exceptions.ValidationError: {\'delta\': {\'delta\': ErrorDetail(string=\'"cost" is not a valid choice.\', code=\'invalid\')}}')  # noqa: E501
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
         expected_delta_value = Decimal(self.current_month_total)
         expected_delta_percent = None
 
         url = '?filter[time_scope_value]=-1&delta=cost'
-        query_params = self.mocked_query_params(url, AWSCostView)
+        path = reverse('reports-aws-costs')
+        query_params = self.mocked_query_params(url, AWSCostView, path)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -1076,7 +1076,6 @@ class ReportQueryTest(IamTestCase):
         self.assertAlmostEqual(delta.get('value'), expected_delta_value, 6)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
-    @skip('cost is invalid param?')
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
         dh = DateHelper()
@@ -1101,7 +1100,8 @@ class ReportQueryTest(IamTestCase):
         previous_data.usage_start = dh.last_month_start + timedelta(days=1)
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[account]=*&delta=cost'  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
+        path = reverse('reports-openshift-aws-costs')
+        query_params = self.mocked_query_params(url, AWSCostView, path)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')

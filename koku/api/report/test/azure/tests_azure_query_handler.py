@@ -18,12 +18,12 @@
 
 import random
 from decimal import Decimal, ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import PropertyMock, patch
 from uuid import UUID
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import F, Sum
+from django.urls import reverse
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -825,7 +825,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month = data_item.get('date')
             self.assertEqual(month, cmonth_str)
 
-    @skip('"cost" is not a valid choice?')
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
@@ -839,6 +838,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             'group_by': {'subscription_guid': ['*']},
             'delta': 'cost',
         }
+        path = reverse('reports-azure-costs')
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost'  # noqa: E501
         # params = {
         #     'filter': {
@@ -849,7 +849,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         #     'group_by': {'subscription_guid': ['*']},
         #     'delta': 'cost',
         # }
-        query_params = self.mocked_query_params(url, AzureCostView)
+        query_params = self.mocked_query_params(url, AzureCostView, path)
         handler = AzureReportQueryHandler(query_params)
         # test the calculations
         query_output = handler.execute_query()
@@ -916,7 +916,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get('value'), expected_delta_value)
         self.assertEqual(delta.get('percent'), expected_delta_percent)
 
-    @skip('"cost" is not a valid choice?')
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
         self.generator.remove_data_from_tenant()
@@ -926,8 +925,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
         generator.add_data_to_tenant()
 
         url = '?filter[time_scope_value]=-1&delta=cost'
+        path = reverse('reports-azure-costs')
         # params = {'filter': {'time_scope_value': -1}, 'delta': 'cost'}
-        query_params = self.mocked_query_params(url, AzureCostView)
+        query_params = self.mocked_query_params(url, AzureCostView, path)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
@@ -939,12 +939,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get('value'), total_cost)
         self.assertEqual(delta.get('percent'), None)
 
-    @skip('"cost" is not a valid choice?')
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""
         AzureReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost'  # noqa: E501
+        path = reverse('reports-azure-costs')
         # params = {
         #     'filter': {
         #         'resolution': 'monthly',
@@ -955,7 +955,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         #     'group_by': {'subscription_guid': ['*']},
         #     'delta': 'cost',
         # }
-        query_params = self.mocked_query_params(url, AzureCostView)
+        query_params = self.mocked_query_params(url, AzureCostView, path)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get('data')
