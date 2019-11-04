@@ -29,7 +29,6 @@ from api.provider.test import create_generic_provider
 from api.query_filter import QueryFilterCollection
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView
-from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
@@ -82,7 +81,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_execute_sum_query(self):
         """Test that the sum query runs properly."""
         url = '?'
-        # query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         aggregates = handler._mapper.report_type_map.get('aggregates')
@@ -106,7 +104,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_execute_sum_query_costs(self):
         """Test that the sum query runs properly for the costs endpoint."""
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         aggregates = handler._mapper.report_type_map.get('aggregates')
@@ -122,16 +119,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_resolution(self):
         """Test that cluster capacity returns a full month's capacity."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'monthly',
-        #         'time_scope_value': -1,
-        #         'time_scope_units': 'month',
-        #     }
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = [{'row': 1}]
@@ -147,17 +134,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'monthly',
-        #         'time_scope_value': -1,
-        #         'time_scope_units': 'month',
-        #     },
-        #     'group_by': {'cluster': ['*']},
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -192,16 +168,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_daily_resolution(self):
         """Test that total capacity is returned daily resolution."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'daily',
-        #         'time_scope_value': -1,
-        #         'time_scope_units': 'month',
-        #     }
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -242,17 +208,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
         """Test that cluster capacity returns daily capacity by cluster."""
         url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'daily',
-        #         'time_scope_value': -1,
-        #         'time_scope_units': 'month',
-        #     },
-        #     'group_by': {'cluster': ['*']},
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
@@ -298,7 +253,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_add_deltas_current_month(self, mock_current_deltas, mock_deltas):
         """Test that the current month method is called for deltas."""
         url = '?'
-        # query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         handler._delta = 'usage__request'
@@ -313,7 +267,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas):
         """Test that the super delta method is called for deltas."""
         url = '?'
-        # query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         handler._delta = 'usage'
@@ -326,7 +279,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_add_current_month_deltas(self):
         """Test that current month deltas are calculated."""
         url = '?'
-        # query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         handler._delta = 'usage__request'
@@ -381,18 +333,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         ).add_data_to_tenant()
 
         url = '?filter[time_scope_value]=-2&filter[resolution]=monthly&filter[time_scope_units]=month&filter[limit]=1&delta=usage__request'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'monthly',
-        #         'time_scope_value': -2,
-        #         'time_scope_units': 'month',
-        #         'limit': 1,
-        #     },
-        #     'delta': 'usage__request',
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
 
@@ -429,12 +369,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         ).add_data_to_tenant()
 
         url = '?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1'
-        # params = {
-        #     'filter': {'resolution': 'monthly', 'time_scope_value': -1, 'limit': 1}
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         handler._delta = 'usage__foo'
@@ -467,7 +401,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_strip_label_column_name(self):
         """Test that the tag column name is stripped from results."""
         url = '?'
-        # query_params = FakeQueryParameters({}, report_type='cpu', tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         tag_column = handler._mapper.provider_map.get('tag_column')
@@ -488,55 +421,35 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_tag_filter_keys(self):
         """Test that filter params with tag keys are returned."""
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys(filters=False)
 
         url = f'?filter[tag:{tag_keys[0]}]=*'
-        # params = {
-        #     'filter': {
-        #         'resolution': 'monthly',
-        #         'time_scope_value': -1,
-        #         'time_scope_units': 'month',
-        #         tag_keys[0]: ['*'],
-        #     }
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tag_keys=tag_keys, tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         results = handler.get_tag_filter_keys()
         self.assertEqual(results, ['tag:' + tag_keys[0]])
 
-    # @skip('FIXME: intermittent failure')
     def test_get_tag_group_by_keys(self):
         """Test that group_by params with tag keys are returned."""
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys(filters=False)
         group_by_key = tag_keys[0]
 
         url = f'?group_by[tag:{group_by_key}]=*'
-        # params = {'group_by': {tag_keys[0]: ['*']}}
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tag_keys=tag_keys, tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ['tag:' + group_by_key])
 
-    @skip('FIXME: intermittent failure')
     def test_set_tag_filters(self):
         """Test that tag filters are created properly."""
         filters = QueryFilterCollection()
 
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys(filters=False)
@@ -549,13 +462,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         group_by_value = 'group_By'
 
         url = f'?filter[tag:{filter_key}]={filter_value}&group_by[tag:{group_by_key}]={group_by_value}'
-        # params = {
-        #     'filter': {filter_key: [filter_value]},
-        #     'group_by': {group_by_key: [group_by_value]},
-        # }
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tag_keys=tag_keys, tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         filters = handler._set_tag_filters(filters)
@@ -564,11 +470,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(repr(filters), expected)
 
-    @skip('FIXME: intermittent failure')
     def test_get_exclusions(self):
         """Test that exclusions are properly set."""
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys(filters=False)
@@ -576,21 +480,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
         group_by_key = tag_keys[0]
         group_by_value = 'group_By'
         url = f'?group_by[tag:{group_by_key}]={group_by_value}'
-        # params = {'group_by': {group_by_key: [group_by_value]}}
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tag_keys=tag_keys, tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         exclusions = handler._get_exclusions()
         expected = f"<Q: (AND: ('pod_labels__{group_by_key}__isnull', True))>"
         self.assertEqual(repr(exclusions), expected)
 
-    @skip('FIXME: intermittent failure')
     def test_get_tag_group_by(self):
         """Test that tag based group bys work."""
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         tag_keys = handler.get_tag_keys(filters=False)
@@ -598,10 +496,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         group_by_key = tag_keys[0]
         group_by_value = 'group_by'
         url = f'?group_by[tag:{group_by_key}]={group_by_value}'
-        # params = {'group_by': {group_by_key: [group_by_value]}}
-        # query_params = FakeQueryParameters(
-        #     params, report_type='cpu', tag_keys=tag_keys, tenant=self.tenant
-        # )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         group_by = handler._get_tag_group_by()
@@ -616,7 +510,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         expected_param = (tag.split('__')[1],)
 
         url = '?'
-        # query_params = FakeQueryParameters({}, tenant=self.tenant)
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         result = handler.get_tag_order_by(tag)
@@ -633,18 +526,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        # '?filter[resolution]=monthly&filter[time_scope_value]=-1
-        # &filter[time_scope_units]=month&filter[infrastructures]=aws'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'infrastructures': ['aws'],
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPReportQueryHandler(query_params.mock_qp)
+        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
         for entry in query_data.get('data', []):
@@ -660,18 +544,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         data_generator.add_data_to_tenant()
 
-        # '?filter[resolution]=monthly&filter[time_scope_value]=-1
-        # &filter[time_scope_units]=month&filter[infrastructures]=aws'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'infrastructures': ['AWS'],
-            }
-        }
-        query_params = FakeQueryParameters(params, tenant=self.tenant)
-        handler = OCPReportQueryHandler(query_params.mock_qp)
+        url = '?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws'
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
         for entry in query_data.get('data', []):
@@ -682,16 +557,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_order_by_null_values(self):
         """Test that order_by returns properly sorted data with null data."""
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-            }
-        }
-        query_params = FakeQueryParameters(params)
-        handler = OCPReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly'
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
 
         unordered_data = [
             {'node': None, 'cluster': 'cluster-1'},
@@ -715,21 +583,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for _ in range(1, 5):
             OCPReportDataGenerator(self.tenant, self.provider).add_data_to_tenant()
 
-        # '?filter[time_scope_units]=month&filter[time_scope_value]=-1
-        # &filter[resolution]=monthly&group_by[cluster]=*'
-        params = {
-            'filter': {
-                'resolution': 'monthly',
-                'time_scope_value': -1,
-                'time_scope_units': 'month',
-                'limit': 3,
-            },
-            'group_by': {'cluster': ['*']},
-        }
-        query_params = FakeQueryParameters(
-            params, report_type='cpu', tenant=self.tenant
-        )
-        handler = OCPReportQueryHandler(query_params.mock_qp)
+        url = '?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*'
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
 
         query_data = handler.execute_query()
         for data in query_data.get('data'):
