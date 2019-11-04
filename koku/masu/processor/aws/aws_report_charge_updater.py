@@ -83,6 +83,8 @@ class AWSReportChargeUpdater:
         LOG.debug('Starting charge calculation updates for provider: %s. Dates: %s-%s',
                   self._provider_uuid, str(start_date), str(end_date))
 
+        self._update_markup_cost(start_date, end_date)
+
         with AWSReportDBAccessor(self._schema, self._column_map) as accessor:
             LOG.debug('Updating AWS derived cost summary for schema: %s and provider: %s',
                       self._schema, self._provider_uuid)
@@ -91,4 +93,3 @@ class AWSReportChargeUpdater:
                 for bill in bills:
                     bill.derived_cost_datetime = DateAccessor().today_with_timezone('UTC')
                     bill.save()
-        self._update_markup_cost(start_date, end_date)
