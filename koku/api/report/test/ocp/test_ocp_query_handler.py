@@ -32,7 +32,7 @@ from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.report.test.ocp_aws.helpers import OCPAWSReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportQueryHandlerTest(IamTestCase):
@@ -72,7 +72,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.this_month_filter
         with tenant_context(self.tenant):
-            return CostSummary.objects.filter(**filters).aggregate(
+            return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(
                 **aggregates
             )
 

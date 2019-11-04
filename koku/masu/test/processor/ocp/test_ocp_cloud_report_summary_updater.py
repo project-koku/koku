@@ -351,7 +351,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
         with OCPReportDBAccessor(self.schema, self.column_map) as ocp_accessor:
             ocp_accessor.populate_cost_summary_table(cluster_id, start_date, end_date)
-            cost_summary_table = OCP_REPORT_TABLE_MAP['cost_summary']
+            cost_summary_table = OCP_REPORT_TABLE_MAP['line_item_daily_summary']
             cost_summary_query = ocp_accessor._get_db_obj_query(cost_summary_table)
 
         possible_values = {}

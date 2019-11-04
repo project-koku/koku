@@ -41,7 +41,7 @@ from api.report.test import FakeQueryParameters
 from api.report.test.ocp.helpers import OCPReportDataGenerator
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.utils import DateHelper
-from reporting.models import CostSummary, OCPUsageLineItemDailySummary
+from reporting.models import OCPUsageLineItemDailySummary
 
 
 class OCPReportViewTest(IamTestCase):
@@ -555,7 +555,7 @@ class OCPReportViewTest(IamTestCase):
         data = response.data
 
         with tenant_context(self.tenant):
-            cost = CostSummary.objects\
+            cost = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=self.dh.this_month_start)\
                 .aggregate(
                     total=Sum(
@@ -598,7 +598,7 @@ class OCPReportViewTest(IamTestCase):
             return datetime.datetime.strptime(dt, '%Y-%m-%d').date()
 
         with tenant_context(self.tenant):
-            current_total = CostSummary.objects\
+            current_total = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .aggregate(
                     total=Sum(
@@ -612,7 +612,7 @@ class OCPReportViewTest(IamTestCase):
                 ).get('total')
             current_total = current_total if current_total is not None else 0
 
-            current_totals = CostSummary.objects\
+            current_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
                 .values(*['date'])\
@@ -627,7 +627,7 @@ class OCPReportViewTest(IamTestCase):
                     )
                 )
 
-            prev_totals = CostSummary.objects\
+            prev_totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__date__gte=last_month_start)\
                 .filter(usage_start__date__lt=this_month_start)\
                 .annotate(**{'date': TruncDayString('usage_start')})\
@@ -1032,7 +1032,7 @@ class OCPReportViewTest(IamTestCase):
             label_of_interest = labels[0]
             filter_value = label_of_interest.get('pod_labels', {}).get(filter_key)
 
-            totals = CostSummary.objects\
+            totals = OCPUsageLineItemDailySummary.objects\
                 .filter(usage_start__gte=self.ten_days_ago)\
                 .filter(**{f'pod_labels__{filter_key}': filter_value})\
                 .aggregate(
