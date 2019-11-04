@@ -13,13 +13,16 @@ LOG = logging.getLogger(__name__)
 _DB_FETCH_BATCH_SIZE = 2000
 
 
-def get_upload_path(account_name, provider_type, date, table_name, daily=False):
+def get_upload_path(
+    account_name, provider_type, provider_uuid, date, table_name, daily=False
+):
     """
     Get the s3 upload_path for a file.
 
     Args:
         account_name (str): Koku user account (schema) name.
         provider_type (str): Koku backend provider type identifier.
+        provider_uuid (UUID): Koku backend provider UUID.
         date (date): Date at which the exported data is relevant.
         table_name (str): Name of the table being exported.
         daily (bool): If true, include the day of month in the path.
@@ -37,11 +40,12 @@ def get_upload_path(account_name, provider_type, date, table_name, daily=False):
         # are relevant to the month but not to a specific day in that month.
         date_part = '{year}/{month:02d}/00'.format(year=date.year, month=date.month)
     upload_path = (
-        '{bucket_path}/{account_name}/{provider_type}/'
+        '{bucket_path}/{account_name}/{provider_type}/{provider_uuid}/'
         '{date_part}/{table_name}.csv.gz'.format(
             bucket_path=settings.S3_BUCKET_PATH,
             account_name=account_name,
             provider_type=provider_type,
+            provider_uuid=provider_uuid,
             date_part=date_part,
             table_name=table_name,
         )
@@ -49,19 +53,21 @@ def get_upload_path(account_name, provider_type, date, table_name, daily=False):
     return upload_path
 
 
-def query_and_upload_to_s3(schema, table_export_setting, date_range):
+def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_range):
     """
     Query the database and upload the results to s3.
 
     Args:
         schema (str): Account schema name in which to execute the query.
+        provider_uuid (UUID): Provider UUID for filtering the query.
         table_export_setting (TableExportSetting): Settings for the table export.
         date_range (tuple): Pair of date objects of inclusive start and end dates.
 
     """
     LOG.info(
-        'query_and_upload_to_s3: schema %s table.output_name %s for %s',
+        'query_and_upload_to_s3: schema %s provider_uuid %s table.output_name %s for %s',
         schema,
+        provider_uuid,
         table_export_setting.output_name,
         date_range,
     )
@@ -78,6 +84,7 @@ def query_and_upload_to_s3(schema, table_export_setting, date_range):
             upload_path = get_upload_path(
                 schema,
                 table_export_setting.provider,
+                provider_uuid,
                 the_date,
                 table_export_setting.output_name,
                 iterate_daily,
@@ -87,6 +94,7 @@ def query_and_upload_to_s3(schema, table_export_setting, date_range):
                 {
                     'start_date': the_date,
                     'end_date': the_date if iterate_daily else end_date,
+                    'provider_uuid': provider_uuid,
                 },
             )
             # Don't upload if result set is empty
