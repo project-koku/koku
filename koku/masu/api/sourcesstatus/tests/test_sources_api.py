@@ -27,7 +27,7 @@ from rest_framework.test import APIClient
 
 faker = Faker()
 
-
+#with patch.object(AWSProvider, 'cost_usage_source_is_reachable', return_value=True):
 class SourcesStatusTest(TestCase):
     """Test Sources Status API"""
     def setUp(self):
