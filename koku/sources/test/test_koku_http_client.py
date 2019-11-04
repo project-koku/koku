@@ -62,6 +62,17 @@ class KokuHTTPClientTest(TestCase):
                 client.create_provider(self.name, self.provider_type, self.authentication, self.billing_source)
 
     @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
+    def test_create_provider_bad_permissions(self):
+        """Test to create a provider with a bad permissions ."""
+        client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
+        with requests_mock.mock() as m:
+            m.post('http://www.koku.com/api/cost-management/v1/providers/',
+                   status_code=401,
+                   json={'uuid': faker.uuid4()})
+            with self.assertRaises(KokuHTTPClientNonRecoverableError):
+                client.create_provider(self.name, self.provider_type, self.authentication, self.billing_source)
+
+    @patch.object(Config, 'KOKU_API_URL', 'http://www.koku.com/api/cost-management/v1')
     def test_create_provider_connection_error(self):
         """Test to create a provider with a connection error."""
         client = KokuHTTPClient(auth_header=Config.SOURCES_FAKE_HEADER)
