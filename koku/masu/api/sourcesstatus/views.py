@@ -1,6 +1,6 @@
 from rest_framework import viewsets
-from .sources_status import SourcesStatus
-from .serializer import SourcesStatusSerializer
+#from .sources_status import SourcesStatus
+#from .serializer import SourcesStatusSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -30,7 +30,7 @@ class SourceStatusView(APIView):
         try:
             int(source_id)
         except ValueError:
-            # Validate that source_id is an int, if not, return HTTP Error 400 bad request
+            # source_id must be an integer
             return Response(data='source_id must be an integer', status=status.HTTP_400_BAD_REQUEST)
         try:
             source = Sources.objects.get(source_id=source_id)

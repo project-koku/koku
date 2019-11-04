@@ -54,7 +54,7 @@ class SourcesStatusTest(TestCase):
 
     def testEndpoint200Response(self):
         """Test that the sources_status list View returns 200 OK."""
-        url = reverse('sources_status-list')
+        url = reverse('sources_status_view')
         client = APIClient()
         response = client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
