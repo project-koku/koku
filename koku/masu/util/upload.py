@@ -78,9 +78,9 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
         DAILY, dtstart=start_date, until=end_date if iterate_daily else start_date
     )
 
-    with connection.cursor() as cursor:
-        cursor.db.set_schema(schema)
-        for the_date in dates_to_iterate:
+    for the_date in dates_to_iterate:
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(schema)
             upload_path = get_upload_path(
                 schema,
                 table_export_setting.provider,
@@ -99,7 +99,7 @@ def query_and_upload_to_s3(schema, provider_uuid, table_export_setting, date_ran
             )
             # Don't upload if result set is empty
             if cursor.rowcount == 0:
-                return
+                continue
             with NamedTemporaryGZip() as temp_file:
                 writer = csv.writer(temp_file, quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 writer.writerow([field.name for field in cursor.description])
